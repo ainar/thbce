@@ -222,7 +222,8 @@ impl BatimentHoraire {
             z.pas_avec_espaces_tampons(h, climat, confort, &self.coefficients)?;
         }
         if self.mode != ModeCalcul::ThB {
-            self.systemes.pas(h, &mut self.zones);
+            self.systemes
+                .pas(h, &mut self.zones, climat.te_c[h], &self.coefficients);
         }
         Ok(())
     }
@@ -257,18 +258,21 @@ impl SystemesBatiment {
     /// groupes. Références vérifiées par la validation.
     fn nouveaux(bat: &crate::entree::Batiment, zones: &mut [ZoneHoraire]) -> Self {
         let generations: Vec<String> = bat.generations.iter().map(|g| g.id.clone()).collect();
+        let ids_et: Vec<String> = bat.espaces_tampons.iter().map(|e| e.id.clone()).collect();
         let permanent = bat
             .generations
             .iter()
             .map(|g| g.raccordement_reseaux == RaccordementReseaux::Permanent)
             .collect();
-        let intergroupes: Vec<DistributionIntergroupesResolue> = bat
+        let mut intergroupes: Vec<DistributionIntergroupesResolue> = bat
             .distributions_intergroupes
             .iter()
             .map(|d| {
-                DistributionIntergroupesResolue::nouvelle(d, |id| {
-                    generations.iter().position(|g| g == id)
-                })
+                DistributionIntergroupesResolue::nouvelle(
+                    d,
+                    |id| generations.iter().position(|g| g == id),
+                    |id| ids_et.iter().position(|e| e == id),
+                )
             })
             .collect();
         let ids_dp: Vec<String> = intergroupes.iter().map(|d| d.id.clone()).collect();
@@ -276,7 +280,18 @@ impl SystemesBatiment {
         let mut a_desservie = vec![Vec::new(); intergroupes.len()];
         for (z, zone) in zones.iter_mut().zip(&bat.zones) {
             for (g, groupe) in z.groupes.iter_mut().zip(&zone.groupes) {
-                g.lier_systemes(groupe, |id| ids_dp.iter().position(|d| d == id));
+                g.lier_systemes(
+                    groupe,
+                    |id| ids_dp.iter().position(|d| d == id),
+                    |id| ids_et.iter().position(|e| e == id),
+                );
+                if let Some(sy) = &g.systemes {
+                    for d in &sy.distributions {
+                        if let Some(dp) = intergroupes.get_mut(d.intergroupes) {
+                            dp.ajouter_reseau_groupe(&d.reseau);
+                        }
+                    }
+                }
                 let mut d = DesserteGroupe {
                     i_clim: g.i_clim,
                     ..DesserteGroupe::default()
@@ -351,7 +366,13 @@ impl SystemesBatiment {
 
     /// Pas de temps des réseaux intergroupes, après celui des groupes ; à la bascule des
     /// saisons (9 h légales, décision Q39), nouvelles autorisations effectives (lecture Q43).
-    fn pas(&mut self, h: usize, zones: &mut [ZoneHoraire]) {
+    fn pas(
+        &mut self,
+        h: usize,
+        zones: &mut [ZoneHoraire],
+        theta_ext_c: f64,
+        espaces_tampons: &[CoefficientsEt],
+    ) {
         let mois = usize::from(date_scenario(h).mois) - 1;
         let groupes: Vec<_> = zones.iter().flat_map(|z| z.groupes.iter()).collect();
         let mut aval = Vec::new();
@@ -369,7 +390,12 @@ impl SystemesBatiment {
                     }
                 }
             }
-            let s = dp.pas(&aval);
+            // Éq. (924) et (932) : `btherm` de l'espace tampon traversé, 1 à l'extérieur.
+            let b_therm = dp
+                .espace_tampon
+                .and_then(|i| espaces_tampons.get(i))
+                .map_or(1.0, |e| e.b_therm);
+            let s = dp.pas(&aval, theta_ext_c, b_therm);
             let c = &mut self.cumuls[k];
             c.q_ch_mensuel_wh[mois] += s.q_sys_ch_wh;
             c.q_fr_mensuel_wh[mois] -= s.q_sys_fr_wh;

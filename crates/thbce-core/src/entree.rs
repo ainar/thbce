@@ -1271,6 +1271,126 @@ pub enum ReseauIntergroupes {
     /// 0 : réseau fictif, sans pertes ni auxiliaires, pour les systèmes sans fluide caloporteur
     /// (effet Joule, poêles et inserts, pompes à chaleur à détente directe ; §8.9.3.5.1).
     Fictif,
+    /// 1 : réseau hydraulique collectif (§8.9.3.5.2 et §8.10.3.2).
+    HydrauliqueCollectif(ReseauHydrauliqueIntergroupes),
+    /// 2 : réseaux hydrauliques individuels uniquement : pas de pertes intergroupes
+    /// (`Modpertes = 0`, éq. 905 et 914). Une installation individuelle sans branche
+    /// intergroupes se décrit aussi par un réseau hydraulique de longueur nulle, sans
+    /// circulateur (note du §8.9.3.5).
+    HydrauliqueIndividuels(ReseauHydrauliqueIntergroupes),
+}
+
+/// Th-BCE 2020 §8.9.2 et §8.10.2 — paramètres d'un réseau intergroupes hydraulique.
+///
+/// Classement des longueurs en ou hors volume chauffé : fiche d'application 8.13 (un réseau
+/// intégré à une paroi est en volume chauffé si la résistance thermique qui le sépare du volume
+/// chauffé est inférieure à la moitié de celle de la paroi ; en gaine palière, selon la
+/// circulation au sens des règles Th-Bat ; en gaine logement, en volume chauffé).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReseauHydrauliqueIntergroupes {
+    /// « Lvc » : longueur en volume chauffé, en m.
+    pub l_vc_m: f64,
+    /// « Lhvc » : longueur hors volume chauffé, en m.
+    pub l_hvc_m: f64,
+    /// « Umoy_vc » : coefficient de déperdition linéique moyen en volume chauffé, en W/(m.K).
+    pub u_vc_w_mk: f64,
+    /// « Umoy_hvc » : coefficient de déperdition linéique moyen hors volume chauffé, en W/(m.K).
+    pub u_hvc_w_mk: f64,
+    /// « Paux » : puissance du circulateur, en W.
+    pub p_aux_w: f64,
+    /// « idcirc » : régulation du circulateur.
+    pub circulateur: Circulateur,
+    /// Espace tampon traversé par la partie hors volume chauffé (« btherm », éq. 924 et 932).
+    /// Absent : la partie hors volume chauffé est à l'extérieur (`btherm = 1`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub espace_tampon: Option<Id>,
+}
+
+/// « idcirc » (§8.7.2, §8.9.2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Circulateur {
+    /// 0 : pas de circulateur.
+    Aucun,
+    /// 1 : vitesse constante.
+    VitesseConstante,
+    /// 2 : vitesse variable, pression différentielle constante (réseau à débit variable).
+    PressionConstante,
+    /// 3 : vitesse variable réduisant la pression différentielle (réseau à débit variable).
+    PressionVariable,
+}
+
+/// « iddebit » (§8.7.2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RegulationDebit {
+    /// 1 : débit constant, fonctionnement continu.
+    DebitConstantContinu,
+    /// 2 : débit constant, fonctionnement intermittent.
+    DebitConstantIntermittent,
+    /// 3 : débit variable.
+    DebitVariable,
+}
+
+/// « idgest » (§8.7.2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RegulationTemperature {
+    /// 1 : température de départ constante.
+    DepartConstant,
+    /// 2 : température de retour constante.
+    RetourConstant,
+    /// 3 : température de départ fonction de la température extérieure (chauffage seul).
+    LoiDEau,
+}
+
+/// Th-BCE 2020 §8.7.2 et §8.8.2 — paramètres d'un réseau hydraulique du groupe.
+///
+/// Classement des longueurs en ou hors volume chauffé : fiche d'application 8.13 (voir
+/// [`ReseauHydrauliqueIntergroupes`]) ; les planchers chauffants ou rafraîchissants n'en
+/// relèvent pas.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReseauHydrauliqueGroupe {
+    /// « iddebit » : régulation du débit.
+    pub regulation_debit: RegulationDebit,
+    /// « idgest » : régulation de la température.
+    pub regulation_temperature: RegulationTemperature,
+    /// « θdep_dim » : température de départ de dimensionnement, en °C ; requise pour une
+    /// température de départ constante ou une loi d'eau.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub theta_dep_dim_c: Option<f64>,
+    /// « θret_dim » : température de retour de dimensionnement, en °C ; requise pour une
+    /// température de retour constante.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub theta_ret_dim_c: Option<f64>,
+    /// « Δθem_dim » : écart nominal de température entre départ et retour, en K (négatif en
+    /// refroidissement).
+    pub delta_theta_em_dim_k: f64,
+    /// « qnom » : débit volumique nominal, en m³/h.
+    pub q_nom_m3_h: f64,
+    /// « qresid » : débit résiduel minimal d'un réseau à débit variable, en m³/h ; requis pour
+    /// un réseau à débit variable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub q_resid_m3_h: Option<f64>,
+    /// « idcirc » : régulation du circulateur.
+    pub circulateur: Circulateur,
+    /// « Paux » : puissance du circulateur, en W.
+    pub p_aux_w: f64,
+    /// « Lvc » : longueur en volume chauffé, en m.
+    pub l_vc_m: f64,
+    /// « Lhvc » : longueur hors volume chauffé, en m.
+    pub l_hvc_m: f64,
+    /// « Umoyen_vc » : coefficient de déperdition linéique moyen en volume chauffé, en W/(m.K).
+    pub u_vc_w_mk: f64,
+    /// « Umoyen_hvc » : coefficient de déperdition linéique moyen hors volume chauffé, en
+    /// W/(m.K).
+    pub u_hvc_w_mk: f64,
+    /// Espace tampon traversé par la partie hors volume chauffé (« btherm », éq. 876 et 883).
+    /// Absent : la partie hors volume chauffé est à l'extérieur (`btherm = 1`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub espace_tampon: Option<Id>,
 }
 
 /// Th-BCE 2020 §8.7 et §8.8 — réseau de distribution du groupe, de chaud ou de froid, connecté
@@ -1295,6 +1415,8 @@ pub enum ReseauGroupe {
     /// 0 : réseau fictif, sans pertes ni auxiliaires (§8.7.3.3.1 et §8.8.3.1) : effet Joule,
     /// générateurs d'air chaud, poêles et inserts, pompes à chaleur à détente directe.
     Fictif,
+    /// 1 : réseau hydraulique (§8.7.3.3.2, §8.7.3.3.3, §8.8.3.2 et §8.8.3.3).
+    Hydraulique(ReseauHydrauliqueGroupe),
 }
 
 /// Th-BCE 2020 §8.5 — programmation des relances d'un groupe.

@@ -3,7 +3,8 @@
 //! requises par émetteur, ventilateurs locaux, réseaux de distribution du groupe (Th-BCE 2020
 //! §8.1.3.7, §8.1.3.8, §8.6 à 8.8), et leurs cumuls annuels.
 
-use crate::entree::{FonctionReseau, Groupe};
+use crate::bati::espace_tampon::espace_tampon::CoefficientsEt;
+use crate::entree::{FonctionReseau, Groupe, RegulationTemperature, ReseauGroupe};
 
 use super::distribution::{DistributionGroupeResolue, SortiesDistributionGroupe};
 use super::emetteurs::{
@@ -71,19 +72,40 @@ pub struct CumulsSystemesGroupe {
     pub w_vent_loc_wh: f64,
     /// Nombre de pas de temps en relance.
     pub nbh_relance: u32,
+    /// Cumuls de chaque réseau de distribution du groupe.
+    pub distributions: Vec<CumulsDistributionGroupe>,
+}
+
+/// Cumuls annuels d'un réseau de distribution du groupe, en Wh.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct CumulsDistributionGroupe {
+    /// Demande transmise au réseau intergroupes (valeur absolue en froid).
+    pub q_wh: f64,
+    /// « Φpertes_vc » : pertes vers le volume chauffé (valeur absolue en froid).
+    pub phi_pertes_vc_wh: f64,
+    /// « Φpertes_hvc » : pertes hors volume chauffé (valeur absolue en froid).
+    pub phi_pertes_hvc_wh: f64,
+    /// « Waux » : consommation du circulateur.
+    pub w_aux_wh: f64,
+    /// « Φaux_vc » : part de cette consommation transmise au volume chauffé.
+    pub phi_aux_vc_wh: f64,
 }
 
 impl SystemesGroupe {
     /// Résout les systèmes d'un groupe ; `intergroupes` donne l'indice d'un réseau intergroupes
     /// du bâtiment. `None` si le groupe ne décrit pas d'émetteur.
-    pub fn nouveaux(g: &Groupe, intergroupes: impl Fn(&str) -> Option<usize>) -> Option<Self> {
+    pub fn nouveaux(
+        g: &Groupe,
+        intergroupes: impl Fn(&str) -> Option<usize>,
+        espaces_tampons: impl Fn(&str) -> Option<usize>,
+    ) -> Option<Self> {
         if g.emetteurs.is_empty() {
             return None;
         }
         let distributions: Vec<DistributionGroupeResolue> = g
             .distributions
             .iter()
-            .map(|d| DistributionGroupeResolue::nouvelle(d, &intergroupes))
+            .map(|d| DistributionGroupeResolue::nouvelle(d, &intergroupes, &espaces_tampons))
             .collect();
         let indice = |id: &str| distributions.iter().position(|d| d.id == id);
         let emetteurs: Vec<EmetteurResolu> = g
@@ -115,6 +137,7 @@ impl SystemesGroupe {
             cumuls: CumulsSystemesGroupe {
                 q_em_ch_wh: vec![0.0; n],
                 q_em_fr_wh: vec![0.0; n],
+                distributions: vec![CumulsDistributionGroupe::default(); nd],
                 ..CumulsSystemesGroupe::default()
             },
             emetteurs,
@@ -167,14 +190,39 @@ impl SystemesGroupe {
     /// « θbatt_dim^em » de l'émetteur d'indice `i`, en °C (éq. 817 et 818) : 9 °C sur un réseau
     /// fictif (climatiseur à détente directe).
     pub fn theta_batt_dim_c(&self, i: usize) -> f64 {
-        let _ = i;
-        super::bilan_hydrique::THETA_BATT_DIM_DETENTE_DIRECTE_C
+        let reseau = self
+            .emetteurs
+            .get(i)
+            .and_then(|e| e.froid)
+            .and_then(|f| self.distributions.get(f.distribution))
+            .map(|d| &d.reseau);
+        match reseau {
+            // Éq. (818) : réseau d'eau, départ ou retour constant, moins la moitié de l'écart
+            // nominal.
+            Some(ReseauGroupe::Hydraulique(h)) => {
+                let base = match h.regulation_temperature {
+                    RegulationTemperature::RetourConstant => h.theta_ret_dim_c,
+                    _ => h.theta_dep_dim_c,
+                };
+                base.unwrap_or(super::bilan_hydrique::THETA_BATT_DIM_DETENTE_DIRECTE_C)
+                    - h.delta_theta_em_dim_k / 2.0
+            }
+            // Éq. (817).
+            _ => super::bilan_hydrique::THETA_BATT_DIM_DETENTE_DIRECTE_C,
+        }
     }
 
     /// Termine le pas de temps : ajoute l'énergie latente de déshumidification de chaque
     /// émetteur (éq. 828, `latent_wh` ≤ 0, vide hors calcul des consommations), puis calcule
     /// les réseaux de distribution du groupe (§8.7 et §8.8) et les cumuls.
-    pub fn distribuer(&mut self, latent_wh: &[f64], mois: usize) {
+    pub fn distribuer(
+        &mut self,
+        latent_wh: &[f64],
+        mois: usize,
+        theta_ext_c: f64,
+        theta_ext_base_c: f64,
+        espaces_tampons: &[CoefficientsEt],
+    ) {
         let s = &mut self.sorties;
         let (relance, theta_i_moy_c) = (s.relance, s.theta_i_moy_c);
         for (q, l) in s.q_em_wh.iter_mut().zip(latent_wh) {
@@ -207,9 +255,29 @@ impl SystemesGroupe {
                     }
                 })
                 .sum();
-            s.distributions[k] = d.pas(q, theta_i_moy_c, relance);
+            // Éq. (876) et (883) : `btherm` de l'espace tampon traversé, 1 à l'extérieur.
+            let b_therm = d
+                .espace_tampon
+                .and_then(|i| espaces_tampons.get(i))
+                .map_or(1.0, |e| e.b_therm);
+            s.distributions[k] = d.pas(
+                q,
+                theta_i_moy_c,
+                relance,
+                theta_ext_c,
+                theta_ext_base_c,
+                b_therm,
+            );
         }
         let c = &mut self.cumuls;
+        for (k, d) in s.distributions.iter().enumerate() {
+            let cd = &mut c.distributions[k];
+            cd.q_wh += (d.q_sys_ch_wh - d.q_sys_fr_wh).abs();
+            cd.phi_pertes_vc_wh += d.phi_pertes_vc_wh.abs();
+            cd.phi_pertes_hvc_wh += d.phi_pertes_hvc_wh.abs();
+            cd.w_aux_wh += d.w_aux_wh;
+            cd.phi_aux_vc_wh += d.phi_aux_vc_wh;
+        }
         if let (Some(ch), Some(fr)) = (
             c.q_sys_ch_mensuel_wh.get_mut(mois),
             c.q_sys_fr_mensuel_wh.get_mut(mois),
