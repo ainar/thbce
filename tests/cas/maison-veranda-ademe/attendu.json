@@ -1,0 +1,54 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b",
+    "altcorr_m": 100,
+    "base_ext_c": -6.5
+  },
+  "batiments": [
+    {
+      "id": "maison",
+      "sref_m2": 96.4,
+      "zones": [
+        {
+          "id": "logement",
+          "groupes": [
+            {
+              "id": "volume-chauffe",
+              "enveloppe": {
+                "a_op_m2": 290.0,
+                "h_th_op_w_k": 45.0,
+                "l_pt_m": 40.0,
+                "h_th_pt_w_k": 4.0,
+                "a_baies_m2": 10.0,
+                "h_ges_sp_w_k": 13.0
+              }
+            }
+          ]
+        }
+      ],
+      "espaces_tampons": [
+        {
+          "id": "veranda",
+          "valeurs_par_defaut": [
+            {
+              "champ": "nature.solarise.cm_et_surf_kj_m2k",
+              "valeur": 200.0
+            },
+            {
+              "champ": "nature.solarise.qv_et_base_m3_h",
+              "valeur": 36.0
+            }
+          ]
+        },
+        {
+          "id": "garage",
+          "th_b": {
+            "nbh_surventilation": 0
+          },
+          "valeurs_par_defaut": []
+        }
+      ]
+    }
+  ]
+}
