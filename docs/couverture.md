@@ -98,7 +98,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 4.3 | FA_Comment identifier l’usage d’un bâtiment et l’exigence associée | 69–69 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
 | 4.4 | FA_Extension_de_bâtiment | 70–70 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
 | 4.5 | C_Ein_Indicateurs de confort | 71–79 | 5 | `core/src/confort/indicateurs_confort.rs` | non commencé |
-| 4.6 | C_Ein_Détermination des saisons | 80–94 | 4 | `core/src/scenarios/saisons.rs` | partiel : saisons propres, procédure du Bbio (éq. 67 à 92) ; lectures Q35 ; indicateurs de confort en entrée ; branchement horaire au lot 4d2 |
+| 4.6 | C_Ein_Détermination des saisons | 80–94 | 4 | `core/src/scenarios/saisons.rs` | partiel : saisons propres (éq. 67 à 92) ; en Bbio, autorisations effectives égales aux autorisations propres, sans égard pour `iclim` (éq. 91) ; lectures Q35 ; indicateurs de confort en entrée ; autorisations effectives du calcul des consommations au lot 6 ; branchement horaire au lot 4d2 |
 | 4.7 | C_EIN_calcul des consommations electriques des équipements mobiliers | 95–96 | 7 | `core/src/scenarios/equipements_mobiliers.rs` | non commencé |
 
 ### 5. Bati (p. 97–320)
