@@ -49,7 +49,7 @@ Chaque entrée indique la section du texte, la nature du manque ou de l'ambiguï
 | Q38 | Indicateurs de confort, émission et bilan hydrique du Bbio (fiches 4.5, 8.1 et 8.3) : facteur des écarts d'inconfort chaud (éq. 61) ; `φcrois` en W ; `iclim` en Bbio (§8.1.3.1 et éq. 807, contre la lettre du texte) ; signe de `Qsys_fr` ; catégorie d'ambiance ; volume du groupe obligatoire | tranchée, à confirmer par un cas de référence ; `iclim` en Bbio (point 3) rejoint les **paramètres à tester si le Bbio diverge** |
 | Q39 | Enchaînement horaire du Bbio (fiches 5.5, 5.7 et 13.1) : changement de jour (éq. 175 et scénarios à minuit légal, `θrm` au jour du fichier météo, saisons après le pas de 9 h légales) ; hall fictif ; état initial ; mois conventionnels ; sommation des énergies ; zone étanche refusée ; sensibilités mesurées | tranchée, à confirmer par un cas de référence |
 | Q40 | Confort d'été, calcul Th-D (fiches 13.5, 5.21 §10, 4.6, 5.5 et 5.7) : assemblage du calcul Th-D (ventilation et émission conventionnelles du Bbio, faute des systèmes du projet) ; saison de refroidissement en Th-D ; éq. (2544) à (2546) ; inerties séquentielle et annuelle (figure 66, sommes, initialisations, cas dégénérés) ; DH de la zone et du bâtiment ; forfait de refroidissement reporté au lot 7 | tranchée, à confirmer par un cas de référence ; le point 1 reste **provisoire** jusqu'au lot 6a |
-| Q41 | Espaces tampons (fiches 5.2, 5.3 et 5.4) : `Hges_set` des baies, ouverture des baies donnant sur une véranda, `Ventc_lim`, branche de fermeture de l'éq. (104), `Partouv_et_inocc`, `btherm` quand `θi_eq = θext`, `HTH,k+pt` négatif, air neuf des entrées d'air par un espace tampon, état initial, modes Th-B et Th-D, perméabilité des parois sur espace tampon | **ouverte** : lectures retenues à valider |
+| Q41 | Espaces tampons (fiches 5.2, 5.3 et 5.4) : `Hges_set` des baies, ouverture des baies donnant sur une véranda, `Ventc_lim`, branche de fermeture de l'éq. (104), `Partouv_et_inocc`, `btherm` quand `θi_eq = θext`, `HTH,k+pt` négatif, air neuf des entrées d'air par un espace tampon, état initial, modes Th-B et Th-D, perméabilité des parois sur espace tampon | tranchée, à confirmer par un cas de référence ; `Ventc_lim` (point 3) : hypothèse du mainteneur ; l'air neuf des entrées d'air par une véranda (point 8) rejoint les **paramètres à tester si le Bbio diverge** |
 
 « Hypothèse du mainteneur » signifie : lecture retenue le 16 novembre 2026, **à confirmer par un cas de validation**. Ce sont les premiers points à revoir si un cas de référence diverge.
 
@@ -61,11 +61,12 @@ Ordre validé par le mainteneur (décision du 16 novembre 2026, proposée au lot
 
 1. **Q34, point 1** : part des apports radiatifs et solaires des parois légères (`LectureFluxRadiatifs`) ; effet le plus fort (+9,9 points).
 2. **Q37, point 1** : entrées d'air prises en compte en Bbio (les retirer de la saisie pour tester) ; −7,3 points.
-3. **Q38, point 3** : `iclim` en Bbio, tout groupe étant traité comme refroidi (`saisons::refroidissement_possible`) ; −5,7 points avec la lecture littérale.
-4. **Q36, point 1** : débit soufflé du système de ventilation conventionnel quand un seul sens est saisi (`LectureDebitsBbio`) ; +0,9 point.
-5. **Q25** : lecture du fichier météo ligne à ligne (décaler d'une ligne).
-6. **Q28** : changement de jour des scénarios à minuit légal.
-7. **Q32** : hystérésis de l'ouverture des baies (`LectureHysteresis`), qui pèse d'abord sur le DH et sur le besoin de froid.
+3. **Q41, point 8** : air neuf des entrées d'air transitant par une véranda à la température de l'espace tampon (`Tair_out = θet`) ; effet mesuré sur la variante de l'exemple : 6,6 points (53,2 contre 59,8 points avec la véranda seule ; décision du mainteneur, lot 6a).
+4. **Q38, point 3** : `iclim` en Bbio, tout groupe étant traité comme refroidi (`saisons::refroidissement_possible`) ; −5,7 points avec la lecture littérale.
+5. **Q36, point 1** : débit soufflé du système de ventilation conventionnel quand un seul sens est saisi (`LectureDebitsBbio`) ; +0,9 point.
+6. **Q25** : lecture du fichier météo ligne à ligne (décaler d'une ligne).
+7. **Q28** : changement de jour des scénarios à minuit légal.
+8. **Q32** : hystérésis de l'ouverture des baies (`LectureHysteresis`), qui pèse d'abord sur le DH et sur le besoin de froid.
 
 #### DH
 
@@ -104,7 +105,7 @@ Q28 est sans effet en maison : entre minuit UTC et minuit légal, les cases 1 et
 
 ### Sensibilités mesurées du Bbio
 
-Maison d'exemple (`tests/cas/maison-climat-ademe`), zone H2b, météo réglementaire, lot 4d2 ; une lecture basculée à la fois.
+Maison d'exemple (`tests/cas/maison-climat-ademe`), zone H2b, météo réglementaire, lot 4d2 ; une lecture basculée à la fois. **Les écarts de ce tableau ont été mesurés avec l'ancien exemple** (facteurs solaires des parois opaques `Sf = 0,01`) ; la référence actuelle de la maison d'exemple, H2b, météo réglementaire, est **63,1 points de Bbio et 989,5 °C.h de DH** (lot 4b).
 
 | Lecture | Bbio (points) | Écart |
 |---|---|---|
@@ -587,7 +588,11 @@ Le fichier réglementaire ne contient pas toutes les grandeurs que la fiche `C_E
 9. **État initial et premier jour.** Comme en Th-B (Q39 point 4) : 18 °C pour `θmq`, `θi` et `θop` ; `Topj-1max = 0` le premier jour.
 10. **Plausibilité.** Maison d'exemple, H2b : DH = 1 231 °C.h sur la météo réglementaire (430 h d'inconfort sur 2 476 h occupées de la période de confort adaptatif ; température opérative maximale de 35,9 °C pour 39,5 °C dehors) et 1 929 °C.h sur la météo ADEME (+2,7 °C, vague de chaleur). L'ordre de grandeur est celui des seuils de la RE2020, dans le haut de la fourchette. Deux raisons tiennent à l'exemple : ses parois opaques avaient un facteur solaire de 0,01, deux à trois fois celui que donne la formule 259 des règles Th-Bat ; ses inerties de longue période sont sans effet (point 6). **Corrigé au lot 4b** : avec les facteurs de la formule 259 (`αp = 0,6`, conditions C et E distinctes), DH = 989,5 °C.h sur la météo réglementaire et 1 420,1 °C.h sur la météo ADEME ; Bbio = 63,1 points (66,7 sur la météo ADEME). Les nuits pèsent lourd : le seuil y est la consigne de 26 °C, sans confort adaptatif.
 
-### Q41 — Espaces tampons : fiches 5.2, 5.3 et 5.4 (A3 p. 104 à 127) — ouverte, lectures retenues à valider
+### Q41 — Espaces tampons : fiches 5.2, 5.3 et 5.4 (A3 p. 104 à 127) — tranchée le 16 novembre 2026, à confirmer par un cas de référence
+
+- **Décision du mainteneur** : les lectures retenues des points 1 à 11 sont **validées**, « tranchée, à confirmer par un cas de référence ». Précisions :
+  - **point 3** (`Ventc_lim` = 10 m/s) : valeur absente du texte, reprise par analogie avec la fiche 5.9 ; **hypothèse du mainteneur** ;
+  - **point 8** (`Tair_out = θet`, air neuf des entrées d'air par la véranda) : effet mesuré de 6,6 points de Bbio ; le point rejoint la liste des paramètres à tester si le Bbio diverge, **juste après Q37 point 1**.
 
 **Périmètre livré** : assemblage des espaces tampons (§5.2, figure 15), gestion et régulation des espaces tampons solarisés (§5.3, éq. 96 à 105, tableaux 16 à 18, figures 16 et 17), espace tampon (§5.4, éq. 106 à 129) ; prise en compte par les parois opaques (§5.17.3 : `btherm`, `bsolaire`, `bvoute = 0`), les ponts thermiques (§5.19.3, de même), les baies (§5.10.3 : `btherm`, `bsolaire`, `becl`, `Ftvc = 0` ; §5.9.3, éq. 176 : `Etp** = becl·Etp*` pour les protections mobiles ; §5.8 : `btherm,i,b = 1` quand l'espace tampon est surventilé) et les entrées d'air (§5.6.3.1, éq. 134 : `TAN = Tair_out`), en Th-B et en Th-D. Le bâtiment est simulé d'un bloc : à chaque pas de temps, les espaces tampons sont calculés à partir de l'état des groupes à la fin du pas précédent, puis les zones (`bati/assemblage_batiment.rs`). Les équations ont été relues sur les images des p. 112 à 117 et 120 à 127. Les générateurs thermodynamiques d'ECS qui puisent dans un espace non solarisé (éq. 109 et 110) relèvent du lot 6c : `Φrejet = 0`, les équations sont codées (`espace_tampon::c_corr_therm`). Pour le calcul Th-C, la température ambiante d'un système placé dans un espace tampon (`θamb = btherm·θext + (1 − btherm)·θref`, par exemple §10, p. 670) est préparée (`espace_tampon::theta_ambiance_hors_volume_chauffe_c`).
 
