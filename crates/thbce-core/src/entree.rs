@@ -96,6 +96,9 @@ pub struct Batiment {
     /// Réseaux de distribution intergroupes de chaud et de froid (§8.9 et §8.10).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub distributions_intergroupes: Vec<DistributionIntergroupes>,
+    /// Réseaux de distribution d'ECS intergroupes (§9.8).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub distributions_ecs_intergroupes: Vec<DistributionEcsIntergroupe>,
 }
 
 /// Th-BCE 2020 §5.4 — espace tampon.
@@ -638,6 +641,9 @@ pub struct Groupe {
     /// émetteurs sont rattachés.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub distributions: Vec<DistributionGroupe>,
+    /// Émetteurs d'ECS équivalents du groupe (§9.5 à 9.7). Au moins un en habitation.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub emetteurs_ecs: Vec<EmetteurEcs>,
 }
 
 /// Th-BCE 2020 §5.6.2 et §5.6.3.2 — entrées d'air d'un groupe.
@@ -1722,4 +1728,147 @@ pub enum RegulationBatterie {
     DebitRegule,
     /// 1 : autre cas (température de batterie constante).
     TemperatureConstante,
+}
+
+// ---------------------------------------------------------------------------------------------
+// Eau chaude sanitaire : émission et distributions (Th-BCE 2020 §9.5 à 9.8).
+// ---------------------------------------------------------------------------------------------
+
+/// Th-BCE 2020 §9.5 et §9.6 — émetteur d'ECS équivalent d'un groupe : émetteurs et appareils
+/// sanitaires d'un même groupe reliés à une même génération (§9.5.3.1).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EmetteurEcs {
+    /// Identifiant, unique dans le groupe.
+    pub id: Id,
+    /// « Ratem » : part de la surface utile du groupe desservie ; la somme sur les émetteurs
+    /// d'ECS du groupe vaut 1 (éq. 1673).
+    pub rat_em: f64,
+    /// « Nbmaison » (maison individuelle ou accolée : nombre de maisons desservies, plus de 1
+    /// pour des maisons accolées) ou « Nblgt-e » (logement collectif : nombre de logements
+    /// desservis), tableau 272.
+    pub nb_logements: u32,
+    /// « partmélangeur » : part des besoins passant par des mélangeurs, mitigeurs mécaniques et
+    /// autres émetteurs (gain 0 %, tableau 273).
+    pub part_melangeur: f64,
+    /// « partmitigeur » : part passant par des mitigeurs thermostatiques ou mécaniques économes
+    /// (classe C3 ou CH3 ; gain 5 %).
+    pub part_mitigeur: f64,
+    /// « parttemporisateur » : part passant par des robinets électroniques ou des temporisateurs
+    /// (gain 7 %).
+    pub part_temporisateur: f64,
+    /// « App_ecs » : appareils sanitaires (tableau 275) ; s'il y en a de natures différentes,
+    /// le plus défavorable.
+    pub appareils: AppareilsEcs,
+    /// « Irecup » : récupérateur de chaleur sur les eaux grises (fiche 9.21) : non pris en
+    /// charge dans cette version. Absent : faux.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recuperateur_eaux_grises: Option<bool>,
+    /// Réseau de distribution d'ECS du groupe, propre à l'émetteur (§9.7).
+    pub distribution: DistributionEcsGroupe,
+    /// Identifiant du réseau de distribution d'ECS intergroupe du bâtiment (§9.8).
+    pub distribution_intergroupe: Id,
+}
+
+/// « App_ecs » (§9.5.3, tableau 275).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AppareilsEcs {
+    /// Douches seules : gain de 5 %.
+    DoucheSeule,
+    /// Baignoire sabot (125 L au plus) : 2,5 %.
+    BaignoireSabot,
+    /// Baignoire standard (plus de 125 L et 175 L au plus) et autre : 0 %.
+    BaignoireStandard,
+    /// Grande baignoire (plus de 175 L) : −2,5 %.
+    GrandeBaignoire,
+}
+
+/// Th-BCE 2020 §9.7.2 — distribution d'ECS du groupe : réseau sans circulateur ni isolant,
+/// supposé à température constante.
+///
+/// Classement des longueurs en ou hors volume chauffé : fiche d'application 8.13 (en gaine
+/// logement, en volume chauffé).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DistributionEcsGroupe {
+    /// « θ2nd-e » : température de la distribution, en °C, au moins égale à celle de l'eau
+    /// mitigée (40 °C). Absent : 53 °C, valeur conventionnelle du tableau 278 (lecture Q45),
+    /// signalée dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub theta_2nd_e_c: Option<f64>,
+    /// « Dint_2nd-e » : diamètre intérieur, en m.
+    pub d_int_m: f64,
+    /// « Lvc_2nd-e » : longueur en volume chauffé d'une distribution, en m. Absent : valeur par
+    /// défaut de l'éq. (1729), `6 × A/80` en habitation pour la surface desservie (« δlvc = 0 »),
+    /// signalée dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub l_vc_m: Option<f64>,
+    /// « Lhvc_2nd-e » : longueur hors volume chauffé d'une distribution, en m.
+    pub l_hvc_m: f64,
+    /// « nbdist_2nd-e » : nombre de distributions identiques reliées à l'émetteur.
+    pub nb_dist: u32,
+    /// Espace tampon traversé par la partie hors volume chauffé (« btherm », éq. 1733). Absent :
+    /// à l'extérieur (`btherm = 1`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub espace_tampon: Option<Id>,
+}
+
+/// Th-BCE 2020 §9.8 — distribution d'ECS intergroupe, reliée à une génération.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DistributionEcsIntergroupe {
+    /// Identifiant, unique dans le bâtiment.
+    pub id: Id,
+    /// Identifiant de la génération qui produit l'ECS.
+    pub generation: Id,
+    /// « Typeréseauintergroupe-e ».
+    pub reseau: ReseauEcsIntergroupe,
+}
+
+/// « Typeréseauintergroupe-e » (§9.8.2).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum ReseauEcsIntergroupe {
+    /// 0 : pas de réseau intergroupe (production individuelle) : ni pertes ni auxiliaires
+    /// (éq. 1762 à 1765).
+    Aucun,
+    /// 1 : réseau bouclé (§9.8.3.3).
+    Boucle(BoucleEcs),
+    /// 2 : réseau tracé, à ruban chauffant (§9.8.3.4).
+    Trace(ReseauEcsTrace),
+}
+
+/// Réseau d'ECS intergroupe bouclé (§9.8.2).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BoucleEcs {
+    /// « Lvc_prim_bcl-e » : longueur en volume chauffé, en m.
+    pub l_vc_m: f64,
+    /// « Lhvc_prim_bcl-e » : longueur hors volume chauffé, en m.
+    pub l_hvc_m: f64,
+    /// « Uprim-e » : coefficient linéique, en W/(m.K).
+    pub u_w_mk: f64,
+    /// « Isrechauf_bcl-e » : réchauffeur de boucle électrique.
+    pub rechauffeur: bool,
+    /// « Pcirc-e » : puissance des circulateurs, en W (fonctionnement permanent en habitation).
+    pub p_circ_w: f64,
+    /// Espace tampon traversé par la partie hors volume chauffé (« btherm », éq. 1744).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub espace_tampon: Option<Id>,
+}
+
+/// Réseau d'ECS intergroupe tracé (§9.8.2).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReseauEcsTrace {
+    /// « Lvc_prim_trac-e » : longueur en volume chauffé, en m.
+    pub l_vc_m: f64,
+    /// « Lhvc_prim_trac-e » : longueur hors volume chauffé, en m.
+    pub l_hvc_m: f64,
+    /// « Uprim-e » : coefficient linéique, en W/(m.K).
+    pub u_w_mk: f64,
+    /// Espace tampon traversé par la partie hors volume chauffé (« btherm », éq. 1756).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub espace_tampon: Option<Id>,
 }

@@ -5,9 +5,11 @@
 
 use crate::entree::{
     Batiment, Circulateur, Emetteur, FonctionReseau, Groupe, RegulationDebit,
-    RegulationTemperature, ReseauGroupe, ReseauHydrauliqueGroupe, ReseauIntergroupes,
-    VariationSpatiale, VariationSpatialeFroid, VariationTemporelle,
+    RegulationTemperature, ReseauEcsIntergroupe, ReseauGroupe, ReseauHydrauliqueGroupe,
+    ReseauIntergroupes, VariationSpatiale, VariationSpatialeFroid, VariationTemporelle,
 };
+
+use std::collections::BTreeSet;
 
 use super::RapportValidation;
 
@@ -47,9 +49,57 @@ pub(super) fn valider_systemes_batiment(r: &mut RapportValidation, cb: &str, bat
             );
         }
     }
+    let ids_ecs = r.ids_uniques(
+        &format!("{cb}.distributions_ecs_intergroupes"),
+        bat.distributions_ecs_intergroupes.iter().map(|d| &d.id),
+    );
+    for (i, d) in bat.distributions_ecs_intergroupes.iter().enumerate() {
+        let cd = format!("{cb}.distributions_ecs_intergroupes[{i}]");
+        if !gens.contains(d.generation.as_str()) {
+            r.erreur(
+                format!("{cd}.generation"),
+                Some(d.generation.clone()),
+                "génération inconnue du bâtiment (Th-BCE 2020 §9.8.3.1)",
+            );
+        }
+        let (l_vc, l_hvc, u, et, cr) = match &d.reseau {
+            ReseauEcsIntergroupe::Aucun => continue,
+            ReseauEcsIntergroupe::Boucle(b) => {
+                r.positif(format!("{cd}.reseau.boucle.p_circ_w"), b.p_circ_w);
+                (
+                    b.l_vc_m,
+                    b.l_hvc_m,
+                    b.u_w_mk,
+                    b.espace_tampon.as_deref(),
+                    "boucle",
+                )
+            }
+            ReseauEcsIntergroupe::Trace(t) => (
+                t.l_vc_m,
+                t.l_hvc_m,
+                t.u_w_mk,
+                t.espace_tampon.as_deref(),
+                "trace",
+            ),
+        };
+        let cr = format!("{cd}.reseau.{cr}");
+        r.positif(format!("{cr}.l_vc_m"), l_vc);
+        r.positif(format!("{cr}.l_hvc_m"), l_hvc);
+        r.positif(format!("{cr}.u_w_mk"), u);
+        espace_tampon_connu(r, &cr, et, bat);
+    }
     for (iz, zone) in bat.zones.iter().enumerate() {
         if !zone.usage.est_habitation() {
             continue;
+        }
+        for (ig, g) in zone.groupes.iter().enumerate() {
+            valider_ecs_groupe(
+                r,
+                &format!("{cb}.zones[{iz}].groupes[{ig}]"),
+                g,
+                bat,
+                &ids_ecs,
+            );
         }
         for (ig, g) in zone.groupes.iter().enumerate() {
             valider_systemes_groupe(r, &format!("{cb}.zones[{iz}].groupes[{ig}]"), g, bat);
@@ -437,5 +487,108 @@ fn valider_hydraulique_groupe(
             "circulateur à vitesse variable réservé aux réseaux à débit variable (Th-BCE 2020 \
              §8.7.3.3.2.7)",
         );
+    }
+}
+
+/// Émetteurs d'ECS d'un groupe d'habitation (§9.5 à 9.7).
+fn valider_ecs_groupe(
+    r: &mut RapportValidation,
+    c: &str,
+    g: &Groupe,
+    bat: &Batiment,
+    ids_ecs: &BTreeSet<&str>,
+) {
+    if g.emetteurs_ecs.is_empty() {
+        r.erreur(
+            format!("{c}.emetteurs_ecs"),
+            None,
+            "au moins un émetteur d'ECS requis en habitation (Th-BCE 2020 §9.5 et §9.6)",
+        );
+        return;
+    }
+    r.ids_uniques(
+        &format!("{c}.emetteurs_ecs"),
+        g.emetteurs_ecs.iter().map(|e| &e.id),
+    );
+    // Éq. (1673) : les surfaces desservies couvrent le groupe.
+    let somme: f64 = g.emetteurs_ecs.iter().map(|e| e.rat_em).sum();
+    if (somme - 1.0).abs() > 1e-6 {
+        r.erreur(
+            format!("{c}.emetteurs_ecs"),
+            Some(somme.to_string()),
+            "la somme des « Ratem » des émetteurs d'ECS du groupe vaut 1 (Th-BCE 2020 §9.5.3, \
+             éq. 1673)",
+        );
+    }
+    for (i, e) in g.emetteurs_ecs.iter().enumerate() {
+        let ce = format!("{c}.emetteurs_ecs[{i}]");
+        r.plage(format!("{ce}.rat_em"), e.rat_em, 0.0, 1.0);
+        if e.nb_logements == 0 {
+            r.erreur(
+                format!("{ce}.nb_logements"),
+                Some("0".into()),
+                "doit être supérieur ou égal à 1 (Th-BCE 2020 §9.5.3, tableau 272)",
+            );
+        }
+        let parts = [
+            ("part_melangeur", e.part_melangeur),
+            ("part_mitigeur", e.part_mitigeur),
+            ("part_temporisateur", e.part_temporisateur),
+        ];
+        for (nom, p) in parts {
+            r.plage(format!("{ce}.{nom}"), p, 0.0, 1.0);
+        }
+        // Éq. (1675) : « La somme des trois pourcentages de M_partem doit être égale à 1. »
+        let total: f64 = parts.iter().map(|(_, p)| p).sum();
+        if (total - 1.0).abs() > 1e-6 {
+            r.erreur(
+                ce.clone(),
+                Some(total.to_string()),
+                "la somme des parts des trois catégories d'émetteurs d'ECS vaut 1 (Th-BCE 2020 \
+                 §9.5.3, éq. 1675)",
+            );
+        }
+        if e.recuperateur_eaux_grises == Some(true) {
+            r.erreur(
+                format!("{ce}.recuperateur_eaux_grises"),
+                None,
+                "récupérateur de chaleur sur les eaux grises non pris en charge dans cette \
+                 version (Th-BCE 2020 §9.21)",
+            );
+        }
+        let d = &e.distribution;
+        let cd = format!("{ce}.distribution");
+        r.strictement_positif(format!("{cd}.d_int_m"), d.d_int_m);
+        r.positif(format!("{cd}.l_hvc_m"), d.l_hvc_m);
+        if let Some(l) = d.l_vc_m {
+            r.positif(format!("{cd}.l_vc_m"), l);
+        }
+        if d.nb_dist == 0 {
+            r.erreur(
+                format!("{cd}.nb_dist"),
+                Some("0".into()),
+                "doit être supérieur ou égal à 1",
+            );
+        }
+        // §9.5.3 et §9.7.3 : message d'erreur si la distribution est plus froide que l'eau
+        // mitigée.
+        if let Some(t) = d.theta_2nd_e_c {
+            if t < crate::ecs::besoins_ecs::THETA_UW_C {
+                r.erreur(
+                    format!("{cd}.theta_2nd_e_c"),
+                    Some(t.to_string()),
+                    "la température de la distribution d'ECS est au moins celle de l'eau \
+                     mitigée, 40 °C (Th-BCE 2020 §9.5.3, éq. 1679, et §9.7.3)",
+                );
+            }
+        }
+        espace_tampon_connu(r, &cd, d.espace_tampon.as_deref(), bat);
+        if !ids_ecs.contains(e.distribution_intergroupe.as_str()) {
+            r.erreur(
+                format!("{ce}.distribution_intergroupe"),
+                Some(e.distribution_intergroupe.clone()),
+                "distribution d'ECS intergroupe inconnue du bâtiment (Th-BCE 2020 §9.7.3)",
+            );
+        }
     }
 }
