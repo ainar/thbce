@@ -34,9 +34,9 @@ use crate::resultats::{
     ResultatsBatiment, ResultatsClimat, ResultatsConfort, ResultatsConfortEte, ResultatsDebitsBbio,
     ResultatsDistributionGroupe, ResultatsEcsEmetteur, ResultatsEcsIntergroupe, ResultatsEmetteur,
     ResultatsEnveloppe, ResultatsEspaceTampon, ResultatsEspaceTamponMode, ResultatsGenerateur,
-    ResultatsGeneration, ResultatsGroupe, ResultatsIntergroupes, ResultatsSaisons,
-    ResultatsSystemesGroupe, ResultatsVentilationGroupe, ResultatsVentilationMode,
-    ResultatsVentilationZone, ResultatsZone, ValeurParDefaut,
+    ResultatsGeneration, ResultatsGroupe, ResultatsIdCet, ResultatsIntergroupes, ResultatsSaisons,
+    ResultatsStockage, ResultatsSystemesGroupe, ResultatsVentilationGroupe,
+    ResultatsVentilationMode, ResultatsVentilationZone, ResultatsZone, ValeurParDefaut,
 };
 use crate::validation::valider;
 use crate::ventilation::bouche_conduit::debits_specifiques_bbio_groupe;
@@ -681,6 +681,30 @@ fn resultats_generations(b: &BatimentHoraire) -> Vec<ResultatsGeneration> {
                 pertes_vc_kwh: c.phi_vc_tot_wh / 1000.0,
                 nbh_sousdim_ch_ecs_max: c.nb_sousdim_max[0],
                 nbh_sousdim_fr_max: c.nb_sousdim_max[1],
+                stockages: g
+                    .stockages
+                    .iter()
+                    .map(|s| {
+                        let k = &s.cumuls;
+                        ResultatsStockage {
+                            id: s.id.clone(),
+                            q_fou_ecs_kwh: k.q_fou_ecs_wh / 1000.0,
+                            q_fou_sto_base_kwh: k.q_fou_sto_wh[0] / 1000.0,
+                            q_fou_sto_ap_kwh: k.q_fou_sto_wh[1] / 1000.0,
+                            pertes_kwh: k.phi_pertes_wh / 1000.0,
+                            v_puise_l: k.v_p_l,
+                            theta_haut_min_c: k.theta_haut_min_c,
+                            nbh_temp_insuff_max: k.nbh_temp_insuff_max,
+                            idcet: s.identification.map(|i| ResultatsIdCet {
+                                ua_s_w_k: i.triplet.ua_s_w_k,
+                                cop_pivot: i.triplet.cop_pivot,
+                                pabs_pivot_kw: i.triplet.pabs_pivot_w / 1000.0,
+                                epsilon: i.epsilon,
+                            }),
+                            valeurs_par_defaut: s.valeurs_par_defaut.clone(),
+                        }
+                    })
+                    .collect(),
                 generateurs: g
                     .generateurs
                     .iter()
@@ -715,6 +739,19 @@ fn avertissements_generations(id_bat: &str, b: &BatimentHoraire) -> Vec<String> 
             .enumerate()
         {
             let (court, long) = g.sous_dimensionnement(k);
+            if k == 0 {
+                for s in &g.stockages {
+                    let n = s.cumuls.nbh_temp_insuff_max;
+                    if n > crate::ecs::assemblage_ballon::SEUIL_TEMPERATURE_INSUFFISANTE_H {
+                        v.push(format!(
+                            "bâtiment « {id_bat} », génération « {} », ballon « {} » : sur {n} \
+                             heures consécutives, le ballon n'a jamais atteint sa température de \
+                             consigne (Th-BCE 2020 §9.14.3.4, éq. 1959)",
+                            g.id, s.id
+                        ));
+                    }
+                }
+            }
             if court {
                 v.push(format!(
                     "bâtiment « {id_bat} », génération « {} » : sous-dimensionnement{} pour {poste} \

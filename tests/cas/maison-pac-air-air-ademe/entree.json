@@ -438,18 +438,38 @@
           ]
         },
         {
-          "id": "production-ecs",
+          "id": "ballon-ecs",
           "raccordement_reseaux": "avec_isolement",
           "position": "en_volume_chauffe",
           "generateurs": [
             {
-              "id": "chauffe-eau-instantane",
+              "id": "resistance",
               "rdim": 1,
               "nature": {
                 "effet_joule": {
                   "fonction": "ecs",
-                  "pn_gen_w": 6000
+                  "pn_gen_w": 2200
                 }
+              }
+            }
+          ],
+          "stockages": [
+            {
+              "id": "ballon",
+              "nb_assemblages": 1,
+              "ballon": {
+                "v_tot_l": 200,
+                "pertes": {
+                  "par_defaut": {
+                    "nature": "effet_joule_vertical"
+                  }
+                },
+                "theta_max_c": 65
+              },
+              "base": {
+                "generateur": "resistance",
+                "programmation": "permanent",
+                "z_reg": 1
               }
             }
           ]
@@ -472,7 +492,7 @@
       "distributions_ecs_intergroupes": [
         {
           "id": "ecs-individuelle",
-          "generation": "production-ecs",
+          "generation": "ballon-ecs",
           "reseau": "aucun"
         }
       ]

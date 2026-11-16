@@ -4,9 +4,11 @@
 //! sécurité antigel d'un double flux.
 
 use crate::chauffage_refroidissement::thermodynamique_elec::{
-    fonctionnement_continu, grille_chauffage, grille_refroidissement, performances_saisies,
-    taux_auxiliaires, FonctionnementCompresseur, Grille, PerformancesSaisies,
+    fonctionnement_continu, grille_chauffage, grille_ecs, grille_refroidissement,
+    performances_saisies, taux_auxiliaires, FonctionnementCompresseur, Grille, PerformancesSaisies,
 };
+use crate::ecs::gestion_regulation_ballon::THETA_C_ECS_C;
+use crate::ecs::idcet;
 use crate::entree::{
     Batiment, FonctionEffetJoule, FonctionReseau, FonctionnementCompresseurSaisi,
     FonctionnementContinu, Generation, GestionTemperatureGeneration, NatureGenerateur,
@@ -14,6 +16,7 @@ use crate::entree::{
     TechnologieChauffagePac, TechnologieRefroidissementPac, ThermodynamiqueElectriqueSaisi,
     TypePriorite,
 };
+use crate::entree::{PertesBallon, TechnologieEcsPac};
 
 use super::RapportValidation;
 
@@ -26,9 +29,11 @@ pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
             FonctionEffetJoule::Chauffage => [true, false, false],
             FonctionEffetJoule::Ecs => [false, false, true],
         },
-        NatureGenerateur::ThermodynamiqueElectrique(t) => {
-            [t.chauffage.is_some(), t.refroidissement.is_some(), false]
-        }
+        NatureGenerateur::ThermodynamiqueElectrique(t) => [
+            t.chauffage.is_some(),
+            t.refroidissement.is_some(),
+            t.ecs.is_some(),
+        ],
         _ => [false; 3],
     }
 }
@@ -120,12 +125,28 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
             ),
         );
     }
-    if g.generateurs.is_empty() {
+    if g.generateurs.is_empty() && g.chauffe_eau_thermodynamiques.is_empty() {
         r.erreur(
             format!("{c}.generateurs"),
             None,
             "au moins un générateur requis : une génération est un ensemble de générateurs \
              (Th-BCE 2020 §8.14.1)",
+        );
+    }
+    valider_stockages(r, c, g, bat);
+    // Générateurs pilotés par un ballon : ils ne sont pas des générateurs instantanés d'ECS.
+    let pilote = |id: &str| {
+        g.stockages.iter().any(|s| {
+            s.base.generateur == id || s.appoint.as_ref().is_some_and(|a| a.generateur == id)
+        })
+    };
+    let avec_stockage = !g.stockages.is_empty() || !g.chauffe_eau_thermodynamiques.is_empty();
+    if avec_stockage && g.priorite == Some(TypePriorite::SansPriorite) {
+        r.erreur(
+            format!("{c}.priorite"),
+            Some("sans_priorite".into()),
+            "une génération pourvue d'un ballon de stockage est régulée en cascade (Th-BCE \
+             2020 §8.17.3.6)",
         );
     }
     r.ids_uniques(
@@ -193,8 +214,20 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
                 );
             }
         }
-        for (p, a) in postes_assures(&x.nature).into_iter().enumerate() {
-            nb[p] += usize::from(a);
+        let assures = postes_assures(&x.nature);
+        for (p, a) in assures.into_iter().enumerate() {
+            nb[p] += usize::from(a && !(p == 2 && pilote(&x.id)));
+        }
+        if assures[2]
+            && matches!(x.nature, NatureGenerateur::ThermodynamiqueElectrique(_))
+            && !g.stockages.iter().any(|s| s.base.generateur == x.id)
+        {
+            r.erreur(
+                format!("{cg}.nature.thermodynamique_electrique.ecs"),
+                None,
+                "un générateur thermodynamique d'ECS est le générateur de base d'un assemblage \
+                 avec stockage (`stockages`, Th-BCE 2020 §8.23.3.2)",
+            );
         }
     }
     // Priorités (§8.17.3.7) : mode requis dès que deux générateurs assurent un même poste ;
@@ -253,7 +286,7 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
         }
     }
     // Cohérence du montage (§8.17.3.1).
-    let assure = |p: usize| nb[p] > 0;
+    let assure = |p: usize| nb[p] > 0 || (p == 2 && avec_stockage);
     let mut types: [Option<bool>; 2] = [None; 2];
     for (i, d) in bat.distributions_intergroupes.iter().enumerate() {
         if d.generation != g.id {
@@ -347,7 +380,7 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
         .iter()
         .any(|d| d.generation == g.id)
         && !assure(2)
-        && !g.generateurs.is_empty()
+        && !(g.generateurs.is_empty() && g.chauffe_eau_thermodynamiques.is_empty())
     {
         r.erreur(
             format!("{c}.generateurs"),
@@ -370,11 +403,22 @@ fn valider_thermodynamique(
     t: &ThermodynamiqueElectriqueSaisi,
     bat: &Batiment,
 ) {
-    if t.chauffage.is_none() && t.refroidissement.is_none() {
+    if t.chauffage.is_none() && t.refroidissement.is_none() && t.ecs.is_none() {
         r.erreur(
             c.to_owned(),
             None,
-            "au moins un mode requis : `chauffage` ou `refroidissement` (Th-BCE 2020 §8.23.3.2)",
+            "au moins un mode requis : `chauffage`, `refroidissement` ou `ecs` (Th-BCE 2020 \
+             §8.23.3.2)",
+        );
+    }
+    if t.refroidissement.is_some() && t.ecs.is_some() {
+        r.erreur(
+            format!("{c}.ecs"),
+            None,
+            format!(
+                "générateur produisant du froid et de l'ECS (triple service, Th-BCE 2020 \
+                 §8.23.3.2, tableau 149) {HORS_VERSION}"
+            ),
         );
     }
     let (source, p_vent) = match &t.source_amont {
@@ -424,9 +468,10 @@ fn valider_thermodynamique(
         }
         FonctionnementCompresseurSaisi::ToutOuRien => FonctionnementCompresseur::ToutOuRien,
     };
-    let (taux, _) = taux_auxiliaires(t.taux_auxiliaires, t.chauffage.is_some());
+    let (taux, _) = taux_auxiliaires(t.taux_auxiliaires, t.chauffage.is_some() || t.ecs.is_some());
     let mut mode = |nom: &str,
                     grille: Option<&'static Grille>,
+                    source_attendue: &str,
                     performances: &PerformancesPac,
                     continu: Option<FonctionnementContinu>| {
         let cm = format!("{c}.{nom}");
@@ -435,21 +480,22 @@ fn valider_thermodynamique(
                 format!("{cm}.technologie"),
                 None,
                 format!(
-                    "technologie {HORS_VERSION} : seules les machines sur air extérieur, à eau \
-                     ou à air recyclé, sont prises en charge (Th-BCE 2020 §8.23.3.2, tableau 145)"
+                    "technologie {HORS_VERSION} : seules les machines sur air (air extérieur \
+                     en chauffage et en refroidissement ; air extérieur, air extrait ou air \
+                     ambiant en ECS) sont prises en charge (Th-BCE 2020 §8.23.3.2, tableaux \
+                     145 et 147)"
                 ),
             );
             return;
         };
-        // Les technologies prises en charge en chauffage et en refroidissement puisent dans
-        // l'air extérieur.
-        if source != "air_exterieur" {
+        // La technologie fixe la nature de la source amont.
+        if source != source_attendue {
             r.erreur(
                 format!("{c}.source_amont"),
                 Some(source.to_owned()),
                 format!(
-                    "source amont incohérente avec la technologie du mode {nom} : une machine \
-                     sur air extérieur a pour source `air_exterieur` (Th-BCE 2020 §8.26.3.3.1)"
+                    "source amont incohérente avec la technologie du mode {nom}, qui a pour \
+                     source `{source_attendue}` (Th-BCE 2020 §8.26.3.3.1)"
                 ),
             );
         }
@@ -524,6 +570,7 @@ fn valider_thermodynamique(
         mode(
             "chauffage",
             grille_chauffage(m.technologie),
+            "air_exterieur",
             &m.performances,
             m.fonctionnement_continu,
         );
@@ -532,8 +579,234 @@ fn valider_thermodynamique(
         mode(
             "refroidissement",
             grille_refroidissement(m.technologie),
+            "air_exterieur",
             &m.performances,
             m.fonctionnement_continu,
         );
+    }
+    if let Some(m) = &t.ecs {
+        mode(
+            "ecs",
+            grille_ecs(m.technologie),
+            match m.technologie {
+                TechnologieEcsPac::AirExtraitEau => "air_extrait",
+                TechnologieEcsPac::AirAmbiantEau => "air_ambiant",
+                _ => "air_exterieur",
+            },
+            &m.performances,
+            None,
+        );
+    }
+}
+
+/// Th-BCE 2020 §9.9, §9.10, §9.14 et §9.22 : assemblages avec ballon de stockage et
+/// chauffe-eau thermodynamiques d'une génération.
+fn valider_stockages(r: &mut RapportValidation, c: &str, g: &Generation, bat: &Batiment) {
+    r.ids_uniques(
+        &format!("{c}.stockages"),
+        g.stockages
+            .iter()
+            .map(|s| &s.id)
+            .chain(g.chauffe_eau_thermodynamiques.iter().map(|x| &x.id)),
+    );
+    let zone_valide = |r: &mut RapportValidation, chemin: String, z: u8| {
+        if !(1..=4).contains(&z) {
+            r.erreur(
+                chemin,
+                Some(z.to_string()),
+                "numéro de zone du ballon de 1 (bas) à 4 (haut) (Th-BCE 2020 §9.9.2)",
+            );
+        }
+    };
+    let mut bases: Vec<&str> = Vec::new();
+    for (k, s) in g.stockages.iter().enumerate() {
+        let cs = format!("{c}.stockages[{k}]");
+        if s.nb_assemblages == 0 {
+            r.erreur(
+                format!("{cs}.nb_assemblages"),
+                Some("0".into()),
+                "au moins un assemblage (Th-BCE 2020 §9.14.2)",
+            );
+        }
+        r.strictement_positif(format!("{cs}.ballon.v_tot_l"), s.ballon.v_tot_l);
+        if let PertesBallon::Certifie { ua_s_w_k } | PertesBallon::Justifie { ua_s_w_k } =
+            s.ballon.pertes
+        {
+            r.strictement_positif(format!("{cs}.ballon.pertes.ua_s_w_k"), ua_s_w_k);
+        }
+        // Éq. (1948) : consigne conventionnelle de 55 °C, sous la température maximale.
+        r.plage(
+            format!("{cs}.ballon.theta_max_c"),
+            s.ballon.theta_max_c,
+            THETA_C_ECS_C,
+            100.0,
+        );
+        zone_valide(r, format!("{cs}.base.z_reg"), s.base.z_reg);
+        if let Some(d) = s.base.delta_theta_k {
+            r.plage(format!("{cs}.base.delta_theta_k"), d, 0.0, 20.0);
+        }
+        match g.generateurs.iter().find(|x| x.id == s.base.generateur) {
+            None => r.erreur(
+                format!("{cs}.base.generateur"),
+                Some(s.base.generateur.clone()),
+                "générateur inconnu de la génération",
+            ),
+            Some(x) => {
+                if !postes_assures(&x.nature)[2] {
+                    r.erreur(
+                        format!("{cs}.base.generateur"),
+                        Some(x.id.clone()),
+                        "le générateur de base d'un ballon d'ECS assure l'ECS : générateur à \
+                         effet Joule de fonction `ecs` ou générateur thermodynamique pourvu \
+                         d'un mode `ecs`",
+                    );
+                }
+                if x.rdim != s.nb_assemblages {
+                    r.erreur(
+                        format!("{cs}.nb_assemblages"),
+                        Some(s.nb_assemblages.to_string()),
+                        "le nombre d'assemblages identiques est le nombre de générateurs de \
+                         base identiques (`rdim` du générateur désigné)",
+                    );
+                }
+                let thermo = matches!(x.nature, NatureGenerateur::ThermodynamiqueElectrique(_));
+                match s.base.h_rel_ech {
+                    None if thermo => r.erreur(
+                        format!("{cs}.base.h_rel_ech"),
+                        None,
+                        "hauteur relative de l'échangeur requise pour un générateur \
+                         thermodynamique (Th-BCE 2020 §9.9.3.2.4, éq. 1781 à 1785)",
+                    ),
+                    Some(h) => r.plage(format!("{cs}.base.h_rel_ech"), h, 0.0, 1.0),
+                    None => {}
+                }
+                if bases.contains(&x.id.as_str()) {
+                    r.erreur(
+                        format!("{cs}.base.generateur"),
+                        Some(x.id.clone()),
+                        "générateur déjà employé par un autre assemblage",
+                    );
+                }
+                bases.push(&x.id);
+            }
+        }
+        if let Some(a) = &s.appoint {
+            zone_valide(r, format!("{cs}.appoint.z_ap"), a.z_ap);
+            zone_valide(r, format!("{cs}.appoint.z_reg"), a.z_reg);
+            if let Some(f) = a.f_aux {
+                if !(f > 0.0 && f < 1.0) {
+                    r.erreur(
+                        format!("{cs}.appoint.f_aux"),
+                        Some(f.to_string()),
+                        "« faux » strictement compris entre 0 et 1 (Th-BCE 2020 §9.9.3.1)",
+                    );
+                }
+            }
+            if let Some(d) = a.delta_theta_k {
+                r.plage(format!("{cs}.appoint.delta_theta_k"), d, 0.0, 20.0);
+            }
+            let ok = g.generateurs.iter().any(|x| {
+                x.id == a.generateur
+                    && x.id != s.base.generateur
+                    && matches!(&x.nature, NatureGenerateur::EffetJoule(j)
+                        if j.fonction == FonctionEffetJoule::Ecs)
+            });
+            if !ok || bases.contains(&a.generateur.as_str()) {
+                r.erreur(
+                    format!("{cs}.appoint.generateur"),
+                    Some(a.generateur.clone()),
+                    "l'appoint intégré d'un ballon est un générateur à effet Joule de fonction \
+                     `ecs` de la génération, distinct du générateur de base et propre à \
+                     l'assemblage",
+                );
+            }
+            bases.push(&a.generateur);
+        }
+    }
+    for (k, x) in g.chauffe_eau_thermodynamiques.iter().enumerate() {
+        let cc = format!("{c}.chauffe_eau_thermodynamiques[{k}]");
+        if g.generateurs.iter().any(|y| y.id == x.id) {
+            r.erreur(
+                format!("{cc}.id"),
+                Some(x.id.clone()),
+                "identifiant déjà porté par un générateur de la génération",
+            );
+        }
+        if x.nb_assemblages == 0 {
+            r.erreur(
+                format!("{cc}.nb_assemblages"),
+                Some("0".into()),
+                "au moins un chauffe-eau",
+            );
+        }
+        r.strictement_positif(format!("{cc}.v_tot_l"), x.v_tot_l);
+        r.plage(
+            format!("{cc}.theta_max_c"),
+            x.theta_max_c,
+            THETA_C_ECS_C,
+            100.0,
+        );
+        let e = &x.essai;
+        r.strictement_positif(format!("{cc}.essai.t_h_h"), e.t_h_h);
+        r.plage(format!("{cc}.essai.t_h_h"), e.t_h_h, 0.0, 48.0);
+        r.strictement_positif(format!("{cc}.essai.p_es_w"), e.p_es_w);
+        r.strictement_positif(format!("{cc}.essai.cop_dhw"), e.cop_dhw);
+        r.plage(format!("{cc}.essai.theta_wh_c"), e.theta_wh_c, 40.0, 90.0);
+        let mut references = true;
+        match &x.source_amont {
+            SourceAmontSaisie::AirExterieur { .. } => {}
+            SourceAmontSaisie::AirAmbiant { espace_tampon, .. } => {
+                if !bat.espaces_tampons.iter().any(|t| t.id == *espace_tampon) {
+                    references = false;
+                    r.erreur(
+                        format!("{cc}.source_amont.air_ambiant.espace_tampon"),
+                        Some(espace_tampon.clone()),
+                        "espace tampon inconnu du bâtiment",
+                    );
+                }
+            }
+            SourceAmontSaisie::AirExtrait { zone, .. } => {
+                if !bat.zones.iter().any(|z| z.id == *zone) {
+                    references = false;
+                    r.erreur(
+                        format!("{cc}.source_amont.air_extrait.zone"),
+                        Some(zone.clone()),
+                        "zone inconnue du bâtiment",
+                    );
+                }
+            }
+        }
+        let valeurs = x.v_tot_l > 0.0
+            && e.t_h_h > 0.0
+            && e.t_h_h <= 48.0
+            && e.p_es_w > 0.0
+            && e.cop_dhw > 0.0
+            && (40.0..=90.0).contains(&e.theta_wh_c);
+        if !(references && valeurs) {
+            continue;
+        }
+        // §9.22.3.4 : identification du triplet (UAs, COP pivot, Pabs pivot).
+        match idcet::identifier(&idcet::essai_saisi(x)) {
+            None => r.erreur(
+                format!("{cc}.essai"),
+                None,
+                "aucun triplet (UAs, COP pivot, Pabs pivot) ne permet au modèle Th-BCE de \
+                 reproduire cet essai (Th-BCE 2020 §9.22.3.4) : résultats d'essai incohérents",
+            ),
+            Some(i) if i.epsilon >= idcet::EPSILON_MAX => r.avertissement(
+                format!("{cc}.essai"),
+                Some(format!("ε = {:.4}", i.epsilon)),
+                format!(
+                    "l'essai n'est reproduit par le modèle Th-BCE qu'à ε = {:.4} près, \
+                     au-dessus du seuil de 10⁻⁴ de l'éq. (2249) : th = {:.2} h, Pes = {:.1} W, \
+                     COPDHW = {:.3} avec le triplet retenu (Th-BCE 2020 §9.22.3.4, lecture Q48)",
+                    i.epsilon,
+                    i.essai_reproduit.t_h_h,
+                    i.essai_reproduit.p_es_w,
+                    i.essai_reproduit.cop_dhw
+                ),
+            ),
+            Some(_) => {}
+        }
     }
 }

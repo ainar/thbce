@@ -466,19 +466,28 @@
           ]
         },
         {
-          "id": "production-ecs",
+          "id": "ballon-ecs",
           "raccordement_reseaux": "avec_isolement",
           "position": "en_volume_chauffe",
-          "generateurs": [
+          "chauffe_eau_thermodynamiques": [
             {
-              "id": "chauffe-eau-instantane",
-              "rdim": 1,
-              "nature": {
-                "effet_joule": {
-                  "fonction": "ecs",
-                  "pn_gen_w": 6000
-                }
-              }
+              "id": "chauffe-eau-thermodynamique",
+              "nb_assemblages": 1,
+              "v_tot_l": 200,
+              "theta_max_c": 65,
+              "essai": {
+                "cycle": "l",
+                "t_h_h": 8.0,
+                "p_es_w": 28,
+                "cop_dhw": 2.7,
+                "theta_wh_c": 53.0,
+                "auxiliaires_compris": true,
+                "statut": "certifie"
+              },
+              "source_amont": {
+                "air_exterieur": {}
+              },
+              "programmation": "permanent"
             }
           ]
         }
@@ -503,7 +512,7 @@
       "distributions_ecs_intergroupes": [
         {
           "id": "ecs-individuelle",
-          "generation": "production-ecs",
+          "generation": "ballon-ecs",
           "reseau": "aucun"
         }
       ]

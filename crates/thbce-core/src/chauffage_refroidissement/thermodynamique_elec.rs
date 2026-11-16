@@ -897,6 +897,17 @@ pub fn grille_refroidissement(
     }
 }
 
+/// Grille d'une technologie d'ECS ; `None` hors de la version.
+pub fn grille_ecs(t: crate::entree::TechnologieEcsPac) -> Option<&'static Grille> {
+    use crate::entree::TechnologieEcsPac as T;
+    match t {
+        T::AirExterieurEau => Some(&ECS_AIR_EXTERIEUR_EAU),
+        T::AirExtraitEau => Some(&ECS_AIR_EXTRAIT_EAU),
+        T::AirAmbiantEau => Some(&ECS_AIR_AMBIANT_EAU),
+        _ => None,
+    }
+}
+
 /// Performances saisies, puissances converties en W.
 pub fn performances_saisies(p: &crate::entree::PerformancesPac) -> PerformancesSaisies {
     use crate::entree::{PerformancesPac as P, StatutMesure};
@@ -1093,9 +1104,21 @@ impl GenerateurThermodynamique {
             )),
             None => None,
         };
+        let ecs = match &s.ecs {
+            Some(c) => Some(mode(
+                "ecs",
+                grille_ecs(c.technologie)?,
+                &c.performances,
+                c.limites,
+                DFOU0_ECS_MIN,
+                None,
+            )),
+            None => None,
+        };
         // Éq. (1277) à (1279) : auxiliaires à charge nulle, rapportés à la puissance absorbée
         // au point pivot du mode chauffage s'il existe, du mode unique sinon.
-        let (taux, taux_defaut) = taux_auxiliaires(s.taux_auxiliaires, chauffage.is_some());
+        let (taux, taux_defaut) =
+            taux_auxiliaires(s.taux_auxiliaires, chauffage.is_some() || ecs.is_some());
         if taux_defaut {
             defauts.push(ValeurParDefaut {
                 champ: "taux_auxiliaires".to_owned(),
@@ -1107,13 +1130,14 @@ impl GenerateurThermodynamique {
         }
         let pabs_pivot = chauffage
             .as_ref()
+            .or(ecs.as_ref())
             .or(refroidissement.as_ref())
             .map_or(0.0, |m| m.matrice.pabs_pivot_w());
         Some((
             Self {
                 chauffage,
                 refroidissement,
-                ecs: None,
+                ecs,
                 compresseur,
                 w_aux_0_w: taux * pabs_pivot,
                 rdim,

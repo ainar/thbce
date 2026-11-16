@@ -20,7 +20,7 @@ use crate::chauffage_refroidissement::saisons_fonctionnement::{
 };
 use crate::chauffage_refroidissement::sources_amont::{SourceAmont, C_PA_J_KG_K};
 use crate::chauffage_refroidissement::systemes_groupe::Liens;
-use crate::climat::calendrier::{date_scenario, jour_bascule_saisons};
+use crate::climat::calendrier::{date_scenario, hleg, jour_bascule_saisons};
 use crate::climat::environnement_proche::ventc_m_s;
 use crate::climat::{ClimatExterieur, ConfortAdaptatif};
 use crate::conventions::{ModeCalcul, NB_HEURES_AN};
@@ -109,6 +109,10 @@ pub struct SystemesBatiment {
     pub cumuls_cef_groupes: Vec<CumulsCef>,
     /// Énergie de la sécurité antigel transmise aux générations, par zone, en Wh.
     pub cumuls_antigel_wh: Vec<f64>,
+    /// « Φrejet » : puissance puisée dans chaque espace tampon par les évaporateurs des
+    /// générateurs thermodynamiques sur air ambiant au dernier pas de temps, en W (§5.4.3.2,
+    /// éq. 109).
+    pub phi_rejet_et_w: Vec<f64>,
 }
 
 /// Origine d'une demande reçue par une génération.
@@ -302,6 +306,7 @@ impl BatimentHoraire {
                         hebergement: g.habitation,
                     }
                 }));
+                et.phi_rejet_w = self.systemes.phi_rejet_et_w.get(i).copied().unwrap_or(0.0);
                 self.coefficients[i] = et.pas(&ext, v_ventc, &self.vus);
             }
         }
@@ -596,6 +601,7 @@ impl SystemesBatiment {
             groupes,
             cumuls_cef_groupes: vec![CumulsCef::default(); nb_groupes],
             cumuls_antigel_wh: vec![0.0; nb_zones],
+            phi_rejet_et_w: vec![0.0; ids_et.len()],
             aut_gen: vec![(false, false); generations.len()],
             generations,
             permanent,
@@ -717,6 +723,9 @@ impl SystemesBatiment {
         let mut origines: Vec<Origine> = Vec::new();
         let mut sources: Vec<ConditionsSource> = Vec::new();
         let mut phi_vc_gen = vec![0.0; groupes.len()];
+        for x in &mut self.phi_rejet_et_w {
+            *x = 0.0;
+        }
         for ig in 0..self.generations_horaires.len() {
             vus.clear();
             origines.clear();
@@ -734,6 +743,7 @@ impl SystemesBatiment {
                     hydraulique: !matches!(dp.reseau, ReseauIntergroupes::Fictif),
                     q_sys_wh: q,
                     theta_moy_c: s.theta_moy_c,
+                    theta_dep_c: s.theta_dep_c,
                     theta_i_aval_eq_c: s.theta_i_aval_eq_c,
                     relance: s.relance,
                     rat_surf_dess: self.rat_surf_dess[k],
@@ -752,6 +762,7 @@ impl SystemesBatiment {
                     hydraulique: true,
                     q_sys_wh: s.q_w_prim_wh,
                     theta_moy_c: s.theta_moy_c,
+                    theta_dep_c: s.theta_depart_c,
                     theta_i_aval_eq_c: 0.0,
                     relance: false,
                     rat_surf_dess: self.rat_surf_dess_ecs[k],
@@ -769,6 +780,7 @@ impl SystemesBatiment {
                     hydraulique: false,
                     q_sys_wh: w_ag,
                     theta_moy_c: 0.0,
+                    theta_dep_c: 0.0,
                     theta_i_aval_eq_c: theta_ext_c,
                     relance: false,
                     // Sans demande, la sécurité antigel ne pèse pas dans les répartitions.
@@ -806,7 +818,7 @@ impl SystemesBatiment {
                     }
                 }
             }));
-            let s = gen.pas(
+            gen.pas(
                 &EntreesGeneration {
                     reseaux: &vus,
                     aut_ch,
@@ -816,10 +828,23 @@ impl SystemesBatiment {
                     theta_ext_c,
                     b_therm,
                     w_rechauf_wh: w_rechauf,
+                    theta_cw_c,
+                    hleg: hleg(h),
                     sources: &sources,
                 },
                 mois,
             );
+            // §5.4.3.2, éq. (109) : chaleur puisée dans les espaces tampons par les générateurs
+            // sur air ambiant (« φrejet » est négatif en production d'ECS).
+            for g in &gen.generateurs {
+                if let Some(SourceAmont::AirAmbiant { espace_tampon }) = g.source.map(|s| s.source)
+                {
+                    if let Some(x) = self.phi_rejet_et_w.get_mut(espace_tampon) {
+                        *x -= g.jeu.phi_rejet_wh;
+                    }
+                }
+            }
+            let s = &gen.sorties;
             // Éq. (999) à (1001) : part de chaque groupe dans la demande de la génération, par
             // poste ; éq. (1484) à (1486) : consommations attribuées aux groupes.
             for (igr, g) in groupes.iter().enumerate() {

@@ -341,8 +341,56 @@ pub struct ResultatsGeneration {
     pub nbh_sousdim_ch_ecs_max: u32,
     /// De même en refroidissement (éq. 1062 à 1064).
     pub nbh_sousdim_fr_max: u32,
-    /// Générateurs de la génération.
+    /// Générateurs de la génération ; la pompe à chaleur d'un chauffe-eau thermodynamique
+    /// décrit par son essai y figure sous l'identifiant du chauffe-eau.
     pub generateurs: Vec<ResultatsGenerateur>,
+    /// Assemblages avec ballon de stockage d'ECS (§9.14) ; absent sans ballon.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stockages: Vec<ResultatsStockage>,
+}
+
+/// Assemblage avec ballon de stockage d'ECS, calcul Th-C (§9.9, §9.10 et §9.14).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsStockage {
+    /// Identifiant de l'assemblage ou du chauffe-eau thermodynamique.
+    pub id: Id,
+    /// « Qfou,ECS » : énergie fournie par les ballons à la distribution d'ECS, en kWh
+    /// (éq. 1954).
+    pub q_fou_ecs_kwh: f64,
+    /// « Qfou_sto_base » : énergie fournie aux ballons par le générateur de base, en kWh.
+    pub q_fou_sto_base_kwh: f64,
+    /// « Qfou_sto_ap » : énergie fournie aux ballons par l'appoint intégré, en kWh.
+    pub q_fou_sto_ap_kwh: f64,
+    /// « Φpertes » : pertes thermiques des ballons, en kWh (éq. 1771).
+    pub pertes_kwh: f64,
+    /// « Vp » : volume d'eau puisé dans les ballons, en L.
+    pub v_puise_l: f64,
+    /// Plus basse température de la zone haute en fin de pas de temps, en °C.
+    pub theta_haut_min_c: f64,
+    /// Plus longue suite d'heures où la zone haute est restée sous la consigne (éq. 1959) ; le
+    /// texte juge le ballon incohérent avec le projet au-delà de 168 heures.
+    pub nbh_temp_insuff_max: u32,
+    /// Paramètres Th-BCE identifiés à partir de l'essai d'un chauffe-eau thermodynamique
+    /// (§9.22).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub idcet: Option<ResultatsIdCet>,
+    /// Valeurs par défaut de la méthode appliquées à l'assemblage.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+}
+
+/// Identification d'un chauffe-eau thermodynamique (§9.22.3.4) : entrées du modèle Th-BCE
+/// déduites de l'essai, avant correction de statut.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsIdCet {
+    /// « UAs,util » : coefficient de pertes du ballon, en W/K.
+    pub ua_s_w_k: f64,
+    /// « ValCOPpivot » : valeur pivot du COP.
+    pub cop_pivot: f64,
+    /// « ValPabspivot » : valeur pivot de la puissance absorbée, en kW.
+    pub pabs_pivot_kw: f64,
+    /// « ε » : écart relatif entre l'essai reproduit par le modèle et l'essai saisi (éq. 2248).
+    pub epsilon: f64,
 }
 
 /// Générateur, calcul Th-C (§8.29.3.8).
@@ -915,6 +963,24 @@ impl Resultats {
                     *x = a(*x);
                 }
                 g.consommations.arrondir();
+                for s in &mut g.stockages {
+                    for x in [
+                        &mut s.q_fou_ecs_kwh,
+                        &mut s.q_fou_sto_base_kwh,
+                        &mut s.q_fou_sto_ap_kwh,
+                        &mut s.pertes_kwh,
+                        &mut s.v_puise_l,
+                        &mut s.theta_haut_min_c,
+                    ] {
+                        *x = a(*x);
+                    }
+                    if let Some(i) = &mut s.idcet {
+                        // Paramètres identifiés restitués avec quatre décimales.
+                        for x in [&mut i.ua_s_w_k, &mut i.cop_pivot, &mut i.pabs_pivot_kw] {
+                            *x = (*x * 1e4).round() / 1e4;
+                        }
+                    }
+                }
                 for x in &mut g.generateurs {
                     x.q_fou_ch_kwh = a(x.q_fou_ch_kwh);
                     x.q_fou_fr_kwh = a(x.q_fou_fr_kwh);

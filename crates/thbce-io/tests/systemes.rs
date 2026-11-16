@@ -169,8 +169,11 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
     assert!((e.q_w_2nd_kwh - e.q_w_kwh - e.pertes_vc_kwh - e.pertes_hvc_kwh).abs() < 1e-6);
     assert!((b.generations[1].q_ecs_kwh - e.q_w_2nd_kwh).abs() < 1e-6);
     // Pertes récupérées (§11.1) : 60 % des pertes en volume chauffé de la distribution d'ECS ;
-    // les générateurs à effet Joule et les réseaux fictifs n'en ont pas.
-    assert!((sy.recup_kwh - 0.6 * e.pertes_vc_kwh).abs() < 1e-6);
+    // 60 % des pertes du ballon d'ECS, placé en volume chauffé (éq. 1961 et 2362) ; les
+    // générateurs à effet Joule et les réseaux fictifs n'en ont pas.
+    let pertes_ballon = b.generations[1].pertes_vc_kwh;
+    assert!(pertes_ballon > 0.0);
+    assert!((sy.recup_kwh - 0.6 * (e.pertes_vc_kwh + pertes_ballon)).abs() < 1e-6);
     let dh_conv = dh_emission_conventionnelle(&maison, &m);
     let dh_sans_recup = dh_sans_recuperation(&maison, &m);
     println!(
@@ -211,9 +214,12 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
     assert!((bp.generations[0].q_ch_kwh - syp.q_sys_ch_kwh - d.pertes_vc_kwh).abs() < 1e-6);
     assert_eq!(bp.distributions_intergroupes[0].pertes_vc_kwh, 0.0);
     // Récupération : pertes du réseau du groupe (100 %), 60 % de la part du circulateur
-    // transmise au volume chauffé (50 %), 60 % des pertes de l'ECS en volume chauffé.
+    // transmise au volume chauffé (50 %), 60 % des pertes de l'ECS en volume chauffé et de
+    // celles du ballon du chauffe-eau thermodynamique.
     let ep = &syp.ecs[0];
-    let attendu = d.pertes_vc_kwh + 0.6 * 0.5 * d.w_aux_kwh + 0.6 * ep.pertes_vc_kwh;
+    let attendu = d.pertes_vc_kwh
+        + 0.6 * 0.5 * d.w_aux_kwh
+        + 0.6 * (ep.pertes_vc_kwh + bp.generations[1].pertes_vc_kwh);
     assert!((syp.recup_kwh - attendu).abs() < 1e-6, "{titre}");
     println!(
         "{titre} : plancher chauffant, demande {:.1} kWh, émetteurs {:.1} kWh, pertes en volume \
@@ -334,6 +340,46 @@ fn validation_des_systemes() {
     assert!(m.iter().any(|m| m.contains("zone inconnue")), "{m:?}");
     assert!(
         m.iter().any(|m| m.contains("source amont incohérente")),
+        "{m:?}"
+    );
+    // Ballons de stockage et chauffe-eau thermodynamiques (§9.9, §9.14 et §9.22).
+    let ballon = |f: &dyn Fn(&mut serde_json::Value)| -> Vec<String> {
+        let mut p = cas("maison-climat-ademe");
+        let mut v = serde_json::to_value(&p.batiments[0].generations[1]).unwrap();
+        f(&mut v);
+        p.batiments[0].generations[1] = serde_json::from_value(v).unwrap();
+        messages(&p)
+    };
+    assert!(ballon(&|_| {}).is_empty());
+    let m = ballon(&|g| g["stockages"][0]["base"]["generateur"] = "inconnu".into());
+    assert!(m.iter().any(|m| m.contains("générateur inconnu")), "{m:?}");
+    let m = ballon(&|g| g["stockages"][0]["base"]["z_reg"] = 5.into());
+    assert!(m.iter().any(|m| m.contains("numéro de zone")), "{m:?}");
+    let m = ballon(&|g| g["stockages"][0]["ballon"]["theta_max_c"] = 50.into());
+    assert!(m.iter().any(|m| m.contains("theta_max_c")), "{m:?}");
+    let m = ballon(&|g| g["priorite"] = "sans_priorite".into());
+    assert!(m.iter().any(|m| m.contains("régulée en cascade")), "{m:?}");
+    let m = ballon(&|g| g["stockages"][0]["nb_assemblages"] = 2.into());
+    assert!(m.iter().any(|m| m.contains("rdim")), "{m:?}");
+    let cet = |f: &dyn Fn(&mut serde_json::Value)| -> Vec<String> {
+        let mut p = cas("maison-plancher-ademe");
+        let mut v = serde_json::to_value(&p.batiments[0].generations[1]).unwrap();
+        f(&mut v["chauffe_eau_thermodynamiques"][0]);
+        p.batiments[0].generations[1] = serde_json::from_value(v).unwrap();
+        messages(&p)
+    };
+    assert!(cet(&|_| {}).is_empty());
+    // Essai incohérent : 0,5 h pour chauffer 200 L avec un COP de 2,7 et 5 W en régime
+    // stabilisé.
+    let m = cet(&|c| {
+        c["essai"]["t_h_h"] = 0.05.into();
+        c["essai"]["p_es_w"] = 0.01.into();
+    });
+    assert!(m.iter().any(|m| m.contains("aucun triplet")), "{m:?}");
+    let m =
+        cet(&|c| c["source_amont"] = serde_json::json!({"air_ambiant": {"espace_tampon": "x"}}));
+    assert!(
+        m.iter().any(|m| m.contains("espace tampon inconnu")),
         "{m:?}"
     );
     // Générateurs : au moins un, natures hors de la version, sécurité antigel.

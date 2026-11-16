@@ -168,6 +168,10 @@ pub struct EspaceTamponHoraire {
     pub cumuls: CumulsEt,
     /// Coefficients du dernier pas de temps calculé.
     pub coefficients: CoefficientsEt,
+    /// « Φrejet(h) » : somme des puissances des évaporateurs des générateurs thermodynamiques
+    /// d'ECS qui puisent dans l'espace tampon, au pas précédent, en W (éq. 109) ; fixée par le
+    /// bâtiment avant chaque pas de temps, nulle sans générateur.
+    pub phi_rejet_w: f64,
 }
 
 impl EspaceTamponHoraire {
@@ -262,6 +266,7 @@ impl EspaceTamponHoraire {
                 theta_et_c: THETA_ET_INITIALE_C,
                 a_ouv_et_m2: 0.0,
             },
+            phi_rejet_w: 0.0,
         }
     }
 
@@ -293,8 +298,8 @@ impl EspaceTamponHoraire {
         let h_int = self.h_et_th_int_eq_w_k;
         let coefficients = match &self.modele {
             ModeleEt::NonSolarise(b_et_ns) => {
-                // §5.4.3.2, éq. (109) à (114), sans générateur thermodynamique (Φrejet = 0).
-                non_solarise(*b_et_ns, theta_ext, theta_i_eq, 0.0, h_int)
+                // §5.4.3.2, éq. (109) à (114).
+                non_solarise(*b_et_ns, theta_ext, theta_i_eq, self.phi_rejet_w, h_int)
             }
             ModeleEt::Solarise(s) => {
                 // Environnement proche des parois de l'espace tampon (§3.2), éq. (117).

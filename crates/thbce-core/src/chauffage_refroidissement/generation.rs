@@ -21,6 +21,7 @@ use super::calculs_generation::{
 use super::generateur_direct_a_effet_joule::GenerateurEffetJoule;
 use super::sources_amont::SourceAmontGenerateur;
 use super::thermodynamique_elec::GenerateurThermodynamique;
+use crate::ecs::assemblage_ballon::{AssemblageBallon, EntreesAssemblage};
 use crate::resultats::ValeurParDefaut;
 
 /// « θamb_ch » : température d'ambiance conventionnelle en chauffage, en °C (tableau 110).
@@ -355,6 +356,8 @@ pub struct ReseauVu {
     pub q_sys_wh: f64,
     /// « θmoy(h) » : température moyenne du réseau, en °C.
     pub theta_moy_c: f64,
+    /// « θdep(h) » : température de départ demandée par le réseau, en °C.
+    pub theta_dep_c: f64,
     /// « θi,aval,eq(h) » : température d'air vue par un réseau fictif, en °C.
     pub theta_i_aval_eq_c: f64,
     /// « idrelance(h) ».
@@ -381,6 +384,10 @@ pub struct EntreesGeneration<'a> {
     pub b_therm: f64,
     /// « Σ Wrechauffe^dp-e(h) » : réchauffeurs des boucles d'ECS reliées, en Wh (éq. 1057).
     pub w_rechauf_wh: f64,
+    /// « θcw(h) » : température de l'eau froide, en °C (ballons de stockage).
+    pub theta_cw_c: f64,
+    /// « hleg » : heure légale du pas de temps (programmation des ballons).
+    pub hleg: u8,
     /// Conditions de source amont de chaque générateur, dans l'ordre des générateurs ; vide si
     /// aucun n'en dépend.
     pub sources: &'a [ConditionsSource],
@@ -444,6 +451,8 @@ pub struct CumulsGeneration {
     pub q_fou_wh: [f64; 3],
     /// « φvc_tot », en Wh.
     pub phi_vc_tot_wh: f64,
+    /// Pertes des ballons de stockage, en Wh.
+    pub phi_pertes_sto_wh: f64,
     /// Plus longue suite d'heures de sous-dimensionnement, en chauffage ou ECS puis en
     /// refroidissement.
     pub nb_sousdim_max: [u32; 2],
@@ -469,6 +478,8 @@ pub struct GenerationHoraire {
     pub theta_dist_fr_min_c: Option<f64>,
     /// Générateurs.
     pub generateurs: Vec<GenerateurHoraire>,
+    /// Assemblages avec ballon de stockage d'ECS (§9.14), premiers sollicités en ECS.
+    pub stockages: Vec<AssemblageBallon>,
     /// État.
     pub etat: EtatGeneration,
     /// Cumuls annuels.
@@ -489,6 +500,7 @@ impl GenerationHoraire {
             theta_dist_ch_max_c: None,
             theta_dist_fr_min_c: None,
             generateurs,
+            stockages: Vec::new(),
             etat: EtatGeneration::default(),
             cumuls: CumulsGeneration::default(),
             sorties: SortiesGeneration::default(),
@@ -523,7 +535,7 @@ impl GenerationHoraire {
             FonctionEffetJoule, GestionTemperatureGeneration, NatureGenerateur, PositionGeneration,
             TypePriorite,
         };
-        let generateurs = g
+        let mut generateurs: Vec<GenerateurHoraire> = g
             .generateurs
             .iter()
             .filter_map(|s| {
@@ -570,6 +582,7 @@ impl GenerationHoraire {
                 })
             })
             .collect();
+        let stockages = Self::resoudre_stockages(g, &mut generateurs, ids_et, ids_zones);
         let gestion = |x: Option<GestionTemperatureGeneration>| match x {
             Some(GestionTemperatureGeneration::Constante { theta_wm_c }) => {
                 GestionTemperature::Constante(theta_wm_c)
@@ -584,8 +597,168 @@ impl GenerationHoraire {
             },
             gestion_ch: gestion(g.gestion_temperature_chauffage),
             gestion_fr: gestion(g.gestion_temperature_refroidissement),
+            stockages,
             ..Self::nouvelle(g.id.clone(), generateurs)
         }
+    }
+
+    /// Résout les assemblages avec ballon d'une génération (§9.14) et ses chauffe-eau
+    /// thermodynamiques (§9.22), dont la pompe à chaleur est ajoutée aux générateurs.
+    fn resoudre_stockages(
+        g: &crate::entree::Generation,
+        generateurs: &mut Vec<GenerateurHoraire>,
+        ids_et: &[String],
+        ids_zones: &[String],
+    ) -> Vec<AssemblageBallon> {
+        use crate::ecs::assemblage_ballon::RegulationGenerateur;
+        use crate::ecs::ballon_de_stockage::{ua_s_defaut_w_k, Ballon, NatureBallon, F_AUX_DEFAUT};
+        use crate::ecs::gestion_regulation_ballon::{
+            nb_iter_vp, Programmation, DELTA_THETA_DEFAUT_K,
+        };
+        use crate::entree::{NatureBallonSaisie, PertesBallon, ProgrammationBallon};
+        let programmation = |p: ProgrammationBallon| match p {
+            ProgrammationBallon::Permanent => Programmation::Permanent,
+            ProgrammationBallon::Nuit => Programmation::Nuit,
+            ProgrammationBallon::Jour => Programmation::Jour,
+        };
+        let defaut = |champ: &str, valeur: f64, regle: &str| ValeurParDefaut {
+            champ: champ.to_owned(),
+            valeur,
+            regle: regle.to_owned(),
+        };
+        let regle_delta = "Th-BCE 2020 §9.10.3.2.2 : hystérésis du thermostat par défaut, 2 K";
+        let mut stockages = Vec::new();
+        for s in &g.stockages {
+            let Some(base) = generateurs.iter().position(|x| x.id == s.base.generateur) else {
+                continue;
+            };
+            let mut defauts = Vec::new();
+            let v = s.ballon.v_tot_l;
+            let ua = match s.ballon.pertes {
+                PertesBallon::Certifie { ua_s_w_k } => ua_s_w_k,
+                PertesBallon::Justifie { ua_s_w_k } => 1.1 * ua_s_w_k,
+                PertesBallon::ParDefaut { nature } => {
+                    let ua = ua_s_defaut_w_k(
+                        match nature {
+                            NatureBallonSaisie::EffetJouleHorizontal => {
+                                NatureBallon::EffetJouleHorizontal
+                            }
+                            NatureBallonSaisie::EffetJouleVertical => {
+                                NatureBallon::EffetJouleVertical
+                            }
+                            NatureBallonSaisie::Autre => NatureBallon::Autre,
+                        },
+                        v,
+                    );
+                    defauts.push(defaut(
+                        "ballon.pertes.par_defaut",
+                        ua,
+                        "Th-BCE 2020 §9.9.3.1, tableau 282 et éq. (1768) : coefficient de \
+                         pertes par défaut du ballon, en W/K",
+                    ));
+                    ua
+                }
+            };
+            if s.base.delta_theta_k.is_none() {
+                defauts.push(defaut(
+                    "base.delta_theta_k",
+                    DELTA_THETA_DEFAUT_K,
+                    regle_delta,
+                ));
+            }
+            let zone = |z: u8| usize::from(z.clamp(1, 4)) - 1;
+            let appoint = s.appoint.as_ref().and_then(|a| {
+                let i = generateurs.iter().position(|x| x.id == a.generateur)?;
+                if a.f_aux.is_none() {
+                    defauts.push(defaut(
+                        "appoint.f_aux",
+                        F_AUX_DEFAUT,
+                        "Th-BCE 2020 §9.9.3.1 : fraction du ballon chauffée par l'appoint par \
+                         défaut",
+                    ));
+                }
+                if a.delta_theta_k.is_none() {
+                    defauts.push(defaut(
+                        "appoint.delta_theta_k",
+                        DELTA_THETA_DEFAUT_K,
+                        regle_delta,
+                    ));
+                }
+                Some((
+                    RegulationGenerateur {
+                        generateur: i,
+                        programmation: programmation(a.programmation),
+                        delta_theta_k: a.delta_theta_k.unwrap_or(DELTA_THETA_DEFAUT_K),
+                        z_gen: zone(a.z_ap),
+                        z_reg: zone(a.z_reg),
+                        h_rel_ech: 0.0,
+                    },
+                    a.f_aux.unwrap_or(F_AUX_DEFAUT),
+                ))
+            });
+            let f_aux = appoint.map(|(_, f)| f);
+            let mut a = AssemblageBallon::nouveau(
+                s.id.clone(),
+                f64::from(s.nb_assemblages.max(1)),
+                Ballon::nouveau(v, ua, f_aux, s.ballon.theta_max_c),
+                RegulationGenerateur {
+                    generateur: base,
+                    programmation: programmation(s.base.programmation),
+                    delta_theta_k: s.base.delta_theta_k.unwrap_or(DELTA_THETA_DEFAUT_K),
+                    // Éq. (1947) : échangeur de la base en zone inférieure.
+                    z_gen: 0,
+                    z_reg: zone(s.base.z_reg),
+                    h_rel_ech: s.base.h_rel_ech.unwrap_or(0.0),
+                },
+                appoint.map(|(r, _)| r),
+                nb_iter_vp(f_aux),
+            );
+            a.valeurs_par_defaut = defauts;
+            stockages.push(a);
+        }
+        for c in &g.chauffe_eau_thermodynamiques {
+            let Some(r) = crate::ecs::idcet::resoudre(
+                c,
+                |id| ids_et.iter().position(|e| e == id),
+                |id| ids_zones.iter().position(|z| z == id),
+            ) else {
+                continue;
+            };
+            let mut gnr = GenerateurHoraire::nouveau(
+                c.id.clone(),
+                Generateur::Thermodynamique(Box::new(r.pac)),
+            );
+            gnr.source = Some(r.source);
+            if !c.essai.auxiliaires_compris {
+                gnr.valeurs_par_defaut.push(defaut(
+                    "essai.auxiliaires_compris",
+                    crate::ecs::idcet::TAUX_SANS_AUXILIAIRES,
+                    "Th-BCE 2020 §9.22.3.5.1, éq. (2250) : Taux = 0,02 quand les auxiliaires ne \
+                     sont pas compris dans l'essai",
+                ));
+            }
+            generateurs.push(gnr);
+            let mut a = AssemblageBallon::nouveau(
+                c.id.clone(),
+                f64::from(c.nb_assemblages.max(1)),
+                r.ballon,
+                RegulationGenerateur {
+                    generateur: generateurs.len() - 1,
+                    programmation: programmation(c.programmation),
+                    // Éq. (2262) : hystérésis par défaut ; §9.22.3.2.4 : échangeur et sonde en
+                    // zone basse, hauteur relative nulle.
+                    delta_theta_k: DELTA_THETA_DEFAUT_K,
+                    z_gen: 0,
+                    z_reg: 0,
+                    h_rel_ech: 0.0,
+                },
+                None,
+                nb_iter_vp(None),
+            );
+            a.identification = Some(r.identification);
+            stockages.push(a);
+        }
+        stockages
     }
 
     /// « θamb(h) » : température d'ambiance de la génération (§8.17.3.5.8).
@@ -609,8 +782,17 @@ impl GenerationHoraire {
     /// Indices des générateurs assurant un poste, dans l'ordre de leurs priorités (ordre de la
     /// saisie à priorité égale).
     fn generateurs_du_poste(&self, poste: Poste) -> Vec<usize> {
+        // En ECS, les générateurs de base et d'appoint d'un ballon sont pilotés par leur
+        // assemblage (§8.17.3.4) : ils ne comptent pas parmi les générateurs instantanés.
+        let pilote = |i: usize| {
+            poste == Poste::Ecs
+                && self
+                    .stockages
+                    .iter()
+                    .any(|s| s.base.generateur == i || s.appoint.is_some_and(|a| a.generateur == i))
+        };
         let mut v: Vec<usize> = (0..self.generateurs.len())
-            .filter(|&i| self.generateurs[i].modele.fonction().assure(poste))
+            .filter(|&i| self.generateurs[i].modele.fonction().assure(poste) && !pilote(i))
             .collect();
         if self.priorite == ModePriorite::Cascade {
             v.sort_by_key(|&i| self.generateurs[i].priorite[poste.indice()]);
@@ -684,6 +866,40 @@ impl GenerationHoraire {
         // §8.17.3.7 : algorithme principal pour les générateurs instantanés, dans l'ordre des
         // étapes du texte : ECS, refroidissement, chauffage (lecture Q46).
         let mut q_rep = [0.0; 3];
+        let mut q_ar = q_ar;
+        let q_ar_ecs = q_ar[2];
+        // §8.17.3.6 et §9.14 : les assemblages avec ballon de stockage sont les premiers
+        // sollicités pour l'ECS ; ce qu'ils ne fournissent pas passe aux générateurs
+        // instantanés, ou est reporté.
+        let mut q_fou_sto = 0.0;
+        let mut phi_pertes_sto = 0.0;
+        if e.id_encl && !self.stockages.is_empty() {
+            let mut stockages = std::mem::take(&mut self.stockages);
+            let theta_depart = e
+                .reseaux
+                .iter()
+                .filter(|r| r.poste == Poste::Ecs)
+                .map(|r| r.theta_dep_c)
+                .fold(0.0, f64::max);
+            for st in &mut stockages {
+                let s = st.pas(
+                    &EntreesAssemblage {
+                        q_req_ecs_wh: q_ar[2],
+                        theta_entrant_c: e.theta_cw_c,
+                        theta_depart_c: theta_depart,
+                        theta_amb_c: theta_amb,
+                        hleg: e.hleg,
+                    },
+                    &mut |i, q_req, theta_aval| {
+                        self.appeler_pour_ballon(i, q_req, theta_aval, theta_amb, e)
+                    },
+                );
+                q_ar[2] = s.q_rest_ecs_wh;
+                q_fou_sto += s.q_fou_ecs_wh;
+                phi_pertes_sto += s.phi_pertes_wh;
+            }
+            self.stockages = stockages;
+        }
         for poste in [Poste::Ecs, Poste::Refroidissement, Poste::Chauffage] {
             let p = poste.indice();
             let actif = match poste {
@@ -737,14 +953,23 @@ impl GenerationHoraire {
         // §8.17.3.9, éq. (1056) à (1058) : matrice et pertes de la génération.
         let mut q_cef = MatriceCef::NULLE;
         let mut phi_vc = 0.0;
-        let mut q_fou = [0.0; 3];
-        for g in &self.generateurs {
+        // Énergie fournie aux réseaux : celle des générateurs instantanés et, en ECS, celle
+        // des ballons (l'énergie des générateurs de ballon va au stockage).
+        let mut q_fou = [0.0, 0.0, q_fou_sto];
+        let instantanes_ecs = self.generateurs_du_poste(Poste::Ecs);
+        for (i, g) in self.generateurs.iter().enumerate() {
             q_cef.ajouter_matrice(&g.jeu.q_cef);
             phi_vc += g.jeu.phi_vc_wh;
-            for (x, y) in q_fou.iter_mut().zip(g.jeu.q_fou_wh) {
-                *x += y;
+            q_fou[0] += g.jeu.q_fou_wh[0];
+            q_fou[1] += g.jeu.q_fou_wh[1];
+            if instantanes_ecs.contains(&i) {
+                q_fou[2] += g.jeu.q_fou_wh[2];
             }
         }
+        // Éq. (1058) et (1961) : pertes des ballons, récupérables en volume chauffé.
+        phi_vc += phi_pertes_sto;
+        self.cumuls.phi_pertes_sto_wh += phi_pertes_sto;
+        let q_ar = [q_ar[0], q_ar[1], q_ar_ecs];
         q_cef.ajouter(Poste::Ecs, Energie::Electricite, e.w_rechauf_wh);
         if !self.en_volume_chauffe {
             phi_vc = 0.0;
@@ -933,6 +1158,40 @@ impl GenerationHoraire {
         }
     }
 
+    /// Appelle le générateur d'indice `i` pour le compte d'un ballon de stockage d'ECS
+    /// (§9.13) et renvoie l'énergie fournie au ballon, en Wh. Comme en production instantanée
+    /// (§8.17.3.7.2), le générateur est appelé s'il y a une demande ou s'il ne produit que de
+    /// l'ECS au pas de temps, sa consommation à charge nulle étant alors comptée en ECS.
+    fn appeler_pour_ballon(
+        &mut self,
+        i: usize,
+        q_req_wh: f64,
+        theta_aval_c: f64,
+        theta_amb_c: f64,
+        e: &EntreesGeneration<'_>,
+    ) -> f64 {
+        let Some(g) = self.generateurs.get_mut(i) else {
+            return 0.0;
+        };
+        let ecs_seule = g.modele.fonction() == FonctionGenerateur::Ecs || !e.aut_ch;
+        if !(q_req_wh > 0.0 || ecs_seule) {
+            return 0.0;
+        }
+        let source = e.sources.get(i).copied().unwrap_or_default();
+        let s = g.modele.appel(&EntreesAppel {
+            fonction: Poste::Ecs,
+            q_req_wh,
+            theta_amont_c: source.theta_amont_c,
+            theta_aval_c,
+            r_pui_dispo: 1.0,
+            ecs_seule,
+            theta_amb_c,
+            air_extrait_w_k: source.air_extrait_w_k,
+        });
+        g.jeu.ajouter(Poste::Ecs, 1.0, &s);
+        s.q_fou_wh
+    }
+
     /// Appelle le générateur d'indice `i` pour un poste, si les conditions du texte le
     /// permettent, et met à jour son jeu de données.
     fn appeler(
@@ -1038,6 +1297,7 @@ mod tests {
             hydraulique: false,
             q_sys_wh: q,
             theta_moy_c: 0.0,
+            theta_dep_c: 0.0,
             theta_i_aval_eq_c: 19.0,
             relance: false,
             rat_surf_dess: 1.0,
@@ -1053,6 +1313,8 @@ mod tests {
             theta_ext_c: 5.0,
             b_therm: 1.0,
             w_rechauf_wh: 0.0,
+            theta_cw_c: 12.0,
+            hleg: 12,
             sources: &[],
         }
     }
