@@ -48,13 +48,15 @@ Chaque entrée indique la section du texte, la nature du manque ou de l'ambiguï
 | Q37 | Bilan aéraulique de la zone (fiche 5.6) : application en Bbio et entrées d'air ; origine des altitudes ; hauteur moyenne et coefficients de pression ; sens du débit échangé avec le hall ; masses volumiques des débits ; perméabilité obligatoire | tranchée, à confirmer par un cas de référence ; les entrées d'air en Bbio (point 1) sont **sensibles** (7 points) : **deuxième paramètre à tester si le Bbio diverge**, juste après Q34 ; l'origine des altitudes (point 3) est à revalider pour le logement collectif à plusieurs groupes |
 | Q38 | Indicateurs de confort, émission et bilan hydrique du Bbio (fiches 4.5, 8.1 et 8.3) : facteur des écarts d'inconfort chaud (éq. 61) ; `φcrois` en W ; `iclim` en Bbio (§8.1.3.1 et éq. 807, contre la lettre du texte) ; signe de `Qsys_fr` ; catégorie d'ambiance ; volume du groupe obligatoire | tranchée, à confirmer par un cas de référence ; `iclim` en Bbio (point 3) rejoint les **paramètres à tester si le Bbio diverge** |
 | Q39 | Enchaînement horaire du Bbio (fiches 5.5, 5.7 et 13.1) : changement de jour (éq. 175 et scénarios à minuit légal, `θrm` au jour du fichier météo, saisons après le pas de 9 h légales) ; hall fictif ; état initial ; mois conventionnels ; sommation des énergies ; zone étanche refusée ; sensibilités mesurées | tranchée, à confirmer par un cas de référence |
-| Q40 | Confort d'été, calcul Th-D (fiches 13.5, 5.21 §10, 4.6, 5.5 et 5.7) : assemblage du calcul Th-D (ventilation et émission conventionnelles du Bbio, faute des systèmes du projet) ; saison de refroidissement en Th-D ; éq. (2544) à (2546) ; inerties séquentielle et annuelle (figure 66, sommes, initialisations, cas dégénérés) ; DH de la zone et du bâtiment ; forfait de refroidissement reporté au lot 7 | **ouverte** : lectures retenues à valider ; le point 1 est **provisoire** jusqu'au lot 6 |
+| Q40 | Confort d'été, calcul Th-D (fiches 13.5, 5.21 §10, 4.6, 5.5 et 5.7) : assemblage du calcul Th-D (ventilation et émission conventionnelles du Bbio, faute des systèmes du projet) ; saison de refroidissement en Th-D ; éq. (2544) à (2546) ; inerties séquentielle et annuelle (figure 66, sommes, initialisations, cas dégénérés) ; DH de la zone et du bâtiment ; forfait de refroidissement reporté au lot 7 | tranchée, à confirmer par un cas de référence ; le point 1 reste **provisoire** jusqu'au lot 6a |
 
 « Hypothèse du mainteneur » signifie : lecture retenue le 16 novembre 2026, **à confirmer par un cas de validation**. Ce sont les premiers points à revoir si un cas de référence diverge.
 
 ### Paramètres à tester en premier si un cas de référence diverge
 
-Dans cet ordre, pour un écart sur le Bbio (effets mesurés sur la maison d'exemple, voir le tableau qui suit) :
+#### Bbio
+
+Ordre validé par le mainteneur (décision du 16 novembre 2026, proposée au lot 5). Dans cet ordre, pour un écart sur le Bbio (effets mesurés sur la maison d'exemple, voir le tableau « Sensibilités mesurées du Bbio ») :
 
 1. **Q34, point 1** : part des apports radiatifs et solaires des parois légères (`LectureFluxRadiatifs`) ; effet le plus fort (+9,9 points).
 2. **Q37, point 1** : entrées d'air prises en compte en Bbio (les retirer de la saisie pour tester) ; −7,3 points.
@@ -64,7 +66,18 @@ Dans cet ordre, pour un écart sur le Bbio (effets mesurés sur la maison d'exem
 6. **Q28** : changement de jour des scénarios à minuit légal.
 7. **Q32** : hystérésis de l'ouverture des baies (`LectureHysteresis`), qui pèse d'abord sur le DH et sur le besoin de froid.
 
-Pour un écart sur le DH seul, Q11 (moyenne glissante de la température extérieure) vient après Q25, et les lectures propres au calcul Th-D (Q40) s'ajoutent : assemblage et ventilation du calcul Th-D (point 1), saison de refroidissement (point 2), comportement de nuit de l'ouverture des baies (Q32 point 2, de loin le plus sensible).
+#### DH
+
+Liste distincte de celle du Bbio (décision du mainteneur du 16 novembre 2026). Dans cet ordre, pour un écart sur le DH (effets mesurés au lot 5 sur la maison d'exemple, H2b, météo réglementaire, DH de référence 1 231,1 °C.h ; voir le tableau « Sensibilités mesurées du DH ») :
+
+1. **Q32, point 2** : comportement de nuit de l'ouverture des baies ; baies refermées la nuit : 3 235,7 °C.h (+2 004,6), de loin le plus sensible ; profil d'ouverture appliqué à toute heure d'occupation : 1 257,7 °C.h (+26,6).
+2. **Q34, point 1** : part des apports radiatifs et solaires des parois légères ; lecture littérale : 1 013,8 °C.h (−217,3).
+3. **Q25** : lecture du fichier météo ligne à ligne ; fichier décalé d'une ligne : 1 143,1 °C.h (−88,0).
+4. **Q40, point 1** : assemblage et ventilation du calcul Th-D (provisoire jusqu'au lot 6a) ; débits des bouches tels quels : 1 207,5 °C.h (−23,6).
+5. **Q40, point 2** : saison de refroidissement en Th-D ; `Autfr,pro` nulle sans système : 1 250,8 °C.h (+19,7).
+6. **Q32, point 1** : hystérésis de l'ouverture des baies ; bande à mémoire : 1 226,1 °C.h (−5,0).
+
+Q11 (moyenne glissante de la température extérieure) et Q28 (sans effet en maison) viennent ensuite.
 
 ### Sensibilités mesurées du DH
 
@@ -542,7 +555,13 @@ Le fichier réglementaire ne contient pas toutes les grandeurs que la fiche `C_E
 11. **Arrondi.** Chaque valeur restituée est arrondie séparément à une décimale (décision Q8) : le Bbio annuel arrondi n'est pas la somme des Bbio mensuels arrondis ; l'égalité de l'éq. (2386) tient sur les valeurs non arrondies (`--sans-arrondi`).
 12. **Sensibilité du Bbio de la maison d'exemple** (H2b, météo réglementaire ; Bbio de référence : 60,5 points, dont chauffage 22,1 kWh/m², froid 2,9 kWh/m², éclairage 2,1 kWh/m²), mesurée en basculant une lecture à la fois : Q34 point 1, lecture littérale : 70,4 points (chauffage 28,2) ; Q37 point 1, sans les entrées d'air : 53,2 points (chauffage 18,4) ; Q36 point 1, lecture littérale : 61,4 points (chauffage 22,6 : l'extraction seule met la maison en dépression et supprime le débit traversant par les entrées d'air et les défauts d'étanchéité, ce qui compense presque la perte de l'échangeur) ; Q38 point 1, lecture littérale : 60,6 points ; Q38 point 3, lecture littérale (pas de besoin de froid) : 54,8 points.
 
-### Q40 — Confort d'été, calcul Th-D : fiches 13.5, 5.21 (§5.21.3.10), 4.6, 5.5 et 5.7 (A3 p. 1396 à 1403, 312 à 318, 87 à 92) — ouverte, lectures retenues à valider
+### Q40 — Confort d'été, calcul Th-D : fiches 13.5, 5.21 (§5.21.3.10), 4.6, 5.5 et 5.7 (A3 p. 1396 à 1403, 312 à 318, 87 à 92) — tranchée le 16 novembre 2026, à confirmer par un cas de référence
+
+- **Décision du mainteneur** : les lectures retenues des points 1 à 10 sont **validées**, « tranchée, à confirmer par un cas de référence ». Précisions :
+  - **point 1** : reste **provisoire** jusqu'au lot 6a (ventilation du projet en Th-D) ; l'avertissement `calcul::AVERTISSEMENT_DH` reste en place ;
+  - **point 7** (DH de la zone et du bâtiment égal à celui du groupe le plus défavorable) : confirmé ; l'exigence de la RE2020 porte sur « DH ≤ DH max pour chaque groupe du bâtiment » (guide de l'outil d'attestation RE2020 du CSTB) ;
+  - **Q32 point 2** (comportement de nuit) : fermer les baies la nuit fait passer le DH de 1 231 à 3 236 °C.h ; il vient en tête de la liste des paramètres à tester pour le DH, distincte de celle du Bbio (en tête de ce document) ;
+  - l'ordre de la liste du Bbio proposé au lot 5 (Q34.1, Q37.1, Q38.3, Q36.1, Q25, Q28, Q32) est validé.
 
 **Périmètre livré** : second calcul annuel, en mode Th-D, sur le jeu météo à séquence caniculaire, par le même enchaînement horaire que le calcul du Bbio, paramétré par `ModeCalcul` (`bati/assemblage_zone.rs`, `bati/assemblage_groupe.rs`) ; inerties séquentielle et annuelle (`bati/inerties_longues.rs`, éq. 315, 316, 318, 319, 321, 322, 327 à 332, 353 à 360) ; température d'inconfort chaud, `Δθconf_adapt`, indicateurs pédagogiques et DH (`confort/confort_ete.rs`, éq. 2543 à 2551) ; règles Th-D déjà codées et désormais branchées : facteurs solaires « e » des baies toute l'année (éq. 223 et 224) et des parois opaques et ponts thermiques en période de confort adaptatif (éq. 290 à 292 et 303), tableau 34 des protections mobiles et désactivation de la seconde protection (éq. 201 à 204), règles générales de l'ouverture des baies avec `Δθconf_adapt` (éq. 242 et 243), saisons du Th-D (éq. 76, 77, 80, 88 et 90). Les scénarios d'occupation sont ceux des autres modes : le classeur du 29 avril 2026 n'a pas de scénario propre au Th-D (la figure 15 de l'annexe II parle de « scénarios d'occupation du mois d'août » ; en maison et en logement collectif, août est occupé).
 
