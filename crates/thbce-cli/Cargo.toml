@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "thbce-cli"
+description = "Exécutable en ligne de commande du moteur Th-BCE 2020"
+version.workspace = true
+edition.workspace = true
+license = "GPL-3.0-or-later"
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[[bin]]
+name = "thbce"
+path = "src/main.rs"
+
+[dependencies]
+thbce-core.workspace = true
+thbce-io.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+thbce-data.workspace = true
