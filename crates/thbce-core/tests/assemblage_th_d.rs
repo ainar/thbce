@@ -41,9 +41,7 @@ fn projet() -> Projet {
 /// 152 au jour d'indice 255.
 fn meteo() -> MeteoProjet {
     let mut m = MeteoProjet::synthetique(ZoneClimatique::H2b);
-    for h in JOURS_CHAUDS.start * 24..JOURS_CHAUDS.end * 24 {
-        m.th_d.te0_c[h] = 30.0;
-    }
+    m.th_d.te0_c[JOURS_CHAUDS.start * 24..JOURS_CHAUDS.end * 24].fill(30.0);
     m
 }
 
