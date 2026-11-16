@@ -1,0 +1,90 @@
+Note : texte extrait d'un PDF à police mal encodée et corrigé automatiquement ; quelques caractères accentués peuvent rester erronés. Source : annexevi_arrete_4_aout_2021.pdf
+
+
+
+                                                     ANNEXE VI. 
+                 CONTENU DU RÉCAPITULATIF STANDARDISÉ D'ÉTUDE 
+                      ÉNERGÉTIQUE ET ENVIRONNEMENTALE 
+        
+       Pour chaque bâtiment relevant du présent arrêté, à l'exception des bâtiments répondant à l'article 7, le 
+       récapitulatif standardisé de l étude énergétique et environnementale est un fichier informatique au format 
+       XML, comportant les éléments suivants : 
+       Chapitre 1er : Données administratives du bâtiment 
+        
+       Chapitre  2  :  Exigences  de  performance  énergétique  et  environnementale  et  caractéristiques 
+       thermiques et exigences, comportant 
+           -    les  valeurs  de  Bbio,  Bbio_max,  Cep,nr,  Cep,nr_max,  Cep,  Cep_max,  Icénergie,  Icénergie_max, 
+                Icconstruction,  Icconstruction_max,  DH  et  DH_max  du  bâtiment,  conformément  aux  dispositions  de 
+                l'article R. 172-4 du code de la construction et de l habitation et de son annexe, ainsi que des 
+                Titres I et II du présent arrêté ; 
+           -    les valeurs des exigences pour un bâtiment moyen et des modulations, telles qu'obtenues en 
+                application de l'article R. 172-4 du code de la construction et de l habitation et de son annexe, 
+                ainsi que des Titres I et II du présent arrêté ; 
+           -    la valeur de la surface de référence du bâtiment utilisée dans les calculs ; 
+           -    le  statut  du  projet  de  bâtiment  vis-à-vis  de  chacune  des  exigences  de  moyens  par  élément , 
+                définies au Titre III du présent arrêté, auquel le projet est soumis. 
+        
+       Chapitre 3 : Autres indicateurs prévus par la méthode spécifiée à l'article 8 
+        
+       Chapitre 4 : Détail des entrées et sorties des calculs réglementaires, notamment 
+           -    la  décomposition  des  caractéristiques  de  l enveloppe  du  bâtiment,  par  catégorie  de  paroi 
+                 surfaces, orientations, caractéristiques énergétiques...  ; 
+           -    la décomposition des caractéristiques des systèmes énergétiques du bâtiment ; 
+           -    la décomposition des besoins, consommations et productions d énergie du bâtiment, entre autres 
+                par type d usage et par énergie ; 
+           -    les quantités et références des données environnementales de chaque composant du bâtiment, 
+                utilisées  pour  décrire  notamment  l'impact  sur  le  changement  climatique  des  composants  du 
+                bâtiment ; 
+           -    pour chaque projet, bâtiment, zones, groupes et locaux, l intégralité des caractéristiques telles 
+                que définies dans la méthode spécifiée à l'article 8 ; 
+           -    les paramètres saisis pour le calcul des contributions aux impacts des consommations et rejets 
+                d'eau et du chantier de construction. 
+        
+NR aoûî OMON              glrok^i lccf`fbi ab i^ oÉmr_ifnrb co^kÇ^fpb                                            qÉxîÉ OP suê SS
+
+
+
+
+       Chapitre  5,  calculé  de  manière  optionnelle  :  Impact  de  différents  paramètres  sur  les  résultats 
+       conventionnels  Bbio, Cep,nr, Cep et DH  
+           -    à titre informatif pour les concepteurs, sensibilités des résultats de calcul à des modifications de 
+                caractéristiques techniques du bâtiment ; 
+           -    à titre informatif pour les futurs occupants, pour les bâtiments à usage d habitation, sensibilités 
+                des  résultats  de  calcul  à  des  comportements  différents  des  comportements  conventionnels 
+                servant de base au calcul réglementaire. 
+        
+       Pour  chaque  bâtiment  relevant  de  l'article  7  du  présent  arrêté,  le  récapitulatif  standardisé  d étude 
+       énergétique  et  environnementale  précise  toutes  les  données  utilisées  ainsi  que  les  résultats  obtenus 
+       permettant  de  justifier  du  respect  du  mode  d application  simplifié  tant  du  point  de  vue  champ 
+       d application que des dispositions techniques et architecturales à mettre en °uvre. Dans le cas o des 
+       exigences de moyens  par élément  sont prévues, il précise également le statut du projet de bâtiment vis-
+       à-vis de chacune des exigences de moyens  par élément  auquel le projet est soumis. 
+        
+
+                                                     ANNEXE VII. 
+        DÉMARCHE DE QUALITÉ OU MESURE DE L ÉTANCHÉITÉ ¬ L AIR DU 
+                BÆTIMENT OU DES RÉSEAUX AÉRAULIQUES 
+
+                                      
+       Pour tout type de bâtiment, lorsque la perméabilité à l air du bâtiment ou la perméabilité des réseaux 
+       aérauliques  est  justifiée  par  la  mesure,  elle  est  effectuée  conformément  au  protocole  indiqué  par  le 
+       ministre chargé de la construction. Lorsque la perméabilité à l'air du bâtiment ou la perméabilité des 
+       réseaux aérauliques est justifiée par la mesure, la personne réalisant la mesure est une personne reconnue 
+       compétente par le ministre chargé de la construction. Sont reconnus compétents par le ministre chargé 
+       de la construction les opérateurs : 
+           -    indépendants  du  demandeur  et  des  organismes  impliqués  en  exécution,  maôtrise  d'°uvre  ou 
+                maôtrise d ouvrage sur les bâtiments visés. 
+           -    et détenant une qualification professionnelle reconnue par le ministre chargé de la construction 
+                et délivrée par un organisme de qualification sous convention avec l'Etat. 
+       Les qualifications professionnelles reconnues répondent aux exigences précisées par le ministre chargé 
+       de la construction et sont délivrées par des organismes de qualification sous convention avec l'Etat. 
+       Pour être autorisé par le ministre à réaliser des mesures de perméabilité à l'air du bâtiment ou des réseaux 
+       aérauliques, l'opérateur devra notamment avoir suivi et validé une formation reconnue par le ministre 
+       chargé de la construction. 
+
+                                          
+       La  démarche  qualité  visée  par  la  présente  est  un  processus  mis  en  °uvre  par  le  demandeur  visant  à 
+       atteindre un niveau d étanchéité à l air de l enveloppe ou des réseaux aérauliques. 
+                                    Objet 
+       Cette partie décrit : 
+

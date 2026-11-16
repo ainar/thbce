@@ -1,0 +1,790 @@
+===== Documentation_DES_Electricité_exportée =====
+                                                Documentation de la Donnée Environnementale de Service
+                                                                        Description générale de la DES
+                                                                                      Mise à disposition d'un kWh d'électricité pour l’usage de chauffage dans un bâtiment
+Nom de la DES
+                                                                                      résidentiel
+Date de validation de la DES                                                          01/06/2017
+                                                                                      Services
+                                                                                      Energies
+Famille                                                                               Electricité
+                                                                                      Exportée
+
+Date d'édition de la documentation de la DES                                           19/12/2017
+                                                                                                                                                      1 kWh
+Unité fonctionnelle                                                                    Mise à disposition d’1kWh d'électricité pour l’usage de chauffage dans un bâtiment
+                                                                                       résidentiel
+Hypothèses de modélisations
+                                                                                       Les pertes de réseau sont incluses dan s le périmètre
+    Hypothèses et périmètre de la donnée                                               Les infrastructures de réseau ne sont pas incluses.
+
+                                                                                       Se référer à la Base Carbone accessible à l'adresse suivante www.bilans-
+                                                                                       ges.ademe.fr pour les es émissions de gaz à effet de serre des différents vecteurs
+    Données sources utilisées
+                                                                                       énergétiques.
+                                                                                       Base de données EcoInvent version 3.2 (pour le calcul des autres indicateurs)
+
+
+Résultats d'indicateurs environnementaux
+                                                                                                                   Total
+
+Indicateurs décrivant les impacts environnementaux
+                Potentiel de réchauffement climatique (GWP) (kg CO2 eq)                                           8.20E-02
+    Potentiel de destruction de la couche d’ozone stratosphérique (ODP) (kg CFC
+                                                                                                                  9.50E-08
+    11 eq)
+    Potentiel d’acidification du sol et de l’eau (AP) (kg SO2 eq)                                                 4.10E-04
+    Potentiel d’eutrophisation (EP) (kg PO4 3- eq)                                                                5.90E-05
+    Potentiel de formation d’oxydants photochimiques de l’ozone troposphérique
+                                                                                                                  1.90E-05
+    (POCP) (kg C2H4 eq)
+    Potentiel de dégradation abiotique des ressources pour les éléments
+                                                                                                                  5.90E-07
+    (ADP_éléments) (kg Sb eq)
+    Potentiel     de     dégradation      abiotique     des   combustibles fossiles
+                                                                                                                 1.30E+00
+    (ADP_combustibles fossiles) (MJ)
+    Pollution de l'air (m3)                                                                                      4.90E+01
+    Pollution de l'eau (m3)                                                                                      2.50E-02
+Indicateurs décrivant l’utilisation des ressources
+    Utilisation de l’énergie primaire renouvelable à l’exclusion des ressources
+                                                                                                                  9.30E-01
+    d’énergie employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires renouvelables employées en
+    tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      9.30E-01
+    premières) (MJ)
+    Utilisation de l’énergie primaire non renouvelable à l’exclusion des ressources
+                                                                                                                 1.30E+01
+    d’énergie primaire employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires non renouvelables employées
+    en tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire non renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                     1.30E+01
+    premières) (MJ)
+    Utilisation de matières secondaires (kg)
+    Utilisation de combustibles secondaires renouvelables (kg)
+    Utilisation de combustibles secondaires non renouvelables (kg)
+    Utilisation nette d’eau douce (m3)                                                                            6.60E-03
+Indicateurs décrivant les catégories de déchets
+    Déchets dangereux éliminés (kg)                                                                               2.30E-03
+    Déchets non dangereux éliminés (kg)                                                                           5.10E-02
+    Déchets radioactifs éliminés (kg)                                                                             1.70E-04
+Indicateurs décrivant les flux sortants du système
+    Composants destinés à la réutilisation (kg)
+    Matières pour le recyclage (kg)
+    Matières pour la récupération d’énergie (à l’exception de l’incinération) (kg)
+    Énergie fournie à l’extérieur (MJ)
+===== Documentation_DES_Gazole_pour_engins_mobiles_de_chantier_non_routiers =====
+                                                Documentation de la Donnée Environnementale de Service
+                                                                        Description générale de la DES
+Nom de la DES                                                                         Gazole pour engins mobiles de chantier non routiers
+Date de validation de la DES                                                          16/11/2016
+                                                                                      Services
+                                                                                      Energies
+Famille                                                                               Carburants
+
+
+
+Date d'édition de la documentation de la DES                                          19/12/2017
+                                                                                                                                                     1 L
+Unité fonctionnelle                                                                   Assurer la mise à disposition et la combustion d'1 L de gazole non routier pour les
+                                                                                      engins de chantier mobiles non routiers.
+Hypothèses de modélisations
+                                                                                      Le périmètre de la donnée comprend:
+                                                                                      - L'entretien
+    Hypothèses et périmètre de la donnée                                              - La mise à disposition de l'engin de chantier
+                                                                                      - Le carburant
+
+                                                                                      Ecoinvent V 3.1
+    Données sources utilisées
+                                                                                      Diesel, burned in building machine {GLO}| processing | Alloc Rec, U
+
+Résultats d'indicateurs environnementaux
+                                                                                                                    Total
+
+Indicateurs décrivant les impacts environnementaux
+                Potentiel de réchauffement climatique (GWP) (kg CO2 eq)                                           3.37E+00
+    Potentiel de destruction de la couche d’ozone stratosphérique (ODP) (kg CFC
+                                                                                                                  6.08E-07
+    11 eq)
+    Potentiel d’acidification du sol et de l’eau (AP) (kg SO2 eq)                                                 2.53E-02
+    Potentiel d’eutrophisation (EP) (kg PO4 3- eq)                                                                5.77E-03
+    Potentiel de formation d’oxydants photochimiques de l’ozone troposphérique
+                                                                                                                  2.83E-03
+    (POCP) (kg C2H4 eq)
+    Potentiel de dégradation abiotique des ressources pour les éléments
+                                                                                                                  1.29E-06
+    (ADP_éléments) (kg Sb eq)
+    Potentiel     de     dégradation      abiotique     des   combustibles fossiles
+                                                                                                                  4.83E+01
+    (ADP_combustibles fossiles) (MJ)
+    Pollution de l'air (m3)                                                                                       4.02E+02
+    Pollution de l'eau (m3)                                                                                       1.63E+00
+Indicateurs décrivant l’utilisation des ressources
+    Utilisation de l’énergie primaire renouvelable à l’exclusion des ressources
+                                                                                                                  2.66E-01
+    d’énergie employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires renouvelables employées en
+                                                                                                                  0.00E+00
+    tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      2.66E-01
+    premières) (MJ)
+    Utilisation de l’énergie primaire non renouvelable à l’exclusion des ressources
+                                                                                                                  4.88E+01
+    d’énergie primaire employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires non renouvelables employées
+                                                                                                                  0.00E+00
+    en tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire non renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      4.88E+01
+    premières) (MJ)
+    Utilisation de matières secondaires (kg)                                                                      0.00E+00
+    Utilisation de combustibles secondaires renouvelables (kg)                                                    0.00E+00
+    Utilisation de combustibles secondaires non renouvelables (kg)                                                0.00E+00
+    Utilisation nette d’eau douce (m3)                                                                            7.35E-03
+Indicateurs décrivant les catégories de déchets
+    Déchets dangereux éliminés (kg)                                                                               2.65E-02
+    Déchets non dangereux éliminés (kg)                                                                           1.99E-01
+    Déchets radioactifs éliminés (kg)                                                                             3.43E-04
+Indicateurs décrivant les flux sortants du système
+    Composants destinés à la réutilisation (kg)                                                                   0.00E+00
+    Matières pour le recyclage (kg)                                                                               0.00E+00
+    Matières pour la récupération d’énergie (à l’exception de l’incinération) (kg)                                0.00E+00
+    Énergie fournie à l’extérieur (MJ)                                                                            0.00E+00
+===== Documentation_DES_Mise_à_disposition_d_1kWh_de_chaleur_par_réseau_de_chaleur_type_biomasse =====
+                                                Documentation de la Donnée Environnementale de Service
+                                                                        Description générale de la DES
+Nom de la DES                                                                         Mise à disposition d’1kWh de chaleur par réseau de chaleur type biomasse
+Date de validation de la DES                                                          01/06/2017
+                                                                                      Services
+                                                                                      Energies
+Famille                                                                               Réseaux de chaleur
+                                                                                      Biomasse
+
+Date d'édition de la documentation de la DES                                          19/12/2017
+                                                                                                                                                       1 kWh
+Unité fonctionnelle
+                                                                                      Mise à disposition d’1kWh de chaleur par réseau de chaleur type biomasse
+
+Hypothèses de modélisations
+                                                                                      Mise à disposition d’1kWh de chaleur par réseau de chaleur type biomasse.
+    Hypothèses et périmètre de la donnée                                              Les pertes liée à la distribution sont incluses dans le périmètre. Les infrastructures d'un
+                                                                                      réseau générique sont incluses, indépendamment de la source de chaleur.
+
+
+                                                                                      Base de données EcoInvent version 2.2:
+    Données sources utilisées                                                         - heat network
+                                                                                      - heat production, softwood chips from forest, at furnace 5000kW, CH
+
+
+
+Résultats d'indicateurs environnementaux
+                                                                                                                    Total
+
+Indicateurs décrivant les impacts environnementaux
+    Potentiel de réchauffement climatique (GWP) (kg CO2 eq)
+    Potentiel de destruction de la couche d’ozone stratosphérique (ODP) (kg CFC
+                                                                                                                  4.00E-09
+    11 eq)
+    Potentiel d’acidification du sol et de l’eau (AP) (kg SO2 eq)                                                 3.90E-04
+    Potentiel d’eutrophisation (EP) (kg PO4 3- eq)                                                                1.30E-04
+    Potentiel de formation d’oxydants photochimiques de l’ozone troposphérique
+                                                                                                                  2.30E-05
+    (POCP) (kg C2H4 eq)
+    Potentiel de dégradation abiotique des ressources pour les éléments
+                                                                                                                  4.60E-08
+    (ADP_éléments) (kg Sb eq)
+    Potentiel     de     dégradation      abiotique     des   combustibles fossiles
+                                                                                                                  1.90E-01
+    (ADP_combustibles fossiles) (MJ)
+    Pollution de l'air (m3)                                                                                       2.10E+01
+    Pollution de l'eau (m3)                                                                                       5.60E-02
+Indicateurs décrivant l’utilisation des ressources
+    Utilisation de l’énergie primaire renouvelable à l’exclusion des ressources
+                                                                                                                  4.90E+00
+    d’énergie employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires renouvelables employées en
+    tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      4.90E+00
+    premières) (MJ)
+    Utilisation de l’énergie primaire non renouvelable à l’exclusion des ressources
+                                                                                                                  4.50E-01
+    d’énergie primaire employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires non renouvelables employées
+    en tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire non renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      4.50E-01
+    premières) (MJ)
+    Utilisation de matières secondaires (kg)
+    Utilisation de combustibles secondaires renouvelables (kg)
+    Utilisation de combustibles secondaires non renouvelables (kg)
+    Utilisation nette d’eau douce (m3)                                                                            1.70E-04
+Indicateurs décrivant les catégories de déchets
+    Déchets dangereux éliminés (kg)                                                                               1.30E-03
+    Déchets non dangereux éliminés (kg)                                                                           7.10E-03
+    Déchets radioactifs éliminés (kg)                                                                             4.70E-06
+Indicateurs décrivant les flux sortants du système
+    Composants destinés à la réutilisation (kg)
+    Matières pour le recyclage (kg)
+    Matières pour la récupération d’énergie (à l’exception de l’incinération) (kg)
+    Énergie fournie à l’extérieur (MJ)
+===== Documentation_DES_Mise_à_disposition_d_1kWh_de_chaleur_par_réseau_de_chaleur_type_charbon =====
+                                                Documentation de la Donnée Environnementale de Service
+                                                                        Description générale de la DES
+Nom de la DES                                                                         Mise à disposition d’1kWh de chaleur par réseau de chaleur type charbon
+Date de validation de la DES                                                          01/06/2017
+                                                                                      Services
+                                                                                      Energies
+Famille                                                                               Réseaux de chaleur
+                                                                                      Charbon
+
+Date d'édition de la documentation de la DES                                          19/12/2017
+                                                                                                                                                       1 kWh
+Unité fonctionnelle
+                                                                                      Mise à disposition d’1kWh de chaleur par réseau de chaleur type charbon
+
+Hypothèses de modélisations
+                                                                                      Mise à disposition d’1kWh de chaleur par réseau de chaleur type charbon.
+    Hypothèses et périmètre de la donnée                                              Les pertes liée à la distribution sont incluses dans le périmètre. Les infrastructures d'un
+                                                                                      réseau générique sont incluses, indépendamment de la source de chaleur.
+
+
+                                                                                      Base de données EcoInvent version 2.2:
+    Données sources utilisées                                                         - heat network
+                                                                                      - heat production, at hard coal industrial furnace 1-10MW, Europe without Switzerland
+
+
+
+Résultats d'indicateurs environnementaux
+                                                                                                                    Total
+
+Indicateurs décrivant les impacts environnementaux
+    Potentiel de réchauffement climatique (GWP) (kg CO2 eq)
+    Potentiel de destruction de la couche d’ozone stratosphérique (ODP) (kg CFC
+                                                                                                                  2.90E-09
+    11 eq)
+    Potentiel d’acidification du sol et de l’eau (AP) (kg SO2 eq)                                                 3.50E-03
+    Potentiel d’eutrophisation (EP) (kg PO4 3- eq)                                                                1.70E-04
+    Potentiel de formation d’oxydants photochimiques de l’ozone troposphérique
+                                                                                                                  1.60E-04
+    (POCP) (kg C2H4 eq)
+    Potentiel de dégradation abiotique des ressources pour les éléments
+                                                                                                                  2.70E-08
+    (ADP_éléments) (kg Sb eq)
+    Potentiel     de     dégradation      abiotique     des   combustibles fossiles
+                                                                                                                  6.60E+00
+    (ADP_combustibles fossiles) (MJ)
+    Pollution de l'air (m3)                                                                                       5.30E+01
+    Pollution de l'eau (m3)                                                                                       1.80E-02
+Indicateurs décrivant l’utilisation des ressources
+    Utilisation de l’énergie primaire renouvelable à l’exclusion des ressources
+                                                                                                                  7.90E-02
+    d’énergie employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires renouvelables employées en
+    tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      7.90E-02
+    premières) (MJ)
+    Utilisation de l’énergie primaire non renouvelable à l’exclusion des ressources
+                                                                                                                  6.90E+00
+    d’énergie primaire employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires non renouvelables employées
+    en tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire non renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      6.90E+00
+    premières) (MJ)
+    Utilisation de matières secondaires (kg)
+    Utilisation de combustibles secondaires renouvelables (kg)
+    Utilisation de combustibles secondaires non renouvelables (kg)
+    Utilisation nette d’eau douce (m3)                                                                            4.70E-04
+Indicateurs décrivant les catégories de déchets
+    Déchets dangereux éliminés (kg)                                                                               1.30E-02
+    Déchets non dangereux éliminés (kg)                                                                           2.20E-01
+    Déchets radioactifs éliminés (kg)                                                                             3.80E-06
+Indicateurs décrivant les flux sortants du système
+    Composants destinés à la réutilisation (kg)
+    Matières pour le recyclage (kg)
+    Matières pour la récupération d’énergie (à l’exception de l’incinération) (kg)
+    Énergie fournie à l’extérieur (MJ)
+===== Documentation_DES_Mise_à_disposition_d_1kWh_de_chaleur_par_réseau_de_chaleur_type_cogénération_biogaz =====
+                                                Documentation de la Donnée Environnementale de Service
+                                                                        Description générale de la DES
+Nom de la DES                                                                         Mise à disposition d’1kWh de chaleur par réseau de chaleur type cogénération biogaz
+Date de validation de la DES                                                          01/06/2017
+                                                                                      Services
+                                                                                      Energies
+Famille                                                                               Réseaux de chaleur
+                                                                                      Biogaz
+
+Date d'édition de la documentation de la DES                                          19/12/2017
+                                                                                                                                                       1 kWh
+Unité fonctionnelle
+                                                                                      Mise à disposition d’1kWh de chaleur par réseau de chaleur type cogénération biogaz
+
+Hypothèses de modélisations
+
+                                                                                      Mise à disposition d’1kWh de chaleur par réseau de chaleur type cogénération biogaz.
+    Hypothèses et périmètre de la donnée                                              Les pertes liée à la distribution sont incluses dans le périmètre. Les infrastructures d'un
+                                                                                      réseau générique sont incluses, indépendamment de la source de chaleur.
+
+
+                                                                                      Base de données EcoInvent version 2.2:
+                                                                                      - heat network
+    Données sources utilisées
+                                                                                      - heat, central or small-scale, other than natural gas//[FR] heat and power co-
+                                                                                      generation, biogas, gas engine
+
+
+Résultats d'indicateurs environnementaux
+                                                                                                                    Total
+
+Indicateurs décrivant les impacts environnementaux
+    Potentiel de réchauffement climatique (GWP) (kg CO2 eq)
+    Potentiel de destruction de la couche d’ozone stratosphérique (ODP) (kg CFC
+                                                                                                                  2.10E-09
+    11 eq)
+    Potentiel d’acidification du sol et de l’eau (AP) (kg SO2 eq)                                                 4.00E-04
+    Potentiel d’eutrophisation (EP) (kg PO4 3- eq)                                                                1.80E-04
+    Potentiel de formation d’oxydants photochimiques de l’ozone troposphérique
+                                                                                                                  6.70E-06
+    (POCP) (kg C2H4 eq)
+    Potentiel de dégradation abiotique des ressources pour les éléments
+                                                                                                                  5.00E-08
+    (ADP_éléments) (kg Sb eq)
+    Potentiel     de     dégradation      abiotique     des   combustibles fossiles
+                                                                                                                  2.30E-01
+    (ADP_combustibles fossiles) (MJ)
+    Pollution de l'air (m3)                                                                                       6.60E+00
+    Pollution de l'eau (m3)                                                                                       1.40E-01
+Indicateurs décrivant l’utilisation des ressources
+    Utilisation de l’énergie primaire renouvelable à l’exclusion des ressources
+                                                                                                                  1.60E+00
+    d’énergie employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires renouvelables employées en
+    tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      1.60E+00
+    premières) (MJ)
+    Utilisation de l’énergie primaire non renouvelable à l’exclusion des ressources
+                                                                                                                  3.20E-01
+    d’énergie primaire employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires non renouvelables employées
+    en tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire non renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      3.20E-01
+    premières) (MJ)
+    Utilisation de matières secondaires (kg)
+    Utilisation de combustibles secondaires renouvelables (kg)
+    Utilisation de combustibles secondaires non renouvelables (kg)
+    Utilisation nette d’eau douce (m3)                                                                            2.20E-04
+Indicateurs décrivant les catégories de déchets
+    Déchets dangereux éliminés (kg)                                                                               5.50E-04
+    Déchets non dangereux éliminés (kg)                                                                           6.00E-03
+    Déchets radioactifs éliminés (kg)                                                                             1.60E-06
+Indicateurs décrivant les flux sortants du système
+    Composants destinés à la réutilisation (kg)
+    Matières pour le recyclage (kg)
+    Matières pour la récupération d’énergie (à l’exception de l’incinération) (kg)
+    Énergie fournie à l’extérieur (MJ)
+===== Documentation_DES_Mise_à_disposition_d_1kWh_de_chaleur_par_réseau_de_chaleur_type_cogénération_biomasse =====
+                                                Documentation de la Donnée Environnementale de Service
+                                                                        Description générale de la DES
+                                                                                      Mise à disposition d’1kWh de chaleur par réseau de chaleur type cogénération
+Nom de la DES
+                                                                                      biomasse
+Date de validation de la DES                                                          01/06/2017
+                                                                                      Services
+                                                                                      Energies
+Famille                                                                               Réseaux de chaleur
+                                                                                      Biomasse
+
+Date d'édition de la documentation de la DES                                          19/12/2017
+                                                                                                                                                   1 kWh
+Unité fonctionnelle                                                                   Mise à disposition d’1kWh de chaleur par réseau de chaleur type cogénération
+                                                                                      biomasse
+Hypothèses de modélisations
+                                                                                      Mise à disposition d’1kWh de chaleur par réseau de chaleur type cogénération
+                                                                                      biomasse.
+    Hypothèses et périmètre de la donnée                                              Les pertes liée à la distribution sont incluses dans le périmètre. Les infrastructures d'un
+                                                                                      réseau générique sont incluses, indépendamment de la source de chaleur.
+
+                                                                                      Base de données EcoInvent version 2.2:
+                                                                                      - heat network
+    Données sources utilisées
+                                                                                      - heat, district or industrial, other than natural gas//[FR] heat and power co-generation,
+                                                                                      wood chips, 6667 kW, state-of-the-art 2014
+
+
+Résultats d'indicateurs environnementaux
+                                                                                                                    Total
+
+Indicateurs décrivant les impacts environnementaux
+    Potentiel de réchauffement climatique (GWP) (kg CO2 eq)
+    Potentiel de destruction de la couche d’ozone stratosphérique (ODP) (kg CFC
+                                                                                                                  1.60E-08
+    11 eq)
+    Potentiel d’acidification du sol et de l’eau (AP) (kg SO2 eq)                                                 2.30E-04
+    Potentiel d’eutrophisation (EP) (kg PO4 3- eq)                                                                7.50E-05
+    Potentiel de formation d’oxydants photochimiques de l’ozone troposphérique
+                                                                                                                  8.50E-06
+    (POCP) (kg C2H4 eq)
+    Potentiel de dégradation abiotique des ressources pour les éléments
+                                                                                                                  2.10E-08
+    (ADP_éléments) (kg Sb eq)
+    Potentiel     de     dégradation      abiotique     des   combustibles fossiles
+                                                                                                                  1.10E-01
+    (ADP_combustibles fossiles) (MJ)
+    Pollution de l'air (m3)                                                                                       7.00E+00
+    Pollution de l'eau (m3)                                                                                       3.40E-02
+Indicateurs décrivant l’utilisation des ressources
+    Utilisation de l’énergie primaire renouvelable à l’exclusion des ressources
+                                                                                                                  3.00E+00
+    d’énergie employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires renouvelables employées en
+    tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      3.00E+00
+    premières) (MJ)
+    Utilisation de l’énergie primaire non renouvelable à l’exclusion des ressources
+                                                                                                                  1.10E-01
+    d’énergie primaire employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires non renouvelables employées
+    en tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire non renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      1.10E-01
+    premières) (MJ)
+    Utilisation de matières secondaires (kg)
+    Utilisation de combustibles secondaires renouvelables (kg)
+    Utilisation de combustibles secondaires non renouvelables (kg)
+    Utilisation nette d’eau douce (m3)                                                                            4.90E-05
+Indicateurs décrivant les catégories de déchets
+    Déchets dangereux éliminés (kg)                                                                               8.00E-04
+    Déchets non dangereux éliminés (kg)                                                                           3.20E-03
+    Déchets radioactifs éliminés (kg)                                                                             7.20E-07
+Indicateurs décrivant les flux sortants du système
+    Composants destinés à la réutilisation (kg)
+    Matières pour le recyclage (kg)
+    Matières pour la récupération d’énergie (à l’exception de l’incinération) (kg)
+    Énergie fournie à l’extérieur (MJ)
+===== Documentation_DES_Mise_à_disposition_d_1kWh_de_chaleur_par_réseau_de_chaleur_type_cogénération_fioul =====
+                                                Documentation de la Donnée Environnementale de Service
+                                                                        Description générale de la DES
+Nom de la DES                                                                         Mise à disposition d’1kWh de chaleur par réseau de chaleur type cogénération fioul
+Date de validation de la DES                                                          01/06/2017
+                                                                                      Services
+                                                                                      Energies
+Famille                                                                               Réseaux de chaleur
+                                                                                      Fioul
+
+Date d'édition de la documentation de la DES                                          19/12/2017
+                                                                                                                                                       1 kWh
+Unité fonctionnelle
+                                                                                      Mise à disposition d’1kWh de chaleur par réseau de chaleur type cogénération fioul
+
+Hypothèses de modélisations
+
+                                                                                      Mise à disposition d’1kWh de chaleur par réseau de chaleur type cogénération fioul.
+    Hypothèses et périmètre de la donnée                                              Les pertes liée à la distribution sont incluses dans le périmètre. Les infrastructures d'un
+                                                                                      réseau générique sont incluses, indépendamment de la source de chaleur.
+
+
+                                                                                      Base de données EcoInvent version 2.2:
+                                                                                      - heat network
+    Données sources utilisées
+                                                                                      - heat, district or industrial, other than natural gas//[FR] heat and power co-generation,
+                                                                                      oil
+
+
+Résultats d'indicateurs environnementaux
+                                                                                                                    Total
+
+Indicateurs décrivant les impacts environnementaux
+    Potentiel de réchauffement climatique (GWP) (kg CO2 eq)
+    Potentiel de destruction de la couche d’ozone stratosphérique (ODP) (kg CFC
+                                                                                                                  4.70E-08
+    11 eq)
+    Potentiel d’acidification du sol et de l’eau (AP) (kg SO2 eq)                                                 2.60E-03
+    Potentiel d’eutrophisation (EP) (kg PO4 3- eq)                                                                1.80E-04
+    Potentiel de formation d’oxydants photochimiques de l’ozone troposphérique
+                                                                                                                  9.40E-05
+    (POCP) (kg C2H4 eq)
+    Potentiel de dégradation abiotique des ressources pour les éléments
+                                                                                                                  2.70E-08
+    (ADP_éléments) (kg Sb eq)
+    Potentiel     de     dégradation      abiotique     des   combustibles fossiles
+                                                                                                                  3.60E+00
+    (ADP_combustibles fossiles) (MJ)
+    Pollution de l'air (m3)                                                                                       1.40E+01
+    Pollution de l'eau (m3)                                                                                       8.50E-02
+Indicateurs décrivant l’utilisation des ressources
+    Utilisation de l’énergie primaire renouvelable à l’exclusion des ressources
+                                                                                                                  1.30E-02
+    d’énergie employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires renouvelables employées en
+    tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      1.30E-02
+    premières) (MJ)
+    Utilisation de l’énergie primaire non renouvelable à l’exclusion des ressources
+                                                                                                                  3.60E+00
+    d’énergie primaire employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires non renouvelables employées
+    en tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire non renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      3.60E+00
+    premières) (MJ)
+    Utilisation de matières secondaires (kg)
+    Utilisation de combustibles secondaires renouvelables (kg)
+    Utilisation de combustibles secondaires non renouvelables (kg)
+    Utilisation nette d’eau douce (m3)                                                                            1.90E-02
+Indicateurs décrivant les catégories de déchets
+    Déchets dangereux éliminés (kg)                                                                               6.20E-04
+    Déchets non dangereux éliminés (kg)                                                                           6.00E-03
+    Déchets radioactifs éliminés (kg)                                                                             2.70E-05
+Indicateurs décrivant les flux sortants du système
+    Composants destinés à la réutilisation (kg)
+    Matières pour le recyclage (kg)
+    Matières pour la récupération d’énergie (à l’exception de l’incinération) (kg)
+    Énergie fournie à l’extérieur (MJ)
+===== Documentation_DES_Mise_à_disposition_d_1kWh_de_chaleur_par_réseau_de_chaleur_type_cogénération_gaz_naturel =====
+                                                Documentation de la Donnée Environnementale de Service
+                                                                        Description générale de la DES
+                                                                                      Mise à disposition d’1kWh de chaleur par réseau de chaleur type cogénération gaz
+Nom de la DES
+                                                                                      naturel
+Date de validation de la DES                                                          01/06/2017
+                                                                                      Services
+                                                                                      Energies
+Famille                                                                               Réseaux de chaleur
+                                                                                      Gaz naturel
+
+Date d'édition de la documentation de la DES                                          19/12/2017
+                                                                                                                                                   1 kWh
+Unité fonctionnelle                                                                   Mise à disposition d’1kWh de chaleur par réseau de chaleur type cogénération gaz
+                                                                                      naturel
+Hypothèses de modélisations
+                                                                                      Mise à disposition d’1kWh de chaleur par réseau de chaleur type cogénération gaz
+                                                                                      naturel.
+    Hypothèses et périmètre de la donnée
+                                                                                      Les pertes liée à la distribution sont incluses dans le périmètre. Les infrastructures d'un
+                                                                                      réseau générique sont incluses, indépendamment de la source de chaleur.
+
+                                                                                      Base de données EcoInvent version 2.2:
+                                                                                      - heat network
+    Données sources utilisées
+                                                                                      - heat, district or industrial, natural gas//[FR] heat and power co-generation, natural gas,
+                                                                                      conventional power plant, 100MW electrical
+
+
+Résultats d'indicateurs environnementaux
+                                                                                                                    Total
+
+Indicateurs décrivant les impacts environnementaux
+    Potentiel de réchauffement climatique (GWP) (kg CO2 eq)
+    Potentiel de destruction de la couche d’ozone stratosphérique (ODP) (kg CFC
+                                                                                                                  2.40E-08
+    11 eq)
+    Potentiel d’acidification du sol et de l’eau (AP) (kg SO2 eq)                                                 2.10E-04
+    Potentiel d’eutrophisation (EP) (kg PO4 3- eq)                                                                2.10E-05
+    Potentiel de formation d’oxydants photochimiques de l’ozone troposphérique
+                                                                                                                  1.70E-05
+    (POCP) (kg C2H4 eq)
+    Potentiel de dégradation abiotique des ressources pour les éléments
+                                                                                                                  2.80E-08
+    (ADP_éléments) (kg Sb eq)
+    Potentiel     de     dégradation      abiotique     des   combustibles fossiles
+                                                                                                                  2.50E+00
+    (ADP_combustibles fossiles) (MJ)
+    Pollution de l'air (m3)                                                                                       3.70E+00
+    Pollution de l'eau (m3)                                                                                       1.50E-02
+Indicateurs décrivant l’utilisation des ressources
+    Utilisation de l’énergie primaire renouvelable à l’exclusion des ressources
+                                                                                                                  1.80E-02
+    d’énergie employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires renouvelables employées en
+    tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      1.80E-02
+    premières) (MJ)
+    Utilisation de l’énergie primaire non renouvelable à l’exclusion des ressources
+                                                                                                                  2.50E+00
+    d’énergie primaire employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires non renouvelables employées
+    en tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire non renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      2.50E+00
+    premières) (MJ)
+    Utilisation de matières secondaires (kg)
+    Utilisation de combustibles secondaires renouvelables (kg)
+    Utilisation de combustibles secondaires non renouvelables (kg)
+    Utilisation nette d’eau douce (m3)                                                                            3.40E-04
+Indicateurs décrivant les catégories de déchets
+    Déchets dangereux éliminés (kg)                                                                               5.90E-04
+    Déchets non dangereux éliminés (kg)                                                                           5.50E-03
+    Déchets radioactifs éliminés (kg)                                                                             8.20E-07
+Indicateurs décrivant les flux sortants du système
+    Composants destinés à la réutilisation (kg)
+    Matières pour le recyclage (kg)
+    Matières pour la récupération d’énergie (à l’exception de l’incinération) (kg)
+    Énergie fournie à l’extérieur (MJ)
+===== Documentation_DES_Mise_à_disposition_d_1kWh_de_chaleur_par_réseau_de_chaleur_type_fioul =====
+                                                Documentation de la Donnée Environnementale de Service
+                                                                        Description générale de la DES
+Nom de la DES                                                                         Mise à disposition d’1kWh de chaleur par réseau de chaleur type fioul
+Date de validation de la DES                                                          01/06/2017
+                                                                                      Services
+                                                                                      Energies
+Famille                                                                               Réseaux de chaleur
+                                                                                      Fioul
+
+Date d'édition de la documentation de la DES                                          19/12/2017
+                                                                                                                                                       1 kWh
+Unité fonctionnelle
+                                                                                      Mise à disposition d’1kWh de chaleur par réseau de chaleur type fioul
+
+Hypothèses de modélisations
+                                                                                      Mise à disposition d’1kWh de chaleur par réseau de chaleur type fioul.
+    Hypothèses et périmètre de la donnée                                              Les pertes liée à la distribution sont incluses dans le périmètre. Les infrastructures d'un
+                                                                                      réseau générique sont incluses, indépendamment de la source de chaleur.
+
+
+                                                                                      Base de données EcoInvent version 2.2:
+    Données sources utilisées                                                         - heat network
+                                                                                      - heat production, heavy fuel oil, at industrial furnace 1MW, Europe without Switzerland
+
+
+
+Résultats d'indicateurs environnementaux
+                                                                                                                    Total
+
+Indicateurs décrivant les impacts environnementaux
+    Potentiel de réchauffement climatique (GWP) (kg CO2 eq)
+    Potentiel de destruction de la couche d’ozone stratosphérique (ODP) (kg CFC
+                                                                                                                  6.70E-08
+    11 eq)
+    Potentiel d’acidification du sol et de l’eau (AP) (kg SO2 eq)                                                 2.60E-03
+    Potentiel d’eutrophisation (EP) (kg PO4 3- eq)                                                                1.00E-04
+    Potentiel de formation d’oxydants photochimiques de l’ozone troposphérique
+                                                                                                                  1.10E-04
+    (POCP) (kg C2H4 eq)
+    Potentiel de dégradation abiotique des ressources pour les éléments
+                                                                                                                  3.80E-08
+    (ADP_éléments) (kg Sb eq)
+    Potentiel     de     dégradation      abiotique     des   combustibles fossiles
+                                                                                                                  5.10E+00
+    (ADP_combustibles fossiles) (MJ)
+    Pollution de l'air (m3)                                                                                       1.60E+01
+    Pollution de l'eau (m3)                                                                                       1.20E-01
+Indicateurs décrivant l’utilisation des ressources
+    Utilisation de l’énergie primaire renouvelable à l’exclusion des ressources
+                                                                                                                  2.10E-02
+    d’énergie employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires renouvelables employées en
+    tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      2.10E-02
+    premières) (MJ)
+    Utilisation de l’énergie primaire non renouvelable à l’exclusion des ressources
+                                                                                                                  5.20E+00
+    d’énergie primaire employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires non renouvelables employées
+    en tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire non renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      5.20E+00
+    premières) (MJ)
+    Utilisation de matières secondaires (kg)
+    Utilisation de combustibles secondaires renouvelables (kg)
+    Utilisation de combustibles secondaires non renouvelables (kg)
+    Utilisation nette d’eau douce (m3)                                                                            6.60E-04
+Indicateurs décrivant les catégories de déchets
+    Déchets dangereux éliminés (kg)                                                                               8.60E-04
+    Déchets non dangereux éliminés (kg)                                                                           8.10E-03
+    Déchets radioactifs éliminés (kg)                                                                             3.90E-05
+Indicateurs décrivant les flux sortants du système
+    Composants destinés à la réutilisation (kg)
+    Matières pour le recyclage (kg)
+    Matières pour la récupération d’énergie (à l’exception de l’incinération) (kg)
+    Énergie fournie à l’extérieur (MJ)
+===== Documentation_DES_Mise_à_disposition_d_1kWh_de_chaleur_par_réseau_de_chaleur_type_gaz_naturel =====
+                                                Documentation de la Donnée Environnementale de Service
+                                                                        Description générale de la DES
+Nom de la DES                                                                         Mise à disposition d’1kWh de chaleur par réseau de chaleur type gaz naturel
+Date de validation de la DES                                                          01/06/2017
+                                                                                      Services
+                                                                                      Energies
+Famille                                                                               Réseaux de chaleur
+                                                                                      Gaz naturel
+
+Date d'édition de la documentation de la DES                                          19/12/2017
+                                                                                                                                                       1 kWh
+Unité fonctionnelle
+                                                                                      Mise à disposition d’1kWh de chaleur par réseau de chaleur type gaz naturel
+
+Hypothèses de modélisations
+                                                                                      Mise à disposition d’1kWh de chaleur par réseau de chaleur type gaz naturel.
+    Hypothèses et périmètre de la donnée                                              Les pertes liée à la distribution sont incluses dans le périmètre. Les infrastructures d'un
+                                                                                      réseau générique sont incluses, indépendamment de la source de chaleur.
+
+                                                                                      Base de données EcoInvent version 2.2:
+                                                                                      - heat network
+    Données sources utilisées
+                                                                                      - heat production, natural gas, at boiler modulating >100kW, Europe without
+                                                                                      Switzerland
+
+
+Résultats d'indicateurs environnementaux
+                                                                                                                    Total
+
+Indicateurs décrivant les impacts environnementaux
+    Potentiel de réchauffement climatique (GWP) (kg CO2 eq)
+    Potentiel de destruction de la couche d’ozone stratosphérique (ODP) (kg CFC
+                                                                                                                  4.20E-08
+    11 eq)
+    Potentiel d’acidification du sol et de l’eau (AP) (kg SO2 eq)                                                 3.10E-04
+    Potentiel d’eutrophisation (EP) (kg PO4 3- eq)                                                                2.50E-05
+    Potentiel de formation d’oxydants photochimiques de l’ozone troposphérique
+                                                                                                                  2.40E-05
+    (POCP) (kg C2H4 eq)
+    Potentiel de dégradation abiotique des ressources pour les éléments
+                                                                                                                  2.30E-08
+    (ADP_éléments) (kg Sb eq)
+    Potentiel     de     dégradation      abiotique     des   combustibles fossiles
+                                                                                                                  4.80E+00
+    (ADP_combustibles fossiles) (MJ)
+    Pollution de l'air (m3)                                                                                       5.40E+00
+    Pollution de l'eau (m3)                                                                                       3.90E-02
+Indicateurs décrivant l’utilisation des ressources
+    Utilisation de l’énergie primaire renouvelable à l’exclusion des ressources
+                                                                                                                  3.10E-02
+    d’énergie employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires renouvelables employées en
+    tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      3.10E-02
+    premières) (MJ)
+    Utilisation de l’énergie primaire non renouvelable à l’exclusion des ressources
+                                                                                                                  5.00E+00
+    d’énergie primaire employées en tant que matière première (MJ)
+    Utilisation de ressources énergétiques primaires non renouvelables employées
+    en tant que matière première (MJ)
+    Utilisation totale des ressources d’énergie primaire non renouvelables (énergie
+    primaire et ressources d’énergie primaire employées en tant que matières                                      5.00E+00
+    premières) (MJ)
+    Utilisation de matières secondaires (kg)
+    Utilisation de combustibles secondaires renouvelables (kg)
+    Utilisation de combustibles secondaires non renouvelables (kg)
+    Utilisation nette d’eau douce (m3)                                                                            3.50E-04
+Indicateurs décrivant les catégories de déchets
+    Déchets dangereux éliminés (kg)                                                                               8.60E-04
+    Déchets non dangereux éliminés (kg)                                                                           8.10E-03
+    Déchets radioactifs éliminés (kg)                                                                             6.80E-06
+Indicateurs décrivant les flux sortants du système
+    Composants destinés à la réutilisation (kg)
+    Matières pour le recyclage (kg)
+    Matières pour la récupération d’énergie (à l’exception de l’incinération) (kg)
+    Énergie fournie à l’extérieur (MJ)
+
