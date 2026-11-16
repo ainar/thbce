@@ -326,9 +326,58 @@
                   "q_spec_conv_pointe_m3_h": 180,
                   "q_spec_conv_base_m3_h": 90
                 }
+              ],
+              "iclim": false,
+              "programmation": {
+                "chauffage": "horloge"
+              },
+              "distributions": [
+                {
+                  "id": "distribution-chauffage",
+                  "fonction": "chauffage",
+                  "distribution_intergroupes": "intergroupes-chauffage",
+                  "reseau": "fictif"
+                }
+              ],
+              "emetteurs": [
+                {
+                  "id": "panneaux-rayonnants",
+                  "chauffage": {
+                    "type_emetteur": "muraux_rayonnants",
+                    "variation_spatiale": {
+                      "classe": {
+                        "classe": "B3",
+                        "hsp_m": 2.5
+                      }
+                    },
+                    "variation_temporelle": {
+                      "defaut": {
+                        "arret_total": true
+                      }
+                    },
+                    "effet_joule": true,
+                    "rats": 1.0,
+                    "ratt": 1.0,
+                    "distribution": "distribution-chauffage"
+                  }
+                }
               ]
             }
           ]
+        }
+      ],
+      "generations": [
+        {
+          "id": "generation-effet-joule",
+          "raccordement_reseaux": "avec_isolement"
+        }
+      ],
+      "distributions_intergroupes": [
+        {
+          "id": "intergroupes-chauffage",
+          "fonction": "chauffage",
+          "generation": "generation-effet-joule",
+          "reseau": "fictif"
         }
       ]
     }
