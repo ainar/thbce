@@ -13,11 +13,12 @@ use thbce_data::ZoneClimatique;
 use crate::bati::baie::{u_baie, EtatBaie, REDUCTION_SW_SP_C};
 use crate::bati::surventilation::traversant_conventionnel;
 use crate::entree::{
-    Baie, BaieType, BoucheConduit, Exposition, FacteursBaie, GestionPm, Groupe, Inertie,
-    InertieAnnuelle, InertieQuotidienne, InertieSequentielle, Masque, ParoiOpaque, ParoiType,
-    PontThermique, Projet, TypePm, Zone,
+    Baie, BaieType, BoucheConduit, EntreesAir, Exposition, FacteursBaie, GestionPm, Groupe,
+    Inertie, InertieAnnuelle, InertieQuotidienne, InertieSequentielle, Masque, ParoiOpaque,
+    ParoiType, PontThermique, Projet, TypePm, Zone,
 };
 use crate::ventilation::bouche_conduit::{q_spec_conv_base_m3_h, DUGD_BBIO_H};
+use crate::ventilation::debits_air_cep::{trav_zone_conventionnel, EntreeAir};
 
 /// Nombre maximal de masques protégeant une surface (Th-BCE 2020 §3.2.2, « Nmasque »).
 pub const NB_MASQUES_MAX: usize = 7;
@@ -237,6 +238,7 @@ fn valider_zone(r: &mut RapportValidation, c: &str, zone: &Zone, refs: &Referenc
         ),
         _ => {}
     }
+    valider_aeraulique_zone(r, c, zone);
     if zone.groupes.is_empty() {
         r.erreur(
             format!("{c}.groupes"),
@@ -344,6 +346,112 @@ fn valider_groupe(
     );
     for (i, b) in g.bouches_conduits.iter().enumerate() {
         valider_bouche_conduit(r, &format!("{c}.bouches_conduits[{i}]"), b);
+    }
+    if let Some(e) = &g.entrees_air {
+        valider_entrees_air(r, &format!("{c}.entrees_air"), e);
+    }
+}
+
+/// Th-BCE 2020 §5.6.2 : paramètres du bilan aéraulique de la zone.
+fn valider_aeraulique_zone(r: &mut RapportValidation, c: &str, zone: &Zone) {
+    if zone.usage.est_pris_en_charge() {
+        let requis = [
+            ("h_zone_m", zone.h_zone_m, "hauteur de la zone"),
+            (
+                "h_plancher_m",
+                zone.h_plancher_m,
+                "hauteur du point le plus bas de la zone par rapport au sol extérieur",
+            ),
+            (
+                "q4pa_surf_m3_h_m2",
+                zone.q4pa_surf_m3_h_m2,
+                "perméabilité à l'air de l'enveloppe sous 4 Pa",
+            ),
+        ];
+        for (champ, valeur, nom) in requis {
+            if valeur.is_none() {
+                r.erreur(
+                    format!("{c}.{champ}"),
+                    None,
+                    format!("{nom} requise (Th-BCE 2020 §5.6.2)"),
+                );
+            }
+        }
+    }
+    if let Some(h) = zone.h_zone_m {
+        r.strictement_positif(format!("{c}.h_zone_m"), h);
+    }
+    if let Some(h) = zone.h_plancher_m {
+        if !h.is_finite() {
+            r.erreur(
+                format!("{c}.h_plancher_m"),
+                Some(h.to_string()),
+                "doit être un nombre fini",
+            );
+        }
+    }
+    if let Some(q) = zone.q4pa_surf_m3_h_m2 {
+        r.positif(format!("{c}.q4pa_surf_m3_h_m2"), q);
+    }
+    // Th-BCE 2020 §5.6.3.1.3, tableau 22.
+    match (trav_zone_conventionnel(zone.usage.numero()), zone.trav_zone) {
+        (Some(_), Some(saisi)) => r.erreur(
+            format!("{c}.trav_zone"),
+            Some(saisi.to_string()),
+            "le caractère traversant de la zone est conventionnel pour cet usage (tableau 22) : \
+             ne pas le saisir",
+        ),
+        (None, None) => r.erreur(
+            format!("{c}.trav_zone"),
+            None,
+            "caractère traversant de la zone au sens des conditions d'hiver requis en logement \
+             collectif (Th-BCE 2020 §5.6.3.1.3)",
+        ),
+        _ => {}
+    }
+    // Th-BCE 2020 §5.6.3.2.2 : ΔP1 et ΔP2 sont les mêmes pour tous les groupes de la zone.
+    let mut pressions: Option<(f64, f64)> = None;
+    for (ig, g) in zone.groupes.iter().enumerate() {
+        let Some(a) = g.entrees_air.as_ref().and_then(|e| e.autoreglable.as_ref()) else {
+            continue;
+        };
+        let p = (a.delta_p1_pa, a.delta_p2_pa);
+        match pressions {
+            None => pressions = Some(p),
+            Some(reference) if reference != p => r.erreur(
+                format!("{c}.groupes[{ig}].entrees_air.autoreglable"),
+                None,
+                "les pressions ΔP1 et ΔP2 des entrées d'air autoréglables doivent être les \
+                 mêmes pour tous les groupes d'une zone (Th-BCE 2020 §5.6.3.2.2)",
+            ),
+            Some(_) => {}
+        }
+    }
+}
+
+/// Th-BCE 2020 §5.6.2 et §5.6.3.2.1 : entrées d'air d'un groupe.
+fn valider_entrees_air(r: &mut RapportValidation, c: &str, e: &EntreesAir) {
+    r.positif(format!("{c}.m_m3_h"), e.m_m3_h);
+    if let Some(v) = e.r {
+        r.plage(format!("{c}.r"), v, 0.0, 1.0);
+    }
+    if let Some(a) = &e.autoreglable {
+        r.strictement_positif(format!("{c}.autoreglable.delta_p1_pa"), a.delta_p1_pa);
+        r.positif(format!("{c}.autoreglable.m_prime_m3_h"), a.m_prime_m3_h);
+        if a.delta_p2_pa.is_nan() || a.delta_p2_pa <= a.delta_p1_pa {
+            r.erreur(
+                format!("{c}.autoreglable.delta_p2_pa"),
+                Some(a.delta_p2_pa.to_string()),
+                "ΔP2 doit être supérieure à ΔP1 (Th-BCE 2020 §5.6.3.2.1)",
+            );
+        } else if !EntreeAir::de_saisie(e).est_monotone() {
+            r.erreur(
+                format!("{c}.autoreglable.m_prime_m3_h"),
+                Some(a.m_prime_m3_h.to_string()),
+                "la caractéristique de l'entrée d'air doit être croissante : \
+                 M′ × ΔP2^0,5 ≥ M × ΔP1^0,5 (Th-BCE 2020 §5.6.3.2.1)",
+            );
+        }
     }
 }
 

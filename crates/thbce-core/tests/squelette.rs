@@ -269,6 +269,8 @@ fn regles_de_saisie_de_la_surventilation_naturelle() {
     let mut p = projet();
     p.batiments[0].zones[0].usage = UsageZone::LogementCollectif;
     p.batiments[0].zones[0].nb_lgt = Some(2);
+    // Caractère traversant au sens des conditions d'hiver (§5.6.3.1.3) : hors du sujet.
+    p.batiments[0].zones[0].trav_zone = Some(true);
     assert_eq!(
         chemins(&valider(&p).erreurs),
         ["batiments[0].zones[0].groupes[0].traversant"]
@@ -332,6 +334,7 @@ fn la_surface_utile_et_le_nombre_de_logements_sont_exiges() {
     p.batiments[0].zones[0].usage = UsageZone::LogementCollectif;
     // Le caractère traversant se saisit en collectif (§5.13.3.2.1) : hors du sujet de ce test.
     p.batiments[0].zones[0].groupes[0].traversant = Some(true);
+    p.batiments[0].zones[0].trav_zone = Some(false);
     assert_eq!(
         chemins(&valider(&p).erreurs),
         ["batiments[0].zones[0].nb_lgt"]

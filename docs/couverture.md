@@ -110,7 +110,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 5.3 | Gestion/Régulation des espaces tampons solarisés | 108–117 | 4b | `core/src/bati/espace_tampon/gestion_solarise.rs` | non commencé |
 | 5.4 | Espaces tampons | 118–127 | 4b | `core/src/bati/espace_tampon/espace_tampon.rs` | non commencé |
 | 5.5 | S2_BAT-assemblage_zone | 128–135 | 4 | `core/src/bati/assemblage_zone.rs` | non commencé |
-| 5.6 | C_VEN_Débits_d’air_Cep | 136–160 | 6a | `core/src/ventilation/debits_air_cep.rs` | non commencé |
+| 5.6 | C_VEN_Débits_d’air_Cep | 136–160 | 4, 6a | `core/src/ventilation/debits_air_cep.rs` | partiel : éq. (131) à (157), (160), (161), (167) à (174), tableaux 22 à 29, hall fictif (éq. 130) ; applicable en Th-B (figure 18) ; lectures Q37 ; restent : espaces tampons, groupe de circulation saisi, aération, ventilation naturelle et CTA à débit variable (éq. 158, 159, 162 à 166) ; branchement horaire au lot 4d2 |
 | 5.7 | S2_BAT_assemblage_groupe | 161–172 | 4 | `core/src/bati/assemblage_groupe.rs` | non commencé |
 | 5.8 | S1_BAT_assemblage_baies | 173–178 | 4 | `core/src/bati/baie.rs` | partiel : étapes 3 et 4 de l'assemblage (baie, ensemble) ; protections mobiles et ouverture des baies à venir |
 | 5.9 | C_BAT_Gestion_protections_mobiles | 179–218 | 4 | `core/src/bati/protection_mobile.rs`, `data/src/protections_mobiles.rs` | partiel : gestion manuelle des volets et stores enroulables pour les usages 1 et 2, seconde protection, règles Th-D (éq. 175 à 178, 181, 183, 188, 189, 192, 193, 198 à 204) ; matrices vérifiées sur les figures du JO (`docs/reference/arrete/figures/`) ; gestion automatique classée **après v1** (Q31) ; stores vénitiens après v1 (Q30) |

@@ -32,6 +32,8 @@
                 "a_ophh_m2": 100.0,
                 "a_ophb_m2": 100.0,
                 "h_th_op_w_k": 45.0,
+                "a_f_perm_m2": 100.0,
+                "a_toit_perm_m2": 100.0,
                 "l_pt_m": 40.0,
                 "h_th_pt_w_k": 4.0,
                 "a_baies_m2": 10.0,

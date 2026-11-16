@@ -172,6 +172,12 @@ pub struct ResultatsEnveloppe {
     /// « Hges » des baies sans protection mobile en place, en W/K (§5.10.3.5, éq. 210 avec
     /// `Rprot = 0`). La valeur horaire dépend de la position des protections mobiles.
     pub h_ges_sp_w_k: f64,
+    /// « Af,perm » : surface des parois déperditives verticales, opaques et vitrées, en m²,
+    /// utile aux calculs de perméabilité (§5.7.2 ; « Af » du §5.6.3.1.5).
+    pub a_f_perm_m2: f64,
+    /// « Atoit,perm » : surface des parois déperditives horizontales hors plancher bas, opaques
+    /// et vitrées, en m², utile aux calculs de perméabilité (§5.7.2 ; « At » du §5.6.3.1.5).
+    pub a_toit_perm_m2: f64,
     /// « Ll » : longueur des ponts thermiques, en m (éq. 310).
     pub l_pt_m: f64,
     /// « HTh » des ponts thermiques, en W/K (éq. 307).
@@ -209,6 +215,8 @@ impl Resultats {
                         &mut e.a_baies_v_m2,
                         &mut e.a_baies_h_m2,
                         &mut e.h_ges_sp_w_k,
+                        &mut e.a_f_perm_m2,
+                        &mut e.a_toit_perm_m2,
                         &mut e.l_pt_m,
                         &mut e.h_th_pt_w_k,
                     ] {
