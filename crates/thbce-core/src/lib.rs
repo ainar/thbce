@@ -15,6 +15,7 @@ pub mod bati;
 pub mod calcul;
 pub mod climat;
 pub mod conventions;
+pub mod eclairage;
 pub mod entree;
 pub mod erreur;
 pub mod resultats;

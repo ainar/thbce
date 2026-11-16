@@ -117,7 +117,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 5.10 | C_BAT_Baie vitrée | 219–244 | 4 | `core/src/bati/baie.rs` | partiel : éq. (206) à (211), (214), (219) à (238) hors `Aouvmax` ; stores vénitiens (§5.10.3.6.2) classés **après v1** (décision Q30) ; valeurs par défaut des éq. (215), (216) et (218) appliquées et signalées dans les résultats ; espaces tampons non pris en charge |
 | 5.11 | FA_Classement_au_bruit_d’une_baie | 245–250 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
 | 5.12 | C_BAT_Perméabilité_des_PM | 251–254 | 4 | `core/src/bati/protection_mobile.rs` | implémenté : tableau 40 et éq. (239) ; employé par la fiche 5.13 |
-| 5.13 | C_BAT_Surventilation naturelle par ouverture des baies pour le confort thermique | 255–271 | 4 | `core/src/bati/surventilation.rs` | partiel : gestion manuelle et règles Th-B (éq. 240 à 245), surface équivalente (éq. 248 à 250), débits (éq. 251 à 256), tableaux 42 à 44 ; hystérésis et comportement de nuit sur hypothèses (Q32) ; gestion automatique non prise en charge ; branchement horaire au lot 4d |
+| 5.13 | C_BAT_Surventilation naturelle par ouverture des baies pour le confort thermique | 255–271 | 4 | `core/src/bati/surventilation.rs` | partiel : gestion manuelle et règles Th-B (éq. 240 à 245), surface équivalente (éq. 248 à 250), débits (éq. 251 à 256), tableaux 42 à 44 ; hystérésis et comportement de nuit selon les décisions Q32 ; gestion automatique non prise en charge ; branchement horaire au lot 4d |
 | 5.14 | C_BAT_ensemble_baies | 272–280 | 4 | `core/src/bati/baie.rs` | implémenté : éq. (257) à (282) |
 | 5.15 | S1_BAT_assemblage_parois opaques | 281–283 | 4 | `core/src/bati/paroi_opaque.rs` | implémenté : résolution des parois d'un groupe (`ParoiResolue::nouvelle`) ; branché sur les résultats d'enveloppe, pas encore sur le modèle thermique (lot 4d) |
 | 5.16 | C_BAT_ensemble_parois opaques | 284–287 | 4 | `core/src/bati/paroi_opaque.rs` | implémenté : éq. (283) à (287) |
@@ -148,7 +148,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
-| 7.1 | C_ECL_éclairage | 470–501 | 4 | `core/src/eclairage/eclairage.rs` | non commencé |
+| 7.1 | C_ECL_éclairage | 470–501 | 4 | `core/src/eclairage/mod.rs` | partiel : habitation (§7.1.3.6.2), éclairement naturel des volumes normaux (§7.1.3.4), autonomie (éq. 785), consommation (éq. 786 à 790), apports récupérables ; tableaux 78 et 79, grands volumes et fractionnement non transcrits (autres usages) ; branchement horaire au lot 4d |
 | 7.2 | C_ECL_calcul des consommations d’éclairage des parties communes en logement collectif | 502–503 | 6e | `core/src/eclairage/parties_communes.rs` | non commencé |
 
 ### 8. Chauffage, refroidissement (p. 504–1018)

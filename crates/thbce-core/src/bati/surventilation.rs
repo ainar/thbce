@@ -7,7 +7,7 @@
 //! gestion automatique de l'ouverture (§5.13.3.1.3) n'est pas prise en charge.
 //!
 //! Deux éléments de la gestion manuelle ne sont décrits que par un schéma ou pas du tout ; les
-//! lectures retenues sont isolées dans [`r_ouv_theta_op_man`] (`docs/questions.md`, Q32).
+//! lectures retenues sont isolées dans [`r_ouv_theta_op_man_selon`] (`docs/questions.md`, Q32).
 
 use libm::{fabs, sqrt};
 
@@ -191,22 +191,51 @@ fn rampe(x: f64, debut: f64, fin: f64) -> f64 {
     ((x - debut) / (fin - debut)).clamp(0.0, 1.0)
 }
 
-/// « Rouv_θop_man(h) » : ratio d'ouverture selon la température opérative du pas précédent.
+/// Lecture de l'hystérésis de la figure 62, que le texte ne décrit que par un schéma.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LectureHysteresis {
+    /// Lecture retenue (décision Q32) : la branche suivie dépend du sens de variation de la
+    /// température opérative entre `h−2` et `h−1` ; à égalité, le ratio précédent est conservé.
+    /// C'est la seule lecture qui emploie `θop,fin(h−2)`, entrée de la fiche.
+    SensDeVariation,
+    /// Variante : bande à mémoire,
+    /// `Rouv = clamp(Rouv(h−1) ; branche d'ouverture(θop) ; branche de fermeture(θop))`. Le
+    /// ratio précédent n'est modifié que s'il sort de l'intervalle délimité par les deux
+    /// branches. **Première variante à essayer si un cas de référence diverge sur le DH.**
+    BandeAMemoire,
+}
+
+/// Lecture de l'hystérésis employée par le moteur. Ce n'est pas une entrée du projet.
+pub const LECTURE_HYSTERESIS: LectureHysteresis = LectureHysteresis::SensDeVariation;
+
+/// « Rouv_θop_man(h) » : ratio d'ouverture selon la température opérative du pas précédent,
+/// avec la lecture de l'hystérésis retenue ([`LECTURE_HYSTERESIS`]).
+pub fn r_ouv_theta_op_man(precedent: f64, c: &ConditionsOuverture) -> f64 {
+    r_ouv_theta_op_man_selon(LECTURE_HYSTERESIS, precedent, c)
+}
+
+/// « Rouv_θop_man(h) » pour une lecture donnée de l'hystérésis.
 ///
-/// Th-BCE 2020 §5.13.3.1.1, figure 62 : profil à hystérésis. Quand la température monte, le
-/// ratio croît de 0 à `θouv1` à 1 à `θouv2` ; quand elle descend, il reste à 1 jusqu'à `θfer1`
-/// puis décroît jusqu'à 0 à `θfer2`. §5.13.3.1.2, éq. (245) : en Th-B, nul en inoccupation.
+/// Th-BCE 2020 §5.13.3.1.1, figure 62 : profil à hystérésis. Sur la branche d'ouverture, le
+/// ratio croît de 0 à `θouv1` à 1 à `θouv2` ; sur la branche de fermeture, il reste à 1 jusqu'à
+/// `θfer1` puis décroît jusqu'à 0 à `θfer2`. §5.13.3.1.2, éq. (245) : en Th-B, nul en
+/// inoccupation.
 ///
-/// **Lectures retenues, faute de description autre que la figure (question Q32)**, isolées ici :
-/// 1. le sens de variation se lit en comparant `θop,fin(h−1)` à `θop,fin(h−2)`, entrées de la
-///    fiche : en hausse, branche montante ; en baisse, branche descendante ; à égalité, le ratio
-///    précédent est conservé ;
+/// **Décisions Q32, à confirmer par un cas de référence**, isolées ici :
+/// 1. passage d'une branche à l'autre : voir [`LectureHysteresis`]. Avec le calendrier du
+///    fichier météo (Q25) et le changement de jour des scénarios (Q28), c'est l'un des
+///    paramètres à tester en premier si le DH s'écarte d'un cas de référence ;
 /// 2. le texte ne décrit le profil qu'« en occupation et en période journée (hlég > 7 h et
-///    hlég < 23 h) » : en dehors de cette plage, le ratio précédent est conservé (les occupants
-///    n'agissent pas sur les baies).
+///    hlég < 23 h) », soit de 8 h à 22 h : en dehors de cette plage, le ratio précédent est
+///    conservé. Des fenêtres ouvertes le soir le restent la nuit, modérées par `Cpr` ; en
+///    inoccupation, `Cpr = 0` les ferme.
 ///
 /// `precedent` est le ratio du pas de temps précédent.
-pub fn r_ouv_theta_op_man(precedent: f64, c: &ConditionsOuverture) -> f64 {
+pub fn r_ouv_theta_op_man_selon(
+    lecture: LectureHysteresis,
+    precedent: f64,
+    c: &ConditionsOuverture,
+) -> f64 {
     if c.mode == ModeCalcul::ThB && !c.i_occ_zone {
         return 0.0;
     }
@@ -215,12 +244,20 @@ pub fn r_ouv_theta_op_man(precedent: f64, c: &ConditionsOuverture) -> f64 {
         return precedent;
     }
     let s = seuils_ouverture(c);
-    if c.theta_op_h1_c > c.theta_op_h2_c {
-        rampe(c.theta_op_h1_c, s.ouv1_c, s.ouv2_c)
-    } else if c.theta_op_h1_c < c.theta_op_h2_c {
-        rampe(c.theta_op_h1_c, s.fer2_c, s.fer1_c)
-    } else {
-        precedent
+    let ouverture = rampe(c.theta_op_h1_c, s.ouv1_c, s.ouv2_c);
+    let fermeture = rampe(c.theta_op_h1_c, s.fer2_c, s.fer1_c);
+    match lecture {
+        LectureHysteresis::SensDeVariation => {
+            if c.theta_op_h1_c > c.theta_op_h2_c {
+                ouverture
+            } else if c.theta_op_h1_c < c.theta_op_h2_c {
+                fermeture
+            } else {
+                precedent
+            }
+        }
+        // La branche d'ouverture est partout inférieure ou égale à la branche de fermeture.
+        LectureHysteresis::BandeAMemoire => precedent.max(ouverture).min(fermeture),
     }
 }
 
