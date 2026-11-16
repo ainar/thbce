@@ -114,6 +114,24 @@ fn lit_un_classeur_au_format_reglementaire() {
     }
 }
 
+/// `thbce meteo convertir` : le CSV dérivé d'un classeur redonne exactement les mêmes données.
+#[cfg(feature = "classeur")]
+#[test]
+fn le_csv_derive_du_classeur_est_identique_au_classeur() {
+    let octets = classeur_synthetique();
+    let csv = meteo::classeur::convertir_en_csv(&octets).unwrap();
+    assert_eq!(meteo::detecter(csv.as_bytes()), FormatMeteo::CsvRe2020);
+    assert_eq!(
+        csv.lines().filter(|l| !l.starts_with('#')).count(),
+        1 + 8 * 2 * NB_HEURES_AN
+    );
+    for zone in ZoneClimatique::TOUTES {
+        let depuis_csv = meteo::lire(csv.as_bytes(), zone).unwrap();
+        assert_eq!(depuis_csv, meteo::lire(&octets, zone).unwrap(), "{zone}");
+        assert!(depuis_csv.est_reglementaire());
+    }
+}
+
 #[cfg(feature = "classeur")]
 #[test]
 fn signale_un_classeur_invalide() {

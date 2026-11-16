@@ -13,6 +13,7 @@
 //! classeur officiel ne peut pas être versionné. Le test `classeur_reglementaire`
 //! (`tests/meteo_re2020.rs`) le vérifie en local contre le CSV dérivé.
 
+use std::fmt::Write as _;
 use std::io::Cursor;
 
 use calamine::{Data, Reader, Xlsx};
@@ -20,7 +21,7 @@ use thbce_core::climat::{JeuMeteo, MeteoProjet, OrigineMeteo};
 use thbce_core::conventions::NB_HEURES_AN;
 use thbce_data::ZoneClimatique;
 
-use super::csv_re2020::Series;
+use super::csv_re2020::{Series, COLONNES};
 use super::ErreurMeteo;
 
 /// Début du nom de chaque colonne de données, dans l'ordre de la structure interne.
@@ -136,4 +137,34 @@ pub fn lire_classeur_re2020(
         th_bc: th_bc.en_annee(zone, JeuMeteo::ThBC, OrigineMeteo::ReglementaireRe2020),
         th_d: th_d.en_annee(zone, JeuMeteo::ThD, OrigineMeteo::ReglementaireRe2020),
     })
+}
+
+/// Avertissement écrit en tête du CSV dérivé.
+pub const AVERTISSEMENT_CSV: &str = "# Données météorologiques conventionnelles de la RE2020, converties du classeur officiel par thbce.\n\
+# Usage limité au calcul réglementaire RE2020 ; ces données ne doivent pas être communiquées, même partiellement.\n";
+
+/// Convertit le classeur réglementaire en CSV long (`zone, mode, h, te0, …, Psi`), pour les
+/// huit zones et les deux jeux.
+///
+/// Les valeurs sont recopiées telles quelles, sans conversion d'unité : lire le CSV produit
+/// donne exactement les mêmes données que lire le classeur. Le fichier produit reste soumis aux
+/// conditions d'utilisation des données d'origine.
+pub fn convertir_en_csv(octets: &[u8]) -> Result<String, ErreurMeteo> {
+    let mut classeur: Xlsx<_> = Xlsx::new(Cursor::new(octets))
+        .map_err(|e| ErreurMeteo::Classeur(format!("fichier .xlsx illisible : {e}")))?;
+    let mut csv = String::from(AVERTISSEMENT_CSV);
+    let _ = writeln!(csv, "{}", COLONNES.join(","));
+    for zone in ZoneClimatique::TOUTES {
+        for jeu in [JeuMeteo::ThBC, JeuMeteo::ThD] {
+            let series = lire_onglet(&mut classeur, zone, jeu)?;
+            for h in 0..NB_HEURES_AN {
+                let _ = write!(csv, "{},{},{h}", zone.nom(), jeu.nom());
+                for colonne in &series.colonnes {
+                    let _ = write!(csv, ",{}", colonne[h]);
+                }
+                csv.push('\n');
+            }
+        }
+    }
+    Ok(csv)
 }
