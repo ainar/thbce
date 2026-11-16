@@ -91,6 +91,132 @@ pub struct ResultatsBatiment {
     /// Espaces tampons du bâtiment (§5.2 à 5.4) ; absent sans espace tampon.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub espaces_tampons: Vec<ResultatsEspaceTampon>,
+    /// Réseaux de distribution intergroupes, issus du calcul des consommations (Th-C) : demandes
+    /// transmises aux générations (§8.9 et §8.10) ; absent sans réseau.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub distributions_intergroupes: Vec<ResultatsIntergroupes>,
+    /// Générations, issues du calcul Th-C : énergie à fournir, sommée sur leurs réseaux. En
+    /// attendant les générateurs (lots 6c et 6d), chaque génération est idéale : elle fournit
+    /// exactement la demande. Absent sans génération.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub generations: Vec<ResultatsGeneration>,
+}
+
+/// Réseau de distribution intergroupes, calcul Th-C.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsIntergroupes {
+    /// Identifiant du réseau.
+    pub id: Id,
+    /// Identifiant de la génération qui l'alimente.
+    pub generation: Id,
+    /// Demande de chauffage transmise à la génération, pertes du réseau comprises, en kWh.
+    pub q_ch_kwh: f64,
+    /// Demande de refroidissement transmise à la génération (valeur absolue), en kWh.
+    pub q_fr_kwh: f64,
+    /// Demandes mensuelles de chauffage, en kWh (mois des scénarios).
+    pub q_ch_mensuel_kwh: Vec<f64>,
+    /// Demandes mensuelles de refroidissement, en kWh.
+    pub q_fr_mensuel_kwh: Vec<f64>,
+    /// Consommation des circulateurs du réseau, en kWh d'énergie finale électrique.
+    pub w_aux_kwh: f64,
+    /// Pertes du réseau vers le volume chauffé, en kWh.
+    pub pertes_vc_kwh: f64,
+    /// Pertes du réseau hors volume chauffé, en kWh.
+    pub pertes_hvc_kwh: f64,
+    /// Nombre d'heures où le réseau transmet une demande.
+    pub nbh_fonct: u32,
+    /// Température de départ extrême demandée à la génération (la plus haute en chauffage, la
+    /// plus basse en refroidissement), en °C ; absente pour un réseau fictif.
+    pub theta_dep_extreme_c: Option<f64>,
+}
+
+/// Génération, calcul Th-C.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsGeneration {
+    /// Identifiant de la génération.
+    pub id: Id,
+    /// Énergie de chauffage à fournir, en kWh.
+    pub q_ch_kwh: f64,
+    /// Énergie de refroidissement à fournir (valeur absolue), en kWh.
+    pub q_fr_kwh: f64,
+}
+
+/// Systèmes d'émission d'un groupe, calcul Th-C (§8.1).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsSystemesGroupe {
+    /// « Qsys_ch » : énergie de chauffage requise par les émetteurs du groupe, pertes au dos
+    /// comprises, en kWh (éq. 824).
+    pub q_sys_ch_kwh: f64,
+    /// « Qsys_fr » : énergie de refroidissement requise (valeur absolue), en kWh.
+    pub q_sys_fr_kwh: f64,
+    /// Valeurs mensuelles de `q_sys_ch_kwh`, en kWh.
+    pub q_sys_ch_mensuel_kwh: Vec<f64>,
+    /// Valeurs mensuelles de `q_sys_fr_kwh`, en kWh.
+    pub q_sys_fr_mensuel_kwh: Vec<f64>,
+    /// Énergies requises par émetteur (éq. 810).
+    pub emetteurs: Vec<ResultatsEmetteur>,
+    /// « Wvent_loc_tot » : consommation des ventilateurs locaux, en kWh d'énergie finale
+    /// électrique (éq. 815).
+    pub w_vent_loc_kwh: f64,
+    /// Nombre d'heures de relance (éq. 848).
+    pub nbh_relance: u32,
+    /// Saisons propres du groupe en calcul Th-C (§4.6), dont les générations tirent les
+    /// saisons effectives (§8.4).
+    pub saisons_th_c: Option<ResultatsSaisons>,
+}
+
+/// Émetteur, calcul Th-C.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsEmetteur {
+    /// Identifiant.
+    pub id: Id,
+    /// Énergie de chauffage requise, en kWh.
+    pub q_ch_kwh: f64,
+    /// Énergie de refroidissement requise (valeur absolue), en kWh.
+    pub q_fr_kwh: f64,
+}
+
+impl ResultatsSystemesGroupe {
+    fn arrondir(&mut self) {
+        let a = arrondir_restitution;
+        self.q_sys_ch_kwh = a(self.q_sys_ch_kwh);
+        self.q_sys_fr_kwh = a(self.q_sys_fr_kwh);
+        self.w_vent_loc_kwh = a(self.w_vent_loc_kwh);
+        for x in self
+            .q_sys_ch_mensuel_kwh
+            .iter_mut()
+            .chain(self.q_sys_fr_mensuel_kwh.iter_mut())
+        {
+            *x = a(*x);
+        }
+        for e in &mut self.emetteurs {
+            e.q_ch_kwh = a(e.q_ch_kwh);
+            e.q_fr_kwh = a(e.q_fr_kwh);
+        }
+    }
+}
+
+impl ResultatsIntergroupes {
+    fn arrondir(&mut self) {
+        let a = arrondir_restitution;
+        for x in [
+            &mut self.q_ch_kwh,
+            &mut self.q_fr_kwh,
+            &mut self.w_aux_kwh,
+            &mut self.pertes_vc_kwh,
+            &mut self.pertes_hvc_kwh,
+        ] {
+            *x = a(*x);
+        }
+        for x in self
+            .q_ch_mensuel_kwh
+            .iter_mut()
+            .chain(self.q_fr_mensuel_kwh.iter_mut())
+        {
+            *x = a(*x);
+        }
+        self.theta_dep_extreme_c = self.theta_dep_extreme_c.map(a);
+    }
 }
 
 /// Résultats d'un espace tampon (Th-BCE 2020 §5.4) : synthèse annuelle de ses sorties
@@ -221,6 +347,10 @@ pub struct ResultatsGroupe {
     /// hors habitation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ventilation: Option<ResultatsVentilationGroupe>,
+    /// Systèmes d'émission du groupe, issus du calcul des consommations (Th-C) ; absents sans
+    /// émetteur.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub systemes: Option<ResultatsSystemesGroupe>,
     /// Résultats par baie.
     pub baies: Vec<ResultatsBaie>,
     /// Valeurs par défaut de la méthode appliquées aux paramètres non saisis du groupe ; liste
@@ -418,6 +548,13 @@ impl Resultats {
             b.dh_c_h = b.dh_c_h.map(a);
             b.ic_energie_kgco2_m2 = b.ic_energie_kgco2_m2.map(a);
             b.c_aux_vent_kwh = b.c_aux_vent_kwh.map(a);
+            for d in &mut b.distributions_intergroupes {
+                d.arrondir();
+            }
+            for g in &mut b.generations {
+                g.q_ch_kwh = a(g.q_ch_kwh);
+                g.q_fr_kwh = a(g.q_fr_kwh);
+            }
             for et in &mut b.espaces_tampons {
                 for m in [&mut et.th_b, &mut et.th_d].into_iter().flatten() {
                     m.b_therm_moyen = a(m.b_therm_moyen);
@@ -472,6 +609,9 @@ impl Resultats {
                         for x in &mut v.c_aux_vent_mensuel_kwh {
                             *x = a(*x);
                         }
+                    }
+                    if let Some(s) = &mut g.systemes {
+                        s.arrondir();
                     }
                     if let Some(d) = &mut g.debits_bbio {
                         d.q_spec_repris_m3_h = a(d.q_spec_repris_m3_h);

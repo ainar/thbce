@@ -7,7 +7,8 @@
 //!
 //! État : le calcul annuel au pas horaire est en place pour la maison individuelle et le logement
 //! collectif, en mode Th-B (besoins de chauffage, de refroidissement et d'éclairage, Bbio) puis
-//! en mode Th-D (confort d'été, indicateur DH). Cep, Cep,nr et Ic énergie ne sont pas encore
+//! en mode Th-D (confort d'été, indicateur DH), puis en mode Th-C pour les demandes des systèmes
+//! de chauffage et de refroidissement (générations idéales). Cep, Cep,nr et Ic énergie ne sont pas encore
 //! calculés et valent `None`. L'avancement fiche par fiche est tenu dans `docs/couverture.md`.
 //!
 //! Ce moteur n'est pas le moteur réglementaire officiel et ne vaut pas attestation de conformité.

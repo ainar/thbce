@@ -5,8 +5,10 @@
 //! les surfaces de référence, puis déroule deux années au pas horaire : en mode Th-B (lot 4),
 //! pour les besoins de chauffage, de refroidissement et d'éclairage et le Bbio (§13.1) ; puis en
 //! mode Th-D (lot 5), sur le jeu météo à séquence caniculaire, pour l'indicateur de confort
-//! d'été DH (§13.5). Les deux calculs emploient le même enchaînement horaire, paramétré par
-//! [`ModeCalcul`] ; le calcul Th-D emploie la ventilation du projet (§6.2 à 6.5). La
+//! d'été DH (§13.5) ; enfin en mode Th-C (lot 6b), sur le jeu « Th-BC », pour les demandes des
+//! systèmes de chauffage et de refroidissement (§8). Les calculs emploient le même enchaînement
+//! horaire, paramétré par [`ModeCalcul`] ; les calculs Th-D et Th-C emploient la ventilation
+//! (§6.2 à 6.5) et les émetteurs (§8.1) du projet. La
 //! consommation des ventilateurs est restituée pour le Cep ; Cep, Cep,nr et Ic énergie restent
 //! à `None` jusqu'à l'implémentation des lots 6 et 7 (`docs/couverture.md`).
 
@@ -27,8 +29,9 @@ use crate::erreur::Erreur;
 use crate::indicateurs::sorties_th_b::{sorties, EnergiesMensuelles};
 use crate::resultats::{
     PeriodeConfortAdaptatif, Resultats, ResultatsBaie, ResultatsBatiment, ResultatsClimat,
-    ResultatsConfort, ResultatsConfortEte, ResultatsDebitsBbio, ResultatsEnveloppe,
-    ResultatsEspaceTampon, ResultatsEspaceTamponMode, ResultatsGroupe, ResultatsSaisons,
+    ResultatsConfort, ResultatsConfortEte, ResultatsDebitsBbio, ResultatsEmetteur,
+    ResultatsEnveloppe, ResultatsEspaceTampon, ResultatsEspaceTamponMode, ResultatsGeneration,
+    ResultatsGroupe, ResultatsIntergroupes, ResultatsSaisons, ResultatsSystemesGroupe,
     ResultatsVentilationGroupe, ResultatsVentilationMode, ResultatsVentilationZone, ResultatsZone,
     ValeurParDefaut,
 };
@@ -56,8 +59,14 @@ impl Default for Options {
 /// (lot 6b) : le calcul Th-D emploie la ventilation du projet (lot 6a) mais l'émission
 /// conventionnelle du calcul du Bbio (`docs/questions.md`, Q40 et Q42).
 pub const AVERTISSEMENT_DH: &str =
-    "DH calculé avec la ventilation du projet et l'émission conventionnelle du calcul du Bbio : \
-     les émetteurs du projet ne sont pas encore pris en compte par le moteur";
+    "DH calculé avec la ventilation et les émetteurs du projet, sans les pertes récupérables des \
+     distributions et de l'eau chaude sanitaire, que le moteur ne calcule pas encore";
+
+/// Avertissement porté par tout résultat tant que les générateurs ne sont pas décrits (lots 6c
+/// et 6d) : chaque génération est traitée comme idéale.
+pub const AVERTISSEMENT_GENERATION: &str =
+    "générations idéales : les énergies restituées pour les générations sont les demandes de \
+     leurs réseaux, les générateurs n'étant pas encore pris en compte par le moteur";
 
 /// Contrôles communs à tout calcul : validité de l'entrée, usages pris en charge, données
 /// météo de la zone climatique du projet.
@@ -89,8 +98,8 @@ fn verifier(
 /// Calcule les indicateurs d'un projet à partir de sa description et des données météo de sa
 /// zone climatique.
 ///
-/// Deux calculs annuels s'enchaînent pour chaque zone : Th-B sur le jeu météo « Th-BC », puis
-/// Th-D sur le jeu « Th-D » (annexe II §1.2.1, tableau 2).
+/// Trois calculs annuels s'enchaînent pour chaque bâtiment : Th-B sur le jeu météo « Th-BC »,
+/// Th-D sur le jeu « Th-D » (annexe II §1.2.1, tableau 2), puis Th-C sur le jeu « Th-BC ».
 pub fn calculer(
     projet: &Projet,
     meteo: &MeteoProjet,
@@ -132,6 +141,7 @@ pub fn calculer(
     avertissements
         .push("Cep, Cep,nr et Ic énergie ne sont pas encore calculés par le moteur".to_owned());
     avertissements.push(AVERTISSEMENT_DH.to_owned());
+    avertissements.push(AVERTISSEMENT_GENERATION.to_owned());
 
     let mut batiments = Vec::with_capacity(projet.batiments.len());
     for bat in &projet.batiments {
@@ -142,8 +152,15 @@ pub fn calculer(
         // chaque pas de temps (§5.2).
         let th_b = simuler_batiment(bat, projet, ModeCalcul::ThB, &climat_th_bc, &confort_th_bc)?;
         let th_d = simuler_batiment(bat, projet, ModeCalcul::ThD, &climat_th_d, &confort_th_d)?;
-        for (zone, (zb, zd)) in bat.zones.iter().zip(th_b.zones.iter().zip(&th_d.zones)) {
-            let (resultats_zone, energies_zone) = restituer_zone(zone, projet, zb, zd);
+        // Mode Th-C (calcul des consommations), sur le jeu météo « Th-BC » : systèmes du projet,
+        // saisons effectives et relances ; les générations sont idéales jusqu'aux lots 6c et 6d.
+        let th_c = simuler_batiment(bat, projet, ModeCalcul::ThC, &climat_th_bc, &confort_th_bc)?;
+        for (zone, ((zb, zd), zc)) in bat
+            .zones
+            .iter()
+            .zip(th_b.zones.iter().zip(&th_d.zones).zip(&th_c.zones))
+        {
+            let (resultats_zone, energies_zone) = restituer_zone(zone, projet, zb, zd, zc);
             energies_bat.ajouter(&energies_zone);
             zones.push(resultats_zone);
         }
@@ -165,6 +182,8 @@ pub fn calculer(
             ic_energie_kgco2_m2: None,
             c_aux_vent_kwh: (!c_aux_vent.is_empty()).then(|| c_aux_vent.iter().sum()),
             zones,
+            distributions_intergroupes: resultats_intergroupes(&th_c),
+            generations: resultats_generations(&th_c),
             espaces_tampons: th_b
                 .espaces_tampons
                 .iter()
@@ -281,6 +300,7 @@ fn restituer_zone(
     projet: &Projet,
     th_b: &ZoneHoraire,
     th_d: &ZoneHoraire,
+    th_c: &ZoneHoraire,
 ) -> (ResultatsZone, EnergiesMensuelles) {
     let mut energies_zone = EnergiesMensuelles::default();
     // Système de ventilation du projet, préparé hors de la boucle horaire : en habitation, la
@@ -290,9 +310,9 @@ fn restituer_zone(
     let groupes: Vec<ResultatsGroupe> = zone
         .groupes
         .iter()
-        .zip(th_b.groupes.iter().zip(&th_d.groupes))
+        .zip(th_b.groupes.iter().zip(&th_d.groupes).zip(&th_c.groupes))
         .enumerate()
-        .map(|(ig, (g, (b, d)))| {
+        .map(|(ig, (g, ((b, d), gc)))| {
             let sref_m2 = sref_groupe(g, zone.usage);
             let energies = energies_groupe(b);
             energies_zone.ajouter(&energies);
@@ -317,6 +337,7 @@ fn restituer_zone(
                 ventilation: ventilation
                     .as_ref()
                     .map(|v| ventilation_groupe(v, ig, sref_m2)),
+                systemes: resultats_systemes(gc),
                 baies: resultats_baies(g, &projet.catalogue),
                 valeurs_par_defaut: defauts_groupe(g, &projet.catalogue),
             }
@@ -559,4 +580,75 @@ fn sref_groupe(groupe: &Groupe, usage: UsageZone) -> f64 {
         groupe.su_m2
     };
     surface.unwrap_or(0.0)
+}
+
+/// Systèmes d'émission d'un groupe à l'issue du calcul Th-C (§8.1).
+fn resultats_systemes(g: &GroupeHoraire) -> Option<ResultatsSystemesGroupe> {
+    let sy = g.systemes.as_ref()?;
+    let c = &sy.cumuls;
+    let kwh = |v: &[f64; 12]| v.iter().map(|x| x / 1000.0).collect::<Vec<_>>();
+    Some(ResultatsSystemesGroupe {
+        q_sys_ch_kwh: c.q_sys_ch_mensuel_wh.iter().sum::<f64>() / 1000.0,
+        q_sys_fr_kwh: c.q_sys_fr_mensuel_wh.iter().sum::<f64>() / 1000.0,
+        q_sys_ch_mensuel_kwh: kwh(&c.q_sys_ch_mensuel_wh),
+        q_sys_fr_mensuel_kwh: kwh(&c.q_sys_fr_mensuel_wh),
+        emetteurs: sy
+            .emetteurs
+            .iter()
+            .enumerate()
+            .map(|(i, e)| ResultatsEmetteur {
+                id: e.id.clone(),
+                q_ch_kwh: c.q_em_ch_wh[i] / 1000.0,
+                q_fr_kwh: c.q_em_fr_wh[i] / 1000.0,
+            })
+            .collect(),
+        w_vent_loc_kwh: c.w_vent_loc_wh / 1000.0,
+        nbh_relance: c.nbh_relance,
+        saisons_th_c: Some(resultats_saisons(g)),
+    })
+}
+
+/// Réseaux intergroupes d'un bâtiment à l'issue du calcul Th-C (§8.9 et §8.10).
+fn resultats_intergroupes(b: &BatimentHoraire) -> Vec<ResultatsIntergroupes> {
+    let s = &b.systemes;
+    s.intergroupes
+        .iter()
+        .zip(&s.cumuls)
+        .map(|(d, c)| ResultatsIntergroupes {
+            id: d.id.clone(),
+            generation: s.generations.get(d.generation).cloned().unwrap_or_default(),
+            q_ch_kwh: c.q_ch_mensuel_wh.iter().sum::<f64>() / 1000.0,
+            q_fr_kwh: c.q_fr_mensuel_wh.iter().sum::<f64>() / 1000.0,
+            q_ch_mensuel_kwh: c.q_ch_mensuel_wh.iter().map(|x| x / 1000.0).collect(),
+            q_fr_mensuel_kwh: c.q_fr_mensuel_wh.iter().map(|x| x / 1000.0).collect(),
+            w_aux_kwh: c.w_aux_wh / 1000.0,
+            pertes_vc_kwh: c.phi_pertes_vc_wh / 1000.0,
+            pertes_hvc_kwh: c.phi_pertes_hvc_wh / 1000.0,
+            nbh_fonct: c.nbh_fonct,
+            theta_dep_extreme_c: c.theta_dep_extreme_c,
+        })
+        .collect()
+}
+
+/// Générations d'un bâtiment à l'issue du calcul Th-C : demandes de leurs réseaux.
+fn resultats_generations(b: &BatimentHoraire) -> Vec<ResultatsGeneration> {
+    let s = &b.systemes;
+    s.generations
+        .iter()
+        .enumerate()
+        .map(|(ig, id)| {
+            let (mut ch, mut fr) = (0.0, 0.0);
+            for (d, c) in s.intergroupes.iter().zip(&s.cumuls) {
+                if d.generation == ig {
+                    ch += c.q_ch_mensuel_wh.iter().sum::<f64>() / 1000.0;
+                    fr += c.q_fr_mensuel_wh.iter().sum::<f64>() / 1000.0;
+                }
+            }
+            ResultatsGeneration {
+                id: id.clone(),
+                q_ch_kwh: ch,
+                q_fr_kwh: fr,
+            }
+        })
+        .collect()
 }

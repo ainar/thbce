@@ -66,7 +66,15 @@ fn calcul_ecrit_les_resultats_en_json() {
     assert!(groupe["confort_ete"]["theta_op_max_c"].as_f64().unwrap() > 15.0);
     let erreurs = String::from_utf8_lossy(&s.stderr);
     assert!(erreurs.contains("non réglementaire"));
-    assert!(erreurs.contains("DH calculé avec la ventilation du projet"));
+    assert!(erreurs.contains("DH calculé avec la ventilation et les émetteurs du projet"));
+    assert!(erreurs.contains("générations idéales"));
+    // Calcul Th-C : demande de la génération idéale positive par temps froid.
+    assert!(
+        r["batiments"][0]["generations"][0]["q_ch_kwh"]
+            .as_f64()
+            .unwrap()
+            > 0.0
+    );
 
     let s = thbce(&[
         "calcul",

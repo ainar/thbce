@@ -8,10 +8,18 @@
 //! `btherm(h)`, `bsolaire(h)`, `becl(h)` et leur température `θet(h)` sont ensuite transmis aux
 //! composants d'enveloppe et aux entrées d'air des zones (§5.5, §5.7), calculées comme avant.
 
+use crate::chauffage_refroidissement::distribution::{
+    ApportReseauGroupe, DistributionIntergroupesResolue, SortiesDistributionIntergroupes,
+};
+use crate::chauffage_refroidissement::saisons_fonctionnement::{
+    autorisations_effectives, DesserteGroupe,
+};
+use crate::climat::calendrier::{date_scenario, jour_bascule_saisons};
 use crate::climat::environnement_proche::ventc_m_s;
 use crate::climat::{ClimatExterieur, ConfortAdaptatif};
 use crate::conventions::{ModeCalcul, NB_HEURES_AN};
 use crate::entree::{Batiment, Catalogue};
+use crate::entree::{FonctionReseau, RaccordementReseaux};
 use crate::erreur::Erreur;
 
 use super::assemblage_groupe::Lectures;
@@ -33,6 +41,50 @@ pub struct BatimentHoraire {
     /// Coefficients des espaces tampons au dernier pas de temps calculé.
     pub coefficients: Vec<CoefficientsEt>,
     vus: Vec<GroupeVuParEt>,
+    /// Systèmes de chauffage et de refroidissement du bâtiment en aval des groupes : réseaux
+    /// intergroupes et générations (§8.4, §8.6, §8.9 et §8.10) ; vides en Th-B.
+    pub systemes: SystemesBatiment,
+}
+
+/// Réseaux intergroupes et générations d'un bâtiment, et leurs sorties.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct SystemesBatiment {
+    /// Identifiants des générations.
+    pub generations: Vec<String>,
+    /// « idraccord_reseau » de chaque génération : vrai si permanent.
+    pub permanent: Vec<bool>,
+    /// Réseaux intergroupes.
+    pub intergroupes: Vec<DistributionIntergroupesResolue>,
+    /// Desserte de chaque groupe, dans l'ordre des zones puis des groupes.
+    pub dessertes: Vec<DesserteGroupe>,
+    /// « Ratsurf^dp,gr » : pour chaque réseau intergroupes, part de chaque groupe (même ordre).
+    pub rat_surf: Vec<Vec<f64>>,
+    /// Sorties de chaque réseau intergroupes au dernier pas de temps.
+    pub sorties: Vec<SortiesDistributionIntergroupes>,
+    /// « Autch^gen » et « Autfr^gen » de chaque génération.
+    pub aut_gen: Vec<(bool, bool)>,
+    /// Cumuls de chaque réseau intergroupes.
+    pub cumuls: Vec<CumulsIntergroupes>,
+}
+
+/// Cumuls annuels d'un réseau intergroupes : demande transmise à la génération.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct CumulsIntergroupes {
+    /// Demande de chauffage, par mois des scénarios, en Wh.
+    pub q_ch_mensuel_wh: [f64; 12],
+    /// Demande de refroidissement (valeur absolue), par mois, en Wh.
+    pub q_fr_mensuel_wh: [f64; 12],
+    /// Consommation des circulateurs, en Wh.
+    pub w_aux_wh: f64,
+    /// Pertes vers le volume chauffé, en Wh.
+    pub phi_pertes_vc_wh: f64,
+    /// Pertes hors volume chauffé, en Wh.
+    pub phi_pertes_hvc_wh: f64,
+    /// Nombre de pas de temps où le réseau débite ou transmet une demande.
+    pub nbh_fonct: u32,
+    /// Plus haute température de départ demandée (chauffage) ou plus basse (froid), en °C ;
+    /// `None` pour un réseau fictif ou sans demande.
+    pub theta_dep_extreme_c: Option<f64>,
 }
 
 impl BatimentHoraire {
@@ -123,7 +175,13 @@ impl BatimentHoraire {
             }
         }
         let coefficients = espaces_tampons.iter().map(|e| e.coefficients).collect();
+        let systemes = if mode == ModeCalcul::ThB {
+            SystemesBatiment::default()
+        } else {
+            SystemesBatiment::nouveaux(bat, &mut zones)
+        };
         Ok(Self {
+            systemes,
             id: bat.id.clone(),
             mode,
             zones,
@@ -163,6 +221,9 @@ impl BatimentHoraire {
         for z in &mut self.zones {
             z.pas_avec_espaces_tampons(h, climat, confort, &self.coefficients)?;
         }
+        if self.mode != ModeCalcul::ThB {
+            self.systemes.pas(h, &mut self.zones);
+        }
         Ok(())
     }
 
@@ -188,5 +249,147 @@ impl BatimentHoraire {
             apres_le_pas(h, self);
         }
         Ok(())
+    }
+}
+
+impl SystemesBatiment {
+    /// Résout les réseaux intergroupes et les générations du bâtiment et lie les systèmes des
+    /// groupes. Références vérifiées par la validation.
+    fn nouveaux(bat: &crate::entree::Batiment, zones: &mut [ZoneHoraire]) -> Self {
+        let generations: Vec<String> = bat.generations.iter().map(|g| g.id.clone()).collect();
+        let permanent = bat
+            .generations
+            .iter()
+            .map(|g| g.raccordement_reseaux == RaccordementReseaux::Permanent)
+            .collect();
+        let intergroupes: Vec<DistributionIntergroupesResolue> = bat
+            .distributions_intergroupes
+            .iter()
+            .map(|d| {
+                DistributionIntergroupesResolue::nouvelle(d, |id| {
+                    generations.iter().position(|g| g == id)
+                })
+            })
+            .collect();
+        let ids_dp: Vec<String> = intergroupes.iter().map(|d| d.id.clone()).collect();
+        let mut dessertes = Vec::new();
+        let mut a_desservie = vec![Vec::new(); intergroupes.len()];
+        for (z, zone) in zones.iter_mut().zip(&bat.zones) {
+            for (g, groupe) in z.groupes.iter_mut().zip(&zone.groupes) {
+                g.lier_systemes(groupe, |id| ids_dp.iter().position(|d| d == id));
+                let mut d = DesserteGroupe {
+                    i_clim: g.i_clim,
+                    ..DesserteGroupe::default()
+                };
+                let mut surf = vec![0.0; intergroupes.len()];
+                if let Some(sy) = &g.systemes {
+                    for (k, e) in sy.emetteurs.iter().enumerate() {
+                        for (f, rat, liste) in [
+                            (e.chaud, sy.equivalente.rat_eff_ch[k], &mut d.chaud),
+                            (e.froid, sy.equivalente.rat_eff_fr[k], &mut d.froid),
+                        ] {
+                            let Some(f) = f else { continue };
+                            let Some(ds) = sy.distributions.get(f.distribution) else {
+                                continue;
+                            };
+                            let dp = ds.intergroupes;
+                            if let Some(dpr) = intergroupes.get(dp) {
+                                if !liste.contains(&dpr.generation) {
+                                    liste.push(dpr.generation);
+                                }
+                                // Éq. (890) : surface desservie, Σ Rateff × Agr.
+                                surf[dp] += rat * g.a_gr_m2;
+                            }
+                        }
+                    }
+                }
+                for (a, s) in a_desservie.iter_mut().zip(surf) {
+                    a.push(s);
+                }
+                dessertes.push(d);
+            }
+        }
+        // Éq. (891) et (892).
+        let rat_surf = a_desservie
+            .iter()
+            .map(|a| {
+                let total: f64 = a.iter().sum();
+                a.iter()
+                    .map(|x| if total > 0.0 { x / total } else { 0.0 })
+                    .collect()
+            })
+            .collect();
+        let n = intergroupes.len();
+        let mut s = Self {
+            aut_gen: vec![(false, false); generations.len()],
+            generations,
+            permanent,
+            intergroupes,
+            dessertes,
+            rat_surf,
+            sorties: vec![SortiesDistributionIntergroupes::default(); n],
+            cumuls: vec![CumulsIntergroupes::default(); n],
+        };
+        s.fixer_autorisations(zones);
+        s
+    }
+
+    /// Autorisations effectives des groupes (fiche 8.4, éq. 839 à 841), à partir de leurs
+    /// autorisations propres.
+    fn fixer_autorisations(&mut self, zones: &mut [ZoneHoraire]) {
+        let propres: Vec<(bool, bool)> = zones
+            .iter()
+            .flat_map(|z| z.groupes.iter())
+            .map(|g| (g.etat.saisons.aut_ch, g.etat.saisons.aut_fr))
+            .collect();
+        let (eff, gen) = autorisations_effectives(&propres, &self.dessertes, &self.permanent);
+        self.aut_gen = gen;
+        for (g, a) in zones.iter_mut().flat_map(|z| z.groupes.iter_mut()).zip(eff) {
+            g.etat.aut_eff = a;
+        }
+    }
+
+    /// Pas de temps des réseaux intergroupes, après celui des groupes ; à la bascule des
+    /// saisons (9 h légales, décision Q39), nouvelles autorisations effectives (lecture Q43).
+    fn pas(&mut self, h: usize, zones: &mut [ZoneHoraire]) {
+        let mois = usize::from(date_scenario(h).mois) - 1;
+        let groupes: Vec<_> = zones.iter().flat_map(|z| z.groupes.iter()).collect();
+        let mut aval = Vec::new();
+        for (k, dp) in self.intergroupes.iter().enumerate() {
+            aval.clear();
+            for (ig, g) in groupes.iter().enumerate() {
+                let Some(sy) = &g.systemes else { continue };
+                for (d, s) in sy.distributions.iter().zip(&sy.sorties.distributions) {
+                    if d.intergroupes == k {
+                        aval.push(ApportReseauGroupe {
+                            sorties: *s,
+                            rat_surf: self.rat_surf[k].get(ig).copied().unwrap_or(0.0),
+                            theta_i_moy_c: sy.sorties.theta_i_moy_c,
+                        });
+                    }
+                }
+            }
+            let s = dp.pas(&aval);
+            let c = &mut self.cumuls[k];
+            c.q_ch_mensuel_wh[mois] += s.q_sys_ch_wh;
+            c.q_fr_mensuel_wh[mois] -= s.q_sys_fr_wh;
+            c.w_aux_wh += s.w_aux_wh;
+            c.phi_pertes_vc_wh += s.phi_pertes_vc_wh;
+            c.phi_pertes_hvc_wh += s.phi_pertes_hvc_wh;
+            let demande = s.q_sys_ch_wh != 0.0 || s.q_sys_fr_wh != 0.0;
+            c.nbh_fonct += u32::from(demande);
+            if demande && s.theta_dep_c != 0.0 {
+                let t = s.theta_dep_c;
+                c.theta_dep_extreme_c = Some(match (c.theta_dep_extreme_c, dp.fonction) {
+                    (None, _) => t,
+                    (Some(x), FonctionReseau::Chauffage) => x.max(t),
+                    (Some(x), FonctionReseau::Refroidissement) => x.min(t),
+                });
+            }
+            self.sorties[k] = s;
+        }
+        if jour_bascule_saisons(h).is_some() {
+            self.fixer_autorisations(zones);
+        }
     }
 }
