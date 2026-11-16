@@ -21,6 +21,7 @@ use crate::bati::espace_tampon::assemblage::EspaceTamponHoraire;
 use crate::bati::paroi_opaque::EnsembleParois;
 use crate::bati::pont_thermique::EnsemblePonts;
 use crate::bati::surventilation::H_TTF_CAS_GENERAL_M;
+use crate::chauffage_refroidissement::calculs_generation::Poste;
 use crate::climat::calendrier::date_scenario;
 use crate::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
 use crate::conventions::{ModeCalcul, NB_HEURES_AN};
@@ -29,11 +30,12 @@ use crate::entree::{Batiment, Catalogue, Groupe, Projet, UsageZone, Zone};
 use crate::erreur::Erreur;
 use crate::indicateurs::sorties_th_b::{sorties, EnergiesMensuelles};
 use crate::resultats::{
-    PeriodeConfortAdaptatif, Resultats, ResultatsBaie, ResultatsBatiment, ResultatsClimat,
-    ResultatsConfort, ResultatsConfortEte, ResultatsDebitsBbio, ResultatsDistributionGroupe,
-    ResultatsEcsEmetteur, ResultatsEcsIntergroupe, ResultatsEmetteur, ResultatsEnveloppe,
-    ResultatsEspaceTampon, ResultatsEspaceTamponMode, ResultatsGeneration, ResultatsGroupe,
-    ResultatsIntergroupes, ResultatsSaisons, ResultatsSystemesGroupe, ResultatsVentilationGroupe,
+    Consommations, ConsommationsPostes, PeriodeConfortAdaptatif, Resultats, ResultatsBaie,
+    ResultatsBatiment, ResultatsClimat, ResultatsConfort, ResultatsConfortEte, ResultatsDebitsBbio,
+    ResultatsDistributionGroupe, ResultatsEcsEmetteur, ResultatsEcsIntergroupe, ResultatsEmetteur,
+    ResultatsEnveloppe, ResultatsEspaceTampon, ResultatsEspaceTamponMode, ResultatsGenerateur,
+    ResultatsGeneration, ResultatsGroupe, ResultatsIdCet, ResultatsIntergroupes, ResultatsSaisons,
+    ResultatsStockage, ResultatsSystemesGroupe, ResultatsVentilationGroupe,
     ResultatsVentilationMode, ResultatsVentilationZone, ResultatsZone, ValeurParDefaut,
 };
 use crate::validation::valider;
@@ -55,12 +57,6 @@ impl Default for Options {
         Self { arrondir: true }
     }
 }
-
-/// Avertissement porté par tout résultat tant que les générateurs ne sont pas décrits (lots 6c
-/// et 6d) : chaque génération est traitée comme idéale.
-pub const AVERTISSEMENT_GENERATION: &str =
-    "générations idéales : les énergies restituées pour les générations sont les demandes de \
-     leurs réseaux, les générateurs n'étant pas encore pris en compte par le moteur";
 
 /// Contrôles communs à tout calcul : validité de l'entrée, usages pris en charge, données
 /// météo de la zone climatique du projet.
@@ -134,7 +130,6 @@ pub fn calculer(
         .collect();
     avertissements
         .push("Cep, Cep,nr et Ic énergie ne sont pas encore calculés par le moteur".to_owned());
-    avertissements.push(AVERTISSEMENT_GENERATION.to_owned());
 
     let mut batiments = Vec::with_capacity(projet.batiments.len());
     for bat in &projet.batiments {
@@ -146,17 +141,36 @@ pub fn calculer(
         let th_b = simuler_batiment(bat, projet, ModeCalcul::ThB, &climat_th_bc, &confort_th_bc)?;
         let th_d = simuler_batiment(bat, projet, ModeCalcul::ThD, &climat_th_d, &confort_th_d)?;
         // Mode Th-C (calcul des consommations), sur le jeu météo « Th-BC » : systèmes du projet,
-        // saisons effectives et relances ; les générations sont idéales jusqu'aux lots 6c et 6d.
+        // saisons effectives, relances et générations (consommations en énergie finale).
         let th_c = simuler_batiment(bat, projet, ModeCalcul::ThC, &climat_th_bc, &confort_th_bc)?;
+        // §8.29, éq. (1499), (1506) et (1513) : consommations des générations attribuées aux
+        // groupes, sommées par zone puis pour le bâtiment.
+        let mut cef_groupes = th_c.systemes.cumuls_cef_groupes.iter();
+        let avec_generations = !th_c.systemes.generations_horaires.is_empty();
+        let mut consommations_bat = Consommations::default();
         for (zone, ((zb, zd), zc)) in bat
             .zones
             .iter()
             .zip(th_b.zones.iter().zip(&th_d.zones).zip(&th_c.zones))
         {
-            let (resultats_zone, energies_zone) = restituer_zone(zone, projet, zb, zd, zc);
+            let (mut resultats_zone, energies_zone) = restituer_zone(zone, projet, zb, zd, zc);
             energies_bat.ajouter(&energies_zone);
+            if avec_generations {
+                let mut consommations_zone = Consommations::default();
+                for g in &mut resultats_zone.groupes {
+                    let c = cef_groupes
+                        .next()
+                        .map(Consommations::depuis_cumuls)
+                        .unwrap_or_default();
+                    consommations_zone.ajouter(&c);
+                    g.consommations = Some(c);
+                }
+                consommations_bat.ajouter(&consommations_zone);
+                resultats_zone.consommations = Some(consommations_zone);
+            }
             zones.push(resultats_zone);
         }
+        avertissements.extend(avertissements_generations(&bat.id, &th_c));
         let c_aux_vent: Vec<f64> = zones
             .iter()
             .filter_map(|z| z.ventilation.as_ref().map(|v| v.c_aux_vent_kwh))
@@ -178,6 +192,7 @@ pub fn calculer(
             distributions_intergroupes: resultats_intergroupes(&th_c),
             distributions_ecs_intergroupes: resultats_ecs_intergroupes(&th_c),
             generations: resultats_generations(&th_c),
+            consommations: avec_generations.then_some(consommations_bat),
             espaces_tampons: th_b
                 .espaces_tampons
                 .iter()
@@ -332,6 +347,7 @@ fn restituer_zone(
                     .as_ref()
                     .map(|v| ventilation_groupe(v, ig, sref_m2)),
                 systemes: resultats_systemes(gc),
+                consommations: None,
                 baies: resultats_baies(g, &projet.catalogue),
                 valeurs_par_defaut: defauts_groupe(g, &projet.catalogue),
             }
@@ -359,8 +375,13 @@ fn restituer_zone(
                     nbh_bypass: th_d.cumuls_ventilation.nbh_bypass,
                     q_ag_kwh: th_d.cumuls_ventilation.w_ag_wh / 1000.0,
                 }),
+                th_c: th_c.ventilation.as_ref().map(|_| ResultatsVentilationMode {
+                    nbh_bypass: th_c.cumuls_ventilation.nbh_bypass,
+                    q_ag_kwh: th_c.cumuls_ventilation.w_ag_wh / 1000.0,
+                }),
                 valeurs_par_defaut: v.valeurs_par_defaut.clone(),
             }),
+            consommations: None,
             groupes,
         },
         energies_zone,
@@ -638,35 +659,112 @@ fn resultats_intergroupes(b: &BatimentHoraire) -> Vec<ResultatsIntergroupes> {
         .collect()
 }
 
-/// Générations d'un bâtiment à l'issue du calcul Th-C : demandes de leurs réseaux.
+/// Générations d'un bâtiment à l'issue du calcul Th-C : demandes de leurs réseaux, énergies
+/// fournies et consommations de leurs générateurs (§8.29).
 fn resultats_generations(b: &BatimentHoraire) -> Vec<ResultatsGeneration> {
-    let s = &b.systemes;
-    s.generations
+    b.systemes
+        .generations_horaires
         .iter()
-        .enumerate()
-        .map(|(ig, id)| {
-            let (mut ch, mut fr) = (0.0, 0.0);
-            for (d, c) in s.intergroupes.iter().zip(&s.cumuls) {
-                if d.generation == ig {
-                    ch += c.q_ch_mensuel_wh.iter().sum::<f64>() / 1000.0;
-                    fr += c.q_fr_mensuel_wh.iter().sum::<f64>() / 1000.0;
-                }
-            }
-            let ecs: f64 = s
-                .ecs
-                .iter()
-                .zip(&s.cumuls_ecs)
-                .filter(|(d, _)| d.generation == ig)
-                .map(|(_, c)| c.q_w_prim_mensuel_wh.iter().sum::<f64>() / 1000.0)
-                .sum();
+        .map(|g| {
+            let c = &g.cumuls;
+            let demande = |p: Poste| c.q_req_mensuel_wh[p.indice()].iter().sum::<f64>() / 1000.0;
             ResultatsGeneration {
-                id: id.clone(),
-                q_ch_kwh: ch,
-                q_fr_kwh: fr,
-                q_ecs_kwh: ecs,
+                id: g.id.clone(),
+                q_ch_kwh: demande(Poste::Chauffage),
+                q_fr_kwh: demande(Poste::Refroidissement),
+                q_ecs_kwh: demande(Poste::Ecs),
+                q_fou_ch_kwh: c.q_fou_wh[0] / 1000.0,
+                q_fou_fr_kwh: c.q_fou_wh[1] / 1000.0,
+                q_fou_ecs_kwh: c.q_fou_wh[2] / 1000.0,
+                q_rep_fin_kwh: g.etat.q_rep_wh.iter().sum::<f64>() / 1000.0,
+                consommations: Consommations::depuis_cumuls(&c.cef),
+                pertes_vc_kwh: c.phi_vc_tot_wh / 1000.0,
+                nbh_sousdim_ch_ecs_max: c.nb_sousdim_max[0],
+                nbh_sousdim_fr_max: c.nb_sousdim_max[1],
+                stockages: g
+                    .stockages
+                    .iter()
+                    .map(|s| {
+                        let k = &s.cumuls;
+                        ResultatsStockage {
+                            id: s.id.clone(),
+                            q_fou_ecs_kwh: k.q_fou_ecs_wh / 1000.0,
+                            q_fou_sto_base_kwh: k.q_fou_sto_wh[0] / 1000.0,
+                            q_fou_sto_ap_kwh: k.q_fou_sto_wh[1] / 1000.0,
+                            pertes_kwh: k.phi_pertes_wh / 1000.0,
+                            v_puise_l: k.v_p_l,
+                            theta_haut_min_c: k.theta_haut_min_c,
+                            nbh_temp_insuff_max: k.nbh_temp_insuff_max,
+                            idcet: s.identification.map(|i| ResultatsIdCet {
+                                ua_s_w_k: i.triplet.ua_s_w_k,
+                                cop_pivot: i.triplet.cop_pivot,
+                                pabs_pivot_kw: i.triplet.pabs_pivot_w / 1000.0,
+                                epsilon: i.epsilon,
+                            }),
+                            valeurs_par_defaut: s.valeurs_par_defaut.clone(),
+                        }
+                    })
+                    .collect(),
+                generateurs: g
+                    .generateurs
+                    .iter()
+                    .map(|x| {
+                        let k = &x.cumuls;
+                        ResultatsGenerateur {
+                            id: x.id.clone(),
+                            q_fou_ch_kwh: k.q_fou_wh[0] / 1000.0,
+                            q_fou_fr_kwh: k.q_fou_wh[1] / 1000.0,
+                            q_fou_ecs_kwh: k.q_fou_wh[2] / 1000.0,
+                            consommations: ConsommationsPostes::depuis_matrice(&k.cef.annuel()),
+                            eta_eff_ch_an: k.eta_eff_an(Poste::Chauffage),
+                            eta_eff_fr_an: k.eta_eff_an(Poste::Refroidissement),
+                            eta_eff_ecs_an: k.eta_eff_an(Poste::Ecs),
+                            w_aux_kwh: k.w_aux_wh / 1000.0,
+                            phi_rejet_kwh: k.phi_rejet_wh / 1000.0,
+                            valeurs_par_defaut: x.valeurs_par_defaut.clone(),
+                        }
+                    })
+                    .collect(),
             }
         })
         .collect()
+}
+
+/// Alertes de sous-dimensionnement des générations (§8.17.3.9, éq. 1059 à 1064).
+fn avertissements_generations(id_bat: &str, b: &BatimentHoraire) -> Vec<String> {
+    let mut v = Vec::new();
+    for g in &b.systemes.generations_horaires {
+        for (k, poste) in ["le chauffage ou l'ECS", "le refroidissement"]
+            .into_iter()
+            .enumerate()
+        {
+            let (court, long) = g.sous_dimensionnement(k);
+            if k == 0 {
+                for s in &g.stockages {
+                    let n = s.cumuls.nbh_temp_insuff_max;
+                    if n > crate::ecs::assemblage_ballon::SEUIL_TEMPERATURE_INSUFFISANTE_H {
+                        v.push(format!(
+                            "bâtiment « {id_bat} », génération « {} », ballon « {} » : sur {n} \
+                             heures consécutives, le ballon n'a jamais atteint sa température de \
+                             consigne (Th-BCE 2020 §9.14.3.4, éq. 1959)",
+                            g.id, s.id
+                        ));
+                    }
+                }
+            }
+            if court {
+                v.push(format!(
+                    "bâtiment « {id_bat} », génération « {} » : sous-dimensionnement{} pour {poste} \
+                     ({} heures successives de demande non couverte ; Th-BCE 2020 §8.17.3.9, éq. \
+                     1059 à 1064)",
+                    g.id,
+                    if long { " critique" } else { "" },
+                    g.cumuls.nb_sousdim_max[k]
+                ));
+            }
+        }
+    }
+    v
 }
 
 /// Émetteur d'ECS et sa distribution à l'issue du calcul Th-C (§9.5 à 9.7).

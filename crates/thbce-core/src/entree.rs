@@ -353,6 +353,12 @@ pub struct Echangeur {
     /// l'échangeur est contourné quand un risque de givrage est identifié (éq. 509).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub antigel: Option<bool>,
+    /// Génération qui fournit l'énergie de la sécurité antigel (« Wag », éq. 508) : identifiant
+    /// d'une génération du bâtiment pourvue d'un générateur de chauffage. La demande lui parvient
+    /// comme celle d'un réseau de distribution associé à l'antigel (§8.11.3, éq. 939). Requise
+    /// avec `antigel`, sans objet sinon.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generation_antigel: Option<Id>,
     /// « θs,ech,rep,LIM » : température limite basse de sortie côté rejet, en °C (de −10 à
     /// 10). Absente : 5 °C, valeur par défaut du tableau 62 (« autres cas »), signalée dans les
     /// résultats.
@@ -1216,12 +1222,9 @@ pub struct PontThermique {
 // programmation des relances, distributions du groupe et intergroupes, générations.
 // ---------------------------------------------------------------------------------------------
 
-/// Th-BCE 2020 §8.14 et §8.4.2 — génération : ensemble de générateurs qui reçoit les demandes
-/// d'un ou de plusieurs réseaux de distribution intergroupes.
-///
-/// Les générateurs (effet Joule, pompes à chaleur, chaudières…) relèvent des lots suivants ;
-/// d'ici là, le moteur traite chaque génération comme un générateur « idéal » qui fournit
-/// exactement l'énergie demandée par ses réseaux, et restitue ces demandes.
+/// Th-BCE 2020 §8.14, §8.17.2 et §8.4.2 — génération : ensemble de générateurs qui reçoit les
+/// demandes d'un ou de plusieurs réseaux de distribution intergroupes de chauffage, de
+/// refroidissement ou d'ECS, et les répartit entre ses générateurs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Generation {
@@ -1232,6 +1235,660 @@ pub struct Generation {
     /// la génération (éq. 840) ; `avec_isolement` : chaque groupe garde ses propres saisons
     /// (éq. 841).
     pub raccordement_reseaux: RaccordementReseaux,
+    /// « idpos » (§8.17.2) : emplacement de la génération, en ou hors volume chauffé. Il fixe
+    /// la température d'ambiance des générateurs et des ballons (§8.17.3.5.8) et le caractère
+    /// récupérable de leurs pertes (éq. 1058, fiche 11.1).
+    pub position: PositionGeneration,
+    /// « idtype_priorite » (§8.17.1) : mode de gestion des priorités entre les générateurs.
+    /// Requis dès que deux générateurs assurent le même poste ; sans objet sinon.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub priorite: Option<TypePriorite>,
+    /// « idgestion_ch » et « θwm_ch » (§8.17.3.5.10.1) : gestion de la température de
+    /// fonctionnement en chauffage. Requise si la génération alimente des réseaux hydrauliques
+    /// de chauffage ; sans objet pour une génération sur air ambiant (réseaux fictifs).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gestion_temperature_chauffage: Option<GestionTemperatureGeneration>,
+    /// « idgestion_fr » et « θwm_fr » : de même en refroidissement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gestion_temperature_refroidissement: Option<GestionTemperatureGeneration>,
+    /// Générateurs de la génération (tableau 111). La génération doit pouvoir assurer chacun
+    /// des postes de ses réseaux (§8.17.3.1) ; elle compte au moins un générateur ou un
+    /// chauffe-eau thermodynamique.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub generateurs: Vec<GenerateurSaisi>,
+    /// Assemblages de production d'ECS avec stockage (§9.2 et §9.14) : un ballon, un générateur
+    /// de base de la génération et, le cas échéant, un appoint intégré. Chaque assemblage est
+    /// le premier sollicité pour l'ECS (§8.17.3.6).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stockages: Vec<StockageSaisi>,
+    /// Chauffe-eau thermodynamiques décrits par les résultats de leur essai selon la norme
+    /// NF EN 16147 (§9.22) : le moteur en déduit le ballon et la pompe à chaleur d'un
+    /// assemblage « base seule ».
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub chauffe_eau_thermodynamiques: Vec<ChauffeEauThermodynamique>,
+}
+
+/// Th-BCE 2020 §9.14.3.1, tableau 291 — assemblage d'un ballon de stockage d'ECS et de ses
+/// générateurs : « base seule » sans `appoint`, « base et appoint intégré » avec.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct StockageSaisi {
+    /// Identifiant de l'assemblage, unique dans la génération.
+    pub id: Id,
+    /// « Nbassemblage » : nombre d'assemblages identiques (au moins 1) ; le générateur de base
+    /// désigné représente alors autant de générateurs identiques (`rdim`).
+    pub nb_assemblages: u32,
+    /// Ballon de stockage (§9.9).
+    pub ballon: BallonSaisi,
+    /// Générateur de base, dont l'échangeur ou la résistance est en partie basse du ballon
+    /// (« zbase = 1 », éq. 1947).
+    pub base: GenerateurBallon,
+    /// Générateur d'appoint intégré au ballon (« Type_prod_stockage = 1 ») ; absent : base
+    /// seule.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub appoint: Option<AppointBallon>,
+}
+
+/// Th-BCE 2020 §9.9.2, tableau 281 — ballon de stockage.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BallonSaisi {
+    /// « Vtot » : volume du ballon, en L.
+    pub v_tot_l: f64,
+    /// « (UA)s » et « Statut_UA » : coefficient de pertes thermiques du ballon.
+    pub pertes: PertesBallon,
+    /// « θmax » : température maximale du ballon, en °C (de 0 à 100).
+    pub theta_max_c: f64,
+}
+
+/// « (UA)s » et « Statut_UA » (§9.9.3.1, éq. 1766 à 1768).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum PertesBallon {
+    /// Valeur certifiée, employée telle quelle (éq. 1766).
+    Certifie {
+        /// « UAs », en W/K.
+        ua_s_w_k: f64,
+    },
+    /// Valeur justifiée par un essai, augmentée de 10 % (éq. 1767).
+    Justifie {
+        /// « UAs », en W/K.
+        ua_s_w_k: f64,
+    },
+    /// Valeur par défaut selon la nature du ballon (tableau 282 et éq. 1768), signalée dans les
+    /// résultats.
+    ParDefaut {
+        /// Nature du ballon.
+        nature: NatureBallonSaisie,
+    },
+}
+
+/// Nature d'un ballon pour ses pertes par défaut (tableau 282).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum NatureBallonSaisie {
+    /// Ballon d'ECS à effet Joule horizontal.
+    EffetJouleHorizontal,
+    /// Ballon d'ECS à effet Joule vertical.
+    EffetJouleVertical,
+    /// Autres ballons.
+    Autre,
+}
+
+/// « typegest » (§9.10.3.2.1) : programmation du thermostat d'un générateur de ballon.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ProgrammationBallon {
+    /// 0 : fonctionnement permanent.
+    Permanent,
+    /// 1 : de nuit seulement (heure légale inférieure à 5 h, éq. 1811).
+    Nuit,
+    /// 2 : de jour seulement (heure légale entre 10 h et 17 h, éq. 1812).
+    Jour,
+}
+
+/// Générateur de base d'un ballon et sa régulation (§9.10.2 et §9.14.3.1).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GenerateurBallon {
+    /// Identifiant d'un générateur de la génération assurant l'ECS : générateur à effet Joule
+    /// (résistance) ou générateur thermodynamique pourvu d'un mode `ecs`.
+    pub generateur: Id,
+    /// « typegest » : programmation du thermostat.
+    pub programmation: ProgrammationBallon,
+    /// « zreg » : numéro de la zone du ballon, de 1 (bas) à 4 (haut), qui porte la sonde de
+    /// régulation.
+    pub z_reg: u8,
+    /// « Δθ » : hystérésis du thermostat, en K. Absente : 2 K, valeur par défaut du
+    /// §9.10.3.2.2, signalée dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delta_theta_k: Option<f64>,
+    /// « hrelech » : hauteur relative de l'échangeur à partir du bas de sa zone, de 0 à 1.
+    /// Requise pour un générateur thermodynamique (elle fixe la température vue par son
+    /// condenseur, éq. 1781 à 1785) ; sans objet pour une résistance.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub h_rel_ech: Option<f64>,
+}
+
+/// Générateur d'appoint intégré à un ballon (§9.14.3.1, « Type_prod_stockage = 1 »).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AppointBallon {
+    /// Identifiant d'un générateur à effet Joule de la génération assurant l'ECS.
+    pub generateur: Id,
+    /// « typegest_ap ».
+    pub programmation: ProgrammationBallon,
+    /// « zap » : numéro de la zone la plus basse chauffée par l'appoint, de 1 à 4 (3 pour un
+    /// appoint à mi-hauteur).
+    pub z_ap: u8,
+    /// « zreg_ap » : numéro de la zone de la sonde de régulation de l'appoint.
+    pub z_reg: u8,
+    /// « faux » : fraction du volume du ballon chauffée par l'appoint, strictement entre 0 et
+    /// 1. Absente : 0,5, valeur par défaut du §9.9.3.1, signalée dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub f_aux: Option<f64>,
+    /// « Δθap » : hystérésis, en K. Absente : 2 K.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delta_theta_k: Option<f64>,
+}
+
+/// Th-BCE 2020 §9.22 — chauffe-eau thermodynamique à compression électrique décrit par son
+/// essai selon la norme NF EN 16147 (étapes C à F en fonctionnement thermodynamique pur).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ChauffeEauThermodynamique {
+    /// Identifiant, unique dans la génération.
+    pub id: Id,
+    /// « Nbassemblage » : nombre de chauffe-eau identiques (au moins 1).
+    pub nb_assemblages: u32,
+    /// « VtotIdCET » : volume du ballon, en L.
+    pub v_tot_l: f64,
+    /// « θmax » : température maximale du ballon, en °C.
+    pub theta_max_c: f64,
+    /// Résultats de l'essai.
+    pub essai: EssaiEn16147,
+    /// Source amont de la pompe à chaleur (« Typesource_chaleur », éq. 2256 à 2258) : air
+    /// extérieur, air ambiant d'un espace tampon ou air extrait.
+    pub source_amont: SourceAmontSaisie,
+    /// « typegest_base » : programmation du thermostat.
+    pub programmation: ProgrammationBallon,
+    /// « Lim_Theta » de la pompe à chaleur en ECS. Absent : pas de limite.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limites: Option<LimitesPac>,
+}
+
+/// Résultats d'un essai selon la norme NF EN 16147 (§9.22.2, tableau 304).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EssaiEn16147 {
+    /// « Idcycle » : cycle de soutirage.
+    pub cycle: CycleSoutirage,
+    /// « th » : durée de mise en température, en h (au plus 48).
+    pub t_h_h: f64,
+    /// « Pes » : puissance absorbée en régime stabilisé, en W.
+    pub p_es_w: f64,
+    /// « COPDHW » : coefficient de performance sur le cycle de soutirage.
+    pub cop_dhw: f64,
+    /// « θ'WH » : température d'eau chaude de référence, en °C.
+    pub theta_wh_c: f64,
+    /// « Isaux » : vrai si les auxiliaires de la pompe à chaleur sont compris dans les
+    /// résultats de l'essai ; sinon `Taux = 0,02` s'applique (éq. 2250 et 2251).
+    pub auxiliaires_compris: bool,
+    /// Statut des résultats : certifiés ou justifiés (éq. 2252 à 2255).
+    pub statut: StatutMesure,
+}
+
+/// « Idcycle » (§9.22.3.2.3, tableau 305).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CycleSoutirage {
+    /// Cycle S.
+    S,
+    /// Cycle M.
+    M,
+    /// Cycle L.
+    L,
+    /// Cycle XL.
+    Xl,
+    /// Cycle XXL.
+    Xxl,
+}
+
+/// « idpos » (§8.17.2) : emplacement d'une génération.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum PositionGeneration {
+    /// 1 : en volume chauffé.
+    EnVolumeChauffe,
+    /// 0 : hors volume chauffé. `espace_tampon` désigne l'espace tampon qui abrite la
+    /// génération, dont le coefficient `btherm(h)` entre dans la température d'ambiance
+    /// (§8.17.3.5.8) ; absent, la génération est à l'extérieur (`btherm = 1`).
+    HorsVolumeChauffe {
+        /// Identifiant de l'espace tampon qui abrite la génération.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        espace_tampon: Option<Id>,
+    },
+}
+
+/// « idtype_priorite » (§8.17.1) : mode de gestion des priorités entre générateurs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TypePriorite {
+    /// 1 : sans priorité ; la demande est répartie au prorata des puissances nominales.
+    SansPriorite,
+    /// 2 : en cascade ; le générateur prioritaire est sollicité jusqu'à sa puissance maximale,
+    /// le reste passe au suivant (pompe à chaleur et appoint, par exemple).
+    Cascade,
+    /// 3 : en alternance (§8.17.3.7.2.3) : non pris en charge dans cette version.
+    Alternance,
+}
+
+/// « idgestion » et « θwm » (§8.17.3.5.10.1) : température de fonctionnement d'une génération
+/// reliée à des réseaux hydrauliques.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum GestionTemperatureGeneration {
+    /// 1 : fonctionnement à température moyenne constante.
+    Constante {
+        /// « θwm » : température moyenne de fonctionnement, en °C (de 0 à 100).
+        theta_wm_c: f64,
+    },
+    /// 2 : fonctionnement à la température moyenne des réseaux de distribution.
+    Reseaux,
+}
+
+/// Générateur d'une génération (§8.17.2, tableau 111).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GenerateurSaisi {
+    /// Identifiant du générateur, unique dans la génération.
+    pub id: Id,
+    /// « Rdim » (« Ratdim ») : nombre de générateurs identiques (au moins 1).
+    pub rdim: u32,
+    /// « idpriorite_ch » : rang du générateur en chauffage dans une gestion en cascade (1 : le
+    /// premier sollicité). Requis en cascade si plusieurs générateurs chauffent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub priorite_chauffage: Option<u32>,
+    /// « idpriorite_fr » : de même en refroidissement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub priorite_refroidissement: Option<u32>,
+    /// « idpriorite_ecs » : de même en ECS.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub priorite_ecs: Option<u32>,
+    /// « idtype » : nature du générateur et ses caractéristiques.
+    pub nature: NatureGenerateur,
+}
+
+/// « idtype » (§8.17.3.2, tableau 111) : nature d'un générateur.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum NatureGenerateur {
+    /// Type 500 : générateur direct à effet Joule (convecteurs, panneaux rayonnants, résistances
+    /// d'appoint… ; §8.18).
+    EffetJoule(EffetJouleSaisi),
+    /// Type 503 : générateur thermodynamique à compression électrique (pompe à chaleur,
+    /// climatiseur, refroidisseur ; §8.23).
+    ThermodynamiqueElectrique(Box<ThermodynamiqueElectriqueSaisi>),
+    /// Types 100 à 102, 200, 201 et 400 : chaudière au gaz, au fioul ou au bois (§8.19, lot
+    /// 6d) : non prise en charge dans cette version.
+    Chaudiere,
+    /// Types 403 et 404 : poêle ou insert (§8.22, lot 6d) : non pris en charge dans cette
+    /// version.
+    PoeleOuInsert,
+    /// Types 600 et 601 : réseau de chaleur ou de froid (§8.28, lot 6d) : non pris en charge
+    /// dans cette version.
+    ReseauDeChaleurOuDeFroid,
+    /// Types 103 à 109 : radiateurs, chauffe-eau et accumulateurs au gaz, générateurs d'air
+    /// chaud, tubes et panneaux radiants (§8.20) : hors de la première version.
+    AutreGenerateurACombustion,
+    /// Type 504 et pompes à chaleur à moteur gaz (§8.24 et §8.25) : hors de la première
+    /// version.
+    ThermodynamiqueGaz,
+    /// Types 507 à 509 : pompe à chaleur sur boucle d'eau, thermo-frigo-pompe, générateur DRV
+    /// (§8.15 et §8.16) : hors de la première version.
+    BoucleDEauOuDrv,
+    /// Type 700 : système de cogénération (§8.21) : hors de la première version.
+    Cogeneration,
+    /// Pompe à chaleur hybride (association d'une pompe à chaleur et d'une chaudière dans un
+    /// même produit) : hors de la première version.
+    PacHybride,
+}
+
+/// Th-BCE 2020 §8.18.2, tableau 112 — générateur direct à effet Joule.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EffetJouleSaisi {
+    /// « idfougen » : fonction du générateur, chauffage ou ECS ; jamais les deux (§8.18.3.1).
+    pub fonction: FonctionEffetJoule,
+    /// « Pngen » : puissance nominale d'un générateur, en W.
+    pub pn_gen_w: f64,
+}
+
+/// Th-BCE 2020 §8.23.2, tableau 143 — générateur thermodynamique à compression électrique.
+///
+/// Les modes décrits fixent la catégorie du générateur (§8.23.3.2) : chauffage seul ou
+/// refroidissement seul (non réversible), chauffage et refroidissement (réversible).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ThermodynamiqueElectriqueSaisi {
+    /// « Fonc_compr » : régulation de puissance du compresseur (§8.23.3.7.4).
+    pub compresseur: FonctionnementCompresseurSaisi,
+    /// « Taux » et « Statut_taux » : part de la puissance des auxiliaires à charge nulle dans
+    /// la puissance absorbée au point pivot (éq. 1277). Absent : valeur par défaut, 0,02 pour
+    /// un générateur qui chauffe, 0,01 pour un refroidisseur seul (éq. 1278 et 1279), signalée
+    /// dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub taux_auxiliaires: Option<TauxAuxiliaires>,
+    /// Source amont (§8.26), cohérente avec la technologie de chaque mode.
+    pub source_amont: SourceAmontSaisie,
+    /// Mode chauffage ; absent : le générateur ne chauffe pas.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chauffage: Option<ModeChauffagePac>,
+    /// Mode refroidissement ; absent : le générateur ne refroidit pas.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refroidissement: Option<ModeRefroidissementPac>,
+    /// Mode ECS ; absent : le générateur ne produit pas d'ECS. Un générateur thermodynamique
+    /// d'ECS est le générateur de base d'un assemblage avec stockage (§8.23.3.2) ; avec le mode
+    /// `chauffage`, il est double service.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ecs: Option<ModeEcsPac>,
+}
+
+/// Mode ECS d'un générateur thermodynamique (§8.23.3.4).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModeEcsPac {
+    /// « Sys_thermo_Ecs » : technologie en ECS (tableau 147).
+    pub technologie: TechnologieEcsPac,
+    /// Performances à pleine charge.
+    pub performances: PerformancesPac,
+    /// « Lim_Theta » : température aval maximale et température amont minimale. Absent : pas
+    /// de limite.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limites: Option<LimitesPac>,
+}
+
+/// « Sys_thermo_Ecs » (§8.23.3.2, tableau 147). Températures aval de toutes les technologies :
+/// 5, 15, 25, 35, 45, 55 et 65 °C, valeur pivot à 45 °C.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TechnologieEcsPac {
+    /// 1 : PAC air extérieur / eau. Températures amont : −7, 2, 7, 20 et 35 °C ; pivot à 7 °C.
+    AirExterieurEau,
+    /// 2 : PAC air extrait / eau. Températures amont : 5, 10, 15, 20, 25 et 30 °C ; pivot à
+    /// 20 °C.
+    AirExtraitEau,
+    /// 3 : PAC air ambiant / eau. Températures amont : 5, 10, 15, 20, 25 et 30 °C ; pivot à
+    /// 15 °C.
+    AirAmbiantEau,
+    /// 4 : PAC eau de nappe / eau : non prise en charge dans cette version.
+    EauDeNappeEau,
+    /// 5 : PAC sol / eau : non prise en charge dans cette version.
+    SolEau,
+    /// 6 : PAC eau glycolée / eau : non prise en charge dans cette version.
+    EauGlycoleeEau,
+}
+
+/// « Fonc_compr » (§8.23.3.7.4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FonctionnementCompresseurSaisi {
+    /// 1 : puissance variable (compresseur à vitesse variable), puis cycles marche-arrêt sous
+    /// le taux de charge minimal.
+    PuissanceVariable,
+    /// 2 : tout ou rien, cycles marche-arrêt.
+    ToutOuRien,
+}
+
+/// Statut d'une valeur mesurée (§8.23.3.1) : certifiée par un organisme accrédité selon la
+/// norme NF EN ISO/CEI 17065, ou justifiée par un essai d'un laboratoire accrédité selon la
+/// norme NF EN ISO/CEI 17025.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum StatutMesure {
+    /// Valeur certifiée : employée telle quelle.
+    Certifie,
+    /// Valeur justifiée : pénalisée selon la règle de la grandeur.
+    Justifie,
+}
+
+/// « Taux » et « Statut_taux » (§8.23.3.6, éq. 1277).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TauxAuxiliaires {
+    /// « Taux », de 0 à 1.
+    pub valeur: f64,
+    /// Statut : une valeur justifiée est multipliée par 1,1.
+    pub statut: StatutMesure,
+}
+
+/// « idamont-air-type » (§8.26.3.3.1) : source amont sur air.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum SourceAmontSaisie {
+    /// 1 : air extérieur (éq. 1405).
+    AirExterieur {
+        /// « Pvent_gainé » : pour une machine gainée, puissance des ventilateurs nécessaire
+        /// pour vaincre les pertes de charge des conduits, en W (éq. 1443). Absent : machine
+        /// non gainée, auxiliaires compris dans les performances (éq. 1442).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        p_vent_gaine_w: Option<f64>,
+    },
+    /// 2 : air ambiant d'un volume non chauffé (éq. 1406), en production d'ECS seulement.
+    AirAmbiant {
+        /// Espace tampon dans lequel la machine puise sa chaleur.
+        espace_tampon: Id,
+        /// « Pvent_gainé », comme pour l'air extérieur.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        p_vent_gaine_w: Option<f64>,
+    },
+    /// 3 : air extrait par le système de ventilation d'une zone (éq. 1407).
+    AirExtrait {
+        /// Zone dont le système de ventilation irrigue la source.
+        zone: Id,
+        /// « Tair_lim » : température limite de l'air rejeté, en °C (éq. 1454).
+        t_air_lim_c: f64,
+        /// « Pvent_gainé », comme pour l'air extérieur.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        p_vent_gaine_w: Option<f64>,
+    },
+}
+
+/// Mode chauffage d'un générateur thermodynamique (§8.23.3.3).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModeChauffagePac {
+    /// « Sys_thermo_Ch » : technologie en chauffage (tableau 145).
+    pub technologie: TechnologieChauffagePac,
+    /// Performances à pleine charge.
+    pub performances: PerformancesPac,
+    /// « Lim_Theta » : limites de fonctionnement — température aval maximale et température
+    /// amont minimale. Absent : pas de limite.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limites: Option<LimitesPac>,
+    /// « Typo_emetteur_ch » : inertie du système d'émission principal (tableau 216).
+    pub typo_emetteur: TypoEmetteur,
+    /// « LRcontmin » et « CcpLRcontmin » d'un compresseur à puissance variable. Absent : 0,4 et
+    /// 1 (éq. 1280 et 1281), signalés dans les résultats. Sans objet en tout ou rien.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fonctionnement_continu: Option<FonctionnementContinu>,
+}
+
+/// Mode refroidissement d'un générateur thermodynamique (§8.23.3.5).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModeRefroidissementPac {
+    /// « Sys_thermo_Fr » : technologie en refroidissement (tableau 145).
+    pub technologie: TechnologieRefroidissementPac,
+    /// Performances à pleine charge ; `performance` y désigne l'EER.
+    pub performances: PerformancesPac,
+    /// « Lim_Theta » : limites de fonctionnement — température aval minimale et température
+    /// amont maximale. Absent : pas de limite.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limites: Option<LimitesPac>,
+    /// « Typo_emetteur_fr » : inertie du système d'émission principal (tableau 216).
+    pub typo_emetteur: TypoEmetteur,
+    /// « LRcontmin » et « CcpLRcontmin » d'un compresseur à puissance variable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fonctionnement_continu: Option<FonctionnementContinu>,
+}
+
+/// « Sys_thermo_Ch » (§8.23.3.2, tableau 145).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TechnologieChauffagePac {
+    /// 1 : PAC air extérieur / eau. Températures aval (moyenne du départ et du retour) : 23,5,
+    /// 32,5, 42,5, 51 et 60 °C ; amont : −15, −7, 2, 7 et 20 °C ; pivot : 7 °C et 32,5 °C.
+    AirExterieurEau,
+    /// 2 : PAC air extérieur / air recyclé. Températures aval (air intérieur) : 5, 10, 15, 20
+    /// et 25 °C ; amont : −15, −7, 2, 7 et 20 °C ; pivot : 7 °C et 20 °C.
+    AirExterieurAirRecycle,
+    /// 3 : PAC air extrait / air neuf : non prise en charge dans cette version.
+    AirExtraitAirNeuf,
+    /// 4 : PAC eau de nappe / eau : non prise en charge dans cette version.
+    EauDeNappeEau,
+    /// 5 : PAC eau glycolée / eau : non prise en charge dans cette version.
+    EauGlycoleeEau,
+    /// 6 : PAC eau de nappe / air recyclé : non prise en charge dans cette version.
+    EauDeNappeAirRecycle,
+    /// 7 : PAC eau de boucle / air recyclé : non prise en charge dans cette version.
+    EauDeBoucleAirRecycle,
+    /// 8 : PAC sol / eau : non prise en charge dans cette version.
+    SolEau,
+    /// 9 : PAC sol / sol : non prise en charge dans cette version.
+    SolSol,
+}
+
+/// « Sys_thermo_Fr » (§8.23.3.2, tableau 145).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TechnologieRefroidissementPac {
+    /// 1 : refroidisseur air extérieur / eau. Températures aval (moyenne du départ et du
+    /// retour) : 4, 9,5, 15, 20,5 et 26 °C ; amont : 5, 15, 25, 35 et 45 °C ; pivot : 35 °C et
+    /// 9,5 °C.
+    AirExterieurEau,
+    /// 2 : refroidisseur air extérieur / air recyclé. Températures aval (air intérieur) : 22,
+    /// 27, 32 et 37 °C ; amont : 5, 15, 25, 35 et 45 °C ; pivot : 35 °C et 27 °C.
+    AirExterieurAirRecycle,
+    /// 3 : refroidisseur air extrait / air neuf : non pris en charge dans cette version.
+    AirExtraitAirNeuf,
+    /// 4 : refroidisseur eau / eau et eau glycolée / eau : non pris en charge dans cette
+    /// version.
+    EauEau,
+    /// 5 : refroidisseur eau / air et eau de boucle / air recyclé : non pris en charge dans
+    /// cette version.
+    EauAir,
+    /// 6 : refroidisseur eau de nappe / air recyclé : non pris en charge dans cette version.
+    EauDeNappeAirRecycle,
+    /// 7 : refroidisseur eau de nappe / eau : non pris en charge dans cette version.
+    EauDeNappeEau,
+}
+
+/// Performances à pleine charge d'un mode (§8.23.3.1) : « Statut_données_PC » et
+/// « Statut_val_pivot ».
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum PerformancesPac {
+    /// Valeurs certifiées ou justifiées (« Statut_données_PC = 1 »), dont la valeur pivot : une
+    /// valeur pour chaque couple du croisement de températures aval et de températures amont
+    /// prises dans l'ordre de priorité de la technologie (« M_θ_Aval » et « M_θ_Amont »). Les
+    /// autres cases de la matrice sont complétées par les coefficients de la méthode.
+    Mesurees(Vec<PointPerformance>),
+    /// Valeur pivot déclarée par le fabricant (« Statut_val_pivot = 1 ») : réduite de 20 % et
+    /// plafonnée à la valeur utile maximale de la technologie.
+    PivotDeclare {
+        /// « Val_COP » ou « Val_EER » : COP ou EER déclaré au point pivot.
+        performance: f64,
+        /// « Val_Pabs » : puissance absorbée au point pivot, en kW.
+        pabs_kw: f64,
+    },
+    /// Valeur pivot par défaut (« Statut_val_pivot = 2 ») : la valeur utile maximale de la
+    /// technologie réduite de 20 %, signalée dans les résultats.
+    PivotParDefaut {
+        /// « Val_Pabs » : puissance absorbée au point pivot, en kW.
+        pabs_kw: f64,
+    },
+}
+
+/// Valeur mesurée d'une matrice de performances (§8.23.3.1).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PointPerformance {
+    /// Température aval de la mesure, en °C : une des températures de la technologie.
+    pub theta_aval_c: f64,
+    /// Température amont de la mesure, en °C : une des températures de la technologie.
+    pub theta_amont_c: f64,
+    /// COP (chauffage, ECS) ou EER (refroidissement) mesuré à pleine charge.
+    pub performance: f64,
+    /// Puissance absorbée mesurée à pleine charge, en kW.
+    pub pabs_kw: f64,
+    /// Statut : un COP ou un EER justifié est réduit de 10 % (éq. 1238).
+    pub statut: StatutMesure,
+}
+
+/// « Lim_Theta » (§8.23.3.7.3) : limites de fonctionnement d'un mode.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LimitesPac {
+    /// Combinaison des deux limites.
+    pub combinaison: CombinaisonLimites,
+    /// Limite sur la température aval, en °C : maximale en chauffage et en ECS
+    /// (« θmax_av »), minimale en refroidissement (« θmin_av »).
+    pub theta_aval_c: f64,
+    /// Limite sur la température amont, en °C : minimale en chauffage et en ECS
+    /// (« θmin_am »), maximale en refroidissement (« θmax_am »).
+    pub theta_amont_c: f64,
+}
+
+/// « Lim_Theta » : 1 ou 2.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CombinaisonLimites {
+    /// 1 : la machine s'arrête dès que l'une des deux limites est franchie.
+    LUneOuLAutre,
+    /// 2 : la machine s'arrête si les deux limites sont franchies à la fois.
+    LUneEtLAutre,
+}
+
+/// « Typo_emetteur » (§8.23.3.6, tableau 216) : inertie du système d'émission, qui fixe la
+/// durée de fonctionnement à charge tendant vers zéro « Dfou0 ».
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TypoEmetteur {
+    /// 1 : plancher et plafond chauffants ou rafraîchissants intégrés au bâti, d'inertie forte
+    /// (32 minutes).
+    PlancherOuPlafondInertieForte,
+    /// 2 : radiateurs ; plafonds chauffants ou rafraîchissants d'inertie moyenne (19 minutes).
+    RadiateursOuPlafondInertieMoyenne,
+    /// 3 : ventilo-convecteurs ; plafonds d'inertie faible ; valeur par défaut pour la
+    /// distribution à eau (6 minutes).
+    VentiloConvecteursOuInertieFaible,
+    /// 4 : systèmes à air (2 minutes).
+    SystemesAAir,
+}
+
+/// « LRcontmin », « CcpLRcontmin » et « Statut_Fonctionnement_Continu » (§8.23.3.6).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FonctionnementContinu {
+    /// « LRcontmin » : taux de charge minimal en fonctionnement continu, de 0 à 1.
+    pub lr_contmin: f64,
+    /// « CcpLRcontmin » : rapport du COP (ou de l'EER) au taux de charge `LRcontmin` sur le COP
+    /// à pleine charge.
+    pub ccp_lr_contmin: f64,
+    /// Statut : pour des valeurs justifiées, `LRcontmin` est augmenté de 0,05 et
+    /// `CcpLRcontmin` multiplié par 0,9.
+    pub statut: StatutMesure,
+}
+
+/// « idfougen » d'un générateur direct à effet Joule (§8.18.3.1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FonctionEffetJoule {
+    /// 1 : chauffage.
+    Chauffage,
+    /// 3 : production instantanée d'ECS (§9.1).
+    Ecs,
 }
 
 /// « idraccord_reseau » (§8.4.2).

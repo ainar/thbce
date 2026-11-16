@@ -13,12 +13,21 @@
 //! - [`relances`] : fiche `C_Ein_Programmation des relances des systèmes` (§8.5) ;
 //! - [`distribution`] : distributions du groupe et intergroupes (§8.6 à 8.10).
 //!
-//! La génération relève des lots 6c et 6d : chaque génération est traitée comme idéale.
+//! - [`generation`] : assemblage et gestion/régulation de la génération (§8.14 et §8.17) ;
+//! - [`generateur_direct_a_effet_joule`] : générateur direct à effet Joule (§8.18) ;
+//! - [`thermodynamique_elec`] : générateurs thermodynamiques à compression électrique (§8.23) ;
+//! - [`sources_amont`] : sources amont sur air des générateurs thermodynamiques (§8.26) ;
+//! - [`calculs_generation`] : matrices et cumuls des consommations (§8.29).
 
 pub mod bilan_hydrique;
+pub mod calculs_generation;
 pub mod distribution;
 pub mod emetteurs;
 pub mod emission;
+pub mod generateur_direct_a_effet_joule;
+pub mod generation;
 pub mod relances;
 pub mod saisons_fonctionnement;
+pub mod sources_amont;
 pub mod systemes_groupe;
+pub mod thermodynamique_elec;

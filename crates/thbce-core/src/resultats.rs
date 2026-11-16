@@ -98,11 +98,186 @@ pub struct ResultatsBatiment {
     /// Distributions d'ECS intergroupes, calcul Th-C (§9.8) ; absent sans réseau.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub distributions_ecs_intergroupes: Vec<ResultatsEcsIntergroupe>,
-    /// Générations, issues du calcul Th-C : énergie à fournir, sommée sur leurs réseaux. En
-    /// attendant les générateurs (lots 6c et 6d), chaque génération est idéale : elle fournit
-    /// exactement la demande. Absent sans génération.
+    /// Générations, issues du calcul Th-C (§8.14, §8.17 et §8.29) : demandes de leurs réseaux,
+    /// énergies fournies et consommations de leurs générateurs. Absent sans génération.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub generations: Vec<ResultatsGeneration>,
+    /// Consommations en énergie finale des générations attribuées au bâtiment, par poste et
+    /// par type d'énergie (§8.29, éq. 1484 à 1486) : somme de celles de ses zones. Absent sans
+    /// génération.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub consommations: Option<Consommations>,
+}
+
+/// Consommations en énergie finale d'un poste par type d'énergie, en kWh (colonnes de la
+/// matrice du tableau 252, §8.29.3.1). Les énergies sans consommation ne sont pas écrites.
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
+pub struct ConsommationsParEnergie {
+    /// 10 : gaz, en kWh PCI.
+    #[serde(default, skip_serializing_if = "est_nul")]
+    pub gaz_kwh: f64,
+    /// 20 : fioul.
+    #[serde(default, skip_serializing_if = "est_nul")]
+    pub fioul_kwh: f64,
+    /// 30 : charbon.
+    #[serde(default, skip_serializing_if = "est_nul")]
+    pub charbon_kwh: f64,
+    /// 40 : bois.
+    #[serde(default, skip_serializing_if = "est_nul")]
+    pub bois_kwh: f64,
+    /// 50 : électricité.
+    #[serde(default, skip_serializing_if = "est_nul")]
+    pub electricite_kwh: f64,
+    /// 60 : réseau de chaleur ou de froid.
+    #[serde(default, skip_serializing_if = "est_nul")]
+    pub reseau_kwh: f64,
+}
+
+// Signature imposée par `skip_serializing_if`.
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn est_nul(x: &f64) -> bool {
+    *x == 0.0
+}
+
+impl ConsommationsParEnergie {
+    /// Total du poste, toutes énergies confondues, en kWh.
+    pub fn total_kwh(&self) -> f64 {
+        self.gaz_kwh
+            + self.fioul_kwh
+            + self.charbon_kwh
+            + self.bois_kwh
+            + self.electricite_kwh
+            + self.reseau_kwh
+    }
+
+    fn champs(&mut self) -> [&mut f64; 6] {
+        [
+            &mut self.gaz_kwh,
+            &mut self.fioul_kwh,
+            &mut self.charbon_kwh,
+            &mut self.bois_kwh,
+            &mut self.electricite_kwh,
+            &mut self.reseau_kwh,
+        ]
+    }
+}
+
+/// Consommations en énergie finale des générations par poste (lignes de la matrice du tableau
+/// 252). Les consommations des auxiliaires de génération — auxiliaires propres aux générateurs
+/// et auxiliaires de leurs sources amont — sont comprises dans le poste qu'ils servent (éq.
+/// 1054 et 1055), comme le réchauffeur d'une boucle d'ECS dans le poste ECS (éq. 1057).
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
+pub struct ConsommationsPostes {
+    /// 1 : chauffage.
+    pub chauffage: ConsommationsParEnergie,
+    /// 2 : refroidissement.
+    pub refroidissement: ConsommationsParEnergie,
+    /// 3 : eau chaude sanitaire.
+    pub ecs: ConsommationsParEnergie,
+}
+
+impl ConsommationsPostes {
+    /// Consommations d'une matrice en Wh.
+    pub fn depuis_matrice(
+        m: &crate::chauffage_refroidissement::calculs_generation::MatriceCef,
+    ) -> Self {
+        let ligne = |l: &[f64; 6]| ConsommationsParEnergie {
+            gaz_kwh: l[0] / 1000.0,
+            fioul_kwh: l[1] / 1000.0,
+            charbon_kwh: l[2] / 1000.0,
+            bois_kwh: l[3] / 1000.0,
+            electricite_kwh: l[4] / 1000.0,
+            reseau_kwh: l[5] / 1000.0,
+        };
+        Self {
+            chauffage: ligne(&m.0[0]),
+            refroidissement: ligne(&m.0[1]),
+            ecs: ligne(&m.0[2]),
+        }
+    }
+
+    /// Total des trois postes, en kWh.
+    pub fn total_kwh(&self) -> f64 {
+        self.chauffage.total_kwh() + self.refroidissement.total_kwh() + self.ecs.total_kwh()
+    }
+
+    /// Total de l'électricité des trois postes, en kWh.
+    pub fn electricite_kwh(&self) -> f64 {
+        self.chauffage.electricite_kwh
+            + self.refroidissement.electricite_kwh
+            + self.ecs.electricite_kwh
+    }
+
+    fn ajouter(&mut self, autre: &Self) {
+        let mut autre = *autre;
+        for (a, b) in [
+            (&mut self.chauffage, &mut autre.chauffage),
+            (&mut self.refroidissement, &mut autre.refroidissement),
+            (&mut self.ecs, &mut autre.ecs),
+        ] {
+            for (x, y) in a.champs().into_iter().zip(b.champs()) {
+                *x += *y;
+            }
+        }
+    }
+
+    fn arrondir(&mut self) {
+        for p in [
+            &mut self.chauffage,
+            &mut self.refroidissement,
+            &mut self.ecs,
+        ] {
+            for x in p.champs() {
+                *x = arrondir_restitution(*x);
+            }
+        }
+    }
+}
+
+/// Consommations en énergie finale, annuelles et mensuelles (mois des scénarios), des
+/// générations d'un bâtiment attribuées à un groupe, à une zone ou au bâtiment, ou d'une
+/// génération (§8.29, éq. 1497 à 1514).
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
+pub struct Consommations {
+    /// Consommations annuelles, en kWh.
+    pub annuel: ConsommationsPostes,
+    /// Consommations des douze mois, en kWh.
+    pub mensuel: Vec<ConsommationsPostes>,
+}
+
+impl Consommations {
+    /// Consommations à partir de cumuls mensuels.
+    pub fn depuis_cumuls(
+        c: &crate::chauffage_refroidissement::calculs_generation::CumulsCef,
+    ) -> Self {
+        Self {
+            annuel: ConsommationsPostes::depuis_matrice(&c.annuel()),
+            mensuel: c
+                .mensuel
+                .iter()
+                .map(ConsommationsPostes::depuis_matrice)
+                .collect(),
+        }
+    }
+
+    /// Ajoute d'autres consommations, mois par mois.
+    pub fn ajouter(&mut self, autre: &Self) {
+        self.annuel.ajouter(&autre.annuel);
+        if self.mensuel.len() < autre.mensuel.len() {
+            self.mensuel
+                .resize(autre.mensuel.len(), ConsommationsPostes::default());
+        }
+        for (a, b) in self.mensuel.iter_mut().zip(&autre.mensuel) {
+            a.ajouter(b);
+        }
+    }
+
+    fn arrondir(&mut self) {
+        self.annuel.arrondir();
+        for m in &mut self.mensuel {
+            m.arrondir();
+        }
+    }
 }
 
 /// Réseau de distribution intergroupes, calcul Th-C.
@@ -133,17 +308,125 @@ pub struct ResultatsIntergroupes {
     pub theta_dep_extreme_c: Option<f64>,
 }
 
-/// Génération, calcul Th-C.
+/// Génération, calcul Th-C (§8.14, §8.17 et §8.29).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct ResultatsGeneration {
     /// Identifiant de la génération.
     pub id: Id,
-    /// Énergie de chauffage à fournir, en kWh.
+    /// Énergie de chauffage demandée par les réseaux, sécurité antigel des doubles flux
+    /// comprise, en kWh (éq. 993).
     pub q_ch_kwh: f64,
-    /// Énergie de refroidissement à fournir (valeur absolue), en kWh.
+    /// Énergie de refroidissement demandée (valeur absolue), en kWh (éq. 994).
     pub q_fr_kwh: f64,
-    /// Énergie d'ECS à fournir, en kWh.
+    /// Énergie d'ECS demandée, en kWh (éq. 995).
     pub q_ecs_kwh: f64,
+    /// Énergie de chauffage fournie par les générateurs, en kWh.
+    pub q_fou_ch_kwh: f64,
+    /// Énergie de refroidissement fournie, en kWh.
+    pub q_fou_fr_kwh: f64,
+    /// Énergie d'ECS fournie, en kWh.
+    pub q_fou_ecs_kwh: f64,
+    /// Demande restant reportée à la fin de l'année, tous postes confondus, en kWh (éq. 1028
+    /// et 1034) : nulle si la génération a tout fourni.
+    pub q_rep_fin_kwh: f64,
+    /// Consommations en énergie finale de la génération, par poste et par type d'énergie
+    /// (éq. 1056 et 1057).
+    pub consommations: Consommations,
+    /// « φvc_tot » : pertes et consommations d'auxiliaires transmises au volume chauffé, en kWh
+    /// (éq. 1058), avant application de la part récupérable (fiche 11.1).
+    pub pertes_vc_kwh: f64,
+    /// Plus longue suite d'heures où la demande de chauffage ou d'ECS n'a pas été couverte,
+    /// hors relance (éq. 1059) ; le texte y voit un sous-dimensionnement au-delà de 6 heures
+    /// et un sous-dimensionnement critique au-delà de 72 heures (éq. 1060 et 1061).
+    pub nbh_sousdim_ch_ecs_max: u32,
+    /// De même en refroidissement (éq. 1062 à 1064).
+    pub nbh_sousdim_fr_max: u32,
+    /// Générateurs de la génération ; la pompe à chaleur d'un chauffe-eau thermodynamique
+    /// décrit par son essai y figure sous l'identifiant du chauffe-eau.
+    pub generateurs: Vec<ResultatsGenerateur>,
+    /// Assemblages avec ballon de stockage d'ECS (§9.14) ; absent sans ballon.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stockages: Vec<ResultatsStockage>,
+}
+
+/// Assemblage avec ballon de stockage d'ECS, calcul Th-C (§9.9, §9.10 et §9.14).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsStockage {
+    /// Identifiant de l'assemblage ou du chauffe-eau thermodynamique.
+    pub id: Id,
+    /// « Qfou,ECS » : énergie fournie par les ballons à la distribution d'ECS, en kWh
+    /// (éq. 1954).
+    pub q_fou_ecs_kwh: f64,
+    /// « Qfou_sto_base » : énergie fournie aux ballons par le générateur de base, en kWh.
+    pub q_fou_sto_base_kwh: f64,
+    /// « Qfou_sto_ap » : énergie fournie aux ballons par l'appoint intégré, en kWh.
+    pub q_fou_sto_ap_kwh: f64,
+    /// « Φpertes » : pertes thermiques des ballons, en kWh (éq. 1771).
+    pub pertes_kwh: f64,
+    /// « Vp » : volume d'eau puisé dans les ballons, en L.
+    pub v_puise_l: f64,
+    /// Plus basse température de la zone haute en fin de pas de temps, en °C.
+    pub theta_haut_min_c: f64,
+    /// Plus longue suite d'heures où la zone haute est restée sous la consigne (éq. 1959) ; le
+    /// texte juge le ballon incohérent avec le projet au-delà de 168 heures.
+    pub nbh_temp_insuff_max: u32,
+    /// Paramètres Th-BCE identifiés à partir de l'essai d'un chauffe-eau thermodynamique
+    /// (§9.22).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub idcet: Option<ResultatsIdCet>,
+    /// Valeurs par défaut de la méthode appliquées à l'assemblage.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+}
+
+/// Identification d'un chauffe-eau thermodynamique (§9.22.3.4) : entrées du modèle Th-BCE
+/// déduites de l'essai, avant correction de statut.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsIdCet {
+    /// « UAs,util » : coefficient de pertes du ballon, en W/K.
+    pub ua_s_w_k: f64,
+    /// « ValCOPpivot » : valeur pivot du COP.
+    pub cop_pivot: f64,
+    /// « ValPabspivot » : valeur pivot de la puissance absorbée, en kW.
+    pub pabs_pivot_kw: f64,
+    /// « ε » : écart relatif entre l'essai reproduit par le modèle et l'essai saisi (éq. 2248).
+    pub epsilon: f64,
+}
+
+/// Générateur, calcul Th-C (§8.29.3.8).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsGenerateur {
+    /// Identifiant du générateur.
+    pub id: Id,
+    /// « Eef_fou_ch » : énergie fournie en chauffage, en kWh (éq. 1525).
+    pub q_fou_ch_kwh: f64,
+    /// « Eef_fou_fr » : énergie fournie en refroidissement, en kWh.
+    pub q_fou_fr_kwh: f64,
+    /// « Eef_fou_ecs » : énergie fournie en ECS, en kWh.
+    pub q_fou_ecs_kwh: f64,
+    /// Consommations annuelles en énergie finale, par poste et par type d'énergie (éq. 1494 à
+    /// 1509).
+    pub consommations: ConsommationsPostes,
+    /// « ηeff_ch_an » : efficacité annuelle en chauffage (éq. 1526) — COP annuel d'un
+    /// générateur thermodynamique, rendement des autres ; absente sans consommation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eta_eff_ch_an: Option<f64>,
+    /// « ηeff_fr_an » : efficacité annuelle en refroidissement (EER annuel).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eta_eff_fr_an: Option<f64>,
+    /// « ηeff_ecs_an » : efficacité annuelle en ECS.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eta_eff_ecs_an: Option<f64>,
+    /// « Cef_aux » : consommation des auxiliaires du générateur, propres et amont, en kWh
+    /// d'énergie finale électrique (éq. 1527 et 1528) ; elle est comprise dans `consommations`.
+    pub w_aux_kwh: f64,
+    /// « φrejet » : énergie échangée par un générateur thermodynamique avec sa source amont, en
+    /// kWh (négative : chaleur puisée ; positive : chaleur rejetée en refroidissement).
+    #[serde(default, skip_serializing_if = "est_nul")]
+    pub phi_rejet_kwh: f64,
+    /// Valeurs par défaut de la méthode appliquées au générateur.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub valeurs_par_defaut: Vec<ValeurParDefaut>,
 }
 
 /// Systèmes d'émission d'un groupe, calcul Th-C (§8.1).
@@ -365,6 +648,10 @@ pub struct ResultatsZone {
     /// Système de ventilation du projet (§6.2 à 6.5) ; absent hors habitation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ventilation: Option<ResultatsVentilationZone>,
+    /// Consommations en énergie finale des générations attribuées à la zone : somme de celles
+    /// de ses groupes. Absent sans génération.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub consommations: Option<Consommations>,
     /// Résultats par groupe.
     pub groupes: Vec<ResultatsGroupe>,
 }
@@ -384,6 +671,10 @@ pub struct ResultatsVentilationZone {
     /// le système du projet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub th_d: Option<ResultatsVentilationMode>,
+    /// Fonctionnement du système dans le calcul Th-C ; l'énergie de la sécurité antigel y est
+    /// demandée à la génération désignée par `generation_antigel`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub th_c: Option<ResultatsVentilationMode>,
     /// Valeurs par défaut de la méthode appliquées au système et à ses bouches ; champ relatif
     /// à la zone.
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,
@@ -452,6 +743,12 @@ pub struct ResultatsGroupe {
     /// émetteur.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub systemes: Option<ResultatsSystemesGroupe>,
+    /// Consommations en énergie finale des générations attribuées au groupe, par poste et par
+    /// type d'énergie, au prorata de ses demandes (§8.29, éq. 1484 à 1486, 1499, 1506 et 1513) ;
+    /// matrice « Qcef[poste ; énergie] » des sorties du mode Th-C (§13.2, éq. 2421). Absent sans
+    /// génération.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub consommations: Option<Consommations>,
     /// Résultats par baie.
     pub baies: Vec<ResultatsBaie>,
     /// Valeurs par défaut de la méthode appliquées aux paramètres non saisis du groupe ; liste
@@ -653,9 +950,56 @@ impl Resultats {
                 d.arrondir();
             }
             for g in &mut b.generations {
-                g.q_ch_kwh = a(g.q_ch_kwh);
-                g.q_fr_kwh = a(g.q_fr_kwh);
-                g.q_ecs_kwh = a(g.q_ecs_kwh);
+                for x in [
+                    &mut g.q_ch_kwh,
+                    &mut g.q_fr_kwh,
+                    &mut g.q_ecs_kwh,
+                    &mut g.q_fou_ch_kwh,
+                    &mut g.q_fou_fr_kwh,
+                    &mut g.q_fou_ecs_kwh,
+                    &mut g.q_rep_fin_kwh,
+                    &mut g.pertes_vc_kwh,
+                ] {
+                    *x = a(*x);
+                }
+                g.consommations.arrondir();
+                for s in &mut g.stockages {
+                    for x in [
+                        &mut s.q_fou_ecs_kwh,
+                        &mut s.q_fou_sto_base_kwh,
+                        &mut s.q_fou_sto_ap_kwh,
+                        &mut s.pertes_kwh,
+                        &mut s.v_puise_l,
+                        &mut s.theta_haut_min_c,
+                    ] {
+                        *x = a(*x);
+                    }
+                    if let Some(i) = &mut s.idcet {
+                        // Paramètres identifiés restitués avec quatre décimales.
+                        for x in [&mut i.ua_s_w_k, &mut i.cop_pivot, &mut i.pabs_pivot_kw] {
+                            *x = (*x * 1e4).round() / 1e4;
+                        }
+                    }
+                }
+                for x in &mut g.generateurs {
+                    x.q_fou_ch_kwh = a(x.q_fou_ch_kwh);
+                    x.q_fou_fr_kwh = a(x.q_fou_fr_kwh);
+                    x.q_fou_ecs_kwh = a(x.q_fou_ecs_kwh);
+                    x.w_aux_kwh = a(x.w_aux_kwh);
+                    x.phi_rejet_kwh = a(x.phi_rejet_kwh);
+                    x.consommations.arrondir();
+                    // Efficacités restituées avec deux décimales.
+                    for e in [
+                        &mut x.eta_eff_ch_an,
+                        &mut x.eta_eff_fr_an,
+                        &mut x.eta_eff_ecs_an,
+                    ] {
+                        *e = e.map(|v| (v * 100.0).round() / 100.0);
+                    }
+                }
+            }
+            if let Some(c) = &mut b.consommations {
+                c.arrondir();
             }
             for d in &mut b.distributions_ecs_intergroupes {
                 for x in [
@@ -687,15 +1031,21 @@ impl Resultats {
                 if let Some(v) = &mut z.ventilation {
                     v.p_vent_w = a(v.p_vent_w);
                     v.c_aux_vent_kwh = a(v.c_aux_vent_kwh);
-                    if let Some(m) = &mut v.th_d {
+                    for m in [&mut v.th_d, &mut v.th_c].into_iter().flatten() {
                         m.q_ag_kwh = a(m.q_ag_kwh);
                     }
+                }
+                if let Some(c) = &mut z.consommations {
+                    c.arrondir();
                 }
                 if let Some(bbio) = &mut z.bbio {
                     bbio.arrondir();
                 }
                 for g in &mut z.groupes {
                     g.sref_m2 = a(g.sref_m2);
+                    if let Some(c) = &mut g.consommations {
+                        c.arrondir();
+                    }
                     if let Some(bbio) = &mut g.bbio {
                         bbio.arrondir();
                     }

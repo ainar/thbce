@@ -384,11 +384,112 @@
       "generations": [
         {
           "id": "generation-eau-chaude",
-          "raccordement_reseaux": "avec_isolement"
+          "raccordement_reseaux": "avec_isolement",
+          "position": "en_volume_chauffe",
+          "priorite": "cascade",
+          "gestion_temperature_chauffage": "reseaux",
+          "generateurs": [
+            {
+              "id": "pac-air-eau",
+              "rdim": 1,
+              "priorite_chauffage": 1,
+              "nature": {
+                "thermodynamique_electrique": {
+                  "compresseur": "puissance_variable",
+                  "source_amont": {
+                    "air_exterieur": {}
+                  },
+                  "chauffage": {
+                    "technologie": "air_exterieur_eau",
+                    "performances": {
+                      "mesurees": [
+                        {
+                          "theta_aval_c": 32.5,
+                          "theta_amont_c": 7,
+                          "performance": 4.5,
+                          "pabs_kw": 1.35,
+                          "statut": "certifie"
+                        },
+                        {
+                          "theta_aval_c": 32.5,
+                          "theta_amont_c": 2,
+                          "performance": 3.5,
+                          "pabs_kw": 1.4,
+                          "statut": "certifie"
+                        },
+                        {
+                          "theta_aval_c": 32.5,
+                          "theta_amont_c": -7,
+                          "performance": 2.9,
+                          "pabs_kw": 1.45,
+                          "statut": "certifie"
+                        },
+                        {
+                          "theta_aval_c": 42.5,
+                          "theta_amont_c": 7,
+                          "performance": 3.5,
+                          "pabs_kw": 1.65,
+                          "statut": "certifie"
+                        },
+                        {
+                          "theta_aval_c": 42.5,
+                          "theta_amont_c": 2,
+                          "performance": 2.8,
+                          "pabs_kw": 1.7,
+                          "statut": "certifie"
+                        },
+                        {
+                          "theta_aval_c": 42.5,
+                          "theta_amont_c": -7,
+                          "performance": 2.3,
+                          "pabs_kw": 1.75,
+                          "statut": "certifie"
+                        }
+                      ]
+                    },
+                    "typo_emetteur": "plancher_ou_plafond_inertie_forte"
+                  }
+                }
+              }
+            },
+            {
+              "id": "appoint-electrique",
+              "rdim": 1,
+              "priorite_chauffage": 2,
+              "nature": {
+                "effet_joule": {
+                  "fonction": "chauffage",
+                  "pn_gen_w": 3000
+                }
+              }
+            }
+          ]
         },
         {
           "id": "ballon-ecs",
-          "raccordement_reseaux": "avec_isolement"
+          "raccordement_reseaux": "avec_isolement",
+          "position": "en_volume_chauffe",
+          "chauffe_eau_thermodynamiques": [
+            {
+              "id": "chauffe-eau-thermodynamique",
+              "nb_assemblages": 1,
+              "v_tot_l": 200,
+              "theta_max_c": 65,
+              "essai": {
+                "cycle": "l",
+                "t_h_h": 8.0,
+                "p_es_w": 28,
+                "cop_dhw": 2.7,
+                "theta_wh_c": 53.0,
+                "auxiliaires_compris": true,
+                "statut": "certifie"
+              },
+              "source_amont": {
+                "air_exterieur": {}
+              },
+              "programmation": "permanent"
+            }
+          ]
         }
       ],
       "distributions_intergroupes": [
