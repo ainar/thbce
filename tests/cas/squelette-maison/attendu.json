@@ -4,14 +4,27 @@
     "zone_climatique": "H2b",
     "altcorr_m": 100,
     "base_ext_c": -6.5,
-    "confort_adaptatif_th_d": { "premier_jour": null, "dernier_jour": null }
+    "confort_adaptatif_th_d": {
+      "premier_jour": null,
+      "dernier_jour": null
+    }
   },
   "batiments": [
     {
       "id": "maison",
       "sref_m2": 96.4,
       "zones": [
-        { "id": "logement", "sref_m2": 96.4, "groupes": [{ "id": "volume-chauffe", "sref_m2": 96.4 }] }
+        {
+          "id": "logement",
+          "sref_m2": 96.4,
+          "groupes": [
+            {
+              "id": "volume-chauffe",
+              "sref_m2": 96.4
+            }
+          ],
+          "nadeq": 1.9
+        }
       ]
     }
   ]

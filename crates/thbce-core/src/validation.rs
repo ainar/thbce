@@ -216,6 +216,21 @@ fn valider_zone(r: &mut RapportValidation, c: &str, zone: &Zone, refs: &Referenc
             ),
         );
     }
+    // Th-BCE 2020 §4.1.3, éq. (34) : le nombre de logements est nécessaire en logement collectif.
+    // En maison individuelle, il vaut 1 s'il n'est pas saisi (maisons accolées : à saisir).
+    match (zone.usage, zone.nb_lgt) {
+        (_, Some(0)) => r.erreur(
+            format!("{c}.nb_lgt"),
+            Some("0".into()),
+            "doit être supérieur ou égal à 1",
+        ),
+        (crate::entree::UsageZone::LogementCollectif, None) => r.erreur(
+            format!("{c}.nb_lgt"),
+            None,
+            "nombre de logements requis en logement collectif (Th-BCE 2020 §4.1.3, éq. 34)",
+        ),
+        _ => {}
+    }
     if zone.groupes.is_empty() {
         r.erreur(
             format!("{c}.groupes"),
@@ -236,24 +251,25 @@ fn valider_groupe(
     zone: &Zone,
     refs: &References<'_>,
 ) {
-    // Th-BCE 2020 §13.1.3, éq. (2375) et (2376) : SREF = SHAB en habitation, SU sinon.
-    let (champ, surface) = if zone.usage.est_habitation() {
-        ("shab_m2", g.shab_m2)
-    } else {
-        ("su_m2", g.su_m2)
-    };
-    match surface {
-        Some(s) => r.strictement_positif(format!("{c}.{champ}"), s),
+    // Th-BCE 2020 §4.1.2 : la surface utile du groupe, Agr, sert à tous les usages (apports
+    // internes, répartition entre groupes). §13.1.3, éq. (2375) et (2376) : la surface de
+    // référence est SHAB en habitation, SU sinon.
+    match g.su_m2 {
+        Some(s) => r.strictement_positif(format!("{c}.su_m2"), s),
         None => r.erreur(
-            format!("{c}.{champ}"),
+            format!("{c}.su_m2"),
             None,
-            "surface de référence requise pour cet usage (Th-BCE 2020 §13.1.3)",
+            "surface utile du groupe requise (Agr, Th-BCE 2020 §4.1.2)",
         ),
     }
-    for (champ, autre) in [("shab_m2", g.shab_m2), ("su_m2", g.su_m2)] {
-        if let Some(s) = autre {
-            r.positif(format!("{c}.{champ}"), s);
-        }
+    match (zone.usage.est_habitation(), g.shab_m2) {
+        (_, Some(s)) => r.strictement_positif(format!("{c}.shab_m2"), s),
+        (true, None) => r.erreur(
+            format!("{c}.shab_m2"),
+            None,
+            "surface habitable requise en habitation : c'est la surface de référence (Th-BCE 2020 §13.1.3)",
+        ),
+        (false, None) => {}
     }
     valider_inertie(r, &format!("{c}.inertie"), &g.inertie);
 

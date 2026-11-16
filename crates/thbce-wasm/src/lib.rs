@@ -52,7 +52,7 @@ export interface ResultatsClimat {
   confort_adaptatif_th_d: PeriodeConfortAdaptatif;
 }
 export interface ResultatsGroupe { id: string; sref_m2: number; }
-export interface ResultatsZone { id: string; sref_m2: number; groupes: ResultatsGroupe[]; }
+export interface ResultatsZone { id: string; sref_m2: number; nadeq: number | null; groupes: ResultatsGroupe[]; }
 export interface ResultatsBatiment {
   id: string;
   sref_m2: number;

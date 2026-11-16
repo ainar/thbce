@@ -106,9 +106,7 @@ fn codes_de_retour() {
         Some(2)
     );
     // 3 : usage hors périmètre de cette version.
-    let bureaux = texte
-        .replace("maison_individuelle", "bureaux")
-        .replace("shab_m2", "su_m2");
+    let bureaux = texte.replace("maison_individuelle", "bureaux");
     let bureaux = fichier("bureaux.json", &bureaux);
     let h2b = meteo("h2b-bis.csv", ZoneClimatique::H2b);
     let s = thbce(&["calcul", bureaux.to_str().unwrap(), "--meteo", &h2b]);

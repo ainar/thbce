@@ -158,3 +158,36 @@ fn la_meteo_d_une_autre_zone_est_refusee() {
     .unwrap_err();
     assert!(matches!(e, Erreur::Meteo(_)), "{e}");
 }
+
+#[test]
+fn la_surface_utile_et_le_nombre_de_logements_sont_exiges() {
+    // Th-BCE 2020 §4.1.2 : Agr sert à tous les usages ; §4.1.3, éq. (34) : Nb_lgt en collectif.
+    let mut p = projet();
+    p.batiments[0].zones[0].groupes[0].su_m2 = None;
+    assert_eq!(
+        chemins(&valider(&p).erreurs),
+        ["batiments[0].zones[0].groupes[0].su_m2"]
+    );
+    let mut p = projet();
+    p.batiments[0].zones[0].usage = UsageZone::LogementCollectif;
+    assert_eq!(
+        chemins(&valider(&p).erreurs),
+        ["batiments[0].zones[0].nb_lgt"]
+    );
+    p.batiments[0].zones[0].nb_lgt = Some(0);
+    assert_eq!(
+        chemins(&valider(&p).erreurs),
+        ["batiments[0].zones[0].nb_lgt"]
+    );
+    p.batiments[0].zones[0].nb_lgt = Some(2);
+    assert!(valider(&p).est_valide());
+}
+
+#[test]
+fn les_adultes_equivalents_figurent_dans_les_resultats() {
+    // Éq. (32) : Algt = 96,44 m² ; Nmax = 0,025 × 96,44 = 2,411 ; Nadeq = 1,75 + 0,3 × 0,661.
+    let meteo = MeteoProjet::synthetique(ZoneClimatique::H2b);
+    let r = calculer(&projet(), &meteo, &Options { arrondir: false }).unwrap();
+    let nadeq = r.batiments[0].zones[0].nadeq.unwrap();
+    assert!((nadeq - 1.9483).abs() < 1e-12, "{nadeq}");
+}

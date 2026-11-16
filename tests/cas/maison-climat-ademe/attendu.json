@@ -1,11 +1,26 @@
 {
   "reglementaire": false,
-  "origine_meteo_th_bc": { "type": "ademe_prospectif" },
-  "origine_meteo_th_d": { "type": "ademe_prospectif" },
+  "origine_meteo_th_bc": {
+    "type": "ademe_prospectif"
+  },
+  "origine_meteo_th_d": {
+    "type": "ademe_prospectif"
+  },
   "climat": {
     "zone_climatique": "H2b",
     "altcorr_m": 100,
     "base_ext_c": -6.5
   },
-  "batiments": [{ "id": "maison", "sref_m2": 96.4 }]
+  "batiments": [
+    {
+      "id": "maison",
+      "sref_m2": 96.4,
+      "zones": [
+        {
+          "id": "logement",
+          "nadeq": 1.9
+        }
+      ]
+    }
+  ]
 }

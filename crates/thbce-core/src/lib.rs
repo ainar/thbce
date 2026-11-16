@@ -17,6 +17,7 @@ pub mod conventions;
 pub mod entree;
 pub mod erreur;
 pub mod resultats;
+pub mod scenarios;
 pub mod validation;
 
 pub use calcul::{calculer, Options};
