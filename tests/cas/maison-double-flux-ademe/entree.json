@@ -361,6 +361,23 @@
                     "distribution": "distribution-chauffage"
                   }
                 }
+              ],
+              "emetteurs_ecs": [
+                {
+                  "id": "sanitaires",
+                  "rat_em": 1.0,
+                  "nb_logements": 1,
+                  "part_melangeur": 0.4,
+                  "part_mitigeur": 0.6,
+                  "part_temporisateur": 0.0,
+                  "appareils": "baignoire_standard",
+                  "distribution": {
+                    "d_int_m": 0.016,
+                    "l_hvc_m": 0.0,
+                    "nb_dist": 1
+                  },
+                  "distribution_intergroupe": "ecs-individuelle"
+                }
               ]
             }
           ]
@@ -370,6 +387,10 @@
         {
           "id": "generation-effet-joule",
           "raccordement_reseaux": "avec_isolement"
+        },
+        {
+          "id": "ballon-ecs",
+          "raccordement_reseaux": "avec_isolement"
         }
       ],
       "distributions_intergroupes": [
@@ -378,6 +399,13 @@
           "fonction": "chauffage",
           "generation": "generation-effet-joule",
           "reseau": "fictif"
+        }
+      ],
+      "distributions_ecs_intergroupes": [
+        {
+          "id": "ecs-individuelle",
+          "generation": "ballon-ecs",
+          "reseau": "aucun"
         }
       ]
     }
