@@ -9,7 +9,13 @@ repository.workspace = true
 authors.workspace = true
 publish = false
 
+[features]
+default = ["classeur"]
+# Lecture du classeur météo réglementaire (.xlsx).
+classeur = ["dep:calamine"]
+
 [dependencies]
+calamine = { workspace = true, optional = true }
 thbce-core.workspace = true
 thbce-data.workspace = true
 schemars.workspace = true
@@ -19,6 +25,7 @@ serde_path_to_error.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+rust_xlsxwriter.workspace = true
 toml.workspace = true
 
 [lints]

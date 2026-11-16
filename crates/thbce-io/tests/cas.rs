@@ -118,12 +118,18 @@ fn meteo_du_cas(nature: &str, projet: &thbce_core::entree::Projet) -> Option<Met
         "re2020" => {
             let chemin = std::env::var_os("THBCE_METEO")?;
             let octets = std::fs::read(&chemin).unwrap_or_else(|e| panic!("THBCE_METEO : {e}"));
-            Some(
-                meteo::lire_csv_re2020(&octets, zone)
-                    .unwrap_or_else(|e| panic!("THBCE_METEO : {e}")),
-            )
+            Some(meteo::lire(&octets, zone).unwrap_or_else(|e| panic!("THBCE_METEO : {e}")))
         }
-        autre => panic!("cas.toml : meteo = \"{autre}\" inconnu (\"re2020\" ou \"synthetique\")"),
+        "ademe" => {
+            let chemin = dossier_des_cas()
+                .join("../../docs/reference/meteo/ademe/tracc_france_2-7C_vague_de_chaleur.csv");
+            let octets =
+                std::fs::read(&chemin).unwrap_or_else(|e| panic!("{} : {e}", chemin.display()));
+            Some(meteo::lire(&octets, zone).unwrap_or_else(|e| panic!("fichier ADEME : {e}")))
+        }
+        autre => panic!(
+            "cas.toml : meteo = \"{autre}\" inconnu (\"re2020\", \"ademe\" ou \"synthetique\")"
+        ),
     }
 }
 
