@@ -4,6 +4,7 @@
 //! ```text
 //! cargo run -p xtask -- zones-climatiques [--verifier]
 //! cargo run -p xtask -- temperature-base [--verifier]
+//! cargo run -p xtask -- scenarios [--verifier]
 //! cargo run -p xtask -- verifier
 //! cargo run -p xtask -- meteo-synthetique <fichier.csv>
 //! ```
@@ -13,6 +14,8 @@
 //!   échoue si le fichier versionné diffère (utilisé par la CI).
 //! - `temperature-base` fait de même pour `crates/thbce-data/src/temperature_base/table.rs`,
 //!   depuis le tableau du §3.1.3 de l'annexe III.
+//! - `scenarios` convertit le classeur des scénarios conventionnels en
+//!   `crates/thbce-data/src/scenarios/table.rs`.
 //! - `verifier` contrôle tous les fichiers générés.
 //! - `meteo-synthetique` écrit un jeu météo constant pour les huit zones, au format CSV long,
 //!   pour les tests de bout en bout. Ce jeu n'est pas réglementaire.
@@ -24,6 +27,7 @@ use thbce_core::climat::donnees::DESCRIPTION_SYNTHETIQUE;
 use thbce_core::climat::MeteoProjet;
 use thbce_data::ZoneClimatique;
 
+mod scenarios;
 mod temperature_base;
 mod zones;
 
@@ -74,6 +78,17 @@ fn temperature_de_base(verifier: bool) -> Result<(), String> {
     )
 }
 
+fn scenarios_conventionnels(verifier: bool) -> Result<(), String> {
+    let chemin = racine().join(scenarios::SOURCE);
+    let octets = std::fs::read(&chemin).map_err(|e| format!("{} : {e}", chemin.display()))?;
+    produire(
+        scenarios::SORTIE,
+        scenarios::generer(&scenarios::extraire(&octets)?),
+        "scenarios",
+        verifier,
+    )
+}
+
 fn meteo_synthetique(sortie: &str) -> Result<(), String> {
     let jeux: Vec<MeteoProjet> = ZoneClimatique::TOUTES
         .into_iter()
@@ -99,10 +114,14 @@ fn main() -> ExitCode {
         ["zones-climatiques", "--verifier"] => zones_climatiques(true),
         ["temperature-base"] => temperature_de_base(false),
         ["temperature-base", "--verifier"] => temperature_de_base(true),
-        ["verifier"] => zones_climatiques(true).and_then(|()| temperature_de_base(true)),
+        ["scenarios"] => scenarios_conventionnels(false),
+        ["scenarios", "--verifier"] => scenarios_conventionnels(true),
+        ["verifier"] => zones_climatiques(true)
+            .and_then(|()| temperature_de_base(true))
+            .and_then(|()| scenarios_conventionnels(true)),
         ["meteo-synthetique", sortie] => meteo_synthetique(sortie),
         _ => Err(
-            "usage : xtask zones-climatiques [--verifier] | temperature-base [--verifier] | verifier | meteo-synthetique <fichier.csv>"
+            "usage : xtask zones-climatiques [--verifier] | temperature-base [--verifier] | scenarios [--verifier] | verifier | meteo-synthetique <fichier.csv>"
                 .to_owned(),
         ),
     };
