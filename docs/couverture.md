@@ -131,8 +131,8 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
-| 6.1 | C_VEN_BBIO | 321–325 | 4 | `core/src/ventilation/ven_bbio.rs` | implémenté : éq. (374) à (382) ; les débits sont des entrées |
-| 6.2 | C_VEN_Bouche_conduit | 326–341 | 6a | `core/src/ventilation/bouche_conduit.rs` | non commencé |
+| 6.1 | C_VEN_BBIO | 321–325 | 4 | `core/src/ventilation/ven_bbio.rs` | implémenté : éq. (374) à (382) ; débits du système conventionnel tirés des bouches du groupe (fiche 6.2, lecture Q36) |
+| 6.2 | C_VEN_Bouche_conduit | 326–341 | 4, 6a | `core/src/ventilation/bouche_conduit.rs` | partiel : calcul du Bbio en habitation — débits maximal et minimal (éq. 387 à 390), débit de base hygroréglable (§6.2.3.1.1.2), débit régulé (éq. 403, `Crdbnr = 1`, `Dugd = 14`), dépassement (éq. 412 à 414, `Cdep = 1`), fuites nulles (tableau 59, éq. 428 à 431) ; restent pour le lot 6a : autres usages (éq. 383 à 386, 399 à 402, tableau 56-1), CTA et double flux (éq. 391 à 398, 404 à 411, 415 à 418), valeurs de `Crdbnr`, `Dugd`, `Cdep` et `Kres` du calcul des consommations, surfaces et fuites des conduits (éq. 419 à 427, tableau 60), éq. (432) à (439) |
 | 6.3 | C_VEN_ CTA et Double_flux | 342–395 | 6a | `core/src/ventilation/cta_et_double_flux.rs` | non commencé |
 | 6.4 | C_VEN_Mécanique_Basse-Pression | 396–399 | 6a | `core/src/ventilation/mecanique_basse_pression.rs` | non commencé |
 | 6.5 | C_VEN_Mécanique_SF | 400–410 | 6a | `core/src/ventilation/mecanique_sf.rs` | non commencé |

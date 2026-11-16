@@ -102,11 +102,25 @@ pub struct ResultatsGroupe {
     pub sref_m2: f64,
     /// Grandeurs d'enveloppe du groupe.
     pub enveloppe: ResultatsEnveloppe,
+    /// Débits du système de ventilation conventionnel du Bbio ; `null` si le groupe ne décrit
+    /// aucune bouche de ventilation ou hors habitation.
+    pub debits_bbio: Option<ResultatsDebitsBbio>,
     /// Résultats par baie.
     pub baies: Vec<ResultatsBaie>,
     /// Valeurs par défaut de la méthode appliquées aux paramètres non saisis du groupe ; liste
     /// vide si aucune.
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+}
+
+/// Débits spécifiques d'un groupe pour le calcul du Bbio (Th-BCE 2020 §6.1 et §6.2), constants
+/// sur l'année en habitation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsDebitsBbio {
+    /// « qspec_repris » : débit volumique spécifique repris, en m³/h, négatif (§6.2.3.2.2.2,
+    /// éq. 403, avec `Crdbnr = 1`, `Dugd = 14` h par semaine et `Cdep = 1`).
+    pub q_spec_repris_m3_h: f64,
+    /// « qspec_soufflé » : débit volumique spécifique soufflé, en m³/h, positif.
+    pub q_spec_souffle_m3_h: f64,
 }
 
 /// Résultats d'une baie.
@@ -180,6 +194,10 @@ impl Resultats {
                 z.nadeq = z.nadeq.map(a);
                 for g in &mut z.groupes {
                     g.sref_m2 = a(g.sref_m2);
+                    if let Some(d) = &mut g.debits_bbio {
+                        d.q_spec_repris_m3_h = a(d.q_spec_repris_m3_h);
+                        d.q_spec_souffle_m3_h = a(d.q_spec_souffle_m3_h);
+                    }
                     let e = &mut g.enveloppe;
                     for v in [
                         &mut e.a_op_m2,

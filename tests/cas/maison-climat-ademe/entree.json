@@ -277,6 +277,14 @@
                   "sf_c_l": 0,
                   "sf_e_l": 0
                 }
+              ],
+              "bouches_conduits": [
+                {
+                  "id": "extraction",
+                  "isouf": "reprise",
+                  "q_spec_conv_pointe_m3_h": 180,
+                  "q_spec_conv_base_m3_h": 105
+                }
               ]
             }
           ]

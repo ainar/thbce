@@ -15,6 +15,8 @@ Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consol
 
 - **Format d'entrée, changement incompatible** : un type de paroi opaque porte un champ obligatoire `incl_k`, position dans laquelle son coefficient `u_k_w_m2k` a été déterminé (`verticale`, `horizontale_flux_ascendant` ou `horizontale_flux_descendant`, annexe III §5.17.3).
 - Un pont thermique accepte un champ facultatif `exposition` (description détaillée). Sans lui, la description simplifiée du §5.18.3 s'applique.
+- **Format d'entrée, changement incompatible** : en habitation, un groupe décrit au moins une bouche de ventilation dans `bouches_conduits` : `id`, `isouf` (`reprise` ou `soufflage`), `q_spec_conv_pointe_m3_h` et `q_spec_conv_base_m3_h`, débits d'hygiène de pointe et de base de la ventilation installée (annexe III §6.2.2), ou `qvarep_spec_m3_h` à la place du débit de base pour un système hygroréglable (§6.2.3.1.1.2). Le débit de pointe est au moins égal au débit de base. Le JSON Schema (`thbce schema`) et les exemples de `tests/cas/` sont à jour.
+- `Saisons::nouveau` reçoit le mode de calcul : en Bbio, l'autorisation de refroidir ne dépend plus de la présence d'un système de refroidissement.
 
 ### Ajouté
 
@@ -49,3 +51,4 @@ Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consol
 - Éclairage en habitation (§7.1) : éclairement naturel intérieur des volumes normaux à partir des flux lumineux des baies, coefficient `C2` du résidentiel, consommation conventionnelle, apports récupérables, compteurs d'autonomie en lumière naturelle.
 - Modèle thermique de groupe (§5.21) : paramètres d'inertie quotidienne, mélange des flux d'air entrants, bilan à trois nœuds résolu par un schéma de Crank-Nicolson, températures d'air, radiante moyenne et opérative, matrice de comportement. Système de ventilation conventionnel du Bbio (§6.1).
 - Saisons propres d'un groupe (§4.6), procédure du calcul du Bbio : autorisations de chauffer et de refroidir décidées chaque jour sur des fenêtres glissantes d'inconfort et de besoins. En calcul du Bbio, l'autorisation de refroidir ne dépend pas de la présence d'un système de refroidissement (éq. 91).
+- Débits d'air spécifiques du Bbio en habitation (§6.2, partiel) : débits maximal et minimal des bouches, débit de base des systèmes hygroréglables, débit régulé avec `Crdbnr = 1` et `Dugd = 14` h par semaine, `Cdep = 1`, fuites des réseaux nulles ; débits du système de ventilation conventionnel (§6.1). Les résultats de groupe portent `debits_bbio`.
