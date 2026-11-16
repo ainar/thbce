@@ -386,15 +386,80 @@
           "id": "generation-eau-chaude",
           "raccordement_reseaux": "avec_isolement",
           "position": "en_volume_chauffe",
+          "priorite": "cascade",
           "gestion_temperature_chauffage": "reseaux",
           "generateurs": [
             {
-              "id": "chaudiere-electrique",
+              "id": "pac-air-eau",
               "rdim": 1,
+              "priorite_chauffage": 1,
+              "nature": {
+                "thermodynamique_electrique": {
+                  "compresseur": "puissance_variable",
+                  "source_amont": {
+                    "air_exterieur": {}
+                  },
+                  "chauffage": {
+                    "technologie": "air_exterieur_eau",
+                    "performances": {
+                      "mesurees": [
+                        {
+                          "theta_aval_c": 32.5,
+                          "theta_amont_c": 7,
+                          "performance": 4.5,
+                          "pabs_kw": 1.35,
+                          "statut": "certifie"
+                        },
+                        {
+                          "theta_aval_c": 32.5,
+                          "theta_amont_c": 2,
+                          "performance": 3.5,
+                          "pabs_kw": 1.4,
+                          "statut": "certifie"
+                        },
+                        {
+                          "theta_aval_c": 32.5,
+                          "theta_amont_c": -7,
+                          "performance": 2.9,
+                          "pabs_kw": 1.45,
+                          "statut": "certifie"
+                        },
+                        {
+                          "theta_aval_c": 42.5,
+                          "theta_amont_c": 7,
+                          "performance": 3.5,
+                          "pabs_kw": 1.65,
+                          "statut": "certifie"
+                        },
+                        {
+                          "theta_aval_c": 42.5,
+                          "theta_amont_c": 2,
+                          "performance": 2.8,
+                          "pabs_kw": 1.7,
+                          "statut": "certifie"
+                        },
+                        {
+                          "theta_aval_c": 42.5,
+                          "theta_amont_c": -7,
+                          "performance": 2.3,
+                          "pabs_kw": 1.75,
+                          "statut": "certifie"
+                        }
+                      ]
+                    },
+                    "typo_emetteur": "plancher_ou_plafond_inertie_forte"
+                  }
+                }
+              }
+            },
+            {
+              "id": "appoint-electrique",
+              "rdim": 1,
+              "priorite_chauffage": 2,
               "nature": {
                 "effet_joule": {
                   "fonction": "chauffage",
-                  "pn_gen_w": 8000
+                  "pn_gen_w": 3000
                 }
               }
             }

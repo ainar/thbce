@@ -239,14 +239,89 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
         gd.q_ch_kwh
     );
 
-    // Variante à plancher chauffant à eau : la génération fonctionne à la température de ses
-    // réseaux ; chaudière électrique à effet Joule en attendant la pompe à chaleur.
+    // Variante à plancher chauffant à eau : pompe à chaleur air extérieur / eau à la température
+    // de ses réseaux, puis appoint électrique, en cascade (§8.23 et §8.17.3.7.2.2).
     let plancher = cas("maison-plancher-ademe");
     let rp = brut(&plancher, &m);
     verifier_bilans(&rp, titre);
-    let gp = &rp.batiments[0].generations[0];
-    assert!((gp.consommations.annuel.chauffage.electricite_kwh - gp.q_fou_ch_kwh).abs() < 1e-6);
-    assert_eq!(rp.batiments[0].bbio_pts, b.bbio_pts);
+    let bp = &rp.batiments[0];
+    let gp = &bp.generations[0];
+    assert_eq!(bp.bbio_pts, b.bbio_pts);
+    let pac = &gp.generateurs[0];
+    let appoint = &gp.generateurs[1];
+    // COP saisonnier (éq. 1526) : énergie fournie sur électricité consommée, auxiliaires
+    // compris. Les COP certifiés vont de 2,9 (−7 °C) à 4,5 (7 °C) à 32,5 °C d'eau ; la loi d'eau
+    // du plancher (35 °C au plus au départ) et la charge partielle d'un compresseur à vitesse
+    // variable laissent attendre un COP saisonnier entre 3 et 4,5.
+    let cop = pac.eta_eff_ch_an.unwrap();
+    assert!((3.0..4.6).contains(&cop), "{titre} : COP saisonnier {cop}");
+    assert!((pac.q_fou_ch_kwh / pac.consommations.chauffage.electricite_kwh - cop).abs() < 1e-9);
+    // La chaleur fournie est l'électricité absorbée par le compresseur et la chaleur puisée dans
+    // l'air (éq. 1332) : φrejet est négatif et inférieur en valeur absolue à l'énergie fournie.
+    assert!(pac.phi_rejet_kwh < 0.0 && -pac.phi_rejet_kwh < pac.q_fou_ch_kwh);
+    assert!(pac.w_aux_kwh > 0.0);
+    // L'appoint ne fournit qu'une faible part ; l'ensemble consomme bien moins que l'effet Joule.
+    assert!(
+        appoint.q_fou_ch_kwh < 0.1 * pac.q_fou_ch_kwh,
+        "{titre} : {appoint:?}"
+    );
+    assert!(gp.consommations.annuel.chauffage.electricite_kwh < 0.4 * gp.q_ch_kwh);
+    assert!(pac
+        .valeurs_par_defaut
+        .iter()
+        .any(|v| v.champ == "taux_auxiliaires" && v.valeur == 0.02));
+    println!(
+        "{titre} : plancher et PAC air/eau, demande {:.1} kWh, PAC {:.1} kWh fournis pour {:.1} kWh \
+         d'électricité (COP saisonnier {cop:.2}, auxiliaires {:.1} kWh), appoint {:.1} kWh, \
+         report en fin d'année {:.1} kWh, sous-dimensionnement {} h ; DH = {:.1} °C.h",
+        gp.q_ch_kwh,
+        pac.q_fou_ch_kwh,
+        pac.consommations.chauffage.electricite_kwh,
+        pac.w_aux_kwh,
+        appoint.q_fou_ch_kwh,
+        gp.q_rep_fin_kwh,
+        gp.nbh_sousdim_ch_ecs_max,
+        bp.dh_c_h.unwrap(),
+    );
+
+    // Variante à pompe à chaleur air/air réversible : chauffage et refroidissement par le même
+    // générateur, sur l'air ambiant (réseaux fictifs).
+    let clim = cas("maison-pac-air-air-ademe");
+    let rc = brut(&clim, &m);
+    verifier_bilans(&rc, titre);
+    let bc = &rc.batiments[0];
+    assert_eq!(bc.bbio_pts, b.bbio_pts);
+    let gc = &bc.generations[0];
+    let rev = &gc.generateurs[0];
+    let (cop, eer) = (rev.eta_eff_ch_an.unwrap(), rev.eta_eff_fr_an.unwrap());
+    // Valeurs pivot utiles : COP 3,2 à 7 °C, EER 2,7 à 35 °C ; par défaut, le COP tombe à 1,6 à
+    // −7 °C et l'EER monte à 3,2 à 25 °C.
+    assert!((2.0..3.6).contains(&cop), "{titre} : COP saisonnier {cop}");
+    assert!((2.0..4.4).contains(&eer), "{titre} : EER saisonnier {eer}");
+    assert!(rev.phi_rejet_kwh != 0.0);
+    let cc = &bc.consommations.as_ref().unwrap().annuel;
+    assert!(cc.refroidissement.electricite_kwh > 0.0);
+    assert!(
+        (cc.refroidissement.electricite_kwh - gc.consommations.annuel.refroidissement.total_kwh())
+            .abs()
+            < 1e-6
+    );
+    // Refroidissement en été seulement.
+    let mensuel = &gc.consommations.mensuel;
+    assert_eq!(mensuel[0].refroidissement.total_kwh(), 0.0);
+    assert!(mensuel[6].refroidissement.total_kwh() > 0.0);
+    println!(
+        "{titre} : PAC air/air réversible, chauffage {:.1} kWh fournis pour {:.1} kWh d'électricité \
+         (COP saisonnier {cop:.2}), froid {:.1} kWh pour {:.1} kWh (EER saisonnier {eer:.2}), \
+         auxiliaires {:.1} kWh ; Bbio = {:.1} points, DH = {:.1} °C.h",
+        rev.q_fou_ch_kwh,
+        rev.consommations.chauffage.electricite_kwh,
+        rev.q_fou_fr_kwh,
+        rev.consommations.refroidissement.electricite_kwh,
+        rev.w_aux_kwh,
+        bc.bbio_pts.unwrap(),
+        bc.dh_c_h.unwrap(),
+    );
 }
 
 #[test]

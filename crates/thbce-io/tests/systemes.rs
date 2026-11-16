@@ -57,62 +57,13 @@ fn brut(projet: &Projet, meteo: &MeteoProjet) -> Resultats {
     calculer(projet, meteo, &Options { arrondir: false }).unwrap()
 }
 
-/// Variante rétablie au lot 6c2 avec la pompe à chaleur air/air réversible : depuis le lot 6c1,
-/// une génération doit décrire ses générateurs, et le refroidissement demande un générateur
-/// thermodynamique (fiche 8.23).
-///
-/// La maison d'exemple équipée d'une pompe à chaleur air/air réversible : unités intérieures
-/// soufflant l'air (Pem 0,95 en chaud et en froid, classes B2 et B), régulation par défaut avec
-/// arrêt total, ventilateurs à régulation automatique avec arrêt (30, 20 et 10 W ; 600, 400 et
-/// 200 m³/h), batterie à température constante ; réseaux fictifs (détente directe).
+/// La maison d'exemple équipée d'une pompe à chaleur air/air réversible
+/// (`tests/cas/maison-pac-air-air-ademe`) : unités intérieures soufflant l'air (Pem 0,95 en chaud
+/// et en froid, classes B2 et B), régulation par défaut avec arrêt total, ventilateurs à
+/// régulation automatique avec arrêt (30, 20 et 10 W ; 600, 400 et 200 m³/h), batterie à
+/// température constante ; réseaux fictifs (détente directe).
 fn climatisee() -> Projet {
-    let mut p = cas("maison-climat-ademe");
-    let b = &mut p.batiments[0];
-    b.distributions_intergroupes = serde_json::from_str(
-        r#"[{"id": "intergroupes-chauffage", "fonction": "chauffage",
-             "generation": "pac-air-air", "reseau": "fictif"},
-            {"id": "intergroupes-froid", "fonction": "refroidissement",
-             "generation": "pac-air-air", "reseau": "fictif"}]"#,
-    )
-    .unwrap();
-    b.generations = serde_json::from_str(
-        r#"[{"id": "pac-air-air", "raccordement_reseaux": "avec_isolement",
-             "position": "en_volume_chauffe",
-             "generateurs": [{"id": "resistances", "rdim": 1, "nature":
-               {"effet_joule": {"fonction": "chauffage", "pn_gen_w": 8000}}}]}]"#,
-    )
-    .unwrap();
-    b.generations
-        .push(cas("maison-climat-ademe").batiments[0].generations[1].clone());
-    let g = &mut b.zones[0].groupes[0];
-    g.iclim = Some(true);
-    g.programmation = Some(
-        serde_json::from_str(r#"{"chauffage": "horloge", "refroidissement": "horloge"}"#).unwrap(),
-    );
-    g.distributions = serde_json::from_str(
-        r#"[{"id": "d-ch", "fonction": "chauffage",
-             "distribution_intergroupes": "intergroupes-chauffage", "reseau": "fictif"},
-            {"id": "d-fr", "fonction": "refroidissement",
-             "distribution_intergroupes": "intergroupes-froid", "reseau": "fictif"}]"#,
-    )
-    .unwrap();
-    g.emetteurs = serde_json::from_str(
-        r#"[{"id": "unites-interieures",
-             "chauffage": {"type_emetteur": "soufflage_air_chaud",
-               "variation_spatiale": {"classe": {"classe": "B2", "hsp_m": 2.5}},
-               "variation_temporelle": {"defaut": {"arret_total": true}},
-               "effet_joule": false, "rats": 1, "ratt": 1, "distribution": "d-ch"},
-             "refroidissement": {"type_emetteur": "soufflage_air_froid",
-               "variation_spatiale": {"classe": {"classe": "B", "hsp_m": 2.5}},
-               "variation_temporelle": {"defaut": {"arret_total": true}},
-               "rats": 1, "ratt": 1, "distribution": "d-fr"},
-             "ventilateurs": {"gestion": "automatique_avec_arret",
-               "p_gv_w": 30, "p_mv_w": 20, "p_pv_w": 10,
-               "q_recirc_gv_m3_h": 600, "q_recirc_mv_m3_h": 400, "q_recirc_pv_m3_h": 200,
-               "regulation_batterie": "temperature_constante"}}]"#,
-    )
-    .unwrap();
-    p
+    cas("maison-pac-air-air-ademe")
 }
 
 /// Bilan d'énergie du modèle thermique de chaque groupe en Th-C, en Wh.
@@ -175,10 +126,19 @@ fn dh_selon(projet: &Projet, meteo: &MeteoProjet, lectures: Lectures) -> f64 {
 
 fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
     let maison = cas("maison-climat-ademe");
+    let clim = climatisee();
     let m = meteo_de(&maison);
     let rm = brut(&maison, &m);
+    let rc = brut(&clim, &m);
     let b = &rm.batiments[0];
     let sy = b.zones[0].groupes[0].systemes.as_ref().unwrap();
+    let syc = rc.batiments[0].zones[0].groupes[0]
+        .systemes
+        .as_ref()
+        .unwrap();
+
+    // Bbio indépendant des systèmes (Th-B, émission conventionnelle).
+    assert_eq!(b.bbio_pts, rc.batiments[0].bbio_pts);
 
     // La demande de la génération est celle des émetteurs, les réseaux fictifs n'ayant ni
     // pertes ni auxiliaires (éq. 872, 873, 919 et 920).
@@ -190,9 +150,15 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
     assert!(sy.q_sys_ch_kwh > besoin_bbio_kwh);
     assert!(sy.nbh_relance > 0);
     assert_eq!(sy.q_sys_fr_kwh, 0.0);
+    // Variante climatisée : froid, ventilateurs locaux, générations communes.
+    assert!(syc.q_sys_fr_kwh > 0.0);
+    assert!(syc.w_vent_loc_kwh > 0.0);
+    assert!((rc.batiments[0].generations[0].q_fr_kwh - syc.q_sys_fr_kwh).abs() < 1e-9);
     // Bilans d'énergie du modèle thermique fermés en Th-C.
-    let r = residu_th_c(&maison, &m);
-    assert!(r.abs() < 1e-6, "{titre} : résidu relatif {r}");
+    for p in [&maison, &clim] {
+        let r = residu_th_c(p, &m);
+        assert!(r.abs() < 1e-6, "{titre} : résidu relatif {r}");
+    }
     // ECS (§9.6) : 392 L à 40 °C par adulte équivalent et par semaine (éq. 1686), 1,95 adulte
     // équivalent pour 96,4 m² (éq. 1685), corrigés de 0,97 par les mitigeurs (éq. 1678) : 741 L
     // par semaine, réchauffés d'environ 27 K depuis l'eau froide, soit de l'ordre de
@@ -219,13 +185,18 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
     );
     println!(
         "{titre} : Bbio = {:.2} points, DH = {:.1} °C.h (émission conventionnelle : {:.1}) ; \
-         Th-C : chauffage {:.1} kWh ({:.1} kWh en Bbio), {} h de relance",
+         Th-C : chauffage {:.1} kWh ({:.1} kWh en Bbio), {} h de relance ; climatisée : \
+         chauffage {:.1} kWh, froid {:.1} kWh, ventilateurs {:.1} kWh, DH = {:.1} °C.h",
         b.bbio_pts.unwrap(),
         b.dh_c_h.unwrap(),
         dh_conv,
         sy.q_sys_ch_kwh,
         besoin_bbio_kwh,
         sy.nbh_relance,
+        syc.q_sys_ch_kwh,
+        syc.q_sys_fr_kwh,
+        syc.w_vent_loc_kwh,
+        rc.batiments[0].dh_c_h.unwrap(),
     );
     // Variante à plancher chauffant à eau : la génération reçoit la demande des émetteurs
     // augmentée des pertes du réseau du groupe (éq. 880) ; réseau intergroupes individuel sans
@@ -292,9 +263,18 @@ fn validation_des_systemes() {
             .collect()
     };
     assert!(messages(&cas("maison-climat-ademe")).is_empty());
-    // Variante climatisée : sans générateur de refroidissement, le montage est incohérent
+    assert!(messages(&climatisee()).is_empty());
+    // Sans mode refroidissement, la génération n'assure plus le poste de son réseau de froid
     // (§8.17.3.1).
-    assert!(messages(&climatisee())
+    let mut p = climatisee();
+    let v = serde_json::to_value(&p.batiments[0].generations[0]).unwrap();
+    let mut v2 = v;
+    v2["generateurs"][0]["nature"]["thermodynamique_electrique"]
+        .as_object_mut()
+        .unwrap()
+        .remove("refroidissement");
+    p.batiments[0].generations[0] = serde_json::from_value(v2).unwrap();
+    assert!(messages(&p)
         .iter()
         .any(|m| m.contains("n'assure le poste refroidissement")));
     // iclim absent, ou contraire aux émetteurs.
@@ -317,6 +297,45 @@ fn validation_des_systemes() {
         .iter()
         .any(|m| m.contains("réseau de distribution inconnu")));
     assert!(m.iter().any(|m| m.contains("ne peut dépasser 1")));
+    // Générateurs thermodynamiques (§8.23) : technologie hors de la version, incohérence avec
+    // les réseaux, ordre de priorité des valeurs mesurées, charge partielle incohérente.
+    let avec = |f: &dyn Fn(&mut serde_json::Value)| -> Vec<String> {
+        let mut p = cas("maison-plancher-ademe");
+        let mut v = serde_json::to_value(&p.batiments[0].generations[0]).unwrap();
+        f(&mut v["generateurs"][0]["nature"]["thermodynamique_electrique"]);
+        p.batiments[0].generations[0] = serde_json::from_value(v).unwrap();
+        messages(&p)
+    };
+    assert!(avec(&|_| {}).is_empty());
+    let m = avec(&|pac| pac["chauffage"]["technologie"] = "eau_glycolee_eau".into());
+    assert!(m.iter().any(|m| m.contains("non pris en charge")), "{m:?}");
+    let m = avec(&|pac| pac["chauffage"]["technologie"] = "air_exterieur_air_recycle".into());
+    assert!(m.iter().any(|m| m.contains("réseaux fictifs")), "{m:?}");
+    let m = avec(&|pac| {
+        // Sans la valeur pivot (7 °C et 32,5 °C).
+        pac["chauffage"]["performances"]["mesurees"]
+            .as_array_mut()
+            .unwrap()
+            .remove(0);
+    });
+    assert!(
+        m.iter().any(|m| m.contains("requises pour le calcul")),
+        "{m:?}"
+    );
+    let m = avec(&|pac| {
+        pac["chauffage"]["fonctionnement_continu"] = serde_json::json!(
+            {"lr_contmin": 0.05, "ccp_lr_contmin": 1.0, "statut": "certifie"}
+        );
+    });
+    assert!(m.iter().any(|m| m.contains("limites tolérées")), "{m:?}");
+    let m = avec(&|pac| {
+        pac["source_amont"] = serde_json::json!({"air_extrait": {"zone": "x", "t_air_lim_c": 5}});
+    });
+    assert!(m.iter().any(|m| m.contains("zone inconnue")), "{m:?}");
+    assert!(
+        m.iter().any(|m| m.contains("source amont incohérente")),
+        "{m:?}"
+    );
     // Générateurs : au moins un, natures hors de la version, sécurité antigel.
     let mut p = cas("maison-climat-ademe");
     p.batiments[0].generations[0].generateurs.clear();
