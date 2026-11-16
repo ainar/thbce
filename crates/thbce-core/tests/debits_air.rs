@@ -49,6 +49,7 @@ fn etat(theta: f64, repris: f64, souffle: f64) -> EtatGroupe {
         q_spec_souffle_m3_h: souffle,
         t_air_souffle_c: theta,
         omega_air_souffle_kg_kg: 0.0,
+        theta_an_c: None,
     }
 }
 
@@ -468,6 +469,7 @@ fn regles_de_saisie_des_entrees_d_air() {
             m_prime_m3_h: m_prime,
         }),
         r: Some(0.5),
+        espace_tampon: None,
     };
     // Les entrées d'air sont facultatives.
     assert!(avec(None).is_empty());
@@ -478,6 +480,7 @@ fn regles_de_saisie_des_entrees_d_air() {
             m_m3_h: -1.0,
             autoreglable: None,
             r: Some(1.5),
+            espace_tampon: None,
         })),
         [format!("{c}.m_m3_h"), format!("{c}.r")]
     );

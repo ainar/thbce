@@ -240,17 +240,24 @@ impl GroupeThermique {
     /// « Hgemq » : coefficient de transfert entre l'extérieur et la surface intérieure des
     /// parois opaques, en W/K.
     ///
-    /// Th-BCE 2020 §5.21.3.6, éq. (339) : `Hgemq = 1/(1/HTH,k+pt − 1/Hgmqs)`. Nul sans paroi
-    /// déperditive. `None` si `HTH,k+pt ≥ Hgmqs` : la formule n'a alors pas de sens physique
-    /// (l'enveloppe serait plus conductrice que l'échange superficiel intérieur).
+    /// Th-BCE 2020 §5.21.3.6, éq. (339) : `Hgemq = 1/(1/HTH,k+pt − 1/Hgmqs)`, écrit
+    /// `HTH,k+pt·Hgmqs/(Hgmqs − HTH,k+pt)` ([`Self::rapport_emq`]) ; nul sans paroi déperditive.
+    /// `None` si `HTH,k+pt ≥ Hgmqs` : la formule n'a alors pas de sens physique (l'enveloppe
+    /// serait plus conductrice que l'échange superficiel intérieur).
+    ///
+    /// `HTH,k+pt` peut être négatif quand des parois donnent sur un espace tampon plus chaud que
+    /// le groupe (`btherm < 0`, §5.4.3.3.1.6, éq. 126) : la formule reste définie et `Hgemq` est
+    /// alors négatif (décision Q41 point 7).
     pub fn hg_emq_w_k(&self, h_th_k_pt_w_k: f64) -> Option<f64> {
-        if h_th_k_pt_w_k <= 0.0 {
-            Some(0.0)
-        } else if h_th_k_pt_w_k >= self.hg_mqs_w_k {
-            None
-        } else {
-            Some(1.0 / (1.0 / h_th_k_pt_w_k - 1.0 / self.hg_mqs_w_k))
-        }
+        Some(h_th_k_pt_w_k * self.rapport_emq(h_th_k_pt_w_k)?)
+    }
+
+    /// `Hgemq/HTH,k+pt = Hgmqs/(Hgmqs − HTH,k+pt)` : part du flux `φsh` des parois opaques et des
+    /// ponts thermiques ramenée à leur surface intérieure (éq. 344 développée). Définie pour
+    /// `HTH,k+pt < Hgmqs`, y compris nul ou négatif ; `None` sinon.
+    pub fn rapport_emq(&self, h_th_k_pt_w_k: f64) -> Option<f64> {
+        (h_th_k_pt_w_k < self.hg_mqs_w_k)
+            .then(|| self.hg_mqs_w_k / (self.hg_mqs_w_k - h_th_k_pt_w_k))
     }
 
     /// Parts des apports radiatifs et du flux solaire de courte longueur d'onde reçues au nœud
@@ -384,11 +391,7 @@ impl GroupeThermique {
         let air = u1 * s.air.theta_ei_eq_c + phi_i * hg_is / (hg_ei + hg_is);
         // Hges·θes et Hgemq·θem, développés.
         let baies = hg_es * s.theta_e_c + s.phi_sl_w;
-        let opaques = if hg_emq > 0.0 {
-            hg_emq * s.theta_e_c + s.phi_sh_w * hg_emq / s.h_th_k_pt_w_k
-        } else {
-            0.0
-        };
+        let opaques = hg_emq * s.theta_e_c + s.phi_sh_w * self.rapport_emq(s.h_th_k_pt_w_k)?;
 
         // Température de masse, éq. (365) et (366).
         let phi_m_tot = phi_mq + opaques + u3_sur_u2 * (phi_s + baies + air);

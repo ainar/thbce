@@ -8,6 +8,7 @@ use crate::climat::environnement_proche::{
 };
 use crate::entree::{Catalogue, ParoiOpaque, ParoiType, PositionParoi};
 
+use super::espace_tampon::espace_tampon::CoefficientsEt;
 use super::{fce, ConditionsExterieures, FluxOpaques, HE_W_M2K};
 
 /// « β1 » : inclinaison en dessous de laquelle la paroi est horizontale à flux ascendant, en °.
@@ -127,6 +128,8 @@ pub struct ParoiResolue {
     pub surface: SurfaceExposee,
     /// Masques.
     pub masques: Vec<MasqueResolu>,
+    /// Indice, dans le bâtiment, de l'espace tampon sur lequel donne la paroi.
+    pub espace_tampon: Option<usize>,
 }
 
 /// Résout les masques d'une liste d'identifiants. La validation garantit leur présence.
@@ -153,13 +156,15 @@ impl ParoiResolue {
             inclinaison: Inclinaison::de(beta_deg),
             surface: SurfaceExposee::depuis_exposition(&paroi.exposition),
             masques: resoudre_masques(&paroi.exposition.masques, catalogue),
+            espace_tampon: None,
         }
     }
 
     /// « HTH,k » : coefficient de transmission thermique global, en W/K.
     ///
     /// Th-BCE 2020 §5.17.3, éq. (295) et (296) : `HTH,k = Ak·btherm,k·Uk_β`, avec `btherm = 1`
-    /// en l'absence d'espace tampon.
+    /// en l'absence d'espace tampon ; c'est aussi « HTH_set,k », coefficient « sans les espaces
+    /// tampons » de l'éq. (106). Avec l'espace tampon : [`Self::h_th_reduit_w_k`].
     pub fn h_th_w_k(&self) -> f64 {
         self.a_k_m2 * self.u_k_beta_w_m2k
     }
@@ -181,7 +186,7 @@ impl ParoiResolue {
     ///
     /// Th-BCE 2020 §5.17.3 : éq. (288) `Isr,k = Drp* + Dfp* + Rrp*` ; éq. (289)
     /// `Φsh_s,k = Ak·Sf,k·Isr,k·bsolaire,k` ; éq. (297) `Φsh_vc,k = Ak·bvoute,k·Qer*·Uk_β/he`.
-    /// Sans espace tampon, `bsolaire = 1` et `bvoute = 1`.
+    /// Sans espace tampon, `bsolaire = 1` et `bvoute = 1` ; avec : [`Self::flux_reduit`].
     pub fn flux(&self, c: &ConditionsExterieures) -> FluxOpaques {
         let incident = flux_atteignant_la_paroi(
             &self.surface,
@@ -198,6 +203,34 @@ impl ParoiResolue {
         FluxOpaques {
             phi_sh_s_w: self.a_k_m2 * sf * incident.isr_w_m2(),
             phi_sh_vc_w: self.a_k_m2 * qer * self.u_k_beta_w_m2k / HE_W_M2K,
+        }
+    }
+}
+
+impl ParoiResolue {
+    /// « HTH,k(h) » avec l'espace tampon : `Ak·btherm,k(h)·Uk_β` (§5.17.3, éq. 295).
+    /// `et` : coefficients de l'espace tampon sur lequel donne la paroi, `None` sinon.
+    pub fn h_th_reduit_w_k(&self, et: Option<&CoefficientsEt>) -> f64 {
+        self.h_th_w_k() * et.map_or(1.0, |e| e.b_therm)
+    }
+
+    /// Flux transmis au groupe par la paroi, avec l'espace tampon.
+    ///
+    /// Th-BCE 2020 §5.17.3, « Prise en compte des espaces tampons » : l'espace tampon bloque
+    /// les échanges avec la voûte céleste, `bvoute,k = 0` ; éq. (289) : le flux solaire est
+    /// multiplié par `bsolaire,k(h)`.
+    pub fn flux_reduit(
+        &self,
+        c: &ConditionsExterieures,
+        et: Option<&CoefficientsEt>,
+    ) -> FluxOpaques {
+        let f = self.flux(c);
+        match et {
+            None => f,
+            Some(e) => FluxOpaques {
+                phi_sh_s_w: f.phi_sh_s_w * e.b_solaire,
+                phi_sh_vc_w: 0.0,
+            },
         }
     }
 }

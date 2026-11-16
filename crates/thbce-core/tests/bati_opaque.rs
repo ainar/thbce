@@ -54,6 +54,7 @@ fn paroi(a: f64, t: &ParoiType, e: Exposition) -> ParoiResolue {
         type_paroi: "t".into(),
         a_k_m2: a,
         exposition: e,
+        espace_tampon: None,
     };
     ParoiResolue::nouvelle(&p, t, &Catalogue::default())
 }
@@ -293,6 +294,7 @@ fn un_masque_reduit_le_flux_solaire_du_mur() {
             masques: vec!["relief".into()],
             ..exposition(0.0, 90.0)
         },
+        espace_tampon: None,
     };
     let mur = ParoiResolue::nouvelle(&p, &type_paroi(0.2, VERT, 0.01, 0.01), &catalogue);
     assert_proche!(mur.flux(&conditions(TH_B, false, 0)).phi_sh_s_w, 22.0);
@@ -350,6 +352,7 @@ fn pont(exposition: Option<Exposition>) -> PontThermique {
         sf_c_l: 0.02,
         sf_e_l: 0.05,
         exposition,
+        espace_tampon: None,
     }
 }
 
