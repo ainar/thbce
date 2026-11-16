@@ -10,12 +10,17 @@
 //!   la famille « habitation, hôtellerie et hébergement » ;
 //! - tableau 34 (p. 218), tableau en texte : valeurs propres au calcul Th-D.
 //!
-//! **Les figures 35 et 38 sont des images de 623 × 413 pixels (96 ppi, JPEG) dans le PDF.** Les
-//! matrices [`VOLET_HABITATION`] et [`STORE_ENROULABLE_HABITATION`] en sont une transcription à
-//! l'œil, sur un agrandissement ; les chiffres y sont lisibles mais peu nets. Cette
-//! transcription est **à vérifier par le mainteneur** sur une source de meilleure définition
-//! (`docs/questions.md`, question Q31, où les deux tableaux sont reproduits). Les tests de ce
-//! module vérifient les propriétés de cohérence de la transcription, pas son exactitude.
+//! Les figures 35 et 38 sont des images dans le texte. La transcription de
+//! [`VOLET_HABITATION`] et de [`STORE_ENROULABLE_HABITATION`] a pour source les figures publiées
+//! au Journal officiel du 15 août 2021, versionnées dans le dépôt :
+//! - figure 35 (volets), page 357 du JO, 986 × 653 pixels, image sans perte :
+//!   `docs/reference/arrete/figures/a3_figure35_volets_habitation_jo.png` ;
+//! - figure 38 (stores enroulables), page 359 du JO, 780 × 509 pixels :
+//!   `docs/reference/arrete/figures/a3_figure38_stores_enroulables_habitation_jo.png`.
+//!
+//! Le mainteneur a comparé la transcription à ces images, cellule par cellule, pour les lignes
+//! de gestion manuelle (16 novembre 2026, `docs/questions.md`, décision Q31). Les tests de ce
+//! module vérifient en outre la cohérence interne des matrices.
 //!
 //! Seule la famille « habitation, hôtellerie et hébergement » (usages 1 et 2 de la première
 //! version) et les lignes de gestion manuelle sont transcrites.
@@ -131,7 +136,8 @@ const fn inocc(jour: f64, nuit: f64) -> LigneInoccupation {
 }
 
 /// Figure 35 (p. 197) : première protection mobile de type volet, famille « habitation,
-/// hôtellerie et hébergement », lignes de gestion manuelle. Transcription d'image à vérifier.
+/// hôtellerie et hébergement », lignes de gestion manuelle
+/// (`docs/reference/arrete/figures/a3_figure35_volets_habitation_jo.png`).
 #[rustfmt::skip]
 pub const VOLET_HABITATION: MatriceManuelle = MatriceManuelle {
     //                             Rprot0  Ecl1       Rprot(PM2)  Ecl2       nuit
@@ -163,8 +169,8 @@ pub const VOLET_HABITATION: MatriceManuelle = MatriceManuelle {
 };
 
 /// Figure 38 (p. 200) : première protection mobile de type store enroulable, famille
-/// « habitation, hôtellerie et hébergement », lignes de gestion manuelle. Transcription d'image
-/// à vérifier.
+/// « habitation, hôtellerie et hébergement », lignes de gestion manuelle
+/// (`docs/reference/arrete/figures/a3_figure38_stores_enroulables_habitation_jo.png`).
 #[rustfmt::skip]
 pub const STORE_ENROULABLE_HABITATION: MatriceManuelle = MatriceManuelle {
     occupation_non_motorisee: [
