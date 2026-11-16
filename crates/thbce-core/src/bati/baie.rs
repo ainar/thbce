@@ -148,6 +148,24 @@ pub const REDUCTION_SW_SP_C: f64 = 0.1;
 /// Valeur par défaut de `Tlid` (§5.10.3.6.3, éq. 218).
 pub const TLID_DEFAUT: f64 = 0.0;
 
+/// Répartit un facteur solaire global par défaut entre `Sw1`, `Sw2` et `Sw3`.
+///
+/// Hypothèse du mainteneur, faute de règle dans le texte, à confirmer par un cas de référence
+/// (décision Q30, point 8). Les éq. (215) et (216) du §5.10.3.6.3 donnent le facteur **global**
+/// par défaut et renvoient aux règles Th-S pour sa décomposition. Lecture retenue : les
+/// composantes « -c » gardent les proportions des composantes « -e »,
+/// `Swi-c = Swi-e × (Sw-c / Sw-e)`. Elle conserve le total imposé par le texte et ne produit
+/// jamais de composante négative. Ce choix est isolé ici.
+///
+/// `rapport` est `Sw-c / Sw-e`.
+fn repartir_facteur_global(sw_e: &FacteursSolaires, rapport: f64) -> FacteursSolaires {
+    FacteursSolaires {
+        sw1: sw_e.sw1 * rapport,
+        sw2: sw_e.sw2 * rapport,
+        sw3: sw_e.sw3 * rapport,
+    }
+}
+
 /// Facteurs d'un état de la baie, valeurs par défaut du texte appliquées.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FacteursResolus {
@@ -171,9 +189,9 @@ impl FacteursResolus {
     /// - éq. (218) : `Tlid = 0`.
     ///
     /// Le texte donne la valeur par défaut du facteur global et renvoie aux règles Th-S pour sa
-    /// décomposition en `Sw1`, `Sw2` et `Sw3`. Lecture retenue (question Q30) : les composantes
-    /// « -c » gardent les proportions des composantes « -e », soit
-    /// `Swi-c = Swi-e × Sw-c/Sw-e` ; avec protection mobile, elles leur sont donc égales.
+    /// décomposition en `Sw1`, `Sw2` et `Sw3` : voir [`repartir_facteur_global`] (hypothèse du
+    /// mainteneur, décision Q30). Avec protection mobile, les composantes « -c » sont donc
+    /// égales aux composantes « -e ».
     ///
     /// Renvoie `None` si les composantes « -c » ne sont saisies qu'en partie, ou si la valeur
     /// par défaut de l'éq. (215) n'est pas positive (cas écartés par la validation).
@@ -212,11 +230,7 @@ impl FacteursResolus {
                          égales à celles de Swap-e (question Q30)",
                     ),
                 };
-                let c = FacteursSolaires {
-                    sw1: sw_e.sw1 * rapport,
-                    sw2: sw_e.sw2 * rapport,
-                    sw3: sw_e.sw3 * rapport,
-                };
+                let c = repartir_facteur_global(&sw_e, rapport);
                 for (champ, valeur) in [("sw1_c", c.sw1), ("sw2_c", c.sw2), ("sw3_c", c.sw3)] {
                     defauts.push(ValeurParDefaut {
                         champ: format!("{prefixe}.{champ}"),
