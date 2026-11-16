@@ -2,24 +2,28 @@
 //! Point d'entrée du calcul.
 //!
 //! État : le calcul valide l'entrée et les données météo, détermine le climat du site (lot 3) et
-//! les surfaces de référence, puis déroule l'année au pas horaire en mode Th-B (lot 4) : besoins
-//! de chauffage, de refroidissement et d'éclairage et Bbio (§13.1). Cep, Cep,nr, DH et
-//! Ic énergie restent à `None` jusqu'à l'implémentation des lots 5 à 7 (`docs/couverture.md`).
+//! les surfaces de référence, puis déroule deux années au pas horaire : en mode Th-B (lot 4),
+//! pour les besoins de chauffage, de refroidissement et d'éclairage et le Bbio (§13.1) ; puis en
+//! mode Th-D (lot 5), sur le jeu météo à séquence caniculaire, pour l'indicateur de confort
+//! d'été DH (§13.5). Les deux calculs emploient le même enchaînement horaire, paramétré par
+//! [`ModeCalcul`]. Cep, Cep,nr et Ic énergie restent à `None` jusqu'à l'implémentation des lots
+//! 6 et 7 (`docs/couverture.md`).
 
-use crate::bati::assemblage_groupe::{EnveloppeResolue, GroupeBbio};
-use crate::bati::assemblage_zone::ZoneBbio;
+use crate::bati::assemblage_groupe::{EnveloppeResolue, GroupeHoraire, SortiesPasGroupe};
+use crate::bati::assemblage_zone::ZoneHoraire;
 use crate::bati::baie::{BaieResolue, EnsembleBaies, Protections};
 use crate::bati::paroi_opaque::EnsembleParois;
 use crate::bati::pont_thermique::EnsemblePonts;
 use crate::bati::surventilation::H_TTF_CAS_GENERAL_M;
 use crate::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
+use crate::conventions::{ModeCalcul, NB_HEURES_AN};
 use crate::entree::{Catalogue, Groupe, Projet, UsageZone, Zone};
 use crate::erreur::Erreur;
 use crate::indicateurs::sorties_th_b::{sorties, EnergiesMensuelles};
 use crate::resultats::{
     PeriodeConfortAdaptatif, Resultats, ResultatsBaie, ResultatsBatiment, ResultatsClimat,
-    ResultatsConfort, ResultatsDebitsBbio, ResultatsEnveloppe, ResultatsGroupe, ResultatsSaisons,
-    ResultatsZone, ValeurParDefaut,
+    ResultatsConfort, ResultatsConfortEte, ResultatsDebitsBbio, ResultatsEnveloppe,
+    ResultatsGroupe, ResultatsSaisons, ResultatsZone, ValeurParDefaut,
 };
 use crate::validation::valider;
 use crate::ventilation::bouche_conduit::debits_specifiques_bbio_groupe;
@@ -40,13 +44,19 @@ impl Default for Options {
     }
 }
 
-/// Calcule les indicateurs d'un projet à partir de sa description et des données météo de sa
-/// zone climatique.
-pub fn calculer(
+/// Avertissement porté par tout résultat tant que les systèmes du projet ne sont pas décrits :
+/// le DH restitué est celui du confort d'été « en mode besoins » (`docs/questions.md`, Q40).
+pub const AVERTISSEMENT_DH: &str =
+    "DH calculé avec le système de ventilation et l'émission conventionnels du calcul du Bbio \
+     (confort d'été en mode « besoins ») : la ventilation du projet n'est pas encore prise en \
+     compte par le moteur";
+
+/// Contrôles communs à tout calcul : validité de l'entrée, usages pris en charge, données
+/// météo de la zone climatique du projet.
+fn verifier(
     projet: &Projet,
     meteo: &MeteoProjet,
-    options: &Options,
-) -> Result<Resultats, Erreur> {
+) -> Result<crate::validation::RapportValidation, Erreur> {
     let rapport = valider(projet);
     if !rapport.est_valide() {
         return Err(Erreur::Saisie(rapport));
@@ -64,16 +74,33 @@ pub fn calculer(
             }
         }
     }
+    meteo.verifier(projet.localisation.zone_climatique_retenue())?;
+    Ok(rapport)
+}
+
+/// Calcule les indicateurs d'un projet à partir de sa description et des données météo de sa
+/// zone climatique.
+///
+/// Deux calculs annuels s'enchaînent pour chaque zone : Th-B sur le jeu météo « Th-BC », puis
+/// Th-D sur le jeu « Th-D » (annexe II §1.2.1, tableau 2).
+pub fn calculer(
+    projet: &Projet,
+    meteo: &MeteoProjet,
+    options: &Options,
+) -> Result<Resultats, Erreur> {
+    let rapport = verifier(projet, meteo)?;
     let loc = &projet.localisation;
     let zone = loc.zone_climatique_retenue();
-    meteo.verifier(zone)?;
 
     // Th-BCE 2020 §3.1 : climat du site pour chacun des deux jeux météo, calculé une fois avant
     // la boucle horaire.
     let climat_th_bc = ClimatExterieur::nouveau(&meteo.th_bc, loc.departement, loc.alt_m);
     let climat_th_d = ClimatExterieur::nouveau(&meteo.th_d, loc.departement, loc.alt_m);
-    let periode = |climat: &ClimatExterieur| {
-        let c = ConfortAdaptatif::nouveau(&climat.te_c);
+    // Th-BCE 2020 §3.1.3, éq. (1) et (2), et §4.5.3.2.1, éq. (57) : moyenne glissante de la
+    // température extérieure et période de confort adaptatif de chaque jeu météo.
+    let confort_th_bc = ConfortAdaptatif::nouveau(&climat_th_bc.te_c);
+    let confort_th_d = ConfortAdaptatif::nouveau(&climat_th_d.te_c);
+    let periode = |c: &ConfortAdaptatif| {
         // Jours restitués de 1 à 365 (« Jour_année », §3.1.2).
         let numero = |j: Option<usize>| j.and_then(|j| u16::try_from(j + 1).ok());
         PeriodeConfortAdaptatif {
@@ -85,8 +112,8 @@ pub fn calculer(
         zone_climatique: zone,
         altcorr_m: climat_th_bc.altcorr_m,
         base_ext_c: climat_th_bc.base_ext_c,
-        confort_adaptatif_th_bc: periode(&climat_th_bc),
-        confort_adaptatif_th_d: periode(&climat_th_d),
+        confort_adaptatif_th_bc: periode(&confort_th_bc),
+        confort_adaptatif_th_d: periode(&confort_th_d),
     };
 
     let mut avertissements: Vec<String> = rapport
@@ -95,18 +122,18 @@ pub fn calculer(
         .map(|p| format!("{} : {}", p.chemin, p.message))
         .collect();
     avertissements
-        .push("Cep, Cep,nr, DH et Ic énergie ne sont pas encore calculés par le moteur".to_owned());
+        .push("Cep, Cep,nr et Ic énergie ne sont pas encore calculés par le moteur".to_owned());
+    avertissements.push(AVERTISSEMENT_DH.to_owned());
 
-    // Th-BCE 2020 §4.5.3.2.1, éq. (57) : moyenne glissante de la température extérieure du jeu
-    // météo « Th-BC », employée par les indicateurs de confort du calcul Th-B.
-    let confort_th_bc = ConfortAdaptatif::nouveau(&climat_th_bc.te_c);
     let mut batiments = Vec::with_capacity(projet.batiments.len());
     for bat in &projet.batiments {
         let mut zones = Vec::with_capacity(bat.zones.len());
         let mut energies_bat = EnergiesMensuelles::default();
         for zone in &bat.zones {
-            let (resultats_zone, energies_zone) =
-                calculer_zone(zone, projet, &climat_th_bc, &confort_th_bc)?;
+            // Mode Th-B, puis mode Th-D : même enchaînement horaire, climat et règles du mode.
+            let th_b = simuler_zone(zone, projet, ModeCalcul::ThB, &climat_th_bc, &confort_th_bc)?;
+            let th_d = simuler_zone(zone, projet, ModeCalcul::ThD, &climat_th_d, &confort_th_d)?;
+            let (resultats_zone, energies_zone) = restituer_zone(zone, projet, &th_b, &th_d);
             energies_bat.ajouter(&energies_zone);
             zones.push(resultats_zone);
         }
@@ -120,7 +147,7 @@ pub fn calculer(
             bbio: Some(bbio),
             cep_kwhep_m2: None,
             cep_nr_kwhep_m2: None,
-            dh_c_h: None,
+            dh_c_h: dh_le_plus_defavorable(zones.iter().filter_map(|z| z.dh_c_h)),
             ic_energie_kgco2_m2: None,
             zones,
         });
@@ -143,50 +170,96 @@ pub fn calculer(
     Ok(resultats)
 }
 
-/// Calcul annuel d'une zone en mode Th-B et restitution de ses résultats.
+/// DH d'une zone ou d'un bâtiment : celui du groupe le plus défavorable.
 ///
-/// Th-BCE 2020 §5.5 (assemblage de la zone, figure 18) et §13.1 (sorties du mode Th-B). Renvoie
-/// aussi les énergies mensuelles de la zone, que le bâtiment somme (§13.1.3).
-fn calculer_zone(
+/// Th-BCE 2020 §13.5.1 : l'indicateur « est exprimé par groupe » ; §13.3.1 : les seuils
+/// s'apprécient sur un DH « calculé au niveau groupe ». Le texte ne définit pas de DH de zone
+/// ou de bâtiment ; le plus élevé des groupes est restitué à ces niveaux, puisque c'est lui qui
+/// décide du respect d'un seuil (`docs/questions.md`, Q40). `None` sans groupe.
+fn dh_le_plus_defavorable(dh: impl Iterator<Item = f64>) -> Option<f64> {
+    dh.reduce(f64::max)
+}
+
+/// Calcul annuel d'une zone dans un mode de calcul.
+///
+/// Th-BCE 2020 §5.5 (assemblage de la zone, figure 18). `climat` et `confort` sont ceux du jeu
+/// météo du mode.
+fn simuler_zone(
     zone: &Zone,
     projet: &Projet,
+    mode: ModeCalcul,
     climat: &ClimatExterieur,
     confort: &ConfortAdaptatif,
-) -> Result<(ResultatsZone, EnergiesMensuelles), Erreur> {
+) -> Result<ZoneHoraire, Erreur> {
     // Humidité initiale de l'air des groupes : celle de l'air extérieur au premier pas de temps
     // (décision Q39 point 4).
     let omega_initiale = climat.we_kg_kg.first().copied().unwrap_or(0.0);
-    let mut calcul = ZoneBbio::nouvelle(
+    let mut calcul = ZoneHoraire::nouvelle(
         zone,
         &projet.catalogue,
+        mode,
         projet.localisation.alt_m,
         omega_initiale,
     )?;
     calcul.simuler(climat, confort)?;
+    Ok(calcul)
+}
 
+/// Saisons propres d'un groupe à l'issue d'un calcul annuel (§4.6.3.6, éq. 92).
+fn resultats_saisons(groupe: &GroupeHoraire) -> ResultatsSaisons {
+    let s = &groupe.etat.saisons;
+    ResultatsSaisons {
+        j_fin_ch: s.j_fin_ch,
+        j_debut_ch: s.j_debut_ch,
+        j_debut_fr: s.j_debut_fr,
+        j_fin_fr: s.j_fin_fr,
+    }
+}
+
+/// Confort d'été d'un groupe à l'issue du calcul Th-D (§13.5.3.7 et 13.5.3.8).
+fn resultats_confort_ete(groupe: &GroupeHoraire) -> ResultatsConfortEte {
+    let k = &groupe.cumuls.confort_ete;
+    ResultatsConfortEte {
+        dh_c_h: k.dh_c_h,
+        nbh_inconf: k.nbh_inconf,
+        nbh_inconf_1c: k.nbh_inconf_1c,
+        nbh_inconf_2c: k.nbh_inconf_2c,
+        nbh_occ_conf_adapt: k.nbh_occ_conf_adapt,
+        theta_op_max_c: k.theta_op_max_c,
+        theta_op_max_occ_c: k
+            .theta_op_max_occ_c
+            .is_finite()
+            .then_some(k.theta_op_max_occ_c),
+    }
+}
+
+/// Restitution des résultats d'une zone à partir de ses deux calculs annuels.
+///
+/// Th-BCE 2020 §13.1 (sorties du mode Th-B) et §13.5 (confort d'été). Renvoie aussi les
+/// énergies mensuelles de la zone en mode Th-B, que le bâtiment somme (§13.1.3).
+fn restituer_zone(
+    zone: &Zone,
+    projet: &Projet,
+    th_b: &ZoneHoraire,
+    th_d: &ZoneHoraire,
+) -> (ResultatsZone, EnergiesMensuelles) {
     let mut energies_zone = EnergiesMensuelles::default();
     let groupes: Vec<ResultatsGroupe> = zone
         .groupes
         .iter()
-        .zip(&calcul.groupes)
-        .map(|(g, c)| {
+        .zip(th_b.groupes.iter().zip(&th_d.groupes))
+        .map(|(g, (b, d))| {
             let sref_m2 = sref_groupe(g, zone.usage);
-            let energies = energies_groupe(c);
+            let energies = energies_groupe(b);
             energies_zone.ajouter(&energies);
-            let s = &c.etat.saisons;
-            let k = &c.cumuls.confort;
+            let k = &b.cumuls.confort;
             ResultatsGroupe {
                 id: g.id.clone(),
                 sref_m2,
                 enveloppe: enveloppe_groupe(g, &projet.catalogue, zone.usage),
                 debits_bbio: debits_bbio_groupe(g, zone.usage),
                 bbio: Some(sorties(&energies, sref_m2)),
-                saisons_bbio: Some(ResultatsSaisons {
-                    j_fin_ch: s.j_fin_ch,
-                    j_debut_ch: s.j_debut_ch,
-                    j_debut_fr: s.j_debut_fr,
-                    j_fin_fr: s.j_fin_fr,
-                }),
+                saisons_bbio: Some(resultats_saisons(b)),
                 confort_bbio: Some(ResultatsConfort {
                     nbh_inc_cons_ch: k.nbh_inc_cons_ch,
                     dh_inc_cons_ch_k_h: k.dh_inc_cons_ch_k_h,
@@ -195,6 +268,8 @@ fn calculer_zone(
                     nbh_inc_c_fr: k.nbh_inc_c_fr,
                     dh_inc_c_fr_k_h: k.dh_inc_c_fr_k_h,
                 }),
+                confort_ete: Some(resultats_confort_ete(d)),
+                saisons_th_d: Some(resultats_saisons(d)),
                 baies: resultats_baies(g, &projet.catalogue),
                 valeurs_par_defaut: defauts_groupe(g, &projet.catalogue),
             }
@@ -202,20 +277,85 @@ fn calculer_zone(
         .collect();
     // Th-BCE 2020 §13.1.3, éq. (2377) : SREF_zn = somme des SREF_gr de la zone.
     let sref_m2: f64 = groupes.iter().map(|g| g.sref_m2).sum();
-    Ok((
+    let dh_c_h = dh_le_plus_defavorable(
+        groupes
+            .iter()
+            .filter_map(|g| g.confort_ete.as_ref().map(|c| c.dh_c_h)),
+    );
+    (
         ResultatsZone {
             id: zone.id.clone(),
             sref_m2,
-            nadeq: Some(calcul.scenarios.nadeq),
+            nadeq: Some(th_b.scenarios.nadeq),
             bbio: Some(sorties(&energies_zone, sref_m2)),
+            dh_c_h,
             groupes,
         },
         energies_zone,
-    ))
+    )
+}
+
+/// Séries horaires d'un groupe sur l'année de calcul d'un mode.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SerieHoraireGroupe {
+    /// Identifiant du bâtiment.
+    pub batiment: String,
+    /// Identifiant de la zone.
+    pub zone: String,
+    /// Identifiant du groupe.
+    pub groupe: String,
+    /// « Te(h) » : température extérieure du site, en °C, pour chaque pas de temps.
+    pub te_c: Vec<f64>,
+    /// Sorties du groupe à chaque pas de temps : températures, besoins, débit de
+    /// surventilation, saison, inerties et, en Th-D, confort d'été.
+    pub pas: Vec<SortiesPasGroupe>,
+}
+
+/// Calcule un projet dans un seul mode (Th-B ou Th-D) et renvoie les séries horaires de chaque
+/// groupe : 8 760 pas de temps, dans l'ordre des bâtiments, des zones et des groupes.
+///
+/// C'est l'accès de l'API Rust aux températures opératives horaires et, en Th-D, aux
+/// degrés-heures de chaque pas de temps ([`SortiesPasGroupe::confort_ete`]). Les valeurs ne
+/// sont pas arrondies.
+pub fn series_horaires(
+    projet: &Projet,
+    meteo: &MeteoProjet,
+    mode: ModeCalcul,
+) -> Result<Vec<SerieHoraireGroupe>, Erreur> {
+    verifier(projet, meteo)?;
+    let loc = &projet.localisation;
+    let annee = match mode {
+        ModeCalcul::ThD => &meteo.th_d,
+        ModeCalcul::ThB | ModeCalcul::ThC => &meteo.th_bc,
+    };
+    let climat = ClimatExterieur::nouveau(annee, loc.departement, loc.alt_m);
+    let confort = ConfortAdaptatif::nouveau(&climat.te_c);
+    let omega_initiale = climat.we_kg_kg.first().copied().unwrap_or(0.0);
+    let mut series = Vec::new();
+    for bat in &projet.batiments {
+        for zone in &bat.zones {
+            let mut calcul =
+                ZoneHoraire::nouvelle(zone, &projet.catalogue, mode, loc.alt_m, omega_initiale)?;
+            let premier = series.len();
+            series.extend(calcul.groupes.iter().map(|g| SerieHoraireGroupe {
+                batiment: bat.id.clone(),
+                zone: zone.id.clone(),
+                groupe: g.id.clone(),
+                te_c: climat.te_c.iter().take(NB_HEURES_AN).copied().collect(),
+                pas: Vec::with_capacity(NB_HEURES_AN),
+            }));
+            calcul.simuler_avec(&climat, &confort, |_, z| {
+                for (serie, sorties) in series[premier..].iter_mut().zip(&z.sorties) {
+                    serie.pas.extend(sorties.iter().copied());
+                }
+            })?;
+        }
+    }
+    Ok(series)
 }
 
 /// Énergies mensuelles d'un groupe à l'issue du calcul annuel.
-fn energies_groupe(groupe: &GroupeBbio) -> EnergiesMensuelles {
+fn energies_groupe(groupe: &GroupeHoraire) -> EnergiesMensuelles {
     EnergiesMensuelles {
         q_sys_ch_wh: groupe.cumuls.q_sys_ch_wh,
         q_sys_fr_wh: groupe.cumuls.q_sys_fr_wh,

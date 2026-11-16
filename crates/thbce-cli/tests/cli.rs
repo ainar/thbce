@@ -59,7 +59,14 @@ fn calcul_ecrit_les_resultats_en_json() {
     // Jeu synthétique à 10 °C sans soleil : le besoin de chauffage, donc le Bbio, est positif.
     assert!(r["batiments"][0]["bbio_pts"].as_f64().unwrap() > 0.0);
     assert_eq!(r["batiments"][0]["cep_kwhep_m2"], serde_json::Value::Null);
-    assert!(String::from_utf8_lossy(&s.stderr).contains("non réglementaire"));
+    // Le jeu « Th-D » synthétique n'a pas de période de confort adaptatif : DH calculé, nul.
+    assert_eq!(r["batiments"][0]["dh_c_h"].as_f64(), Some(0.0));
+    let groupe = &r["batiments"][0]["zones"][0]["groupes"][0];
+    assert_eq!(groupe["confort_ete"]["dh_c_h"].as_f64(), Some(0.0));
+    assert!(groupe["confort_ete"]["theta_op_max_c"].as_f64().unwrap() > 15.0);
+    let erreurs = String::from_utf8_lossy(&s.stderr);
+    assert!(erreurs.contains("non réglementaire"));
+    assert!(erreurs.contains("DH calculé avec le système de ventilation"));
 
     let s = thbce(&[
         "calcul",

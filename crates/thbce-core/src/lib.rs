@@ -5,10 +5,10 @@
 //! Les références « Th-BCE 2020 § » renvoient à l'annexe III de l'arrêté du 4 août 2021 modifié,
 //! versionnée dans `docs/reference/arrete/`.
 //!
-//! État : le calcul annuel au pas horaire en mode Th-B est en place pour la maison individuelle
-//! et le logement collectif, et produit les besoins de chauffage, de refroidissement et
-//! d'éclairage et le Bbio. Cep, Cep,nr, DH et Ic énergie ne sont pas encore calculés et valent
-//! `None`. L'avancement fiche par fiche est tenu dans `docs/couverture.md`.
+//! État : le calcul annuel au pas horaire est en place pour la maison individuelle et le logement
+//! collectif, en mode Th-B (besoins de chauffage, de refroidissement et d'éclairage, Bbio) puis
+//! en mode Th-D (confort d'été, indicateur DH). Cep, Cep,nr et Ic énergie ne sont pas encore
+//! calculés et valent `None`. L'avancement fiche par fiche est tenu dans `docs/couverture.md`.
 //!
 //! Ce moteur n'est pas le moteur réglementaire officiel et ne vaut pas attestation de conformité.
 
@@ -27,7 +27,7 @@ pub mod scenarios;
 pub mod validation;
 pub mod ventilation;
 
-pub use calcul::{calculer, Options};
+pub use calcul::{calculer, series_horaires, Options, SerieHoraireGroupe};
 pub use erreur::Erreur;
 pub use validation::{valider, RapportValidation};
 

@@ -38,6 +38,8 @@ fn calcule_le_cas_de_demonstration() {
     let bbio = champ(&batiments.get(0), "bbio_pts").as_f64();
     assert!(bbio.is_some_and(|b| b > 0.0), "{bbio:?}");
     assert!(champ(&batiments.get(0), "cep_kwhep_m2").is_null());
+    // Le jeu « Th-D » synthétique n'a pas de période de confort adaptatif : DH calculé, nul.
+    assert_eq!(champ(&batiments.get(0), "dh_c_h").as_f64(), Some(0.0));
 }
 
 #[wasm_bindgen_test]
