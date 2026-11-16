@@ -132,6 +132,21 @@ export interface ResultatsBatiment {
   dh_c_h: number | null;
   ic_energie_kgco2_m2: number | null;
   zones: ResultatsZone[];
+  /** Espaces tampons du bâtiment ; absent sans espace tampon. */
+  espaces_tampons?: ResultatsEspaceTampon[];
+}
+export interface ResultatsEspaceTamponMode {
+  b_therm_moyen: number;
+  theta_et_moy_c: number;
+  theta_et_min_c: number;
+  theta_et_max_c: number;
+  nbh_surventilation: number;
+}
+export interface ResultatsEspaceTampon {
+  id: string;
+  th_b: ResultatsEspaceTamponMode | null;
+  th_d: ResultatsEspaceTamponMode | null;
+  valeurs_par_defaut: ValeurParDefaut[];
 }
 /** Résultats d'un calcul. `reglementaire` est faux dès que la météo n'est pas celle de la RE2020. */
 export interface Resultats {

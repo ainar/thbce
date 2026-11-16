@@ -7,8 +7,8 @@
 //! (§5.10.3.6.2) ne sont pas encore pris en charge ; les facteurs de la partie protégée sont
 //! déjà distingués par composante incidente ([`FacteursProteges`]) pour les recevoir.
 //!
-//! En l'absence d'espace tampon (§5.2 à 5.4, non pris en charge), `btherm`, `bsolaire` et
-//! `becl` valent 1 et `IdET = 0`.
+//! En l'absence d'espace tampon, `btherm`, `bsolaire` et `becl` valent 1 et `IdET = 0` ; avec un
+//! espace tampon (§5.2 à 5.4), voir [`BaieResolue::flux_reduit`].
 
 use crate::climat::environnement_proche::{
     flux_atteignant_la_paroi, qer_w_m2, FluxParoi, MasqueResolu, SurfaceExposee,
@@ -17,6 +17,7 @@ use crate::conventions::ModeCalcul;
 use crate::entree::{Baie, BaieType, Catalogue, ExpoBr, FacteursBaie, TypoPm};
 use crate::resultats::ValeurParDefaut;
 
+use super::espace_tampon::espace_tampon::CoefficientsEt;
 use super::paroi_opaque::resoudre_masques;
 use super::protection_mobile::taux_passage_air;
 use super::surventilation::r_ouv_max_par_defaut;
@@ -356,6 +357,8 @@ pub struct BaieResolue {
     pub surface: SurfaceExposee,
     /// Masques.
     pub masques: Vec<MasqueResolu>,
+    /// Indice, dans le bâtiment, de l'espace tampon sur lequel donne la baie (`IdET = 1`).
+    pub espace_tampon: Option<usize>,
 }
 
 /// Flux transmis au groupe par une baie, ou par l'ensemble des baies, à un pas de temps.
@@ -457,7 +460,59 @@ impl BaieResolue {
             type_eclairage: TypeBaieEclairage::VolumeNormal,
             surface: SurfaceExposee::depuis_exposition(&baie.exposition),
             masques: resoudre_masques(&baie.exposition.masques, catalogue),
+            espace_tampon: None,
         })
+    }
+
+    /// « btherm,i,b(h) » de la baie : celui de l'espace tampon, sauf quand l'espace tampon est
+    /// surventilé, où il vaut 1 (§5.8, « Description de l'assemblage », p. 178 : « En cas de
+    /// surventilation d'un espace tampon […], le coefficient btherm,i,b est supposé égal à
+    /// 1 ») ; 1 sans espace tampon.
+    pub fn b_therm(et: Option<&CoefficientsEt>) -> f64 {
+        match et {
+            Some(e) if !e.surventile() => e.b_therm,
+            _ => 1.0,
+        }
+    }
+
+    /// Flux transmis au groupe par la baie, avec l'espace tampon sur lequel elle donne.
+    ///
+    /// Th-BCE 2020 §5.10.3 : éq. (210) et (211), `Hges,b` multiplié par `btherm,b` (voir
+    /// [`Self::b_therm`]) ; éq. (219) à (221), `Fs1`, `Fs2` et `Fs3` multipliés par
+    /// `bsolaire,b` ; éq. (222), note 2 : `Ftvc,b = 0` en présence d'un espace tampon
+    /// (`IdET = 1`) ; éq. (231) à (237), flux lumineux multipliés par `becl,b`. Les flux sont
+    /// linéaires en ces coefficients : ils sont appliqués aux flux sans espace tampon. Le
+    /// rayonnement incident est celui de la baie elle-même ; l'éclairement qui commande ses
+    /// protections mobiles est `Etp** = becl·Etp*` (§5.9.3, éq. 176), à la charge de
+    /// l'appelant.
+    pub fn flux_reduit(
+        &self,
+        incident: &FluxParoi,
+        c: &ConditionsExterieures,
+        p: &Protections,
+        et: Option<&CoefficientsEt>,
+    ) -> FluxBaies {
+        let f = self.flux_depuis_incident(incident, c, p);
+        let Some(e) = et else { return f };
+        let bs = e.b_solaire;
+        let be = e.b_ecl;
+        FluxBaies {
+            h_ges_w_k: f.h_ges_w_k * Self::b_therm(et),
+            fs1_w: f.fs1_w * bs,
+            fs2_w: f.fs2_w * bs,
+            fs3_w: f.fs3_w * bs,
+            ftvc_w: 0.0,
+            flt1_lm: f.flt1_lm.map(|v| v * be),
+            flt2_lm: f.flt2_lm.map(|v| v * be),
+            flt3_lm: f.flt3_lm.map(|v| v * be),
+        }
+    }
+
+    /// « Hges_set,b » : coefficient de la baie « sans les espaces tampons » vu par l'espace
+    /// tampon (§5.4.3.1, éq. 106), en W/K. Calculé en début de simulation : protections
+    /// relevées, `Ab·Usp,b` (décision Q41 point 1).
+    pub fn h_ges_set_w_k(&self) -> f64 {
+        self.a_b_m2 * self.u_sp_w_m2k
     }
 
     /// « Hges,b » : coefficient de transfert thermique global de la baie, en W/K.

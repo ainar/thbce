@@ -10,7 +10,8 @@
 //! qui en reçoivent.
 //!
 //! Périmètre : calculs Th-B et Th-D des usages d'habitation ; hall fictif (aucun groupe de
-//! circulation saisi) ; pas d'espace tampon.
+//! circulation saisi). Les espaces tampons sont calculés au niveau du bâtiment, avant les zones
+//! ([`super::assemblage_batiment`]) ; la zone reçoit leurs coefficients.
 
 use crate::climat::calendrier::{jour, nouveau_jour_legal};
 use crate::climat::environnement_proche::{ventc_m_s, Soleil};
@@ -27,6 +28,7 @@ use crate::ventilation::ven_bbio::{omega_air_souffle_kg_kg, t_air_souffle_c};
 use super::assemblage_groupe::{
     nbh_occ_ref, ConditionsPas, GroupeHoraire, Lectures, SortiesPasGroupe,
 };
+use super::espace_tampon::espace_tampon::CoefficientsEt;
 use super::ConditionsExterieures;
 
 /// Zone d'habitation prête pour un calcul annuel au pas horaire, en mode Th-B ou Th-D.
@@ -80,6 +82,28 @@ impl ZoneHoraire {
         alt_m: f64,
         omega_initiale_kg_kg: f64,
     ) -> Result<Self, Erreur> {
+        Self::nouvelle_dans_batiment(
+            zone,
+            catalogue,
+            mode,
+            lectures,
+            alt_m,
+            omega_initiale_kg_kg,
+            &[],
+        )
+    }
+
+    /// Prépare une zone d'un bâtiment dont `ids_espaces_tampons` donne les identifiants des
+    /// espaces tampons, dans l'ordre (voir [`super::assemblage_batiment`]).
+    pub fn nouvelle_dans_batiment(
+        zone: &Zone,
+        catalogue: &Catalogue,
+        mode: ModeCalcul,
+        lectures: Lectures,
+        alt_m: f64,
+        omega_initiale_kg_kg: f64,
+        ids_espaces_tampons: &[String],
+    ) -> Result<Self, Erreur> {
         if mode == ModeCalcul::ThC {
             return Err(Erreur::Calcul(
                 "le calcul des consommations (Th-C) n'est pas encore pris en charge".to_owned(),
@@ -97,7 +121,7 @@ impl ZoneHoraire {
             .groupes
             .iter()
             .map(|g| {
-                GroupeHoraire::nouveau_selon(
+                GroupeHoraire::nouveau_dans_batiment(
                     g,
                     catalogue,
                     zone.usage,
@@ -106,6 +130,7 @@ impl ZoneHoraire {
                     q4pa,
                     nbh_occ_ref,
                     omega_initiale_kg_kg,
+                    ids_espaces_tampons,
                 )
             })
             .collect();
@@ -144,21 +169,25 @@ impl ZoneHoraire {
         climat: &ClimatExterieur,
         confort: &ConfortAdaptatif,
     ) -> Result<(), Erreur> {
-        let ext = ConditionsExterieures {
-            soleil: Soleil {
-                gamma_rad: climat.gamma_rad[h],
-                psi_rad: climat.psi_rad[h],
-            },
-            idn_w_m2: climat.idn_w_m2[h],
-            idi_w_m2: climat.idi_w_m2[h],
-            edn_lux: climat.edn_lux[h],
-            edi_lux: climat.edi_lux[h],
-            te_c: climat.te_c[h],
-            teciel_c: climat.teciel_c[h],
-            h,
-            mode: self.mode,
-            is_conf_adapt: confort.is_conf_adapt(h),
-        };
+        self.pas_avec_espaces_tampons(h, climat, confort, &[])
+    }
+
+    /// « iocc_zone(h) » : indicateur d'occupation de la zone au pas de temps (§4.1.3).
+    pub fn i_occ_zone(&self, h: usize) -> f64 {
+        self.scenarios.evaluer(h).i_occ_zone
+    }
+
+    /// Calcule le pas de temps `h` de la zone, les coefficients des espaces tampons du
+    /// bâtiment au même pas de temps étant connus (§5.2, figure 15 : les espaces tampons sont
+    /// calculés avant les zones).
+    pub fn pas_avec_espaces_tampons(
+        &mut self,
+        h: usize,
+        climat: &ClimatExterieur,
+        confort: &ConfortAdaptatif,
+        espaces_tampons: &[CoefficientsEt],
+    ) -> Result<(), Erreur> {
+        let ext = conditions_exterieures(climat, confort, h, self.mode);
         let scenarios = self.scenarios.evaluer(h);
         let c = ConditionsPas {
             ext,
@@ -180,13 +209,19 @@ impl ZoneHoraire {
         // des groupes à la fin du pas précédent. §6.1.3 : air soufflé par le système
         // conventionnel du Bbio, après l'échangeur.
         self.etats.clear();
-        self.etats.extend(self.groupes.iter().map(|g| EtatGroupe {
-            theta_i_fin_c: g.etat.fin.theta_i_c,
-            omega_i_fin_kg_kg: g.etat.omega_i_fin_kg_kg,
-            q_spec_repris_m3_h: g.debits.q_rep_m3_h,
-            q_spec_souffle_m3_h: g.debits.q_souffle_m3_h,
-            t_air_souffle_c: t_air_souffle_c(ext.te_c, g.etat.fin.theta_i_c),
-            omega_air_souffle_kg_kg: omega_air_souffle_kg_kg(c.omega_e_kg_kg),
+        self.etats.extend(self.groupes.iter().map(|g| {
+            EtatGroupe {
+                theta_i_fin_c: g.etat.fin.theta_i_c,
+                omega_i_fin_kg_kg: g.etat.omega_i_fin_kg_kg,
+                q_spec_repris_m3_h: g.debits.q_rep_m3_h,
+                q_spec_souffle_m3_h: g.debits.q_souffle_m3_h,
+                t_air_souffle_c: t_air_souffle_c(ext.te_c, g.etat.fin.theta_i_c),
+                omega_air_souffle_kg_kg: omega_air_souffle_kg_kg(c.omega_e_kg_kg),
+                theta_an_c: g
+                    .entree_air_espace_tampon
+                    .and_then(|i| espaces_tampons.get(i))
+                    .map(|e| e.theta_et_c),
+            }
         }));
         let bilan = self
             .aeraulique
@@ -220,13 +255,15 @@ impl ZoneHoraire {
                 }
                 let air = flux_entrants(b, &exterieur, &self.etats[g], hall);
                 let apports = self.scenarios.apports_groupe(g, &scenarios);
-                let sorties = groupe.pas(&c, &apports, &air).ok_or_else(|| {
-                    Erreur::Calcul(format!(
-                        "groupe « {} », pas de temps {h} : le modèle thermique n'a pas de \
+                let sorties = groupe
+                    .pas_avec_espaces_tampons(&c, &apports, &air, espaces_tampons)
+                    .ok_or_else(|| {
+                        Erreur::Calcul(format!(
+                            "groupe « {} », pas de temps {h} : le modèle thermique n'a pas de \
                          solution (Th-BCE 2020 §5.21.3.6, éq. 339)",
-                        groupe.id
-                    ))
-                })?;
+                            groupe.id
+                        ))
+                    })?;
                 self.sorties[g] = Some(sorties);
                 // Le hall voit l'état des groupes d'entrée au pas de temps courant.
                 self.etats[g].theta_i_fin_c = groupe.etat.fin.theta_i_c;
@@ -259,5 +296,29 @@ impl ZoneHoraire {
             apres_le_pas(h, self);
         }
         Ok(())
+    }
+}
+
+/// Conditions extérieures du pas de temps `h` dans un mode de calcul.
+pub fn conditions_exterieures(
+    climat: &ClimatExterieur,
+    confort: &ConfortAdaptatif,
+    h: usize,
+    mode: ModeCalcul,
+) -> ConditionsExterieures {
+    ConditionsExterieures {
+        soleil: Soleil {
+            gamma_rad: climat.gamma_rad[h],
+            psi_rad: climat.psi_rad[h],
+        },
+        idn_w_m2: climat.idn_w_m2[h],
+        idi_w_m2: climat.idi_w_m2[h],
+        edn_lux: climat.edn_lux[h],
+        edi_lux: climat.edi_lux[h],
+        te_c: climat.te_c[h],
+        teciel_c: climat.teciel_c[h],
+        h,
+        mode,
+        is_conf_adapt: confort.is_conf_adapt(h),
     }
 }

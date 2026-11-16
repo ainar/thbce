@@ -83,6 +83,38 @@ pub struct ResultatsBatiment {
     pub ic_energie_kgco2_m2: Option<f64>,
     /// Résultats par zone.
     pub zones: Vec<ResultatsZone>,
+    /// Espaces tampons du bâtiment (§5.2 à 5.4) ; absent sans espace tampon.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub espaces_tampons: Vec<ResultatsEspaceTampon>,
+}
+
+/// Résultats d'un espace tampon (Th-BCE 2020 §5.4) : synthèse annuelle de ses sorties
+/// horaires dans chacun des deux calculs.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsEspaceTampon {
+    /// Identifiant de l'espace tampon.
+    pub id: Id,
+    /// Calcul du Bbio (mode Th-B).
+    pub th_b: Option<ResultatsEspaceTamponMode>,
+    /// Calcul du confort d'été (mode Th-D).
+    pub th_d: Option<ResultatsEspaceTamponMode>,
+    /// Valeurs par défaut du texte appliquées (`Cm_et_surf`, `Qv,et,base`).
+    pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+}
+
+/// Synthèse annuelle d'un espace tampon dans un mode de calcul.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsEspaceTamponMode {
+    /// Moyenne annuelle de « btherm(h) ».
+    pub b_therm_moyen: f64,
+    /// Moyenne annuelle de « θet(h) », en °C.
+    pub theta_et_moy_c: f64,
+    /// Plus basse « θet(h) », en °C.
+    pub theta_et_min_c: f64,
+    /// Plus haute « θet(h) », en °C.
+    pub theta_et_max_c: f64,
+    /// Nombre d'heures où les parois de l'espace tampon sont ouvertes (surventilation).
+    pub nbh_surventilation: u32,
 }
 
 /// Résultats d'une zone.
@@ -320,6 +352,14 @@ impl Resultats {
             b.cep_nr_kwhep_m2 = b.cep_nr_kwhep_m2.map(a);
             b.dh_c_h = b.dh_c_h.map(a);
             b.ic_energie_kgco2_m2 = b.ic_energie_kgco2_m2.map(a);
+            for et in &mut b.espaces_tampons {
+                for m in [&mut et.th_b, &mut et.th_d].into_iter().flatten() {
+                    m.b_therm_moyen = a(m.b_therm_moyen);
+                    m.theta_et_moy_c = a(m.theta_et_moy_c);
+                    m.theta_et_min_c = a(m.theta_et_min_c);
+                    m.theta_et_max_c = a(m.theta_et_max_c);
+                }
+            }
             for z in &mut b.zones {
                 z.sref_m2 = a(z.sref_m2);
                 z.nadeq = z.nadeq.map(a);

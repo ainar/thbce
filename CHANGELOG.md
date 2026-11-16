@@ -9,6 +9,9 @@ Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consol
 
 ### Modifié
 
+- Maison d'exemple (`tests/cas/maison-climat-ademe`) : facteurs solaires des parois opaques calculés par la formule 259 des règles Th-Bat (`Sp = αp·Up·Rse`, `αp = 0,6`) au lieu de 0,01.
+- API Rust : le calcul simule chaque bâtiment d'un bloc (`bati::assemblage_batiment::BatimentHoraire`) ; `ZoneHoraire::pas_avec_espaces_tampons` et `GroupeHoraire::pas_avec_espaces_tampons` reçoivent les coefficients des espaces tampons ; `EtatGroupe` (bilan aéraulique) porte `theta_an_c` ; `Lectures` porte `fermeture_et`. `GroupeThermique::hg_emq_w_k` accepte un coefficient des parois négatif (espace tampon plus chaud que le groupe).
+
 - **Format d'entrée, changement incompatible** : un masque lointain azimutal se saisit par `gamma_i_deg`, liste de 36 hauteurs d'horizon (une par tranche de 10° repérée par rapport à la normale au composant, annexe III §3.2.3), et non plus par une liste de tranches `{ az_deg, gamma_deg }`. Le JSON Schema (`thbce schema`) est à jour.
 
 - **Format d'entrée, changement incompatible** : `su_m2` (surface utile du groupe, « Agr ») est obligatoire pour tous les usages, y compris en habitation où `shab_m2` reste la surface de référence. `nb_lgt` est obligatoire en logement collectif.
@@ -27,6 +30,9 @@ Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consol
 - Résultats : `bbio_pts` du bâtiment est calculé ; l'avertissement « squelette du moteur » ne cite plus le Bbio. Nouvelle erreur `Erreur::Calcul` (nature `calcul` dans le module WebAssembly, code de retour d'erreur de calcul en ligne de commande).
 
 ### Ajouté
+
+- **Espaces tampons** (annexe III §5.2 à 5.4) : espaces non solarisés (coefficient `b` des règles Th-Bat) et solarisés (vérandas : modèle dynamique, protections mobiles et ouverture de leurs parois), calculés à chaque pas de temps avant les zones, en Th-B et en Th-D ; leurs coefficients `btherm`, `bsolaire` et `becl` s'appliquent aux parois opaques, ponts thermiques et baies qui donnent sur eux, et l'air neuf des entrées d'air peut transiter par eux. Format d'entrée, changement compatible : `espaces_tampons` sur le bâtiment, `espace_tampon` sur les parois opaques, baies, ponts thermiques et entrées d'air. Résultats : `espaces_tampons` sur le bâtiment (btherm moyen, températures, heures d'ouverture, valeurs par défaut). Le JSON Schema (`thbce schema`) est à jour. Lectures du texte : `docs/questions.md`, Q41.
+- Cas `tests/cas/maison-veranda-ademe` : la maison d'exemple avec une véranda et un garage.
 
 - **Premier indicateur réglementaire : le Bbio.** Calcul annuel au pas horaire (8 760 h) en mode Th-B pour la maison individuelle et le logement collectif : besoins de chauffage, de refroidissement et d'éclairage et Bbio, par mois et pour l'année, au niveau du groupe, de la zone et du bâtiment (annexe III §13.1, éq. 2379 à 2386). Résultats : `bbio` (`annuel` et `mensuel`), `saisons_bbio` et `confort_bbio` sur le groupe.
 - **Confort d'été : l'indicateur DH.** Second calcul annuel au pas horaire, en mode Th-D, sur le jeu météo à séquence caniculaire, pour la maison individuelle et le logement collectif : degrés-heures d'inconfort (annexe III §13.5, éq. 2543 à 2551), heures d'inconfort et températures opératives maximales. Résultats : `dh_c_h` au niveau du bâtiment et de la zone (groupe le plus défavorable), `confort_ete` et `saisons_th_d` sur le groupe. Le calcul Th-D emploie le même enchaînement horaire que le calcul du Bbio, avec les règles propres au mode : facteurs solaires « e », tableau 34 des protections mobiles, ouverture des baies avec l'écart de confort adaptatif, saisons du Th-D, aucun refroidissement. **Limite** : faute des systèmes du projet (lot 6), la ventilation et l'émission sont celles, conventionnelles, du calcul du Bbio (`docs/questions.md`, Q40).

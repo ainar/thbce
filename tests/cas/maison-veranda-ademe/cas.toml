@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Maison d'exemple (tests/cas/maison-climat-ademe) avec deux espaces tampons, sur la météo ouverte ADEME (station de Tours, zone H2b) : une véranda au sud, sur laquelle donnent le mur sud et la baie sud, et un garage à l'ouest, sur lequel donne le mur ouest. Résultat non réglementaire."
+source = "aucune : valeurs attendues calculées à la main. Valeurs par défaut de l'espace tampon solarisé (Th-BCE 2020 §5.4.2, tableau 19, et §5.4.3.3.1.4) : Cm_et_surf = 200 kJ/(m².K) ; Qv,et,base = 1,0 m³/h × 36 m² = 36 m³/h. Grandeurs d'enveloppe du groupe sans les espaces tampons (HTH_set, éq. 106), identiques à celles de la maison d'exemple. Ce n'est pas un cas de référence."
+meteo = "ademe"
+
+# Données de l'exemple (paramètres du projet, choisis pour l'exemple) :
+# - véranda de 12 m × 3 m (Aet = 36 m²), hauteur 2,5 m : façade sud vitrée de 30 m², pignons
+#   est et ouest de 7,5 m², toiture vitrée de 36,5 m² inclinée à 10° ; double vitrage
+#   Uue = 1,4 W/(m².K) ; stores intérieurs ; plancher sur terre-plein Uet_pb = 0,5 W/(m².K).
+# - garage accolé au mur ouest (8 m × 2,5 m), profond de 4 m : Aiu = 20 m² (mur isolé de la
+#   maison) ; Aue = 2 × 4 × 2,5 + 8 × 2,5 + 8 × 4 = 72 m² (non isolées) ; Aiu/Aue = 0,28.
+#   Règles Th-Bat 2020, fascicule « Généralités », tableau 6 : Uv,ue = 3 W/(m².K) pour un garage
+#   de maison individuelle ; tableau 2 (Aiu isolée, Aue non isolée), ligne 0,25 < Aiu/Aue ≤ 0,50,
+#   colonne Uv,ue = 3 : b = 0,95.

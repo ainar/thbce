@@ -48,6 +48,8 @@ use super::comportement_thermique::{
     AirEntrant, AirEquivalent, GroupeThermique, Sollicitations, Temperatures, F_SA,
     LECTURE_FLUX_RADIATIFS,
 };
+use super::espace_tampon::espace_tampon::{h_et_th_int_gr_w_k, CoefficientsEt};
+use super::espace_tampon::gestion_solarise::{LectureFermetureEt, LECTURE_FERMETURE_ET};
 use super::inerties_longues::{EtatInerties, FluxInerties, InertiesLongues};
 use super::paroi_opaque::{EnsembleParois, ParoiResolue};
 use super::pont_thermique::{EnsemblePonts, PontResolu};
@@ -59,7 +61,7 @@ use super::surventilation::{
     traversant_conventionnel, ConditionsOuverture, LectureHysteresis, OuvertureBaie,
     H_TTF_CAS_GENERAL_M, LECTURE_HYSTERESIS,
 };
-use super::{paroi_opaque, pont_thermique, ConditionsExterieures};
+use super::ConditionsExterieures;
 
 /// Température initiale du groupe, en °C : masse, air et température opérative au pas de temps
 /// qui précède le premier.
@@ -90,6 +92,8 @@ pub struct Lectures {
     /// Prise en compte des inerties séquentielle et annuelle en Th-D (§5.21.3.10). Vrai : c'est
     /// le texte ; faux pour mesurer leur effet.
     pub inerties_longues: bool,
+    /// Branche de fermeture de l'ouverture des espaces tampons solarisés (Q41 point 4).
+    pub fermeture_et: LectureFermetureEt,
 }
 
 impl Default for Lectures {
@@ -99,6 +103,7 @@ impl Default for Lectures {
             saison_froid_th_d: LectureSaisonFroidThD::default(),
             debits: LectureDebitsBbio::default(),
             inerties_longues: true,
+            fermeture_et: LECTURE_FERMETURE_ET,
         }
     }
 }
@@ -121,17 +126,39 @@ impl EnveloppeResolue {
     /// charge ont été écartés par la validation ; un composant qui ne peut pas être résolu est
     /// ignoré.
     pub fn de(groupe: &Groupe, catalogue: &Catalogue, usage: UsageZone) -> Self {
+        Self::de_dans_batiment(groupe, catalogue, usage, &[])
+    }
+
+    /// Résout les composants d'un groupe d'un bâtiment dont `ids_espaces_tampons` donne, dans
+    /// l'ordre, les identifiants des espaces tampons : chaque composant qui donne sur l'un
+    /// d'eux en reçoit l'indice.
+    pub fn de_dans_batiment(
+        groupe: &Groupe,
+        catalogue: &Catalogue,
+        usage: UsageZone,
+        ids_espaces_tampons: &[String],
+    ) -> Self {
+        let indice = |id: &Option<String>| {
+            id.as_ref()
+                .and_then(|id| ids_espaces_tampons.iter().position(|e| e == id))
+        };
         let parois = groupe
             .parois_opaques
             .iter()
             .filter_map(|p| {
                 let type_paroi = catalogue.parois.iter().find(|t| t.id == p.type_paroi)?;
-                Some(ParoiResolue::nouvelle(p, type_paroi, catalogue))
+                let mut r = ParoiResolue::nouvelle(p, type_paroi, catalogue);
+                r.espace_tampon = indice(&p.espace_tampon);
+                Some(r)
             })
             .collect();
         let mut ponts = Vec::new();
         for pont in &groupe.ponts_thermiques {
+            let debut = ponts.len();
             PontResolu::resoudre(pont, catalogue, &mut ponts);
+            for troncon in &mut ponts[debut..] {
+                troncon.espace_tampon = indice(&pont.espace_tampon);
+            }
         }
         let mut baies = Vec::new();
         let mut gestions = Vec::new();
@@ -139,9 +166,10 @@ impl EnveloppeResolue {
             let Some(type_baie) = catalogue.baies.iter().find(|t| t.id == b.type_baie) else {
                 continue;
             };
-            let Some(resolue) = BaieResolue::nouvelle(b, type_baie, catalogue) else {
+            let Some(mut resolue) = BaieResolue::nouvelle(b, type_baie, catalogue) else {
                 continue;
             };
+            resolue.espace_tampon = indice(&b.espace_tampon);
             baies.push(resolue);
             gestions.push(
                 type_baie
@@ -159,9 +187,32 @@ impl EnveloppeResolue {
     }
 
     /// « HTH,k+pt » : coefficient de transmission des parois opaques et des ponts thermiques, en
-    /// W/K (§5.21.3.6, éq. 340).
+    /// W/K (§5.21.3.6, éq. 340), sans les espaces tampons.
     pub fn h_th_k_pt_w_k(&self) -> f64 {
         EnsembleParois::de(&self.parois).h_th_w_k + EnsemblePonts::de(&self.ponts).h_th_w_k
+    }
+
+    /// « Het_th_int^gr » : coefficient de transmission du groupe vers l'espace tampon d'indice
+    /// `i`, en W/K.
+    ///
+    /// Th-BCE 2020 §5.4.3.1, éq. (106) : `Σ Hges_set^b + Σ HTH_set^k + Σ HTH_set^l` sur les
+    /// composants qui donnent sur l'espace tampon.
+    pub fn h_et_th_int_w_k(&self, i: usize) -> f64 {
+        let sur = |et: Option<usize>| et == Some(i);
+        h_et_th_int_gr_w_k(
+            self.baies
+                .iter()
+                .filter(|b| sur(b.espace_tampon))
+                .map(BaieResolue::h_ges_set_w_k),
+            self.parois
+                .iter()
+                .filter(|p| sur(p.espace_tampon))
+                .map(ParoiResolue::h_th_w_k),
+            self.ponts
+                .iter()
+                .filter(|p| sur(p.espace_tampon))
+                .map(PontResolu::h_th_w_k),
+        )
     }
 }
 
@@ -354,6 +405,13 @@ pub struct GroupeHoraire {
     pub h_ttf_m: f64,
     /// « Pocc » : part des baies sur lesquelles un occupant peut agir (figure 34).
     pub p_occ: f64,
+    /// Indice de l'espace tampon par lequel transite l'air neuf des entrées d'air (§5.6.3.1, éq. 134).
+    pub entree_air_espace_tampon: Option<usize>,
+    /// Part de la surface d'ouverture de son espace tampon attribuée à chaque baie qui donne sur
+    /// un espace tampon, au prorata des surfaces d'ouverture des baies (« Aouv_max_tp,i^b »,
+    /// §5.5.2 et §5.7.2) ; 0 pour les autres baies. Voir
+    /// [`GroupeHoraire::fixer_parts_ouverture_espaces_tampons`].
+    pub parts_ouverture_et: Vec<f64>,
     /// État du groupe.
     pub etat: EtatGroupeHoraire,
     /// Cumuls annuels.
@@ -400,7 +458,35 @@ impl GroupeHoraire {
         nbh_occ_ref: f64,
         omega_initiale_kg_kg: f64,
     ) -> Self {
-        let enveloppe = EnveloppeResolue::de(groupe, catalogue, usage);
+        Self::nouveau_dans_batiment(
+            groupe,
+            catalogue,
+            usage,
+            mode,
+            lectures,
+            q4pa_surf_m3_h_m2,
+            nbh_occ_ref,
+            omega_initiale_kg_kg,
+            &[],
+        )
+    }
+
+    /// Prépare un groupe d'habitation d'un bâtiment dont `ids_espaces_tampons` donne les
+    /// identifiants des espaces tampons, dans l'ordre.
+    #[allow(clippy::too_many_arguments)]
+    pub fn nouveau_dans_batiment(
+        groupe: &Groupe,
+        catalogue: &Catalogue,
+        usage: UsageZone,
+        mode: ModeCalcul,
+        lectures: Lectures,
+        q4pa_surf_m3_h_m2: f64,
+        nbh_occ_ref: f64,
+        omega_initiale_kg_kg: f64,
+        ids_espaces_tampons: &[String],
+    ) -> Self {
+        let enveloppe =
+            EnveloppeResolue::de_dans_batiment(groupe, catalogue, usage, ids_espaces_tampons);
         let a_gr_m2 = groupe.su_m2.unwrap_or(0.0);
         let op = EnsembleParois::de(&enveloppe.parois);
         let ba = EnsembleBaies::de(&enveloppe.baies);
@@ -469,7 +555,31 @@ impl GroupeHoraire {
             },
             cumuls: CumulsGroupe::default(),
             ouvertures: Vec::with_capacity(nb_baies),
+            entree_air_espace_tampon: groupe
+                .entrees_air
+                .as_ref()
+                .and_then(|e| e.espace_tampon.as_ref())
+                .and_then(|id| ids_espaces_tampons.iter().position(|e| e == id)),
+            parts_ouverture_et: vec![0.0; nb_baies],
             enveloppe,
+        }
+    }
+
+    /// Fixe la part de la surface d'ouverture de chaque espace tampon attribuée aux baies du
+    /// groupe qui donnent sur lui, au prorata des surfaces d'ouverture maximales des baies :
+    /// `Aouvmax,b/Σ Aouvmax`, la somme portant sur toutes les baies du bâtiment qui donnent sur
+    /// le même espace tampon (`totaux`, par espace tampon). Nomenclatures des §5.5.2 et §5.7.2,
+    /// « Aouv_max_tp,i^b » ; décision Q41 point 2.
+    pub fn fixer_parts_ouverture_espaces_tampons(&mut self, totaux: &[f64]) {
+        for (part, b) in self
+            .parts_ouverture_et
+            .iter_mut()
+            .zip(&self.enveloppe.baies)
+        {
+            *part = match b.espace_tampon.and_then(|i| totaux.get(i)) {
+                Some(&total) if total > 0.0 => b.a_ouv_max_m2 / total,
+                _ => 0.0,
+            };
         }
     }
 
@@ -487,6 +597,20 @@ impl GroupeHoraire {
         apports: &ApportsGroupe,
         air_zone: &[AirEntrant],
     ) -> Option<SortiesPasGroupe> {
+        self.pas_avec_espaces_tampons(c, apports, air_zone, &[])
+    }
+
+    /// Calcule un pas de temps du groupe, les coefficients des espaces tampons du bâtiment au
+    /// pas de temps (§5.2, figure 15) étant donnés par `espaces_tampons`, dans l'ordre des
+    /// indices des composants.
+    pub fn pas_avec_espaces_tampons(
+        &mut self,
+        c: &ConditionsPas,
+        apports: &ApportsGroupe,
+        air_zone: &[AirEntrant],
+        espaces_tampons: &[CoefficientsEt],
+    ) -> Option<SortiesPasGroupe> {
+        let et = |i: Option<usize>| i.and_then(|i| espaces_tampons.get(i));
         let h = c.ext.h;
         let sc = &c.scenarios;
         let i_occ_zone = sc.i_occ_zone > 0.0;
@@ -516,10 +640,22 @@ impl GroupeHoraire {
         let saison_gpm =
             SaisonGpm::de_saison_effective(saison as u8).unwrap_or(SaisonGpm::MiSaison);
 
-        // §5.15 à 5.20 : parois opaques et ponts thermiques.
-        let op = paroi_opaque::flux_ensemble(&self.enveloppe.parois, &c.ext);
-        let pt = pont_thermique::flux_ensemble(&self.enveloppe.ponts, &c.ext);
-        let phi_sh_w = op.phi_sh_s_w + op.phi_sh_vc_w + pt.phi_sh_s_w + pt.phi_sh_vc_w;
+        // §5.15 à 5.20 : parois opaques et ponts thermiques, avec les coefficients des espaces
+        // tampons (§5.17.3 et §5.19.3) ; HTH,k+pt varie alors à chaque pas de temps.
+        let mut phi_sh_w = 0.0;
+        let mut h_th_k_pt_w_k = 0.0;
+        for p in &self.enveloppe.parois {
+            let b = et(p.espace_tampon);
+            let f = p.flux_reduit(&c.ext, b);
+            phi_sh_w += f.phi_sh_s_w + f.phi_sh_vc_w;
+            h_th_k_pt_w_k += p.h_th_reduit_w_k(b);
+        }
+        for p in &self.enveloppe.ponts {
+            let b = et(p.espace_tampon);
+            let f = p.flux_reduit(&c.ext, b);
+            phi_sh_w += f.phi_sh_s_w + f.phi_sh_vc_w;
+            h_th_k_pt_w_k += p.h_th_reduit_w_k(b);
+        }
 
         // §5.13.3.1 : gestion manuelle de l'ouverture des baies ; règles du calcul Th-B
         // (§5.13.3.1.2) ou règles générales avec `Δθconf_adapt` en Th-D (§5.13.3.1.1).
@@ -544,7 +680,14 @@ impl GroupeHoraire {
         // §5.8 : baies. Protections mobiles (§5.9), flux (§5.10), ouverture (§5.13.3.2.3).
         let mut baies = FluxBaies::default();
         self.ouvertures.clear();
-        for (baie, gestion) in self.enveloppe.baies.iter().zip(&self.enveloppe.gestions) {
+        for ((baie, gestion), part_et) in self
+            .enveloppe
+            .baies
+            .iter()
+            .zip(&self.enveloppe.gestions)
+            .zip(&self.parts_ouverture_et)
+        {
+            let b_et = et(baie.espace_tampon);
             let incident = baie.incident(&c.ext);
             let protections = gestion.as_ref().map_or(Protections::OUVERTES, |g| {
                 g.protections(&ConditionsGpm {
@@ -552,7 +695,8 @@ impl GroupeHoraire {
                     // Indicateur à valeurs −1, 0 et 1 (éq. 53).
                     #[allow(clippy::cast_possible_truncation)]
                     i_occ_gpm: sc.i_occ_gpm as i8,
-                    etp_lux: incident.etp_lux(),
+                    // §5.9.3, éq. (176) : Etp** = becl·Etp*.
+                    etp_lux: incident.etp_lux() * b_et.map_or(1.0, |e| e.b_ecl),
                     v_vent_c_m_s: c.v_vent_c_m_s,
                     saison: saison_gpm,
                     top_j1_max_c: self.etat.t_max.top_j1_max_c,
@@ -560,7 +704,7 @@ impl GroupeHoraire {
                     confort_adaptatif_th_d: conf_adapt_th_d,
                 })
             });
-            let f = baie.flux_depuis_incident(&incident, &c.ext, &protections);
+            let f = baie.flux_reduit(&incident, &c.ext, &protections, b_et);
             baies.h_ges_w_k += f.h_ges_w_k;
             baies.fs1_w += f.fs1_w;
             baies.fs2_w += f.fs2_w;
@@ -578,8 +722,15 @@ impl GroupeHoraire {
                     protections.r_prot(),
                     baie.taux_passage_air,
                 );
+                let mut a_ouv_m2 = a_ouv_baie_m2(r_ouv, baie.a_ouv_max_m2, a_ouv_max_pm);
+                // Baie donnant sur un espace tampon : ouverture bornée par la part de la
+                // surface d'ouverture de l'espace tampon qui lui revient (décision Q41
+                // point 2).
+                if let Some(e) = b_et {
+                    a_ouv_m2 = a_ouv_m2.min(part_et * e.a_ouv_et_m2);
+                }
                 self.ouvertures.push(OuvertureBaie {
-                    a_ouv_m2: a_ouv_baie_m2(r_ouv, baie.a_ouv_max_m2, a_ouv_max_pm),
+                    a_ouv_m2,
                     alpha_deg: baie.alpha_deg,
                     beta_deg: baie.beta_deg,
                 });
@@ -617,11 +768,11 @@ impl GroupeHoraire {
             qm_kg_s: 0.0,
             theta_c: theta_e,
             omega_kg_kg: c.omega_e_kg_kg,
-        }; 4];
-        for (cible, source) in flux_air.iter_mut().take(3).zip(air_zone) {
+        }; 5];
+        for (cible, source) in flux_air.iter_mut().take(4).zip(air_zone) {
             *cible = *source;
         }
-        flux_air[3].qm_kg_s = qm_surv;
+        flux_air[4].qm_kg_s = qm_surv;
         let air = AirEquivalent::melange(&flux_air);
 
         // §5.21 : sollicitations et matrice de comportement.
@@ -630,7 +781,7 @@ impl GroupeHoraire {
         let s = Sollicitations {
             air,
             theta_e_c: theta_e,
-            h_th_k_pt_w_k: self.h_th_k_pt_w_k,
+            h_th_k_pt_w_k,
             hg_es_w_k: baies.h_ges_w_k,
             phi_sl_w: baies.fs2_w + baies.ftvc_w,
             phi_sh_w,
@@ -782,9 +933,7 @@ impl GroupeHoraire {
         b.apports_internes_wh += s.phi_conv_w + s.phi_rad_w;
         b.apports_non_recuperes_wh +=
             (s.fs1_w + s.fs3_w - solaire_recu) + (s.phi_conv_w + s.phi_rad_w - internes_recus);
-        if s.h_th_k_pt_w_k > 0.0 {
-            b.apports_opaques_wh += s.phi_sh_w * hg_emq / s.h_th_k_pt_w_k;
-        }
+        b.apports_opaques_wh += s.phi_sh_w * g.rapport_emq(s.h_th_k_pt_w_k).unwrap_or(0.0);
         b.chauffage_wh += phi_util_w.max(0.0);
         b.refroidissement_wh += (-phi_util_w).max(0.0);
         // φsl = Fs2 + Ftvc entre au nœud θs avec la transmission des baies (éq. 342 et 343).

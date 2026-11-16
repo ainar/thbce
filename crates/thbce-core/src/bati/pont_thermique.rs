@@ -7,6 +7,7 @@ use crate::climat::environnement_proche::{
 };
 use crate::entree::{Catalogue, Exposition, PontThermique};
 
+use super::espace_tampon::espace_tampon::CoefficientsEt;
 use super::paroi_opaque::resoudre_masques;
 use super::{fce, ConditionsExterieures, FluxOpaques, HE_W_M2K};
 
@@ -33,6 +34,8 @@ pub struct PontResolu {
     pub surface: SurfaceExposee,
     /// Masques.
     pub masques: Vec<MasqueResolu>,
+    /// Indice, dans le bâtiment, de l'espace tampon sur lequel donne le pont thermique.
+    pub espace_tampon: Option<usize>,
 }
 
 impl PontResolu {
@@ -46,6 +49,7 @@ impl PontResolu {
             sf_e: pont.sf_e_l,
             surface: SurfaceExposee::depuis_exposition(exposition),
             masques,
+            espace_tampon: None,
         };
         match &pont.exposition {
             // Description détaillée. Pour les masques proches, le pont est une paroi verticale de
@@ -111,6 +115,32 @@ impl PontResolu {
             // constante de la fiche (§5.19.2, p. 300), la même que pour les parois opaques
             // (§5.17.2, éq. 297).
             phi_sh_vc_w: self.l_l_m * qer * self.psi_l_w_mk / HE_W_M2K,
+        }
+    }
+}
+
+impl PontResolu {
+    /// « HTh,l(h) » avec l'espace tampon : `ll·btherm,l(h)·Ψl` (§5.19.3, éq. 304).
+    pub fn h_th_reduit_w_k(&self, et: Option<&CoefficientsEt>) -> f64 {
+        self.h_th_w_k() * et.map_or(1.0, |e| e.b_therm)
+    }
+
+    /// Flux transmis au groupe par le pont thermique, avec l'espace tampon.
+    ///
+    /// Th-BCE 2020 §5.19.3 : avec un espace tampon, `bvoute,l = 0` ; éq. (300) : le flux
+    /// solaire est multiplié par `bsolaire,l(h)`.
+    pub fn flux_reduit(
+        &self,
+        c: &ConditionsExterieures,
+        et: Option<&CoefficientsEt>,
+    ) -> FluxOpaques {
+        let f = self.flux(c);
+        match et {
+            None => f,
+            Some(e) => FluxOpaques {
+                phi_sh_s_w: f.phi_sh_s_w * e.b_solaire,
+                phi_sh_vc_w: 0.0,
+            },
         }
     }
 }

@@ -11,7 +11,8 @@
 //! Convention de la fiche : un débit entrant dans un groupe est positif, un débit sortant
 //! négatif ; `ΔP = Pext − Pint`.
 //!
-//! Périmètre : zones sans espace tampon (l'air neuf entre à la température extérieure) et hall
+//! Périmètre : air neuf à la température extérieure, ou à celle d'un espace tampon pour les
+//! entrées d'air qui y puisent (§5.6.3.1, éq. 134) ; hall
 //! fictif (aucun groupe de circulation saisi). Les débits spécifiques sont ceux d'une ventilation
 //! mécanique à simple ou à double flux (éq. 154 à 157), ce qui couvre le système conventionnel
 //! du Bbio ; l'aération par les fenêtres, la ventilation naturelle par conduit et les centrales
@@ -353,6 +354,9 @@ pub struct EtatGroupe {
     pub t_air_souffle_c: f64,
     /// « ωair_soufflé » : humidité spécifique de l'air soufflé, en kg/kg.
     pub omega_air_souffle_kg_kg: f64,
+    /// « TAN » des entrées d'air, en °C, quand l'air neuf transite d'abord par un espace
+    /// tampon (« Tair_out », §5.6.3.1, éq. 134) ; `None` : l'air neuf est à la température extérieure.
+    pub theta_an_c: Option<f64>,
 }
 
 /// Débits d'un groupe à l'équilibre aéraulique de la zone.
@@ -513,8 +517,6 @@ impl ZoneAeraulique {
         p_ib_pa: f64,
     ) -> impl Iterator<Item = BilanGroupe> + 'a {
         let rho_ext = rho_kg_m3(ext.theta_ext_c, ext.omega_e_kg_kg);
-        // Sans espace tampon, l'air neuf est à la température extérieure : ρAN = ρext (éq. 134).
-        let rho_an = rho_ext;
         let c_p = self.c_p;
         let alt = self.alt;
         self.groupes
@@ -523,6 +525,11 @@ impl ZoneAeraulique {
             .zip(&self.c_def)
             .map(move |((g, e), &(c_facade, c_toit))| {
                 let rho_int = rho_kg_m3(e.theta_i_fin_c, e.omega_i_fin_kg_kg);
+                // §5.6.3.1, éq. (134) : masse volumique de l'air neuf des entrées d'air, à
+                // « TAN = Tair_out » s'il transite par un espace tampon, à θext sinon.
+                let rho_an = e
+                    .theta_an_c
+                    .map_or(rho_ext, |t| rho_kg_m3(t, ext.omega_e_kg_kg));
                 let dp = |c_p: f64, z: f64| {
                     delta_p_comp_pa(c_p, rho_ext, ext.v_ventc_m_s, z, rho_int, p_ib_pa)
                 };
@@ -651,24 +658,43 @@ pub fn hall_fictif(bilan: &BilanZone, etats: &[EtatGroupe]) -> Option<(f64, f64)
 /// l'enveloppe, à la température et à l'humidité extérieures ; un débit pour l'air soufflé par
 /// la ventilation spécifique, à sa température et à son humidité ; si `qm,hall > 0`, ce débit, à
 /// la température et à l'humidité du hall.
+///
+/// Quand l'air neuf des entrées d'air transite par un espace tampon (§5.6.3.1, éq. 134,
+/// `TAN = Tair_out`), la part de `qm,neuf` entrée par les entrées d'air arrive à la température
+/// de l'espace tampon, avec l'humidité extérieure ; celle des défauts d'étanchéité reste à la
+/// température extérieure (décision Q41 point 8).
 pub fn flux_entrants(
     bilan: &BilanGroupe,
     ext: &Exterieur,
     etat: &EtatGroupe,
     hall: Option<(f64, f64)>,
 ) -> Vec<AirEntrant> {
-    let mut flux = vec![
-        AirEntrant {
+    let mut flux = Vec::with_capacity(4);
+    match etat.theta_an_c {
+        None => flux.push(AirEntrant {
             qm_kg_s: bilan.q_m_neuf_kg_s,
             theta_c: ext.theta_ext_c,
             omega_kg_kg: ext.omega_e_kg_kg,
-        },
-        AirEntrant {
-            qm_kg_s: bilan.q_m_spec_souffle_kg_s,
-            theta_c: etat.t_air_souffle_c,
-            omega_kg_kg: etat.omega_air_souffle_kg_kg,
-        },
-    ];
+        }),
+        Some(theta_an_c) => {
+            let q_ea: f64 = bilan.q_m_ea_kg_s.iter().map(|q| q.max(0.0)).sum();
+            flux.push(AirEntrant {
+                qm_kg_s: bilan.q_m_neuf_kg_s - q_ea,
+                theta_c: ext.theta_ext_c,
+                omega_kg_kg: ext.omega_e_kg_kg,
+            });
+            flux.push(AirEntrant {
+                qm_kg_s: q_ea,
+                theta_c: theta_an_c,
+                omega_kg_kg: ext.omega_e_kg_kg,
+            });
+        }
+    }
+    flux.push(AirEntrant {
+        qm_kg_s: bilan.q_m_spec_souffle_kg_s,
+        theta_c: etat.t_air_souffle_c,
+        omega_kg_kg: etat.omega_air_souffle_kg_kg,
+    });
     if let (true, Some((theta_c, omega_kg_kg))) = (bilan.q_m_hall_kg_s > 0.0, hall) {
         flux.push(AirEntrant {
             qm_kg_s: bilan.q_m_hall_kg_s,

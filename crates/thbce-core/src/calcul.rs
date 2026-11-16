@@ -9,21 +9,24 @@
 //! [`ModeCalcul`]. Cep, Cep,nr et Ic énergie restent à `None` jusqu'à l'implémentation des lots
 //! 6 et 7 (`docs/couverture.md`).
 
+use crate::bati::assemblage_batiment::BatimentHoraire;
 use crate::bati::assemblage_groupe::{EnveloppeResolue, GroupeHoraire, SortiesPasGroupe};
 use crate::bati::assemblage_zone::ZoneHoraire;
 use crate::bati::baie::{BaieResolue, EnsembleBaies, Protections};
+use crate::bati::espace_tampon::assemblage::EspaceTamponHoraire;
 use crate::bati::paroi_opaque::EnsembleParois;
 use crate::bati::pont_thermique::EnsemblePonts;
 use crate::bati::surventilation::H_TTF_CAS_GENERAL_M;
 use crate::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
 use crate::conventions::{ModeCalcul, NB_HEURES_AN};
-use crate::entree::{Catalogue, Groupe, Projet, UsageZone, Zone};
+use crate::entree::{Batiment, Catalogue, Groupe, Projet, UsageZone, Zone};
 use crate::erreur::Erreur;
 use crate::indicateurs::sorties_th_b::{sorties, EnergiesMensuelles};
 use crate::resultats::{
     PeriodeConfortAdaptatif, Resultats, ResultatsBaie, ResultatsBatiment, ResultatsClimat,
     ResultatsConfort, ResultatsConfortEte, ResultatsDebitsBbio, ResultatsEnveloppe,
-    ResultatsGroupe, ResultatsSaisons, ResultatsZone, ValeurParDefaut,
+    ResultatsEspaceTampon, ResultatsEspaceTamponMode, ResultatsGroupe, ResultatsSaisons,
+    ResultatsZone, ValeurParDefaut,
 };
 use crate::validation::valider;
 use crate::ventilation::bouche_conduit::debits_specifiques_bbio_groupe;
@@ -129,11 +132,13 @@ pub fn calculer(
     for bat in &projet.batiments {
         let mut zones = Vec::with_capacity(bat.zones.len());
         let mut energies_bat = EnergiesMensuelles::default();
-        for zone in &bat.zones {
-            // Mode Th-B, puis mode Th-D : même enchaînement horaire, climat et règles du mode.
-            let th_b = simuler_zone(zone, projet, ModeCalcul::ThB, &climat_th_bc, &confort_th_bc)?;
-            let th_d = simuler_zone(zone, projet, ModeCalcul::ThD, &climat_th_d, &confort_th_d)?;
-            let (resultats_zone, energies_zone) = restituer_zone(zone, projet, &th_b, &th_d);
+        // Mode Th-B, puis mode Th-D : même enchaînement horaire, climat et règles du mode. Le
+        // bâtiment est simulé d'un bloc : ses espaces tampons sont calculés avant ses zones à
+        // chaque pas de temps (§5.2).
+        let th_b = simuler_batiment(bat, projet, ModeCalcul::ThB, &climat_th_bc, &confort_th_bc)?;
+        let th_d = simuler_batiment(bat, projet, ModeCalcul::ThD, &climat_th_d, &confort_th_d)?;
+        for (zone, (zb, zd)) in bat.zones.iter().zip(th_b.zones.iter().zip(&th_d.zones)) {
+            let (resultats_zone, energies_zone) = restituer_zone(zone, projet, zb, zd);
             energies_bat.ajouter(&energies_zone);
             zones.push(resultats_zone);
         }
@@ -150,6 +155,17 @@ pub fn calculer(
             dh_c_h: dh_le_plus_defavorable(zones.iter().filter_map(|z| z.dh_c_h)),
             ic_energie_kgco2_m2: None,
             zones,
+            espaces_tampons: th_b
+                .espaces_tampons
+                .iter()
+                .zip(&th_d.espaces_tampons)
+                .map(|(b, d)| ResultatsEspaceTampon {
+                    id: b.id.clone(),
+                    th_b: Some(synthese_espace_tampon(b)),
+                    th_d: Some(synthese_espace_tampon(d)),
+                    valeurs_par_defaut: b.valeurs_par_defaut.clone(),
+                })
+                .collect(),
         });
     }
 
@@ -184,18 +200,18 @@ fn dh_le_plus_defavorable(dh: impl Iterator<Item = f64>) -> Option<f64> {
 ///
 /// Th-BCE 2020 §5.5 (assemblage de la zone, figure 18). `climat` et `confort` sont ceux du jeu
 /// météo du mode.
-fn simuler_zone(
-    zone: &Zone,
+fn simuler_batiment(
+    bat: &Batiment,
     projet: &Projet,
     mode: ModeCalcul,
     climat: &ClimatExterieur,
     confort: &ConfortAdaptatif,
-) -> Result<ZoneHoraire, Erreur> {
+) -> Result<BatimentHoraire, Erreur> {
     // Humidité initiale de l'air des groupes : celle de l'air extérieur au premier pas de temps
     // (décision Q39 point 4).
     let omega_initiale = climat.we_kg_kg.first().copied().unwrap_or(0.0);
-    let mut calcul = ZoneHoraire::nouvelle(
-        zone,
+    let mut calcul = BatimentHoraire::nouveau(
+        bat,
         &projet.catalogue,
         mode,
         projet.localisation.alt_m,
@@ -203,6 +219,19 @@ fn simuler_zone(
     )?;
     calcul.simuler(climat, confort)?;
     Ok(calcul)
+}
+
+/// Synthèse annuelle d'un espace tampon.
+fn synthese_espace_tampon(et: &EspaceTamponHoraire) -> ResultatsEspaceTamponMode {
+    let k = &et.cumuls;
+    let n = f64::from(k.nbh.max(1));
+    ResultatsEspaceTamponMode {
+        b_therm_moyen: k.somme_b_therm / n,
+        theta_et_moy_c: k.somme_theta_et_c / n,
+        theta_et_min_c: k.theta_et_min_c,
+        theta_et_max_c: k.theta_et_max_c,
+        nbh_surventilation: k.nbh_surventilation,
+    }
 }
 
 /// Saisons propres d'un groupe à l'issue d'un calcul annuel (§4.6.3.6, éq. 92).
@@ -333,23 +362,24 @@ pub fn series_horaires(
     let omega_initiale = climat.we_kg_kg.first().copied().unwrap_or(0.0);
     let mut series = Vec::new();
     for bat in &projet.batiments {
-        for zone in &bat.zones {
-            let mut calcul =
-                ZoneHoraire::nouvelle(zone, &projet.catalogue, mode, loc.alt_m, omega_initiale)?;
-            let premier = series.len();
-            series.extend(calcul.groupes.iter().map(|g| SerieHoraireGroupe {
+        let mut calcul =
+            BatimentHoraire::nouveau(bat, &projet.catalogue, mode, loc.alt_m, omega_initiale)?;
+        let premier = series.len();
+        for z in &calcul.zones {
+            series.extend(z.groupes.iter().map(|g| SerieHoraireGroupe {
                 batiment: bat.id.clone(),
-                zone: zone.id.clone(),
+                zone: z.id.clone(),
                 groupe: g.id.clone(),
                 te_c: climat.te_c.iter().take(NB_HEURES_AN).copied().collect(),
                 pas: Vec::with_capacity(NB_HEURES_AN),
             }));
-            calcul.simuler_avec(&climat, &confort, |_, z| {
-                for (serie, sorties) in series[premier..].iter_mut().zip(&z.sorties) {
-                    serie.pas.extend(sorties.iter().copied());
-                }
-            })?;
         }
+        calcul.simuler_avec(&climat, &confort, |_, b| {
+            let sorties = b.zones.iter().flat_map(|z| z.sorties.iter());
+            for (serie, s) in series[premier..].iter_mut().zip(sorties) {
+                serie.pas.extend(s.iter().copied());
+            }
+        })?;
     }
     Ok(series)
 }

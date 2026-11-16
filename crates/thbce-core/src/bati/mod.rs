@@ -14,13 +14,17 @@
 //! - [`pont_thermique`] : fiches `C_BAT_pont thermique` (§5.19) et
 //!   `C_BAT_ensemble_ponts_thermiques` (§5.20), assemblées selon le §5.18.
 //!
-//! Les espaces tampons (lot 4b du plan, §5.2 à 5.4) ne sont pas encore pris en charge : les
-//! coefficients `btherm`, `bsolaire` et `bvoute` valent 1.
+//! - [`espace_tampon`] : fiches des espaces tampons (§5.2 à 5.4) ; leurs coefficients de
+//!   réduction `btherm`, `bsolaire`, `becl` (et `bvoute = 0`) s'appliquent aux composants qui
+//!   donnent sur eux ; sans espace tampon, ils valent 1 ;
+//! - [`assemblage_batiment`] : enchaînement horaire du bâtiment, espaces tampons puis zones.
 
+pub mod assemblage_batiment;
 pub mod assemblage_groupe;
 pub mod assemblage_zone;
 pub mod baie;
 pub mod comportement_thermique;
+pub mod espace_tampon;
 pub mod inerties_longues;
 pub mod paroi_opaque;
 pub mod pont_thermique;
