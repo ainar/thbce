@@ -279,11 +279,37 @@
       "generations": [
         {
           "id": "generation-effet-joule",
-          "raccordement_reseaux": "avec_isolement"
+          "raccordement_reseaux": "avec_isolement",
+          "position": "en_volume_chauffe",
+          "generateurs": [
+            {
+              "id": "panneaux-rayonnants",
+              "rdim": 8,
+              "nature": {
+                "effet_joule": {
+                  "fonction": "chauffage",
+                  "pn_gen_w": 1000
+                }
+              }
+            }
+          ]
         },
         {
-          "id": "ballon-ecs",
-          "raccordement_reseaux": "avec_isolement"
+          "id": "production-ecs",
+          "raccordement_reseaux": "avec_isolement",
+          "position": "en_volume_chauffe",
+          "generateurs": [
+            {
+              "id": "chauffe-eau-instantane",
+              "rdim": 1,
+              "nature": {
+                "effet_joule": {
+                  "fonction": "ecs",
+                  "pn_gen_w": 6000
+                }
+              }
+            }
+          ]
         }
       ],
       "distributions_intergroupes": [
@@ -297,7 +323,7 @@
       "distributions_ecs_intergroupes": [
         {
           "id": "ecs-individuelle",
-          "generation": "ballon-ecs",
+          "generation": "production-ecs",
           "reseau": "aucun"
         }
       ]

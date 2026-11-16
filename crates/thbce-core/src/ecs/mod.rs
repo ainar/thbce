@@ -6,8 +6,9 @@
 //! - [`distribution_ecs`] : fiches `C_DIS_Distribution_ECS_du_groupe` (§9.7) et
 //!   `C_DIS_Distribution_ECS_intergroupe` (§9.8).
 //!
-//! La production et le stockage (§9.1 à 9.4, 9.9 et suivantes) relèvent des lots 6c, 6d et 7b :
-//! jusque-là, chaque génération est idéale.
+//! La production instantanée d'ECS (§9.1) passe par les générateurs de la génération
+//! (`chauffage_refroidissement::generation`) ; le stockage (§9.2, 9.9 et suivantes) relève de la
+//! suite du lot 6c et des lots 6d et 7b.
 //!
 //! Lectures : `docs/questions.md`, Q45.
 

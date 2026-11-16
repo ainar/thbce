@@ -46,7 +46,7 @@ pub struct FluxVolumeChauffe {
     pub aux_dintgr_ecs_wh: f64,
     /// « Σ Ratsurface × Φpertes_vc_prim-e » : pertes des réseaux d'ECS intergroupes.
     pub pertes_dintgr_ecs_wh: f64,
-    /// « Σ Ratsurf × Φvc_tot^gen » : générations (nul pour une génération idéale).
+    /// « Σ Ratsurf × Φvc_tot^gen » : générations (éq. 1058).
     pub generation_wh: f64,
 }
 

@@ -8,8 +8,12 @@
 //! `btherm(h)`, `bsolaire(h)`, `becl(h)` et leur température `θet(h)` sont ensuite transmis aux
 //! composants d'enveloppe et aux entrées d'air des zones (§5.5, §5.7), calculées comme avant.
 
+use crate::chauffage_refroidissement::calculs_generation::{CumulsCef, Poste};
 use crate::chauffage_refroidissement::distribution::{
     ApportReseauGroupe, DistributionIntergroupesResolue, SortiesDistributionIntergroupes,
+};
+use crate::chauffage_refroidissement::generation::{
+    EntreesGeneration, GenerationHoraire, ReseauVu,
 };
 use crate::chauffage_refroidissement::saisons_fonctionnement::{
     autorisations_effectives, DesserteGroupe,
@@ -21,7 +25,10 @@ use crate::climat::{ClimatExterieur, ConfortAdaptatif};
 use crate::conventions::{ModeCalcul, NB_HEURES_AN};
 use crate::ecs::distribution_ecs::{pas_intergroupe, SortiesDistributionEcsIntergroupe};
 use crate::entree::{Batiment, Catalogue};
-use crate::entree::{FonctionReseau, RaccordementReseaux, ReseauEcsIntergroupe};
+use crate::entree::{
+    FonctionReseau, PositionGeneration, RaccordementReseaux, ReseauEcsIntergroupe, ReseauGroupe,
+    ReseauIntergroupes, SystemeVentilation,
+};
 use crate::erreur::Erreur;
 use crate::pertes::pertes_recuperables::{recuperation_wh, FluxVolumeChauffe};
 
@@ -80,6 +87,38 @@ pub struct SystemesBatiment {
     /// Récupération des pertes et consommations des systèmes par les groupes (fiche 11.1) ;
     /// vrai sauf pour mesurer son effet (lecture Q45).
     pub recuperation: bool,
+    /// Générations (§8.14 et §8.17), dans l'ordre de `generations`.
+    pub generations_horaires: Vec<GenerationHoraire>,
+    /// Espace tampon qui abrite chaque génération hors volume chauffé.
+    pub et_generation: Vec<Option<usize>>,
+    /// « Ratsurf^gen,gr » : pour chaque génération, part de chaque groupe desservi dans leur
+    /// surface totale (éq. 988), pour la répartition des pertes vers l'ambiance.
+    pub rat_surf_gen: Vec<Vec<f64>>,
+    /// « Ratsurf_dess^dp » de chaque réseau intergroupes de chaud ou de froid (éq. 990 et 991).
+    pub rat_surf_dess: Vec<f64>,
+    /// « Ratsurf_dess_ecs^dp-e » de chaque distribution d'ECS intergroupe (éq. 992).
+    pub rat_surf_dess_ecs: Vec<f64>,
+    /// Pour chaque zone, génération qui fournit l'énergie de la sécurité antigel de son double
+    /// flux (§8.11.3, éq. 939 ; lecture Q46).
+    pub antigel: Vec<Option<usize>>,
+    /// Surface de chaque groupe (ordre des zones puis des groupes) et indice de sa zone.
+    pub groupes: Vec<(usize, f64)>,
+    /// Consommations en énergie finale attribuées à chaque groupe (éq. 1484 à 1486, 1499, 1506
+    /// et 1513).
+    pub cumuls_cef_groupes: Vec<CumulsCef>,
+    /// Énergie de la sécurité antigel transmise aux générations, par zone, en Wh.
+    pub cumuls_antigel_wh: Vec<f64>,
+}
+
+/// Origine d'une demande reçue par une génération.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Origine {
+    /// Réseau intergroupes de chaud ou de froid.
+    Reseau(usize),
+    /// Distribution d'ECS intergroupe.
+    Ecs(usize),
+    /// Sécurité antigel du double flux d'une zone.
+    Antigel(usize),
 }
 
 /// Distribution d'ECS intergroupe, prête pour le calcul.
@@ -316,6 +355,21 @@ impl SystemesBatiment {
             .iter()
             .map(|g| g.raccordement_reseaux == RaccordementReseaux::Permanent)
             .collect();
+        let mut generations_horaires: Vec<GenerationHoraire> = bat
+            .generations
+            .iter()
+            .map(GenerationHoraire::resoudre)
+            .collect();
+        let et_generation = bat
+            .generations
+            .iter()
+            .map(|g| match &g.position {
+                PositionGeneration::HorsVolumeChauffe {
+                    espace_tampon: Some(id),
+                } => ids_et.iter().position(|e| e == id),
+                _ => None,
+            })
+            .collect();
         let mut intergroupes: Vec<DistributionIntergroupesResolue> = bat
             .distributions_intergroupes
             .iter()
@@ -363,6 +417,27 @@ impl SystemesBatiment {
                     for d in &sy.distributions {
                         if let Some(dp) = intergroupes.get_mut(d.intergroupes) {
                             dp.ajouter_reseau_groupe(&d.reseau);
+                            // Éq. (980) et (981) : températures extrêmes des réseaux
+                            // hydrauliques, celles de dimensionnement de leurs départs.
+                            if let ReseauGroupe::Hydraulique(h) = &d.reseau {
+                                if let (Some(t), Some(gen)) = (
+                                    h.theta_dep_dim_c,
+                                    generations_horaires.get_mut(dp.generation),
+                                ) {
+                                    match d.fonction {
+                                        FonctionReseau::Chauffage => {
+                                            gen.theta_dist_ch_max_c = Some(
+                                                gen.theta_dist_ch_max_c.map_or(t, |x| x.max(t)),
+                                            );
+                                        }
+                                        FonctionReseau::Refroidissement => {
+                                            gen.theta_dist_fr_min_c = Some(
+                                                gen.theta_dist_fr_min_c.map_or(t, |x| x.min(t)),
+                                            );
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -439,7 +514,86 @@ impl SystemesBatiment {
             })
             .collect();
         let n = intergroupes.len();
+        // Éq. (990) à (992) : part de chaque réseau dans la surface desservie par sa génération
+        // pour son poste.
+        let parts = |a: &[Vec<f64>], cle: &dyn Fn(usize) -> (usize, u8)| -> Vec<f64> {
+            let totaux: Vec<f64> = a.iter().map(|x| x.iter().sum()).collect();
+            (0..a.len())
+                .map(|k| {
+                    let somme: f64 = (0..a.len())
+                        .filter(|&j| cle(j) == cle(k))
+                        .map(|j| totaux[j])
+                        .sum();
+                    if somme > 0.0 {
+                        totaux[k] / somme
+                    } else {
+                        0.0
+                    }
+                })
+                .collect()
+        };
+        let rat_surf_dess = parts(&a_desservie, &|k| {
+            (
+                intergroupes[k].generation,
+                u8::from(intergroupes[k].fonction == FonctionReseau::Chauffage),
+            )
+        });
+        let rat_surf_dess_ecs = parts(&a_ecs, &|k| (ecs[k].generation, 0));
+        // Sécurité antigel des doubles flux : génération désignée par la saisie.
+        let antigel: Vec<Option<usize>> = bat
+            .zones
+            .iter()
+            .map(|z| match z.ventilation.as_ref().map(|v| &v.systeme) {
+                Some(SystemeVentilation::DoubleFlux(d)) => d
+                    .echangeur
+                    .as_ref()
+                    .filter(|e| e.antigel == Some(true))
+                    .and_then(|e| e.generation_antigel.as_ref())
+                    .and_then(|id| generations.iter().position(|g| g == id)),
+                _ => None,
+            })
+            .collect();
+        let groupes: Vec<(usize, f64)> = zones
+            .iter()
+            .enumerate()
+            .flat_map(|(iz, z)| z.groupes.iter().map(move |g| (iz, g.a_gr_m2)))
+            .collect();
+        // Éq. (988) et (989) : surfaces des groupes desservis par chaque génération.
+        let rat_surf_gen: Vec<Vec<f64>> = (0..generations.len())
+            .map(|ig| {
+                let a: Vec<f64> = groupes
+                    .iter()
+                    .enumerate()
+                    .map(|(igr, (iz, a_gr))| {
+                        let desservi = (0..n)
+                            .any(|k| intergroupes[k].generation == ig && a_desservie[k][igr] > 0.0)
+                            || (0..n_ecs).any(|k| ecs[k].generation == ig && a_ecs[k][igr] > 0.0)
+                            || antigel[*iz] == Some(ig);
+                        if desservi {
+                            *a_gr
+                        } else {
+                            0.0
+                        }
+                    })
+                    .collect();
+                let total: f64 = a.iter().sum();
+                a.iter()
+                    .map(|x| if total > 0.0 { x / total } else { 0.0 })
+                    .collect()
+            })
+            .collect();
+        let nb_groupes = groupes.len();
+        let nb_zones = zones.len();
         let mut s = Self {
+            generations_horaires,
+            et_generation,
+            rat_surf_gen,
+            rat_surf_dess,
+            rat_surf_dess_ecs,
+            antigel,
+            groupes,
+            cumuls_cef_groupes: vec![CumulsCef::default(); nb_groupes],
+            cumuls_antigel_wh: vec![0.0; nb_zones],
             aut_gen: vec![(false, false); generations.len()],
             generations,
             permanent,
@@ -524,7 +678,7 @@ impl SystemesBatiment {
             }
             self.sorties[k] = s;
         }
-        // §9.8 : distributions d'ECS intergroupes ; génération idéale, en fonctionnement toute
+        // §9.8 : distributions d'ECS intergroupes ; génération d'ECS en fonctionnement toute
         // l'année (« idencl-e(j) = 1 », éq. 1736 ; lecture Q45).
         for (k, d) in self.ecs.iter().enumerate() {
             let aval: Vec<(f64, f64)> = groupes
@@ -552,6 +706,162 @@ impl SystemesBatiment {
                 );
             }
             self.sorties_ecs[k] = s;
+        }
+        // §8.14 et §8.17 : générations, après leurs réseaux. Chacune reçoit les demandes de ses
+        // réseaux de chaud, de froid et d'ECS, et l'énergie de la sécurité antigel des doubles
+        // flux qui la désignent (§8.11.3, éq. 939 et 952 : réseau associé à l'antigel, vu comme
+        // un réseau sur air à la température de l'air neuf ; lecture Q46).
+        let mut vus: Vec<ReseauVu> = Vec::new();
+        let mut origines: Vec<Origine> = Vec::new();
+        let mut phi_vc_gen = vec![0.0; groupes.len()];
+        for ig in 0..self.generations_horaires.len() {
+            vus.clear();
+            origines.clear();
+            for (k, dp) in self.intergroupes.iter().enumerate() {
+                if dp.generation != ig {
+                    continue;
+                }
+                let s = &self.sorties[k];
+                let (poste, q) = match dp.fonction {
+                    FonctionReseau::Chauffage => (Poste::Chauffage, s.q_sys_ch_wh),
+                    FonctionReseau::Refroidissement => (Poste::Refroidissement, -s.q_sys_fr_wh),
+                };
+                vus.push(ReseauVu {
+                    poste,
+                    hydraulique: !matches!(dp.reseau, ReseauIntergroupes::Fictif),
+                    q_sys_wh: q,
+                    theta_moy_c: s.theta_moy_c,
+                    theta_i_aval_eq_c: s.theta_i_aval_eq_c,
+                    relance: s.relance,
+                    rat_surf_dess: self.rat_surf_dess[k],
+                });
+                origines.push(Origine::Reseau(k));
+            }
+            let mut w_rechauf = 0.0;
+            for (k, d) in self.ecs.iter().enumerate() {
+                if d.generation != ig {
+                    continue;
+                }
+                let s = &self.sorties_ecs[k];
+                w_rechauf += s.w_rechauf_wh;
+                vus.push(ReseauVu {
+                    poste: Poste::Ecs,
+                    hydraulique: true,
+                    q_sys_wh: s.q_w_prim_wh,
+                    theta_moy_c: s.theta_moy_c,
+                    theta_i_aval_eq_c: 0.0,
+                    relance: false,
+                    rat_surf_dess: self.rat_surf_dess_ecs[k],
+                });
+                origines.push(Origine::Ecs(k));
+            }
+            for (iz, z) in zones.iter().enumerate() {
+                if self.antigel[iz] != Some(ig) {
+                    continue;
+                }
+                let w_ag = z.sorties_ventilation.w_ag_wh;
+                self.cumuls_antigel_wh[iz] += w_ag;
+                vus.push(ReseauVu {
+                    poste: Poste::Chauffage,
+                    hydraulique: false,
+                    q_sys_wh: w_ag,
+                    theta_moy_c: 0.0,
+                    theta_i_aval_eq_c: theta_ext_c,
+                    relance: false,
+                    // Sans demande, la sécurité antigel ne pèse pas dans les répartitions.
+                    rat_surf_dess: 0.0,
+                });
+                origines.push(Origine::Antigel(iz));
+            }
+            let b_therm = self.et_generation[ig]
+                .and_then(|i| espaces_tampons.get(i))
+                .map_or(1.0, |e| e.b_therm);
+            let (aut_ch, aut_fr) = self.aut_gen.get(ig).copied().unwrap_or((false, false));
+            let gen = &mut self.generations_horaires[ig];
+            let s = gen.pas(
+                &EntreesGeneration {
+                    reseaux: &vus,
+                    aut_ch,
+                    aut_fr,
+                    // Éq. (1007) : génération d'ECS en fonctionnement toute l'année (Q45).
+                    id_encl: true,
+                    theta_ext_c,
+                    b_therm,
+                    w_rechauf_wh: w_rechauf,
+                    sources: &[],
+                },
+                mois,
+            );
+            // Éq. (999) à (1001) : part de chaque groupe dans la demande de la génération, par
+            // poste ; éq. (1484) à (1486) : consommations attribuées aux groupes.
+            for (igr, g) in groupes.iter().enumerate() {
+                let mut rat = [0.0; 3];
+                for ((r, o), rat_dp) in vus.iter().zip(&origines).zip(&s.rat_bes_dp) {
+                    let part = match *o {
+                        // Éq. (893) et (894).
+                        Origine::Reseau(k) => {
+                            let de = |x: &crate::chauffage_refroidissement::distribution::SortiesDistributionGroupe| {
+                                if r.poste == Poste::Chauffage {
+                                    x.q_sys_ch_wh
+                                } else {
+                                    -x.q_sys_fr_wh
+                                }
+                            };
+                            let somme = |gr: &super::assemblage_groupe::GroupeHoraire| -> f64 {
+                                gr.systemes.as_ref().map_or(0.0, |sy| {
+                                    sy.distributions
+                                        .iter()
+                                        .zip(&sy.sorties.distributions)
+                                        .filter(|(d, _)| d.intergroupes == k)
+                                        .map(|(_, x)| de(x))
+                                        .sum()
+                                })
+                            };
+                            let total: f64 = groupes.iter().map(|gr| somme(gr)).sum();
+                            if total > 0.0 {
+                                somme(g) / total
+                            } else {
+                                self.rat_surf[k].get(igr).copied().unwrap_or(0.0)
+                            }
+                        }
+                        // Éq. (1739).
+                        Origine::Ecs(k) => {
+                            let somme = |gr: &super::assemblage_groupe::GroupeHoraire| -> f64 {
+                                gr.systemes.as_ref().map_or(0.0, |sy| {
+                                    sy.ecs
+                                        .iter()
+                                        .filter(|e| e.intergroupe == k)
+                                        .map(|e| e.sorties.q_w_2nd_wh)
+                                        .sum()
+                                })
+                            };
+                            let total: f64 = groupes.iter().map(|gr| somme(gr)).sum();
+                            if total > 0.0 {
+                                somme(g) / total
+                            } else {
+                                self.rat_surf_ecs[k].get(igr).copied().unwrap_or(0.0)
+                            }
+                        }
+                        // Groupes de la zone ventilée, au prorata de leurs surfaces.
+                        Origine::Antigel(iz) => {
+                            let total: f64 = self
+                                .groupes
+                                .iter()
+                                .filter(|(z, _)| *z == iz)
+                                .map(|(_, a)| a)
+                                .sum();
+                            match self.groupes.get(igr) {
+                                Some((z, a)) if *z == iz && total > 0.0 => a / total,
+                                _ => 0.0,
+                            }
+                        }
+                    };
+                    rat[r.poste.indice()] += rat_dp * part;
+                }
+                self.cumuls_cef_groupes[igr].ajouter_pondere(mois, &s.q_cef, rat);
+                // Éq. (2362) : pertes de la génération vers l'ambiance, au prorata des surfaces.
+                phi_vc_gen[igr] += self.rat_surf_gen[ig][igr] * s.phi_vc_tot_wh;
+            }
         }
         // §11.1 : pertes et consommations récupérables, injectées au pas suivant.
         let recup: Vec<(f64, f64)> = groupes
@@ -590,8 +900,7 @@ impl SystemesBatiment {
                         &self.rat_surf_ecs,
                         &mut self.sorties_ecs.iter().map(|x| x.phi_pertes_vc_wh),
                     ),
-                    // Génération idéale : ni pertes ni auxiliaires.
-                    generation_wh: 0.0,
+                    generation_wh: phi_vc_gen[ig],
                 };
                 recuperation_wh(&f)
             })

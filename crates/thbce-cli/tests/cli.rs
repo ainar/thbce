@@ -67,10 +67,17 @@ fn calcul_ecrit_les_resultats_en_json() {
     let erreurs = String::from_utf8_lossy(&s.stderr);
     assert!(erreurs.contains("non réglementaire"));
     assert!(!erreurs.contains("DH calculé"));
-    assert!(erreurs.contains("générations idéales"));
-    // Calcul Th-C : demande de la génération idéale positive par temps froid.
+    assert!(!erreurs.contains("générations idéales"));
+    // Calcul Th-C : demande de chauffage positive par temps froid, fournie par les panneaux
+    // rayonnants, dont la consommation d'électricité est égale à l'énergie fournie (§8.18).
+    let generation = &r["batiments"][0]["generations"][0];
+    assert!(generation["q_ch_kwh"].as_f64().unwrap() > 0.0);
+    assert_eq!(
+        generation["consommations"]["annuel"]["chauffage"]["electricite_kwh"],
+        generation["q_fou_ch_kwh"]
+    );
     assert!(
-        r["batiments"][0]["generations"][0]["q_ch_kwh"]
+        r["batiments"][0]["consommations"]["annuel"]["ecs"]["electricite_kwh"]
             .as_f64()
             .unwrap()
             > 0.0

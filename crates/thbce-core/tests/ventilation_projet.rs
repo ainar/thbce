@@ -194,6 +194,7 @@ fn double_flux(bypass: Option<Bypass>, antigel: bool) -> Projet {
             rotatif: None,
             bypass,
             antigel: Some(antigel),
+            generation_antigel: antigel.then(|| "generation-effet-joule".into()),
             theta_s_ech_rep_lim_c: None,
         }),
         prechauffage: None,
