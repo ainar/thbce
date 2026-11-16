@@ -7,7 +7,8 @@
 //!
 //! Périmètre : autorisations propres. En calcul du Bbio, les autorisations effectives leur sont
 //! égales (§4.6.3.3, éq. 91), sans égard pour la présence d'un système de refroidissement, et
-//! les besoins sont ceux de l'émission, `Qsys_ch` et `Qsys_fr`. En calcul des consommations,
+//! les besoins sont ceux de l'émission, `Qsys_ch` et `Qsys_fr`. Le calcul Th-D (lot 5) emploie
+//! la même procédure, avec les règles propres au Th-D des éq. (76), (77), (80), (88) et (90). En calcul des consommations,
 //! les autorisations effectives se décident au niveau de la génération (lot 6). Les
 //! degrés-heures d'inconfort viennent de la fiche des indicateurs de confort (§4.5) ; ils sont
 //! ici des entrées.
@@ -87,18 +88,53 @@ impl Journee {
     }
 }
 
-/// Le groupe peut-il recevoir une autorisation propre de refroidir ?
+/// Le système d'émission du groupe peut-il refroidir (« iclim » de l'éq. 807) ?
 ///
-/// Th-BCE 2020 §4.6.3.2 : « Dans le cas où le groupe ne dispose pas de système de
-/// refroidissement (iclim = 0), la variable Autfr,pro(j) est nulle toute l'année. » §4.6.3.3,
-/// éq. (91), cas particulier du calcul du Bbio : les autorisations propres sont calculées par la
-/// procédure de la fiche et les autorisations effectives leur sont égales. Le Bbio ne décrivant
-/// aucun système, la procédure s'y applique sans égard pour `iclim` (décision du mainteneur,
-/// `docs/questions.md`, Q35 point 7). En Th-C et en Th-D, « pas de système, pas de froid ».
+/// Th-BCE 2020 §4.6.3.3, éq. (91), cas particulier du calcul du Bbio : le Bbio ne décrivant
+/// aucun système, tout groupe y est traité comme refroidi (décision du mainteneur,
+/// `docs/questions.md`, Q35 point 7 et Q38 point 3). En Th-C, « pas de système, pas de froid ».
+/// En Th-D, §13.5.3.1 : « dans le cas d'un groupe climatisé, le groupe est passé en non
+/// climatisé et le système de climatisation est désactivé » : jamais de refroidissement.
 pub fn refroidissement_possible(mode: ModeCalcul, i_clim: bool) -> bool {
     match mode {
         ModeCalcul::ThB => true,
-        ModeCalcul::ThC | ModeCalcul::ThD => i_clim,
+        ModeCalcul::ThC => i_clim,
+        ModeCalcul::ThD => false,
+    }
+}
+
+/// Lecture de l'autorisation propre de refroidir en calcul Th-D (`docs/questions.md`, Q40).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LectureSaisonFroidThD {
+    /// Lecture retenue : en Th-D, `Autfr,pro` suit la procédure de la fiche, avec ses règles
+    /// propres au Th-D (éq. 88 et 90), que le groupe soit climatisé ou non. La saison de
+    /// refroidissement est alors la saison d'été des occupants (protections mobiles, ouverture
+    /// des baies), sans qu'aucun système ne refroidisse. C'est la seule lecture qui donne un
+    /// effet aux règles Th-D des éq. (88) et (90), tous les groupes étant « passés en non
+    /// climatisé » dans ce mode (§13.5.3.1).
+    #[default]
+    ProcedureDeLaFiche,
+    /// Variante littérale : « dans le cas où le groupe ne dispose pas de système de
+    /// refroidissement (iclim = 0), la variable est nulle toute l'année » (§4.6.3.2) ; le groupe
+    /// n'est jamais en saison de refroidissement et les protections mobiles suivent en été les
+    /// lignes de mi-saison.
+    NulleSansSysteme,
+}
+
+/// Le groupe peut-il recevoir une autorisation propre de refroidir (`Autfr,pro`) ?
+///
+/// Th-BCE 2020 §4.6.3.2 : « Dans le cas où le groupe ne dispose pas de système de
+/// refroidissement (iclim = 0), la variable Autfr,pro(j) est nulle toute l'année. » En calcul du
+/// Bbio, la procédure s'applique sans égard pour `iclim` (éq. 91, décision Q35 point 7). En
+/// Th-D : voir [`LectureSaisonFroidThD`].
+pub fn autorisation_propre_de_refroidir_possible(
+    mode: ModeCalcul,
+    i_clim: bool,
+    lecture: LectureSaisonFroidThD,
+) -> bool {
+    match (mode, lecture) {
+        (ModeCalcul::ThB, _) | (ModeCalcul::ThD, LectureSaisonFroidThD::ProcedureDeLaFiche) => true,
+        (ModeCalcul::ThC, _) | (ModeCalcul::ThD, LectureSaisonFroidThD::NulleSansSysteme) => i_clim,
     }
 }
 
@@ -134,14 +170,31 @@ impl Saisons {
     ///
     /// `nbh_occ_ref` est le nombre d'heures d'occupation d'une semaine type de l'usage
     /// (§4.6.3.1, éq. 66) ; `i_clim` indique si le groupe dispose d'un système de
-    /// refroidissement : sinon, hors calcul du Bbio, `Autfr,pro` est nul toute l'année
-    /// ([`refroidissement_possible`]).
+    /// refroidissement : sinon, en calcul des consommations, `Autfr,pro` est nul toute l'année
+    /// ([`autorisation_propre_de_refroidir_possible`], avec la lecture retenue du calcul Th-D).
     pub fn nouveau(a_gr_m2: f64, nbh_occ_ref: f64, mode: ModeCalcul, i_clim: bool) -> Self {
+        Self::nouveau_selon(
+            a_gr_m2,
+            nbh_occ_ref,
+            mode,
+            i_clim,
+            LectureSaisonFroidThD::default(),
+        )
+    }
+
+    /// État initial, pour une lecture donnée de l'autorisation de refroidir en Th-D.
+    pub fn nouveau_selon(
+        a_gr_m2: f64,
+        nbh_occ_ref: f64,
+        mode: ModeCalcul,
+        i_clim: bool,
+        lecture: LectureSaisonFroidThD,
+    ) -> Self {
         Self {
             a_gr_m2,
             nbh_occ_ref,
             mode,
-            froid_possible: refroidissement_possible(mode, i_clim),
+            froid_possible: autorisation_propre_de_refroidir_possible(mode, i_clim, lecture),
             historique: [Journee::default(); NB_JOURS_FENETRE],
             en_cours: Journee::default(),
             aut_ch: true,
@@ -244,8 +297,8 @@ impl Saisons {
     /// - à partir du jour 253 (éq. 81) : démarre quand `MGdh_ch` atteint le seuil, puis reste en
     ///   fonction.
     ///
-    /// §4.6.3.2, refroidissement, si le groupe peut être refroidi
-    /// ([`refroidissement_possible`]) :
+    /// §4.6.3.2, refroidissement, si le groupe peut recevoir l'autorisation
+    /// ([`autorisation_propre_de_refroidir_possible`]) :
     /// - jours 1 à 7 : interdit (éq. 87) ;
     /// - jours 8 à 182 (éq. 88) : démarre quand `MGdh_fr` atteint le seuil, ou, en Th-D, en
     ///   période de confort adaptatif ; puis reste en fonction ;
