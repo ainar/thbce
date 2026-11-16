@@ -12,7 +12,8 @@ use thbce_data::ZoneClimatique;
 
 use crate::bati::assemblage_groupe::EnveloppeResolue;
 use crate::bati::baie::{u_baie, EnsembleBaies, EtatBaie, REDUCTION_SW_SP_C};
-use crate::bati::comportement_thermique::GroupeThermique;
+use crate::bati::comportement_thermique::{inertie_quotidienne, GroupeThermique};
+use crate::bati::inerties_longues::{cma_surf_kj_k_m2, cms_surf_kj_k_m2};
 use crate::bati::paroi_opaque::EnsembleParois;
 use crate::bati::surventilation::traversant_conventionnel;
 use crate::entree::{
@@ -619,6 +620,55 @@ fn valider_inertie(r: &mut RapportValidation, c: &str, i: &Inertie) {
     }
     r.positif(format!("{c}.ams_surf_m2_m2"), i.ams_surf_m2_m2);
     r.positif(format!("{c}.ama_surf_m2_m2"), i.ama_surf_m2_m2);
+
+    // Th-BCE 2020 §5.21.3.4 : « Par définition, ΔCm,s−q et ΔCm,a−s sont positives ou nulles »
+    // (éq. 331 et 332) ; `ΔHg` est nul pour `ΔR` nul (éq. 329 et 330), et un `ΔR` négatif n'a
+    // pas de sens. Une saisie qui y contrevient est signalée ; le calcul Th-D prend alors la
+    // capacité ou la conductance nulle (`bati::inerties_longues`).
+    let (amq_surf, cmq_surf) = inertie_quotidienne(&i.quotidienne);
+    let cms_surf = cms_surf_kj_k_m2(&i.sequentielle, cmq_surf);
+    let cma_surf = cma_surf_kj_k_m2(&i.annuelle, cms_surf);
+    if cms_surf < cmq_surf {
+        r.avertissement(
+            format!("{c}.sequentielle"),
+            Some(cms_surf.to_string()),
+            format!(
+                "la capacité séquentielle Cms_surf ({cms_surf} kJ/(K.m²)) est inférieure à la \
+                 capacité quotidienne Cmq_surf ({cmq_surf}) : ΔCm,s−q, positive ou nulle par \
+                 définition, est prise nulle et l'inertie séquentielle est sans effet \
+                 (Th-BCE 2020 §5.21.3.4, éq. 331)"
+            ),
+        );
+    }
+    if cma_surf < cms_surf {
+        r.avertissement(
+            format!("{c}.annuelle"),
+            Some(cma_surf.to_string()),
+            format!(
+                "la capacité annuelle Cma_surf ({cma_surf} kJ/(K.m²)) est inférieure à la \
+                 capacité séquentielle Cms_surf ({cms_surf}) : ΔCm,a−s, positive ou nulle par \
+                 définition, est prise nulle et l'inertie annuelle est sans effet \
+                 (Th-BCE 2020 §5.21.3.4, éq. 332)"
+            ),
+        );
+    }
+    for (champ, a_surf, nom, equation) in [
+        ("ams_surf_m2_m2", i.ams_surf_m2_m2, "séquentielle", 329),
+        ("ama_surf_m2_m2", i.ama_surf_m2_m2, "annuelle", 330),
+    ] {
+        if a_surf > amq_surf {
+            r.avertissement(
+                format!("{c}.{champ}"),
+                Some(a_surf.to_string()),
+                format!(
+                    "la surface d'échange de l'inertie {nom} ({a_surf} m²/m²) dépasse celle de \
+                     l'inertie quotidienne Amq_surf ({amq_surf}) : la résistance ΔR serait \
+                     négative ; la conductance est prise nulle et l'inertie {nom} est sans \
+                     effet (Th-BCE 2020 §5.21.3.4, éq. {equation})"
+                ),
+            );
+        }
+    }
 }
 
 /// Th-BCE 2020 §3.2.2 : α de 0 à 360°, β de 0 à 180°, dimensions positives, 0 à 7 masques.
