@@ -157,9 +157,11 @@ fn air_entrant_equivalent() {
 
 #[test]
 fn un_pas_de_temps_selon_les_equations_du_texte() {
-    // Valeurs obtenues en appliquant littéralement les éq. (342) à (371), avec θes, θem et la
-    // division par Hgei, θmq(h−1) = 19 °C et 500 W émis sous forme convective. Ordre : θi, θs,
-    // θmq, θrm, θop. Lecture retenue des flux radiatifs (question Q34).
+    // Instantané de non-régression : valeurs calculées par le code pour θmq(h−1) = 19 °C et 500 W
+    // émis sous forme convective (éq. 342 à 371). Elles incluent le terme Hges·θes dans l'éq. (366),
+    // absent du texte imprimé (question Q34, point 6), et la lecture retenue des flux radiatifs
+    // (question Q34, point 1). Recalcul indépendant : θmq,fin = 19,16533 °C (19,13053 °C avec
+    // l'éq. 366 littérale). Ordre : θi, θs, θmq, θrm, θop.
     let g = groupe();
     let r = g
         .resoudre(&sollicitations(), 19.0, 0.0, 500.0, 0.0)
