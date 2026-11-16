@@ -12,12 +12,19 @@
 //! - coefficient de dépassement (§6.2.3.3.1, éq. 412 à 414) : `Cdep = 1` en Bbio ;
 //! - fuites des réseaux (§6.2.3.4, éq. 419, 420, 428 à 431) : `Kres = 0` en Bbio (tableau 59).
 //!
-//! Les autres usages, les centrales de traitement d'air, les valeurs de `Crdbnr`, de `Cdep` et
-//! de `Kres` du calcul des consommations et les surfaces de conduits viendront au lot 6a.
+//! Calcul des consommations et du confort d'été (lot 6a), en habitation, pour les systèmes
+//! mécaniques (simple flux, basse pression et double flux) :
+//! - débit régulé avec la durée d'utilisation du grand débit de la bouche (éq. 403, tableau 57) ;
+//! - coefficient de dépassement de la bouche (éq. 412 et 413, tableau 58) ;
+//! - fuites des réseaux (éq. 419 et 420, tableau 59), surfaces de conduits saisies ou par défaut
+//!   (éq. 421 à 427, tableau 60) et débits spécifiques et vus par le ventilateur (éq. 428 à 431).
+//!
+//! Les autres usages et les centrales de traitement d'air (éq. 383 à 386, 391 à 402, 404 à 411,
+//! 415 à 418, 432 à 439) restent hors de la première version.
 //!
 //! Convention de signe de la fiche : un débit repris est négatif, un débit soufflé positif.
 
-use crate::entree::{BoucheConduit, Isouf};
+use crate::entree::{BoucheConduit, ClasseEtancheite, Isouf};
 
 /// Nombre d'heures d'une semaine (éq. 403).
 pub const NB_HEURES_SEMAINE: f64 = 168.0;
@@ -161,4 +168,179 @@ pub fn debits_specifiques_bbio_groupe(bouches: &[BoucheConduit]) -> Option<Debit
     bouches.iter().try_fold(Debits::default(), |somme, b| {
         debits_specifiques_bbio_habitation(b).map(|d| somme.plus(d))
     })
+}
+
+/// « Dugd » par défaut d'une bouche de ventilation mécanique, en h par semaine : dispositif à
+/// gestion manuelle, « par défaut » (§6.2.3.2.2.2, tableau 57).
+pub const DUGD_DEFAUT_H: f64 = 14.0;
+/// « Crdbnr » en habitation, quelle que soit l'occupation (§6.2.3.2.2.2).
+pub const CRDBNR_HABITATION: f64 = 1.0;
+/// « Cdep » par défaut (§6.2.3.3.1, tableau 58).
+pub const CDEP_DEFAUT: f64 = 1.30;
+/// « Kres » de la classe d'étanchéité par défaut, en m³/(s.m²) sous 1 Pa (tableau 59, « DEF »).
+pub const K_RES_DEFAUT: f64 = 0.0675e-3;
+/// Exposant de la différence de pression dans les éq. (419) et (420).
+pub const EXPOSANT_FUITES: f64 = 0.667;
+
+/// « Kres » : coefficient de fuite du réseau, en m³/(s.m²) sous 1 Pa (§6.2.3.4, tableau 59).
+/// `None` : valeur par défaut « DEF ».
+pub fn k_res(classe: Option<ClasseEtancheite>) -> f64 {
+    match classe {
+        Some(ClasseEtancheite::A) => 0.027e-3,
+        Some(ClasseEtancheite::B) => 0.009e-3,
+        Some(ClasseEtancheite::C) => 0.003e-3,
+        None => K_RES_DEFAUT,
+    }
+}
+
+/// Typologie du bâtiment au sens du tableau 60.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypologieReseau {
+    /// Maison individuelle (ou accolée).
+    MaisonIndividuelle,
+    /// Bâtiment collectif (logement collectif).
+    BatimentCollectif,
+}
+
+/// Pression de fonctionnement d'un système au sens du tableau 60.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PressionReseau {
+    /// « Haute pression » : systèmes mécaniques simple flux, double flux.
+    Haute,
+    /// « Basse pression ».
+    Basse,
+}
+
+impl TypologieReseau {
+    /// « Ratfuitevc » par défaut (tableau 60).
+    pub fn ratfuitevc_defaut(self) -> f64 {
+        match self {
+            Self::MaisonIndividuelle => 0.25,
+            Self::BatimentCollectif => 0.5,
+        }
+    }
+
+    /// « dP » conventionnelle du réseau, en Pa (tableau 60).
+    pub fn d_p_pa(self, pression: PressionReseau) -> f64 {
+        match (self, pression) {
+            (Self::MaisonIndividuelle, PressionReseau::Haute) => 80.0,
+            (Self::BatimentCollectif, PressionReseau::Haute) => 160.0,
+            (_, PressionReseau::Basse) => 20.0,
+        }
+    }
+}
+
+/// « Ratsurfcond » : surface de conduits par m² de surface habitable en maison individuelle
+/// (tableau 60).
+pub const RAT_SURF_COND: f64 = 0.05;
+/// « Ratdebcond » : surface de conduits par m³/h de débit maximal en bâtiment collectif, en
+/// m².h/m³ (tableau 60).
+pub const RAT_DEB_COND: f64 = 0.05;
+
+/// « Acond » par défaut d'un groupe en maison individuelle, en m².
+///
+/// Th-BCE 2020 §6.2.3.4, éq. (421) : `Acond = SHAB × Ratsurfcond`. En double flux, la même
+/// surface s'applique au circuit de reprise et au circuit de soufflage (éq. 422 et 423).
+pub fn a_cond_defaut_maison_m2(shab_m2: f64) -> f64 {
+    shab_m2 * RAT_SURF_COND
+}
+
+/// « Acond,rep » ou « Acond,soufflé » par défaut d'une bouche en bâtiment collectif, en m².
+///
+/// Th-BCE 2020 §6.2.3.4, éq. (424) et (425) : `abs(qmax) × Ratdebcond`. Pour la VMC double
+/// flux, les éq. (426) et (427) emploient le débit maximal « en mode actif » des CTA, qui n'a
+/// pas d'objet en habitation : le débit maximal de la bouche le remplace (`docs/questions.md`,
+/// Q42).
+pub fn a_cond_defaut_collectif_m2(q_max_m3_h: f64) -> f64 {
+    q_max_m3_h.abs() * RAT_DEB_COND
+}
+
+/// « qrepris,fuites » ou « qsoufflé,fuites » : fuites totales du conduit, en m³/h, de même signe
+/// que le débit du circuit (négatif en reprise).
+///
+/// Th-BCE 2020 §6.2.3.4, éq. (419) et (420) : `∓3600 × Kres × Acond × dP^0,667`, avec `dP = 0`
+/// quand le débit après dépassement est nul.
+pub fn q_fuites_m3_h(
+    isouf: Isouf,
+    q_dep_m3_h: f64,
+    k_res: f64,
+    a_cond_m2: f64,
+    d_p_pa: f64,
+) -> f64 {
+    if q_dep_m3_h == 0.0 {
+        return 0.0;
+    }
+    let q = 3600.0 * k_res * a_cond_m2 * libm::pow(d_p_pa, EXPOSANT_FUITES);
+    match isouf {
+        Isouf::Reprise => -q,
+        Isouf::Soufflage => q,
+    }
+}
+
+/// Débits d'une bouche et de son conduit pour le calcul des consommations et du confort d'été,
+/// en m³/h, signés comme dans la fiche (reprise négative, soufflage positif).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DebitsBoucheProjet {
+    /// Sens du circuit.
+    pub isouf: Isouf,
+    /// « qrep,max » ou « qsoufflé,max » (éq. 387 et 388).
+    pub q_max_m3_h: f64,
+    /// « qspec,rep,conv_base » ou « qspec,soufflé,conv_base », valeur absolue (éq. 389 et 390,
+    /// formule des systèmes hygroréglables).
+    pub q_base_m3_h: f64,
+    /// « qrep,dep » ou « qsoufflé,dep » (éq. 412 et 413).
+    pub q_dep_m3_h: f64,
+    /// « qrepris,fuites » ou « qsoufflé,fuites » (éq. 419 et 420).
+    pub q_fuites_m3_h: f64,
+    /// « Ratfuitevc ».
+    pub ratfuitevc: f64,
+    /// « Acond » : surface externe du conduit, en m².
+    pub a_cond_m2: f64,
+}
+
+impl DebitsBoucheProjet {
+    /// « qspec_repris » ou « qspec_soufflé » : débit spécifique reçu ou fourni par le groupe,
+    /// fuites en volume chauffé comprises (éq. 428 et 429).
+    pub fn q_spec_m3_h(&self) -> f64 {
+        self.q_dep_m3_h + self.ratfuitevc * self.q_fuites_m3_h
+    }
+
+    /// « qrepris,cond » ou « qsoufflé,cond » : débit vu par le ventilateur (éq. 430 et 431).
+    pub fn q_cond_m3_h(&self) -> f64 {
+        self.q_dep_m3_h + self.q_fuites_m3_h
+    }
+
+    /// « qrep,fuite,hvc » ou « qsou,fuite,hvc » : fuites hors volume chauffé, en m³/h
+    /// (nomenclature du §6.3.2) : la part des fuites que les éq. (428) et (429) n'affectent pas
+    /// au groupe, `(1 − Ratfuitevc) × qfuites`.
+    pub fn q_fuite_hvc_m3_h(&self) -> f64 {
+        (1.0 - self.ratfuitevc) * self.q_fuites_m3_h
+    }
+
+    /// « Acond,rep,ext » ou « Acond,souf,ext » : surface du conduit hors volume chauffé, en m²
+    /// (éq. 626, 651 et 667).
+    pub fn a_cond_ext_m2(&self) -> f64 {
+        (1.0 - self.ratfuitevc) * self.a_cond_m2
+    }
+}
+
+/// Débits maximal, de base et après dépassement d'une bouche en habitation, pour le calcul
+/// des consommations et du confort d'été.
+///
+/// Th-BCE 2020 §6.2.3.1.1.2 (éq. 387 à 390 et formule des systèmes hygroréglables avec le `Dugd`
+/// de la bouche, lecture Q36 point 3), §6.2.3.2.2.2 (éq. 403, `Crdbnr = 1`) et §6.2.3.3.1
+/// (éq. 412 et 413). Renvoie `(qmax, qbase, qdep)` en valeurs signées, `None` si la bouche ne
+/// donne ni débit de base ni `Qvarepspec`.
+pub fn debits_dep_habitation(
+    bouche: &BoucheConduit,
+    dugd_h: f64,
+    cdep: f64,
+) -> Option<(f64, f64, f64)> {
+    let base = q_spec_conv_base_m3_h(bouche, dugd_h)?;
+    let max = debits_max_habitation(bouche.isouf, bouche.q_spec_conv_pointe_m3_h);
+    let min = debits_min_habitation(bouche.isouf, base);
+    let regul = debits_regules_habitation(CRDBNR_HABITATION, max, min, dugd_h);
+    let dep = debits_avec_depassement(cdep, regul);
+    let signe = |d: Debits| d.q_rep_m3_h + d.q_souffle_m3_h;
+    Some((signe(max), base, signe(dep)))
 }

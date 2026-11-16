@@ -66,7 +66,7 @@ fn calcul_ecrit_les_resultats_en_json() {
     assert!(groupe["confort_ete"]["theta_op_max_c"].as_f64().unwrap() > 15.0);
     let erreurs = String::from_utf8_lossy(&s.stderr);
     assert!(erreurs.contains("non réglementaire"));
-    assert!(erreurs.contains("DH calculé avec le système de ventilation"));
+    assert!(erreurs.contains("DH calculé avec la ventilation du projet"));
 
     let s = thbce(&[
         "calcul",

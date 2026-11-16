@@ -33,6 +33,9 @@ fn bouche(isouf: Isouf, pointe: f64, base: Option<f64>, qvarep: Option<f64>) -> 
         q_spec_conv_pointe_m3_h: pointe,
         q_spec_conv_base_m3_h: base,
         qvarep_spec_m3_h: qvarep,
+        dugd_h: None,
+        cdep: None,
+        a_cond_m2: None,
     }
 }
 

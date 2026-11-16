@@ -6,10 +6,12 @@
 //! pour les besoins de chauffage, de refroidissement et d'éclairage et le Bbio (§13.1) ; puis en
 //! mode Th-D (lot 5), sur le jeu météo à séquence caniculaire, pour l'indicateur de confort
 //! d'été DH (§13.5). Les deux calculs emploient le même enchaînement horaire, paramétré par
-//! [`ModeCalcul`]. Cep, Cep,nr et Ic énergie restent à `None` jusqu'à l'implémentation des lots
-//! 6 et 7 (`docs/couverture.md`).
+//! [`ModeCalcul`] ; le calcul Th-D emploie la ventilation du projet (§6.2 à 6.5). La
+//! consommation des ventilateurs est restituée pour le Cep ; Cep, Cep,nr et Ic énergie restent
+//! à `None` jusqu'à l'implémentation des lots 6 et 7 (`docs/couverture.md`).
 
 use crate::bati::assemblage_batiment::BatimentHoraire;
+use crate::bati::assemblage_groupe::THETA_INITIALE_C;
 use crate::bati::assemblage_groupe::{EnveloppeResolue, GroupeHoraire, SortiesPasGroupe};
 use crate::bati::assemblage_zone::ZoneHoraire;
 use crate::bati::baie::{BaieResolue, EnsembleBaies, Protections};
@@ -17,6 +19,7 @@ use crate::bati::espace_tampon::assemblage::EspaceTamponHoraire;
 use crate::bati::paroi_opaque::EnsembleParois;
 use crate::bati::pont_thermique::EnsemblePonts;
 use crate::bati::surventilation::H_TTF_CAS_GENERAL_M;
+use crate::climat::calendrier::date_scenario;
 use crate::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
 use crate::conventions::{ModeCalcul, NB_HEURES_AN};
 use crate::entree::{Batiment, Catalogue, Groupe, Projet, UsageZone, Zone};
@@ -26,11 +29,13 @@ use crate::resultats::{
     PeriodeConfortAdaptatif, Resultats, ResultatsBaie, ResultatsBatiment, ResultatsClimat,
     ResultatsConfort, ResultatsConfortEte, ResultatsDebitsBbio, ResultatsEnveloppe,
     ResultatsEspaceTampon, ResultatsEspaceTamponMode, ResultatsGroupe, ResultatsSaisons,
-    ResultatsZone, ValeurParDefaut,
+    ResultatsVentilationGroupe, ResultatsVentilationMode, ResultatsVentilationZone, ResultatsZone,
+    ValeurParDefaut,
 };
 use crate::validation::valider;
 use crate::ventilation::bouche_conduit::debits_specifiques_bbio_groupe;
 use crate::ventilation::ven_bbio::{debits_systeme_conventionnel, LectureDebitsBbio};
+use crate::ventilation::ventilation_projet::VentilationProjet;
 use crate::{VERSION_METHODE, VERSION_MOTEUR};
 
 /// Options de calcul.
@@ -47,12 +52,12 @@ impl Default for Options {
     }
 }
 
-/// Avertissement porté par tout résultat tant que les systèmes du projet ne sont pas décrits :
-/// le DH restitué est celui du confort d'été « en mode besoins » (`docs/questions.md`, Q40).
+/// Avertissement porté par tout résultat tant que les émetteurs du projet ne sont pas décrits
+/// (lot 6b) : le calcul Th-D emploie la ventilation du projet (lot 6a) mais l'émission
+/// conventionnelle du calcul du Bbio (`docs/questions.md`, Q40 et Q42).
 pub const AVERTISSEMENT_DH: &str =
-    "DH calculé avec le système de ventilation et l'émission conventionnels du calcul du Bbio \
-     (confort d'été en mode « besoins ») : la ventilation du projet n'est pas encore prise en \
-     compte par le moteur";
+    "DH calculé avec la ventilation du projet et l'émission conventionnelle du calcul du Bbio : \
+     les émetteurs du projet ne sont pas encore pris en compte par le moteur";
 
 /// Contrôles communs à tout calcul : validité de l'entrée, usages pris en charge, données
 /// météo de la zone climatique du projet.
@@ -142,6 +147,10 @@ pub fn calculer(
             energies_bat.ajouter(&energies_zone);
             zones.push(resultats_zone);
         }
+        let c_aux_vent: Vec<f64> = zones
+            .iter()
+            .filter_map(|z| z.ventilation.as_ref().map(|v| v.c_aux_vent_kwh))
+            .collect();
         // Th-BCE 2020 §13.1.3, éq. (2378) : SREF_bat = somme des SREF_zn du bâtiment.
         let sref_m2: f64 = zones.iter().map(|z| z.sref_m2).sum();
         let bbio = sorties(&energies_bat, sref_m2);
@@ -154,6 +163,7 @@ pub fn calculer(
             cep_nr_kwhep_m2: None,
             dh_c_h: dh_le_plus_defavorable(zones.iter().filter_map(|z| z.dh_c_h)),
             ic_energie_kgco2_m2: None,
+            c_aux_vent_kwh: (!c_aux_vent.is_empty()).then(|| c_aux_vent.iter().sum()),
             zones,
             espaces_tampons: th_b
                 .espaces_tampons
@@ -273,11 +283,16 @@ fn restituer_zone(
     th_d: &ZoneHoraire,
 ) -> (ResultatsZone, EnergiesMensuelles) {
     let mut energies_zone = EnergiesMensuelles::default();
+    // Système de ventilation du projet, préparé hors de la boucle horaire : en habitation, la
+    // puissance des ventilateurs est constante (éq. 392 et 394, 641 et 643), et la
+    // consommation se somme heure par heure (éq. 565, 645).
+    let ventilation = VentilationProjet::nouvelle(zone, THETA_INITIALE_C);
     let groupes: Vec<ResultatsGroupe> = zone
         .groupes
         .iter()
         .zip(th_b.groupes.iter().zip(&th_d.groupes))
-        .map(|(g, (b, d))| {
+        .enumerate()
+        .map(|(ig, (g, (b, d)))| {
             let sref_m2 = sref_groupe(g, zone.usage);
             let energies = energies_groupe(b);
             energies_zone.ajouter(&energies);
@@ -299,6 +314,9 @@ fn restituer_zone(
                 }),
                 confort_ete: Some(resultats_confort_ete(d)),
                 saisons_th_d: Some(resultats_saisons(d)),
+                ventilation: ventilation
+                    .as_ref()
+                    .map(|v| ventilation_groupe(v, ig, sref_m2)),
                 baies: resultats_baies(g, &projet.catalogue),
                 valeurs_par_defaut: defauts_groupe(g, &projet.catalogue),
             }
@@ -318,10 +336,53 @@ fn restituer_zone(
             nadeq: Some(th_b.scenarios.nadeq),
             bbio: Some(sorties(&energies_zone, sref_m2)),
             dh_c_h,
+            ventilation: ventilation.as_ref().map(|v| ResultatsVentilationZone {
+                id: v.id.clone(),
+                p_vent_w: v.p_vent_w(),
+                c_aux_vent_kwh: v.p_vent_w() * NB_HEURES_AN as f64 / 1000.0,
+                th_d: th_d.ventilation.as_ref().map(|_| ResultatsVentilationMode {
+                    nbh_bypass: th_d.cumuls_ventilation.nbh_bypass,
+                    q_ag_kwh: th_d.cumuls_ventilation.w_ag_wh / 1000.0,
+                }),
+                valeurs_par_defaut: v.valeurs_par_defaut.clone(),
+            }),
             groupes,
         },
         energies_zone,
     )
+}
+
+/// Ventilation du projet vue d'un groupe : débits et consommation des ventilateurs.
+///
+/// Th-BCE 2020 §6.2.3.4 (éq. 428 à 431) ; §6.3.3.4.13 (éq. 565 et 570) et §6.5.3.3 (éq. 645 et
+/// 646) : la consommation horaire, en Wh, est la puissance attribuée au groupe, constante en
+/// habitation ; elle est sommée sur les mois des scénarios (§4.1.3).
+fn ventilation_groupe(v: &VentilationProjet, g: usize, sref_m2: f64) -> ResultatsVentilationGroupe {
+    let p_vent_w = v.p_vent_groupe_w(g);
+    let mut mensuel = vec![0.0; 12];
+    for h in 0..NB_HEURES_AN {
+        let m = usize::from(date_scenario(h).mois) - 1;
+        if let Some(x) = mensuel.get_mut(m) {
+            *x += p_vent_w / 1000.0;
+        }
+    }
+    let c_aux_vent_kwh: f64 = mensuel.iter().sum();
+    let d = v.debits_groupe(g);
+    let cond = v.debits_cond_groupe(g);
+    ResultatsVentilationGroupe {
+        q_spec_repris_m3_h: d.q_rep_m3_h,
+        q_spec_souffle_m3_h: d.q_souffle_m3_h,
+        q_repris_cond_m3_h: cond.q_rep_m3_h,
+        q_souffle_cond_m3_h: cond.q_souffle_m3_h,
+        p_vent_w,
+        c_aux_vent_kwh,
+        c_aux_vent_kwh_m2: if sref_m2 > 0.0 {
+            c_aux_vent_kwh / sref_m2
+        } else {
+            0.0
+        },
+        c_aux_vent_mensuel_kwh: mensuel,
+    }
 }
 
 /// Séries horaires d'un groupe sur l'année de calcul d'un mode.

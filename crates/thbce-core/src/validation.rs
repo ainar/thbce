@@ -19,8 +19,8 @@ use crate::bati::surventilation::traversant_conventionnel;
 use crate::entree::{
     Baie, BaieType, Batiment, BoucheConduit, Catalogue, EntreesAir, EspaceTamponSolarise,
     Exposition, FacteursBaie, GestionPm, Groupe, Inertie, InertieAnnuelle, InertieQuotidienne,
-    InertieSequentielle, Masque, NatureEspaceTampon, ParoiOpaque, ParoiType, PontThermique, Projet,
-    TypePm, Zone,
+    InertieSequentielle, Isouf, Masque, NatureEspaceTampon, ParoiOpaque, ParoiType, PontThermique,
+    Projet, RepresentationEchangeur, SystemeVentilation, TypePm, Ventilation, Zone,
 };
 use crate::ventilation::bouche_conduit::{
     debits_specifiques_bbio_groupe, q_spec_conv_base_m3_h, DUGD_BBIO_H,
@@ -259,6 +259,17 @@ fn valider_zone(r: &mut RapportValidation, c: &str, zone: &Zone, refs: &Referenc
         _ => {}
     }
     valider_aeraulique_zone(r, c, zone);
+    if zone.usage.est_habitation() {
+        match &zone.ventilation {
+            None => r.erreur(
+                format!("{c}.ventilation"),
+                None,
+                "système de ventilation requis en habitation : il sert aux calculs du confort \
+                 d'été et des consommations (Th-BCE 2020 §6.2 à 6.5)",
+            ),
+            Some(v) => valider_ventilation(r, &format!("{c}.ventilation"), v, zone),
+        }
+    }
     if zone.groupes.is_empty() {
         r.erreur(
             format!("{c}.groupes"),
@@ -552,6 +563,35 @@ fn valider_bouche_conduit(r: &mut RapportValidation, c: &str, b: &BoucheConduit)
         format!("{c}.q_spec_conv_pointe_m3_h"),
         b.q_spec_conv_pointe_m3_h,
     );
+    // §6.2.2 et §6.3.2 : Dugd de 0 à 168 h par semaine ; la formule du débit de base d'un
+    // système hygroréglable divise par 168 − Dugd.
+    if let Some(d) = b.dugd_h {
+        if d.is_finite() && d >= 168.0 {
+            r.erreur(
+                format!("{c}.dugd_h"),
+                Some(d.to_string()),
+                "doit être inférieur à 168 h par semaine (Th-BCE 2020 §6.2.3.2.2.2)",
+            );
+        } else {
+            r.positif(format!("{c}.dugd_h"), d);
+        }
+    }
+    if let Some(cdep) = b.cdep {
+        r.strictement_positif(format!("{c}.cdep"), cdep);
+    }
+    if let Some(a) = b.a_cond_m2 {
+        r.positif(format!("{c}.a_cond_m2"), a);
+    }
+    if let (Some(d), Some(base)) = (b.dugd_h, q_spec_conv_base_m3_h(b, b.dugd_h.unwrap_or(0.0))) {
+        if b.qvarep_spec_m3_h.is_some() && d.is_finite() && d < 168.0 && base < 0.0 {
+            r.erreur(
+                format!("{c}.qvarep_spec_m3_h"),
+                b.qvarep_spec_m3_h.map(|q| q.to_string()),
+                "le débit de base déduit de Qvarepspec avec la durée d'utilisation du grand débit \
+                 de la bouche est négatif (Th-BCE 2020 §6.2.3.1.1.2)",
+            );
+        }
+    }
     let (champ, valeur) = match (b.q_spec_conv_base_m3_h, b.qvarep_spec_m3_h) {
         (Some(base), None) => ("q_spec_conv_base_m3_h", base),
         (None, Some(q)) => ("qvarep_spec_m3_h", q),
@@ -1167,6 +1207,200 @@ fn valider_espace_solarise(
             None,
             "l'espace tampon n'échange ni chaleur ni air avec l'extérieur (Th-BCE 2020 §5.4.3.3.1.5, \
              éq. 124)",
+        );
+    }
+}
+
+/// Message des systèmes et fonctions de ventilation hors de la première version.
+const HORS_PERIMETRE_VENTILATION: &str = "non pris en charge dans cette version du moteur \
+     (après v1, docs/couverture.md)";
+
+/// Th-BCE 2020 §6.2 à 6.5 : système de ventilation d'une zone d'habitation.
+fn valider_ventilation(r: &mut RapportValidation, c: &str, v: &Ventilation, zone: &Zone) {
+    let bouches = || zone.groupes.iter().flat_map(|g| &g.bouches_conduits);
+    // Une zone sans groupe, ou sans bouche, est déjà signalée par ailleurs.
+    let sans_bouche = bouches().next().is_none();
+    let a_reprise = sans_bouche || bouches().any(|b| b.isouf == Isouf::Reprise);
+    let a_soufflage = bouches().any(|b| b.isouf == Isouf::Soufflage);
+    let cs = format!("{c}.systeme");
+    match &v.systeme {
+        SystemeVentilation::SimpleFluxExtraction(p)
+        | SystemeVentilation::MecaniqueBassePression(p) => {
+            let nature = if matches!(v.systeme, SystemeVentilation::SimpleFluxExtraction(_)) {
+                "simple_flux_extraction"
+            } else {
+                "mecanique_basse_pression"
+            };
+            r.positif(format!("{cs}.{nature}.p_vent_base_w"), p.p_vent_base_w);
+            r.positif(format!("{cs}.{nature}.p_vent_pointe_w"), p.p_vent_pointe_w);
+            if a_soufflage {
+                r.erreur(
+                    cs.clone(),
+                    None,
+                    "un système par extraction n'a que des bouches de reprise (isouf = reprise) \
+                     (Th-BCE 2020 §6.4 et §6.5)",
+                );
+            }
+            if !a_reprise {
+                r.erreur(cs.clone(), None, "au moins une bouche de reprise requise");
+            }
+        }
+        SystemeVentilation::SimpleFluxInsufflation(p) => {
+            r.positif(
+                format!("{cs}.simple_flux_insufflation.p_vent_base_w"),
+                p.p_vent_base_w,
+            );
+            r.positif(
+                format!("{cs}.simple_flux_insufflation.p_vent_pointe_w"),
+                p.p_vent_pointe_w,
+            );
+            if a_reprise && !sans_bouche {
+                r.erreur(
+                    cs.clone(),
+                    None,
+                    "un système par insufflation n'a que des bouches de soufflage (isouf = \
+                     soufflage) (Th-BCE 2020 §6.5)",
+                );
+            }
+            if !a_soufflage && !sans_bouche {
+                r.erreur(cs.clone(), None, "au moins une bouche de soufflage requise");
+            }
+        }
+        SystemeVentilation::DoubleFlux(df) => {
+            let cd = format!("{cs}.double_flux");
+            r.positif(format!("{cd}.p_vent_base_rep_w"), df.p_vent_base_rep_w);
+            r.positif(format!("{cd}.p_vent_pointe_rep_w"), df.p_vent_pointe_rep_w);
+            r.positif(format!("{cd}.p_vent_base_sou_w"), df.p_vent_base_sou_w);
+            r.positif(format!("{cd}.p_vent_pointe_sou_w"), df.p_vent_pointe_sou_w);
+            if !(a_reprise && a_soufflage) && !sans_bouche {
+                r.erreur(
+                    cs.clone(),
+                    None,
+                    "un double flux a des bouches de reprise et des bouches de soufflage \
+                     (Th-BCE 2020 §6.3)",
+                );
+            }
+            for (champ, present) in [
+                ("prechauffage", df.prechauffage),
+                ("humidification", df.humidification),
+                (
+                    "rafraichissement_evaporatif",
+                    df.rafraichissement_evaporatif,
+                ),
+                ("surventilation_mecanique", df.surventilation_mecanique),
+            ] {
+                if present == Some(true) {
+                    r.erreur(
+                        format!("{cd}.{champ}"),
+                        Some("true".into()),
+                        HORS_PERIMETRE_VENTILATION,
+                    );
+                }
+            }
+            if let Some(e) = &df.echangeur {
+                let ce = format!("{cd}.echangeur");
+                match &e.representation {
+                    RepresentationEchangeur::Simplifiee(s) => r.plage(
+                        format!("{ce}.representation.simplifiee.epsilon_saisi"),
+                        s.epsilon_saisi,
+                        0.0,
+                        1.0,
+                    ),
+                    RepresentationEchangeur::Detaillee(d) => {
+                        r.positif(format!("{ce}.representation.detaillee.ua_w_k"), d.ua_w_k);
+                    }
+                }
+                if e.rotatif == Some(true) {
+                    r.erreur(
+                        format!("{ce}.rotatif"),
+                        Some("true".into()),
+                        format!("échangeur rotatif {HORS_PERIMETRE_VENTILATION}"),
+                    );
+                }
+                if let Some(t) = e.theta_s_ech_rep_lim_c {
+                    r.plage(format!("{ce}.theta_s_ech_rep_lim_c"), t, -10.0, 10.0);
+                }
+                if let Some(b) = &e.bypass {
+                    for (champ, t) in [
+                        ("theta_ext_bypass_hiver_c", b.theta_ext_bypass_hiver_c),
+                        ("theta_ext_bypass_ete_c", b.theta_ext_bypass_ete_c),
+                        ("theta_int_bypass_hiver_c", b.theta_int_bypass_hiver_c),
+                        ("theta_int_bypass_ete_c", b.theta_int_bypass_ete_c),
+                    ] {
+                        r.plage(
+                            format!("{ce}.bypass.{champ}"),
+                            t,
+                            f64::NEG_INFINITY,
+                            f64::INFINITY,
+                        );
+                    }
+                }
+            }
+        }
+        SystemeVentilation::NaturelleParConduits
+        | SystemeVentilation::Hybride
+        | SystemeVentilation::Aeration => r.erreur(
+            cs.clone(),
+            None,
+            format!(
+                "ventilation naturelle, hybride ou par ouverture des fenêtres (Th-BCE 2020 §6.6 \
+                 et §6.7) {HORS_PERIMETRE_VENTILATION}"
+            ),
+        ),
+        SystemeVentilation::CentraleTraitementAir => r.erreur(
+            cs.clone(),
+            None,
+            "centrale de traitement d'air : réservée au non résidentiel (Th-BCE 2020 §6.2.3.1.2 \
+             et §6.3.3.1.3)",
+        ),
+    }
+    if let Some(p) = v.puits {
+        r.erreur(
+            format!("{c}.puits"),
+            Some(format!("{p:?}")),
+            format!("puits climatique ou hydraulique {HORS_PERIMETRE_VENTILATION}"),
+        );
+    }
+
+    // Réseau.
+    let cr = format!("{c}.reseau");
+    r.plage(format!("{cr}.b"), v.reseau.b, 0.0, 1.0);
+    if let Some(x) = v.reseau.ratfuitevc {
+        r.plage(format!("{cr}.ratfuitevc"), x, 0.0, 1.0);
+    }
+    for (champ, requis, valeur) in [
+        ("r_rep_m2k_w", a_reprise, v.reseau.r_rep_m2k_w),
+        ("r_souf_m2k_w", a_soufflage, v.reseau.r_souf_m2k_w),
+    ] {
+        match valeur {
+            Some(x) => r.positif(format!("{cr}.{champ}"), x),
+            None if requis => r.erreur(
+                format!("{cr}.{champ}"),
+                None,
+                "résistance thermique des conduits hors volume chauffé requise (Th-BCE 2020 \
+                 §6.5.2 et §6.3.2)",
+            ),
+            None => {}
+        }
+    }
+    // §6.2.3.4 : surfaces de conduits saisies pour toutes les bouches (Is_surf_cond_def = 0),
+    // avec le ratio des fuites en volume chauffé, ou pour aucune.
+    let nb = bouches().count();
+    let nb_saisies = bouches().filter(|b| b.a_cond_m2.is_some()).count();
+    if nb_saisies > 0 && nb_saisies < nb {
+        r.erreur(
+            format!("{c}.reseau"),
+            None,
+            "les surfaces de conduits (a_cond_m2) se saisissent pour toutes les bouches de la \
+             zone, ou pour aucune (Th-BCE 2020 §6.2.3.4, Is_surf_cond_def)",
+        );
+    }
+    if nb_saisies == nb && nb > 0 && v.reseau.ratfuitevc.is_none() {
+        r.erreur(
+            format!("{cr}.ratfuitevc"),
+            None,
+            "ratio des fuites en volume chauffé requis quand les surfaces de conduits sont \
+             saisies (Th-BCE 2020 §6.2.3.4)",
         );
     }
 }

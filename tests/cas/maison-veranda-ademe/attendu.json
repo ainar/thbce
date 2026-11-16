@@ -48,7 +48,8 @@
           },
           "valeurs_par_defaut": []
         }
-      ]
+      ],
+      "c_aux_vent_kwh": 129.2
     }
   ]
 }

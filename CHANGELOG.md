@@ -9,6 +9,10 @@ Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consol
 
 ### Modifié
 
+- **Format d'entrée, changement incompatible** : une zone d'habitation porte `ventilation`, système de ventilation du projet, obligatoire : `systeme` (`simple_flux_extraction`, `simple_flux_insufflation`, `mecanique_basse_pression` ou `double_flux`, avec les puissances des ventilateurs et, en double flux, l'échangeur, son bypass et son antigel), `reseau` (`b`, résistances des conduits hors volume chauffé, classe d'étanchéité et ratio des fuites en volume chauffé facultatifs). Les bouches gagnent `dugd_h`, `cdep` et `a_cond_m2`, facultatifs. Ventilation naturelle et hybride, aération, centrales de traitement d'air, puits climatiques ou hydrauliques, échangeurs rotatifs, préchauffage, humidification, rafraîchissement évaporatif et surventilation mécanique sont reconnus et refusés (« non pris en charge »). Le JSON Schema (`thbce schema`) et les exemples de `tests/cas/` sont à jour ; la maison d'exemple a une VMC simple flux hygroréglable.
+- **DH** : le calcul Th-D emploie la ventilation du projet (annexe III §6.2 à 6.5, lecture Q42) au lieu du système conventionnel du Bbio ; l'émission reste conventionnelle jusqu'au lot 6b, et l'avertissement `AVERTISSEMENT_DH` le dit. Le Bbio n'est pas modifié (système conventionnel, §6.1).
+- API Rust : `Lectures` porte `ventilation_th_d` ; `ZoneHoraire` porte `ventilation`, `sorties_ventilation`, `cumuls_ventilation` et `air_souffle()`.
+
 - Maison d'exemple (`tests/cas/maison-climat-ademe`) : facteurs solaires des parois opaques calculés par la formule 259 des règles Th-Bat (`Sp = αp·Up·Rse`, `αp = 0,6`) au lieu de 0,01.
 - API Rust : le calcul simule chaque bâtiment d'un bloc (`bati::assemblage_batiment::BatimentHoraire`) ; `ZoneHoraire::pas_avec_espaces_tampons` et `GroupeHoraire::pas_avec_espaces_tampons` reçoivent les coefficients des espaces tampons ; `EtatGroupe` (bilan aéraulique) porte `theta_an_c` ; `Lectures` porte `fermeture_et`. `GroupeThermique::hg_emq_w_k` accepte un coefficient des parois négatif (espace tampon plus chaud que le groupe).
 
@@ -30,6 +34,9 @@ Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consol
 - Résultats : `bbio_pts` du bâtiment est calculé ; l'avertissement « squelette du moteur » ne cite plus le Bbio. Nouvelle erreur `Erreur::Calcul` (nature `calcul` dans le module WebAssembly, code de retour d'erreur de calcul en ligne de commande).
 
 ### Ajouté
+
+- **Ventilation du projet** (annexe III §6.2 à 6.5) : simple flux par extraction ou par insufflation, autoréglable ou hygroréglable, extraction mécanique basse pression, double flux en habitation (échangeur simplifié ou détaillé, bypass, sécurité antigel) ; débits avec dépassement et fuites des réseaux, pertes des conduits hors volume chauffé, échauffement de l'air par les ventilateurs. Résultats : `ventilation` sur la zone et le groupe, `c_aux_vent_kwh` sur le bâtiment, consommation des ventilateurs en kWh d'énergie finale électrique (annuelle et mensuelle), pour le Cep du lot 7. Lectures du texte : `docs/questions.md`, Q42.
+- Cas `tests/cas/maison-double-flux-ademe` : la maison d'exemple avec une VMC double flux.
 
 - **Espaces tampons** (annexe III §5.2 à 5.4) : espaces non solarisés (coefficient `b` des règles Th-Bat) et solarisés (vérandas : modèle dynamique, protections mobiles et ouverture de leurs parois), calculés à chaque pas de temps avant les zones, en Th-B et en Th-D ; leurs coefficients `btherm`, `bsolaire` et `becl` s'appliquent aux parois opaques, ponts thermiques et baies qui donnent sur eux, et l'air neuf des entrées d'air peut transiter par eux. Format d'entrée, changement compatible : `espaces_tampons` sur le bâtiment, `espace_tampon` sur les parois opaques, baies, ponts thermiques et entrées d'air. Résultats : `espaces_tampons` sur le bâtiment (btherm moyen, températures, heures d'ouverture, valeurs par défaut). Le JSON Schema (`thbce schema`) est à jour. Lectures du texte : `docs/questions.md`, Q41.
 - Cas `tests/cas/maison-veranda-ademe` : la maison d'exemple avec une véranda et un garage.

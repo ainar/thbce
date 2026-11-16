@@ -17,6 +17,33 @@
         {
           "id": "logement",
           "sref_m2": 96.4,
+          "ventilation": {
+            "id": "vmc-autoreglable",
+            "p_vent_w": 16.3,
+            "c_aux_vent_kwh": 142.4,
+            "valeurs_par_defaut": [
+              {
+                "champ": "ventilation.reseau.classe_etancheite",
+                "valeur": 6.75e-05,
+                "regle": "Th-BCE 2020 §6.2.3.4, tableau 59 : Kres de la valeur par défaut « DEF », en m³/(s.m²) sous 1 Pa"
+              },
+              {
+                "champ": "ventilation.reseau.ratfuitevc",
+                "valeur": 0.25,
+                "regle": "Th-BCE 2020 §6.2.3.4, tableau 60 : valeur par défaut"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[0].dugd_h",
+                "valeur": 14.0,
+                "regle": "Th-BCE 2020 §6.2.3.2.2.2, tableau 57 : dispositif à gestion manuelle (par défaut)"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[0].a_cond_m2",
+                "valeur": 4.822,
+                "regle": "Th-BCE 2020 §6.2.3.4, éq. (421) à (427), tableau 60 : surface de conduit par défaut"
+              }
+            ]
+          },
           "groupes": [
             {
               "id": "volume-chauffe",
@@ -55,12 +82,22 @@
                   "champ": "h_ttf_m",
                   "valeur": 1.5
                 }
-              ]
+              ],
+              "ventilation": {
+                "q_spec_repris_m3_h": -133.4,
+                "q_spec_souffle_m3_h": 0.0,
+                "q_repris_cond_m3_h": -149.7,
+                "q_souffle_cond_m3_h": 0.0,
+                "p_vent_w": 16.3,
+                "c_aux_vent_kwh": 142.4,
+                "c_aux_vent_kwh_m2": 1.5
+              }
             }
           ],
           "nadeq": 1.9
         }
-      ]
+      ],
+      "c_aux_vent_kwh": 142.4
     }
   ]
 }

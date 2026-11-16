@@ -81,6 +81,11 @@ pub struct ResultatsBatiment {
     pub dh_c_h: Option<f64>,
     /// « Ic énergie », en kg éq. CO2/m² (annexe II §4.3.2, éq. 74).
     pub ic_energie_kgco2_m2: Option<f64>,
+    /// Consommation annuelle des auxiliaires de ventilation du bâtiment (ventilateurs), en kWh
+    /// d'énergie finale électrique : somme de celles de ses zones. Absente sans système de
+    /// ventilation du projet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub c_aux_vent_kwh: Option<f64>,
     /// Résultats par zone.
     pub zones: Vec<ResultatsZone>,
     /// Espaces tampons du bâtiment (§5.2 à 5.4) ; absent sans espace tampon.
@@ -130,8 +135,64 @@ pub struct ResultatsZone {
     pub bbio: Option<ResultatsBbio>,
     /// « DH » du groupe le plus défavorable de la zone, en °C.h (§13.5.3, éq. 2551).
     pub dh_c_h: Option<f64>,
+    /// Système de ventilation du projet (§6.2 à 6.5) ; absent hors habitation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ventilation: Option<ResultatsVentilationZone>,
     /// Résultats par groupe.
     pub groupes: Vec<ResultatsGroupe>,
+}
+
+/// Système de ventilation du projet d'une zone (Th-BCE 2020 §6.2 à 6.5).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsVentilationZone {
+    /// Identifiant du système.
+    pub id: Id,
+    /// Puissance moyenne des ventilateurs, en W (éq. 391 à 394, 620, 641 et 643), constante
+    /// en habitation.
+    pub p_vent_w: f64,
+    /// Consommation annuelle des ventilateurs, en kWh d'énergie finale électrique : la
+    /// puissance moyenne sommée heure par heure (éq. 565, 621 et 645).
+    pub c_aux_vent_kwh: f64,
+    /// Fonctionnement du système dans le calcul Th-D ; absent si le calcul Th-D n'emploie pas
+    /// le système du projet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub th_d: Option<ResultatsVentilationMode>,
+    /// Valeurs par défaut de la méthode appliquées au système et à ses bouches ; champ relatif
+    /// à la zone.
+    pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+}
+
+/// Fonctionnement annuel du système de ventilation du projet dans un calcul.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsVentilationMode {
+    /// Nombre d'heures où l'échangeur d'un double flux est contourné par son bypass (éq. 494).
+    pub nbh_bypass: u32,
+    /// Énergie fournie pour la sécurité antigel de l'échangeur, en kWh (éq. 508).
+    pub q_ag_kwh: f64,
+}
+
+/// Ventilation du projet vue d'un groupe (Th-BCE 2020 §6.2 à 6.5).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsVentilationGroupe {
+    /// « qspec_repris » : débit spécifique repris au groupe, fuites en volume chauffé
+    /// comprises, en m³/h, négatif (éq. 428).
+    pub q_spec_repris_m3_h: f64,
+    /// « qspec_soufflé » : débit spécifique soufflé dans le groupe, fuites en volume chauffé
+    /// comprises, en m³/h (éq. 429).
+    pub q_spec_souffle_m3_h: f64,
+    /// « qrepris,cond » : débit repris vu par le ventilateur, en m³/h, négatif (éq. 430).
+    pub q_repris_cond_m3_h: f64,
+    /// « qsoufflé,cond » : débit soufflé vu par le ventilateur, en m³/h (éq. 431).
+    pub q_souffle_cond_m3_h: f64,
+    /// Puissance des ventilateurs attribuée au groupe, en W (éq. 570, 642 et 644).
+    pub p_vent_w: f64,
+    /// Consommation annuelle des auxiliaires de ventilation du groupe, en kWh d'énergie finale
+    /// électrique (« Waux,v^gr », éq. 570 ; « Cvent^g », éq. 646).
+    pub c_aux_vent_kwh: f64,
+    /// La même, par m² de surface de référence du groupe, en kWh/m².
+    pub c_aux_vent_kwh_m2: f64,
+    /// Consommations mensuelles, en kWh, mois au sens des scénarios (§4.1.3).
+    pub c_aux_vent_mensuel_kwh: Vec<f64>,
 }
 
 /// Résultats d'un groupe.
@@ -156,6 +217,10 @@ pub struct ResultatsGroupe {
     pub confort_ete: Option<ResultatsConfortEte>,
     /// Saisons propres du groupe en calcul Th-D (§4.6).
     pub saisons_th_d: Option<ResultatsSaisons>,
+    /// Ventilation du projet vue du groupe : débits et consommation des ventilateurs ; absente
+    /// hors habitation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ventilation: Option<ResultatsVentilationGroupe>,
     /// Résultats par baie.
     pub baies: Vec<ResultatsBaie>,
     /// Valeurs par défaut de la méthode appliquées aux paramètres non saisis du groupe ; liste
@@ -352,6 +417,7 @@ impl Resultats {
             b.cep_nr_kwhep_m2 = b.cep_nr_kwhep_m2.map(a);
             b.dh_c_h = b.dh_c_h.map(a);
             b.ic_energie_kgco2_m2 = b.ic_energie_kgco2_m2.map(a);
+            b.c_aux_vent_kwh = b.c_aux_vent_kwh.map(a);
             for et in &mut b.espaces_tampons {
                 for m in [&mut et.th_b, &mut et.th_d].into_iter().flatten() {
                     m.b_therm_moyen = a(m.b_therm_moyen);
@@ -364,6 +430,13 @@ impl Resultats {
                 z.sref_m2 = a(z.sref_m2);
                 z.nadeq = z.nadeq.map(a);
                 z.dh_c_h = z.dh_c_h.map(a);
+                if let Some(v) = &mut z.ventilation {
+                    v.p_vent_w = a(v.p_vent_w);
+                    v.c_aux_vent_kwh = a(v.c_aux_vent_kwh);
+                    if let Some(m) = &mut v.th_d {
+                        m.q_ag_kwh = a(m.q_ag_kwh);
+                    }
+                }
                 if let Some(bbio) = &mut z.bbio {
                     bbio.arrondir();
                 }
@@ -383,6 +456,22 @@ impl Resultats {
                         c.dh_c_h = a(c.dh_c_h);
                         c.theta_op_max_c = a(c.theta_op_max_c);
                         c.theta_op_max_occ_c = c.theta_op_max_occ_c.map(a);
+                    }
+                    if let Some(v) = &mut g.ventilation {
+                        for x in [
+                            &mut v.q_spec_repris_m3_h,
+                            &mut v.q_spec_souffle_m3_h,
+                            &mut v.q_repris_cond_m3_h,
+                            &mut v.q_souffle_cond_m3_h,
+                            &mut v.p_vent_w,
+                            &mut v.c_aux_vent_kwh,
+                            &mut v.c_aux_vent_kwh_m2,
+                        ] {
+                            *x = a(*x);
+                        }
+                        for x in &mut v.c_aux_vent_mensuel_kwh {
+                            *x = a(*x);
+                        }
                     }
                     if let Some(d) = &mut g.debits_bbio {
                         d.q_spec_repris_m3_h = a(d.q_spec_repris_m3_h);

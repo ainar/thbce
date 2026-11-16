@@ -19,12 +19,39 @@
         {
           "id": "logement",
           "nadeq": 1.9,
+          "ventilation": {
+            "id": "vmc-hygro",
+            "p_vent_w": 14.8,
+            "c_aux_vent_kwh": 129.2,
+            "valeurs_par_defaut": [
+              {
+                "champ": "ventilation.reseau.classe_etancheite",
+                "valeur": 6.75e-05,
+                "regle": "Th-BCE 2020 §6.2.3.4, tableau 59 : Kres de la valeur par défaut « DEF », en m³/(s.m²) sous 1 Pa"
+              },
+              {
+                "champ": "ventilation.reseau.ratfuitevc",
+                "valeur": 0.25,
+                "regle": "Th-BCE 2020 §6.2.3.4, tableau 60 : valeur par défaut"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[0].cdep",
+                "valeur": 1.3,
+                "regle": "Th-BCE 2020 §6.2.3.3.1, tableau 58 : valeur par défaut"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[0].a_cond_m2",
+                "valeur": 4.822,
+                "regle": "Th-BCE 2020 §6.2.3.4, éq. (421) à (427), tableau 60 : surface de conduit par défaut"
+              }
+            ]
+          },
           "groupes": [
             {
               "id": "volume-chauffe",
               "debits_bbio": {
-                "q_spec_repris_m3_h": -111.3,
-                "q_spec_souffle_m3_h": 111.3
+                "q_spec_repris_m3_h": -92.0,
+                "q_spec_souffle_m3_h": 92.0
               },
               "enveloppe": {
                 "a_op_m2": 290.0,
@@ -138,11 +165,21 @@
                   "champ": "h_ttf_m",
                   "valeur": 1.5
                 }
-              ]
+              ],
+              "ventilation": {
+                "q_spec_repris_m3_h": -125.0,
+                "q_spec_souffle_m3_h": 0.0,
+                "q_repris_cond_m3_h": -141.4,
+                "q_souffle_cond_m3_h": 0.0,
+                "p_vent_w": 14.8,
+                "c_aux_vent_kwh": 129.2,
+                "c_aux_vent_kwh_m2": 1.3
+              }
             }
           ]
         }
-      ]
+      ],
+      "c_aux_vent_kwh": 129.2
     }
   ]
 }

@@ -15,10 +15,10 @@
 //! `Δθconf_adapt` (§5.13.3.1.1 et §13.5.3.4), inerties séquentielle et annuelle (§5.21.3.10),
 //! saisons du Th-D (§4.6.3.2), aucun refroidissement (§13.5.3.1), indicateur DH (§13.5.3.8).
 //!
-//! Périmètre : calculs Th-B et Th-D des usages d'habitation, sans espace tampon. Le calcul
-//! Th-D emploie l'assemblage du calcul du Bbio (figure 23) : système de ventilation et émission
-//! conventionnels, faute des systèmes du projet (lot 6) ; c'est le confort d'été « en mode
-//! besoins » que le texte nomme Th-DB (§6.11.3). Voir `docs/questions.md`, Q40.
+//! Périmètre : calculs Th-B et Th-D des usages d'habitation. Le calcul Th-D emploie
+//! l'assemblage du calcul du Bbio (figure 23), avec les débits et l'air soufflé du système de
+//! ventilation du projet (lot 6a, `docs/questions.md`, Q42) et l'émission conventionnelle
+//! jusqu'au lot 6b (Q40).
 //!
 //! Lectures propres à l'enchaînement horaire : `docs/questions.md`, Q39 et Q40.
 
@@ -94,6 +94,19 @@ pub struct Lectures {
     pub inerties_longues: bool,
     /// Branche de fermeture de l'ouverture des espaces tampons solarisés (Q41 point 4).
     pub fermeture_et: LectureFermetureEt,
+    /// Ventilation du calcul Th-D (Q42 ; Q40 point 1 pour l'assemblage provisoire).
+    pub ventilation_th_d: VentilationThD,
+}
+
+/// Système de ventilation employé par le calcul Th-D (`docs/questions.md`, Q42 ; Q40 point 1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum VentilationThD {
+    /// Le système de ventilation du projet (fiches 6.2 à 6.5) : lecture retenue au lot 6a.
+    #[default]
+    Projet,
+    /// Le système conventionnel du calcul du Bbio (fiche 6.1) : assemblage provisoire du lot 5,
+    /// conservé pour mesurer l'écart.
+    ConventionnelleBbio,
 }
 
 impl Default for Lectures {
@@ -104,6 +117,7 @@ impl Default for Lectures {
             debits: LectureDebitsBbio::default(),
             inerties_longues: true,
             fermeture_et: LECTURE_FERMETURE_ET,
+            ventilation_th_d: VentilationThD::default(),
         }
     }
 }
@@ -395,7 +409,9 @@ pub struct GroupeHoraire {
     pub thermique: GroupeThermique,
     /// « HTH,k+pt », en W/K.
     pub h_th_k_pt_w_k: f64,
-    /// Débits du système de ventilation conventionnel du Bbio, en m³/h (§6.1 et §6.2).
+    /// Débits spécifiques repris et soufflé du groupe, en m³/h : ceux du système de
+    /// ventilation conventionnel en Th-B (§6.1 et §6.2), ceux du système du projet sinon,
+    /// fixés par la zone (§6.2.3.4, éq. 428 et 429).
     pub debits: Debits,
     /// Données aérauliques du groupe (§5.6).
     pub aeraulique: GroupeAeraulique,
