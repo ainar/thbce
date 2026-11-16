@@ -43,6 +43,12 @@
                   "id": "baie-nord",
                   "valeurs_par_defaut": []
                 }
+              ],
+              "valeurs_par_defaut": [
+                {
+                  "champ": "h_ttf_m",
+                  "valeur": 1.5
+                }
               ]
             }
           ],

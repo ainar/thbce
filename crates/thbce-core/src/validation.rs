@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use thbce_data::ZoneClimatique;
 
 use crate::bati::baie::{u_baie, EtatBaie, REDUCTION_SW_SP_C};
+use crate::bati::surventilation::traversant_conventionnel;
 use crate::entree::{
     Baie, BaieType, Exposition, FacteursBaie, GestionPm, Groupe, Inertie, InertieAnnuelle,
     InertieQuotidienne, InertieSequentielle, Masque, ParoiOpaque, ParoiType, PontThermique, Projet,
@@ -288,6 +289,37 @@ fn valider_groupe(
     for (i, b) in g.baies.iter().enumerate() {
         valider_baie(r, &format!("{c}.baies[{i}]"), b, refs);
     }
+    // Th-BCE 2020 §5.13.3.2.1, tableau 43, et §5.13.3.2.2.
+    let a_des_ouvrants = g.baies.iter().any(|b| {
+        refs.types_baies
+            .get(b.type_baie.as_str())
+            .is_some_and(|t| t.ouvrant.is_some())
+    });
+    match (traversant_conventionnel(zone.usage.numero()), g.traversant) {
+        (Some(conv), Some(saisi)) if conv != saisi => r.erreur(
+            format!("{c}.traversant"),
+            Some(saisi.to_string()),
+            "le caractère traversant est conventionnel pour cet usage (tableau 43) : ne pas le \
+             saisir",
+        ),
+        (None, None) if a_des_ouvrants && zone.usage.est_pris_en_charge() => r.erreur(
+            format!("{c}.traversant"),
+            None,
+            "caractère traversant du groupe requis en logement collectif quand des baies sont \
+             ouvrables (Th-BCE 2020 §5.13.3.2.1)",
+        ),
+        _ => {}
+    }
+    if let Some(h) = g.h_ttf_m {
+        if !(h > 4.0 && h <= 15.0) {
+            r.erreur(
+                format!("{c}.h_ttf_m"),
+                Some(h.to_string()),
+                "la hauteur de tirage thermique ne se saisit que si elle dépasse 4 m, dans la \
+                 limite de 15 m ; sinon elle vaut 1,5 m (Th-BCE 2020 §5.13.3.2.2)",
+            );
+        }
+    }
     r.ids_uniques(
         &format!("{c}.ponts_thermiques"),
         g.ponts_thermiques.iter().map(|p| &p.id),
@@ -439,6 +471,19 @@ fn valider_baie(r: &mut RapportValidation, c: &str, b: &Baie, refs: &References<
             }
         }
     }
+    // Th-BCE 2020 §5.13.2 : classe d'exposition au bruit d'une baie ouvrable.
+    if b.expo_br.is_none()
+        && refs
+            .types_baies
+            .get(b.type_baie.as_str())
+            .is_some_and(|t| t.ouvrant.is_some())
+    {
+        r.erreur(
+            format!("{c}.expo_br"),
+            None,
+            "classe d'exposition au bruit requise pour une baie ouvrable",
+        );
+    }
     // Th-BCE 2020 §5.10.2 : inclinaison d'une baie entre 0° (horizontale) et 90° (verticale).
     if beta > 90.0 {
         r.erreur(
@@ -500,6 +545,18 @@ fn valider_baie_type(r: &mut RapportValidation, c: &str, b: &BaieType) {
     ] {
         if let Some(u) = u {
             r.positif(format!("{c}.{champ}"), u);
+        }
+    }
+    if let Some(o) = &b.ouvrant {
+        // Th-BCE 2020 §5.13.3.2.3 : Rouvmax saisi, ou déduit du type d'ouvrant (tableau 44).
+        match (o.r_ouv_max, o.type_ouvrant) {
+            (Some(v), None) => r.plage(format!("{c}.ouvrant.r_ouv_max"), v, 0.0, 1.0),
+            (None, Some(_)) => {}
+            _ => r.erreur(
+                format!("{c}.ouvrant"),
+                None,
+                "renseigner soit r_ouv_max, soit type_ouvrant",
+            ),
         }
     }
     if let Some(pm) = &b.protection_mobile {

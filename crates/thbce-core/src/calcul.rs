@@ -9,12 +9,13 @@
 use crate::bati::baie::{BaieResolue, EnsembleBaies, Protections};
 use crate::bati::paroi_opaque::{EnsembleParois, ParoiResolue};
 use crate::bati::pont_thermique::{EnsemblePonts, PontResolu};
+use crate::bati::surventilation::H_TTF_CAS_GENERAL_M;
 use crate::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
 use crate::entree::{Catalogue, Groupe, Projet, UsageZone};
 use crate::erreur::Erreur;
 use crate::resultats::{
     PeriodeConfortAdaptatif, Resultats, ResultatsBaie, ResultatsBatiment, ResultatsClimat,
-    ResultatsEnveloppe, ResultatsGroupe, ResultatsZone,
+    ResultatsEnveloppe, ResultatsGroupe, ResultatsZone, ValeurParDefaut,
 };
 use crate::scenarios::ScenariosZone;
 use crate::validation::valider;
@@ -109,6 +110,7 @@ pub fn calculer(
                             sref_m2: sref_groupe(g, zone.usage),
                             enveloppe: enveloppe_groupe(g, &projet.catalogue),
                             baies: resultats_baies(g, &projet.catalogue),
+                            valeurs_par_defaut: defauts_groupe(g, &projet.catalogue),
                         })
                         .collect();
                     // Th-BCE 2020 §13.1.3, éq. (2377) : SREF_zn = somme des SREF_gr de la zone.
@@ -165,6 +167,27 @@ pub fn calculer(
 ///
 /// Th-BCE 2020 §13.1.3, éq. (2375) et (2376) : `SREF_gr = SHAB_gr` si l'usage vaut 1 ou 2,
 /// `SREF_gr = SU_gr` sinon. La validation garantit la présence de la surface requise.
+/// Valeurs par défaut appliquées au groupe. Th-BCE 2020 §5.13.3.2.2 : sans saisie, la hauteur
+/// de tirage thermique vaut 1,5 m ; elle n'intervient que si le groupe a des baies ouvrables.
+fn defauts_groupe(groupe: &Groupe, catalogue: &Catalogue) -> Vec<ValeurParDefaut> {
+    let a_des_ouvrants = groupe.baies.iter().any(|b| {
+        catalogue
+            .baies
+            .iter()
+            .any(|t| t.id == b.type_baie && t.ouvrant.is_some())
+    });
+    if a_des_ouvrants && groupe.h_ttf_m.is_none() {
+        vec![ValeurParDefaut {
+            champ: "h_ttf_m".to_owned(),
+            valeur: H_TTF_CAS_GENERAL_M,
+            regle: "Th-BCE 2020 §5.13.3.2.2 : dans le cas général, Httf est pris égal à 1,5 m"
+                .to_owned(),
+        }]
+    } else {
+        Vec::new()
+    }
+}
+
 /// Valeurs par défaut appliquées à chaque baie d'un groupe (Th-BCE 2020 §5.10.3.6.3, éq. 215,
 /// 216 et 218).
 fn resultats_baies(groupe: &Groupe, catalogue: &Catalogue) -> Vec<ResultatsBaie> {

@@ -74,6 +74,10 @@
                     {
                       "champ": "protection_mobile.typo_pm",
                       "valeur": 0.0
+                    },
+                    {
+                      "champ": "ouvrant.r_ouv_max",
+                      "valeur": 0.8
                     }
                   ]
                 },
@@ -115,8 +119,18 @@
                     {
                       "champ": "protection_mobile.typo_pm",
                       "valeur": 0.0
+                    },
+                    {
+                      "champ": "ouvrant.r_ouv_max",
+                      "valeur": 0.8
                     }
                   ]
+                }
+              ],
+              "valeurs_par_defaut": [
+                {
+                  "champ": "h_ttf_m",
+                  "valeur": 1.5
                 }
               ]
             }

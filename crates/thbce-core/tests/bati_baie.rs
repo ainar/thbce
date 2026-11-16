@@ -64,6 +64,7 @@ fn fenetre() -> BaieType {
             tlid: Some(0.04),
         }),
         protection_mobile: None,
+        ouvrant: None,
     }
 }
 
@@ -73,6 +74,7 @@ fn baie(a: f64, e: Exposition) -> BaieResolue {
         type_baie: "f".into(),
         a_b_m2: a,
         exposition: e,
+        expo_br: None,
     };
     BaieResolue::nouvelle(&b, &fenetre(), &Catalogue::default()).unwrap()
 }
@@ -312,6 +314,7 @@ fn valeurs_par_defaut_des_facteurs_solaires() {
         type_baie: "f".into(),
         a_b_m2: 8.0,
         exposition: exposition(0.0, 90.0),
+        expo_br: None,
     };
     let r = BaieResolue::nouvelle(&b, &t, &Catalogue::default()).unwrap();
     assert_proche!(r.sans_protection.sw_c.sw1, 0.36);
