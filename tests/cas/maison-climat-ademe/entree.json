@@ -11,15 +11,15 @@
       {
         "id": "mur",
         "u_k_w_m2k": 0.2,
-        "sf_c_k": 0.01,
-        "sf_e_k": 0.01,
+        "sf_c_k": 0.0048,
+        "sf_e_k": 0.00835,
         "incl_k": "verticale"
       },
       {
         "id": "toiture",
         "u_k_w_m2k": 0.12,
-        "sf_c_k": 0.01,
-        "sf_e_k": 0.01,
+        "sf_c_k": 0.00288,
+        "sf_e_k": 0.00502,
         "incl_k": "horizontale_flux_ascendant"
       },
       {

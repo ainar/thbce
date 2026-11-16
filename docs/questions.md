@@ -97,6 +97,8 @@ Maison d'exemple, zone H2b, météo réglementaire, jeu « Th-D », lot 5 ; une 
 | Q40 point 5, température opérative moyenne du pas de temps au lieu de la température finale | 1 231,2 | 35,75 | 886,7 |
 | Inerties séquentielle (lourde, `Ams_surf` = 1,5) et annuelle (2 000 kJ/(K.m²), `Ama_surf` = 1) au lieu des classes par défaut | 499,9 | 32,21 | 468,2 |
 
+**Facteurs solaires des parois opaques corrigés au lot 4b.** Les mesures ci-dessus portent sur la maison d'exemple du lot 5, dont les parois opaques avaient `Sf = 0,01`. Le lot 4b leur donne les valeurs de la formule 259 des règles Th-Bat (`Sp = αp·Up·Rse`, `αp = 0,6`, voir `tests/cas/maison-climat-ademe/cas.toml`) : murs 0,0048 (C) et 0,00835 (E), toiture 0,00288 (C) et 0,00502 (E). Nouvelle référence, H2b, météo réglementaire : **DH = 989,5 °C.h** (θop max 34,95 °C ; 778,4 °C.h avec les baies triplées). Les écarts relatifs du tableau restent l'ordre de grandeur à retenir ; avec les nouveaux facteurs, mesurés par le même test : hystérésis en bande à mémoire 983,7 ; Q25 décalé 916,8 ; Q40 point 1, 974,2 ; Q40 point 2, 1 009,3 °C.h.
+
 Q28 est sans effet en maison : entre minuit UTC et minuit légal, les cases 1 et 2 des scénarios d'habitation ont les mêmes valeurs tous les jours de la semaine.
 
 ### Sensibilités mesurées du Bbio
@@ -111,6 +113,8 @@ Maison d'exemple (`tests/cas/maison-climat-ademe`), zone H2b, météo réglement
 | Q38 point 3, lecture littérale (pas de besoin de froid sans climatisation) | 54,8 | −5,7 |
 | Q36 point 1, lecture littérale (pas de débit soufflé) | 61,4 | +0,9 |
 | Q38 point 1, lecture littérale (écarts d'inconfort chaud divisés par deux) | 60,6 | +0,1 |
+
+Après correction des facteurs solaires des parois opaques de l'exemple (lot 4b, formule 259 des règles Th-Bat) : **Bbio = 63,1 points** (chauffage 25,0 kWh/m², froid 1,3 kWh/m², éclairage 2,1 kWh/m²). Les écarts du tableau ont été mesurés avec l'ancien exemple.
 
 ## Décisions
 
@@ -580,7 +584,7 @@ Le fichier réglementaire ne contient pas toutes les grandeurs que la fiche `C_E
 7. **DH de la zone et du bâtiment.** Le DH « est exprimé par groupe » (§13.5.1) et les seuils s'apprécient au niveau du groupe (§13.3.1) ; le texte ne définit ni DH de zone ni DH de bâtiment. **Retenu** : la zone et le bâtiment restituent le DH du groupe le plus défavorable (`dh_c_h`), celui qui décide du respect d'un seuil. Alternative : une moyenne pondérée par les surfaces, que rien dans le texte n'appuie.
 8. **Seuils et forfait de refroidissement — reporté au lot 7.** Le seuil bas (350 °C.h) est dans la fiche 13.3 (tableau 334, `confort_ete::SEUIL_BAS_DH_C_H`). Le seuil haut (`DH_max`) est fixé par l'annexe de l'article R. 172-4 du code de la construction et de l'habitation, **absente des documents de référence du dépôt** : le moteur ne le connaît pas et ne dit pas si le DH est réglementaire. Le forfait de consommation de refroidissement (éq. 2493) dépend du seuil haut, de `Groupe_is_climatisé` (absent du format d'entrée jusqu'au lot 6) et du coefficient d'énergie primaire de l'électricité, et s'ajoute aux sorties du mode Th-C (éq. 2494 à 2496) : il relève du lot 7. **À fournir** : le texte de l'annexe de l'article R. 172-4 (valeurs de `DH_max` par usage et par zone).
 9. **État initial et premier jour.** Comme en Th-B (Q39 point 4) : 18 °C pour `θmq`, `θi` et `θop` ; `Topj-1max = 0` le premier jour.
-10. **Plausibilité.** Maison d'exemple, H2b : DH = 1 231 °C.h sur la météo réglementaire (430 h d'inconfort sur 2 476 h occupées de la période de confort adaptatif ; température opérative maximale de 35,9 °C pour 39,5 °C dehors) et 1 929 °C.h sur la météo ADEME (+2,7 °C, vague de chaleur). L'ordre de grandeur est celui des seuils de la RE2020, dans le haut de la fourchette. Deux raisons tiennent à l'exemple : ses parois opaques ont un facteur solaire de 0,01, trois fois celui que donnerait `0,6·U/he` (avec 0,0048 pour les murs et 0,0029 pour la toiture, le DH tombe à 848 °C.h) ; ses inerties de longue période sont sans effet (point 6). Les nuits pèsent lourd : le seuil y est la consigne de 26 °C, sans confort adaptatif.
+10. **Plausibilité.** Maison d'exemple, H2b : DH = 1 231 °C.h sur la météo réglementaire (430 h d'inconfort sur 2 476 h occupées de la période de confort adaptatif ; température opérative maximale de 35,9 °C pour 39,5 °C dehors) et 1 929 °C.h sur la météo ADEME (+2,7 °C, vague de chaleur). L'ordre de grandeur est celui des seuils de la RE2020, dans le haut de la fourchette. Deux raisons tiennent à l'exemple : ses parois opaques avaient un facteur solaire de 0,01, deux à trois fois celui que donne la formule 259 des règles Th-Bat ; ses inerties de longue période sont sans effet (point 6). **Corrigé au lot 4b** : avec les facteurs de la formule 259 (`αp = 0,6`, conditions C et E distinctes), DH = 989,5 °C.h sur la météo réglementaire et 1 420,1 °C.h sur la météo ADEME ; Bbio = 63,1 points (66,7 sur la météo ADEME). Les nuits pèsent lourd : le seuil y est la consigne de 26 °C, sans confort adaptatif.
 
 ## Remarque de méthode : fiabilité de l'extraction du PDF
 
