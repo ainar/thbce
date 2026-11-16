@@ -11,6 +11,8 @@ Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consol
 
 - **Format d'entrée, changement incompatible** : un masque lointain azimutal se saisit par `gamma_i_deg`, liste de 36 hauteurs d'horizon (une par tranche de 10° repérée par rapport à la normale au composant, annexe III §3.2.3), et non plus par une liste de tranches `{ az_deg, gamma_deg }`. Le JSON Schema (`thbce schema`) est à jour.
 
+- **Format d'entrée, changement incompatible** : `su_m2` (surface utile du groupe, « Agr ») est obligatoire pour tous les usages, y compris en habitation où `shab_m2` reste la surface de référence. `nb_lgt` est obligatoire en logement collectif.
+
 ### Ajouté
 
 - Workspace Cargo : `thbce-core`, `thbce-data`, `thbce-io`, `thbce-cli`, `thbce-wasm`, `xtask`.
@@ -30,5 +32,7 @@ Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consol
 - Scénarios conventionnels des 28 usages, convertis du classeur officiel du 29 avril 2026 par script.
 - Commande `thbce meteo convertir <classeur.xlsx> -o <fichier.csv>`, qui prépare le fichier météo à charger dans le navigateur.
 - Masque lointain d'arbres à feuilles caduques (`lointain_arbres_caducs`).
+- Scénarios horaires (annexe III §4.1) pour la maison individuelle et le logement collectif : calendrier des scénarios, consignes, indicateurs d'occupation, de ventilation et d'éclairage, adultes équivalents, apports internes de chaleur et d'humidité par groupe.
+- Résultats : `nadeq` par zone.
 - Harnais des cas de validation (`tests/cas/`) avec tolérances par indicateur.
 - Intégration continue : format, clippy, licences, tests sur Linux, macOS et Windows, build et tests WebAssembly, parité natif / `wasm32-wasip1`.

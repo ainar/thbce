@@ -34,8 +34,9 @@ Chaque entrée indique la section du texte, la nature du manque ou de l'ambiguï
 | Q23 | Détails de la fiche 3.2 : `Tsimul`, égalité dans l'éq. (22), repli de Φ, paramètre `Az` | tranchée, hypothèse du mainteneur |
 | Q24 | Masques proches des ponts thermiques | reportée au lot 4 |
 | Q25 | **Décalage d'une heure entre le fichier météo et le calendrier du texte** | tranchée : lecture ligne à ligne, **premier paramètre à tester si un cas de référence diverge** |
-| Q26 | Trois cellules du classeur des scénarios saisies « 0;5 » | **ouverte**, hors périmètre v1 |
-| Q27 | Valeurs fractionnaires dans des indicateurs booléens, ratios d'aérogare | **ouverte**, hors périmètre v1 |
+| Q26 | Trois cellules du classeur des scénarios saisies « 0;5 » | tranchée, hypothèse du mainteneur, à confirmer avant de calculer ces usages ; sans effet sur la v1 |
+| Q27 | Valeurs fractionnaires dans des indicateurs booléens, ratios d'aérogare | tranchée : conversion telle quelle, rien n'est normalisé ; évaluation à trancher fiche par fiche |
+| Q28 | Fiche 4.1 : surface utile `Agr`, changement de jour des scénarios, nombre de logements d'une maison | **ouverte** |
 
 « Hypothèse du mainteneur » signifie : lecture retenue le 16 novembre 2026, **à confirmer par un cas de validation**. Ce sont les premiers points à revoir si un cas de référence diverge.
 
@@ -238,17 +239,39 @@ Le fichier réglementaire ne contient pas toutes les grandeurs que la fiche `C_E
 - **Ce que dit le texte** (A3 §3.2.3, éq. 7 à 11) : aucun traitement particulier. `Drp = cos(θ)·IDn` reste défini : nul sur une paroi horizontale, puisque `cos(θ) = sin(γ) = 0`, et non nul sur une paroi verticale tournée vers le soleil. Seul `Jour_astro` (éq. 18) teste la hauteur du soleil.
 - **Code** : formules appliquées telles quelles ; un test couvre ce cas.
 
-### Q26 — Trois cellules du classeur des scénarios saisies « 0;5 » — ouverte, hors périmètre v1
+### Q26 — Trois cellules du classeur des scénarios saisies « 0;5 » — tranchée le 16 novembre 2026, hypothèse à confirmer avant de calculer ces usages
 
+- **Décision** : lire 0,5 : vraisemblablement une saisie avec un point-virgule à la place de la virgule. La liste de corrections reste explicite (onglet et cellule de chaque correction : `VES` J242, `GYM_MUN` J394, `GYM_PRI` J394) et la conversion échoue pour toute autre cellule non numérique. Sans effet sur la première version.
 - **Constat** : dans le classeur officiel du 29 avril 2026, la cellule J242 de l'onglet `VES` et la cellule J394 des onglets `GYM_MUN` et `GYM_PRI` contiennent le texte « 0;5 » au lieu d'un nombre. Il s'agit chaque fois du facteur correctif de la semaine d'un local, pour la semaine 3 du mois d'août ; la semaine 4 du même mois vaut 0,5.
 - **Hypothèse retenue dans la conversion** : erreur de saisie, lire 0,5. Les trois corrections sont listées explicitement dans `xtask/src/scenarios.rs` (`CORRECTIONS`) et rappelées en tête du fichier généré ; toute autre cellule non numérique fait échouer la conversion.
 - **Portée** : usages 18 (vestiaires), 25 et 28 (établissements sportifs), hors première version. À confirmer avant de calculer ces usages ; une valeur de 0 ou de 1 changerait leur occupation d'août.
 
-### Q27 — Valeurs inattendues dans le classeur des scénarios, hors habitation — ouverte, hors périmètre v1
+### Q27 — Valeurs inattendues dans le classeur des scénarios, hors habitation — tranchée le 16 novembre 2026 : conversion telle quelle
 
+- **Décision** : rien n'est normalisé. Quand ces usages entreront dans le périmètre, la façon de les évaluer sera tranchée fiche par fiche.
+- **Grilles de zone concernées** (valeurs hors de {0 ; 1} pour l'occupation, la ventilation et l'éclairage, hors de {−1 ; 0 ; 1} pour les consignes) :
+
+| Onglet | Scénario | Grille | Valeur | Étendue |
+|---|---|---|---|---|
+| `COM` | Ventilation | hebdomadaire | 0,5 | 6 cases |
+| `COM` | Éclairage | hebdomadaire | 0,5 | 6 cases |
+| `SAN_N` | Éclairage | hebdomadaire | 0,35 | 56 cases |
+| `IND_3x8` | Occupation, chauffage, refroidissement, ventilation, éclairage | annuelle | 0,5 | semaine 4 de décembre |
+| `IND_8_18h` | Occupation, chauffage, refroidissement, ventilation, éclairage | annuelle | 0,5 | semaine 4 de décembre |
+
+- **Ratios de locaux** : onglet `AER`, somme des `Rat_l` égale à 0,999.
 - **Constat** : la fiche 4.1 (§4.1.2) déclare booléens les indicateurs de zone (occupation, ventilation, éclairage) et à trois états les indicateurs de consigne. Or le classeur contient 0,5 dans la ventilation et l'éclairage des commerces (usage 17), 0,35 dans l'éclairage des établissements de santé de nuit (usage 20), et 0,5 dans une case de la grille annuelle de l'occupation, de la ventilation, de l'éclairage, du chauffage et du refroidissement des deux usages d'industrie (23 et 24). Par ailleurs, les ratios de surface des locaux d'aérogare (usage 22) somment à 0,999.
 - **Usages 1 et 2** : aucune anomalie ; les indicateurs sont bien booléens et les ratios somment exactement à 1 (tests de `thbce-data`).
 - **Proposition** : lire la description mathématique de la fiche 4.1 pour ces cas au moment d'ouvrir les usages concernés. Les grilles sont converties telles quelles.
+
+### Q28 — Lectures de la fiche 4.1 (A3 §4.1.2 et §4.1.3, p. 53 à 62) — ouverte
+
+1. **Surface utile du groupe, `Agr`.** La fiche répartit les apports internes d'après `Agr`, « surface utile du groupe », y compris en habitation, où la surface de référence est la surface habitable (§13.1.3). En logement collectif, l'éq. (33) calcule même une « surface habitable » `Rat_hab·Az`, soit 90 % de la surface utile de la zone, distincte de la SHAB saisie. Retenu : `su_m2` est `Agr` et devient obligatoire pour tous les usages ; hors habitation, la même valeur sert de surface de référence « SU » (éq. 2376). À confirmer : que `Agr` et `SU` sont bien la même grandeur, et qu'en maison individuelle on saisit en pratique `Agr = SHAB`.
+2. **Changement de jour des scénarios.** Le texte dit que le mois, la semaine, le jour et l'heure « se déduisent de l'heure de la simulation par incrémentations successives », les scénarios étant « en heure légale ». Retenu : le jour change quand la case de scénario revient à 1, c'est-à-dire à minuit en heure légale ; l'itération 0 est la case 2 du lundi de la première semaine, et la case 1 de ce lundi n'est jamais jouée. L'autre lecture (jour changeant à minuit UTC) décalerait d'un jour une ou deux cases chaque nuit.
+3. **Conséquence de la décision Q17.** Le lundi ajouté à la dernière semaine de décembre tombe dans la semaine d'absence des usages d'habitation : le 365e jour est donc inoccupé, avec des consignes réduites. Une heure de plus (l'itération 8759, case 1) suit la même règle.
+4. **Nombre de logements d'une maison.** `Nb_lgt` est défini « en logement collectif et pour les maisons accolées ». Retenu : 1 par défaut en maison individuelle, obligatoire en logement collectif.
+5. **Locaux.** Les ratios de surface des locaux sont ceux par défaut du classeur (`Rat_l`) ; la saisie de ratios propres au projet viendra si elle s'avère nécessaire.
+6. **Produit « × » du tableau 6.** Codé comme le produit arithmétique, qui coïncide avec le ET pour des valeurs 0 et 1 (seul cas des usages 1 et 2). Sans effet tant que Q27 ne se pose pas.
 
 ## Remarque de méthode : fiabilité de l'extraction du PDF
 

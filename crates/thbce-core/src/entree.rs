@@ -94,7 +94,7 @@ pub struct Zone {
     /// « Usage zone » (§4.1.2).
     pub usage: UsageZone,
     /// « Nb_lgt » (§4.1.2) : nombre de logements, en logement collectif et pour les maisons
-    /// accolées.
+    /// accolées. Requis en logement collectif ; 1 par défaut en maison individuelle.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nb_lgt: Option<u32>,
     /// Groupes de la zone.
@@ -194,7 +194,10 @@ pub struct Groupe {
     /// la surface de référence (§13.1.3, éq. 2375).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shab_m2: Option<f64>,
-    /// « SU » : surface utile réglementaire, en m². Requise pour les autres usages (éq. 2376).
+    /// « Agr » : surface utile du groupe, en m² (§4.1.2). Requise pour tous les usages : elle
+    /// répartit les apports internes entre groupes. Hors habitation, c'est aussi la surface de
+    /// référence « SU » (§13.1.3, éq. 2376) ; l'identité de ces deux grandeurs est une lecture
+    /// (question Q28).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub su_m2: Option<f64>,
     /// « Categorie_CE1_CE2 » (§13.1.2).

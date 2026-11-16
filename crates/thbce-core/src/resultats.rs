@@ -87,6 +87,8 @@ pub struct ResultatsZone {
     pub id: Id,
     /// « SREF_zn », en m² (§13.1.3, éq. 2377).
     pub sref_m2: f64,
+    /// « Nadeq » : nombre d'adultes équivalents de la zone, en habitation (§4.1.3, éq. 32 et 36).
+    pub nadeq: Option<f64>,
     /// Résultats par groupe.
     pub groupes: Vec<ResultatsGroupe>,
 }
@@ -113,6 +115,7 @@ impl Resultats {
             b.ic_energie_kgco2_m2 = b.ic_energie_kgco2_m2.map(a);
             for z in &mut b.zones {
                 z.sref_m2 = a(z.sref_m2);
+                z.nadeq = z.nadeq.map(a);
                 for g in &mut z.groupes {
                     g.sref_m2 = a(g.sref_m2);
                 }

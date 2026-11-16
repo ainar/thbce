@@ -13,6 +13,7 @@ use crate::resultats::{
     PeriodeConfortAdaptatif, Resultats, ResultatsBatiment, ResultatsClimat, ResultatsGroupe,
     ResultatsZone,
 };
+use crate::scenarios::ScenariosZone;
 use crate::validation::valider;
 use crate::{VERSION_METHODE, VERSION_MOTEUR};
 
@@ -107,9 +108,18 @@ pub fn calculer(
                         .collect();
                     // Th-BCE 2020 §13.1.3, éq. (2377) : SREF_zn = somme des SREF_gr de la zone.
                     let sref_m2 = groupes.iter().map(|g| g.sref_m2).sum();
+                    // Th-BCE 2020 §4.1 : scénarios de la zone, préparés avant la boucle horaire.
+                    let a_gr: Vec<f64> = zone
+                        .groupes
+                        .iter()
+                        .map(|g| g.su_m2.unwrap_or(0.0))
+                        .collect();
+                    let scenarios =
+                        ScenariosZone::nouveau(zone.usage, &a_gr, zone.nb_lgt.unwrap_or(1)).ok();
                     ResultatsZone {
                         id: zone.id.clone(),
                         sref_m2,
+                        nadeq: scenarios.map(|s| s.nadeq),
                         groupes,
                     }
                 })

@@ -44,6 +44,7 @@
             {
               "id": "volume-chauffe",
               "shab_m2": 96.44,
+              "su_m2": 96.44,
               "categorie_ce1_ce2": "CE1",
               "inertie": {
                 "quotidienne": "moyenne",
