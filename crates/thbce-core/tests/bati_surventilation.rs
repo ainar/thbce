@@ -10,8 +10,9 @@
 
 use thbce_core::bati::surventilation::{
     a_ouv_baie_m2, c_pr, mod_ext, mod_ext_man, qm_aj_kg_s, qv_surv_m3_h, r_ouv_manuelle,
-    r_ouv_max_par_defaut, r_ouv_theta_op_man, rho_ext_kg_m3, s_ors_m2, seuils_ouverture,
-    traversant_conventionnel, ConditionsOuverture, OuvertureBaie,
+    r_ouv_max_par_defaut, r_ouv_theta_op_man, r_ouv_theta_op_man_selon, rho_ext_kg_m3, s_ors_m2,
+    seuils_ouverture, traversant_conventionnel, ConditionsOuverture, LectureHysteresis,
+    OuvertureBaie, LECTURE_HYSTERESIS,
 };
 use thbce_core::conventions::ModeCalcul;
 use thbce_core::entree::{ExpoBr, TypeOuvrant};
@@ -181,6 +182,41 @@ fn seuils_et_hysteresis() {
         ..inoccupe
     };
     assert_eq!(r_ouv_theta_op_man(0.3, &th_b), 0.0);
+}
+
+#[test]
+fn difference_entre_les_deux_lectures_de_l_hysteresis() {
+    // Décision Q32. Seuils : θfer2 = 22, θouv1 = θfer1 = 23, θouv2 = 25.
+    // La température descend de 24,5 à 22,8 °C : branche de fermeture, (22,8 − 22)/1 = 0,8.
+    // Elle repart ensuite légèrement à la hausse, à 22,9 °C, à l'intérieur de la bande.
+    let c = |h1, h2| ConditionsOuverture {
+        theta_op_h1_c: h1,
+        theta_op_h2_c: h2,
+        ..conditions()
+    };
+    let sens = LectureHysteresis::SensDeVariation;
+    let bande = LectureHysteresis::BandeAMemoire;
+    assert_eq!(LECTURE_HYSTERESIS, sens);
+    for lecture in [sens, bande] {
+        assert_proche!(r_ouv_theta_op_man_selon(lecture, 1.0, &c(22.8, 24.5)), 0.8);
+    }
+    // Lecture retenue : la hausse fait passer sur la branche d'ouverture, nulle en dessous de
+    // θouv1 = 23 °C ; le ratio redescend de 0,8 à 0.
+    assert_eq!(r_ouv_theta_op_man(0.8, &c(22.9, 22.8)), 0.0);
+    assert_eq!(r_ouv_theta_op_man_selon(sens, 0.8, &c(22.9, 22.8)), 0.0);
+    // Variante à mémoire : 0,8 reste entre la branche d'ouverture (0) et la branche de fermeture
+    // (0,9) ; le ratio est conservé.
+    assert_proche!(r_ouv_theta_op_man_selon(bande, 0.8, &c(22.9, 22.8)), 0.8);
+    // Hors de la bande, les deux lectures se rejoignent.
+    for (h1, h2, attendu) in [(25.5, 25.0, 1.0), (21.5, 22.0, 0.0)] {
+        for lecture in [sens, bande] {
+            assert_eq!(r_ouv_theta_op_man_selon(lecture, 0.8, &c(h1, h2)), attendu);
+        }
+    }
+    // La variante suit la branche d'ouverture en montée depuis zéro et la branche de fermeture
+    // en descente depuis un : (24 − 23)/2 = 0,5 et (22,5 − 22)/1 = 0,5.
+    assert_proche!(r_ouv_theta_op_man_selon(bande, 0.0, &c(24.0, 23.5)), 0.5);
+    assert_proche!(r_ouv_theta_op_man_selon(bande, 1.0, &c(22.5, 23.0)), 0.5);
 }
 
 #[test]
