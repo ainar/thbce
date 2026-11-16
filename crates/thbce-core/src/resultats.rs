@@ -118,6 +118,17 @@ pub struct ResultatsEnveloppe {
     pub a_ophb_m2: f64,
     /// « HTh » des parois opaques, en W/K (éq. 283).
     pub h_th_op_w_k: f64,
+    /// « Abaies » : surface des baies, en m² (§5.14.3, éq. 282).
+    pub a_baies_m2: f64,
+    /// « Abaies-v » : surface des baies verticales, d'inclinaison au moins égale à 60°, en m²
+    /// (éq. 279).
+    pub a_baies_v_m2: f64,
+    /// « Abaies-h » : surface des baies horizontales, d'inclinaison inférieure à 60°, en m²
+    /// (éq. 281).
+    pub a_baies_h_m2: f64,
+    /// « Hges » des baies sans protection mobile en place, en W/K (§5.10.3.5, éq. 210 avec
+    /// `Rprot = 0`). La valeur horaire dépend de la position des protections mobiles.
+    pub h_ges_sp_w_k: f64,
     /// « Ll » : longueur des ponts thermiques, en m (éq. 310).
     pub l_pt_m: f64,
     /// « HTh » des ponts thermiques, en W/K (éq. 307).
@@ -147,6 +158,10 @@ impl Resultats {
                         &mut e.a_ophh_m2,
                         &mut e.a_ophb_m2,
                         &mut e.h_th_op_w_k,
+                        &mut e.a_baies_m2,
+                        &mut e.a_baies_v_m2,
+                        &mut e.a_baies_h_m2,
+                        &mut e.h_ges_sp_w_k,
                         &mut e.l_pt_m,
                         &mut e.h_th_pt_w_k,
                     ] {

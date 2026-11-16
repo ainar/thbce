@@ -57,6 +57,10 @@ export interface ResultatsEnveloppe {
   a_ophh_m2: number;
   a_ophb_m2: number;
   h_th_op_w_k: number;
+  a_baies_m2: number;
+  a_baies_v_m2: number;
+  a_baies_h_m2: number;
+  h_ges_sp_w_k: number;
   l_pt_m: number;
   h_th_pt_w_k: number;
 }

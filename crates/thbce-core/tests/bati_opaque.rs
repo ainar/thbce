@@ -67,6 +67,8 @@ fn conditions(mode: ModeCalcul, is_conf_adapt: bool, h: usize) -> ConditionsExte
         },
         idn_w_m2: 800.0,
         idi_w_m2: 100.0,
+        edn_lux: 0.0,
+        edi_lux: 0.0,
         te_c: 10.0,
         teciel_c: -5.0,
         h,

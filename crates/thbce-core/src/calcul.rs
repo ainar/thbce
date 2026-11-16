@@ -6,6 +6,7 @@
 //! réglementaires restent à `None` jusqu'à l'implémentation des lots 4 à 7
 //! (`docs/couverture.md`).
 
+use crate::bati::baie::{BaieResolue, EnsembleBaies, Protections};
 use crate::bati::paroi_opaque::{EnsembleParois, ParoiResolue};
 use crate::bati::pont_thermique::{EnsemblePonts, PontResolu};
 use crate::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
@@ -163,8 +164,8 @@ pub fn calculer(
 ///
 /// Th-BCE 2020 §13.1.3, éq. (2375) et (2376) : `SREF_gr = SHAB_gr` si l'usage vaut 1 ou 2,
 /// `SREF_gr = SU_gr` sinon. La validation garantit la présence de la surface requise.
-/// Grandeurs d'enveloppe d'un groupe (Th-BCE 2020 §5.16.3, éq. 283, 286 et 287 ; §5.20.3,
-/// éq. 307 et 310). Les références au catalogue ont été vérifiées par la validation.
+/// Grandeurs d'enveloppe d'un groupe (Th-BCE 2020 §5.14.3, éq. 279, 281 et 282 ; §5.16.3,
+/// éq. 283, 286 et 287 ; §5.20.3, éq. 307 et 310). Les références au catalogue ont été vérifiées par la validation.
 fn enveloppe_groupe(groupe: &Groupe, catalogue: &Catalogue) -> ResultatsEnveloppe {
     let parois: Vec<ParoiResolue> = groupe
         .parois_opaques
@@ -178,6 +179,15 @@ fn enveloppe_groupe(groupe: &Groupe, catalogue: &Catalogue) -> ResultatsEnvelopp
     for pont in &groupe.ponts_thermiques {
         PontResolu::resoudre(pont, catalogue, &mut ponts);
     }
+    let baies: Vec<BaieResolue> = groupe
+        .baies
+        .iter()
+        .filter_map(|b| {
+            let type_baie = catalogue.baies.iter().find(|t| t.id == b.type_baie)?;
+            BaieResolue::nouvelle(b, type_baie, catalogue)
+        })
+        .collect();
+    let ba = EnsembleBaies::de(&baies);
     let op = EnsembleParois::de(&parois);
     let pt = EnsemblePonts::de(&ponts);
     ResultatsEnveloppe {
@@ -186,6 +196,13 @@ fn enveloppe_groupe(groupe: &Groupe, catalogue: &Catalogue) -> ResultatsEnvelopp
         a_ophh_m2: op.a_ophh_m2,
         a_ophb_m2: op.a_ophb_m2,
         h_th_op_w_k: op.h_th_w_k,
+        a_baies_m2: ba.a_baies_m2,
+        a_baies_v_m2: ba.a_baies_v_m2,
+        a_baies_h_m2: ba.a_baies_h_m2,
+        h_ges_sp_w_k: baies
+            .iter()
+            .map(|b| b.h_ges_w_k(&Protections::OUVERTES))
+            .sum(),
         l_pt_m: pt.l_m,
         h_th_pt_w_k: pt.h_th_w_k,
     }

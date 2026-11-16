@@ -29,7 +29,11 @@
                 "a_ophb_m2": 100.0,
                 "h_th_op_w_k": 45.0,
                 "l_pt_m": 40.0,
-                "h_th_pt_w_k": 4.0
+                "h_th_pt_w_k": 4.0,
+                "a_baies_m2": 10.0,
+                "a_baies_v_m2": 10.0,
+                "a_baies_h_m2": 0.0,
+                "h_ges_sp_w_k": 13.0
               }
             }
           ]

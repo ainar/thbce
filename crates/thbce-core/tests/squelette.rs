@@ -118,6 +118,30 @@ fn chaque_erreur_de_saisie_designe_l_element_fautif() {
 }
 
 #[test]
+fn le_type_de_baie_doit_donner_u_a_l_inclinaison_de_la_baie() {
+    // Th-BCE 2020 §5.10.3.5, éq. (207) : le type d'exemple ne donne que le U vertical. Une baie à
+    // 45° demande aussi le U horizontal ; une baie ne dépasse pas 90°.
+    let mut p = projet();
+    assert!(valider(&p).est_valide());
+    p.batiments[0].zones[0].groupes[0].baies[1]
+        .exposition
+        .inclinaison_deg = 45.0;
+    assert_eq!(
+        chemins(&valider(&p).erreurs),
+        ["batiments[0].zones[0].groupes[0].baies[1].type_baie"]
+    );
+    p.catalogue.baies[0].u_sp_horiz_w_m2k = Some(1.5);
+    assert!(valider(&p).est_valide());
+    p.batiments[0].zones[0].groupes[0].baies[1]
+        .exposition
+        .inclinaison_deg = 120.0;
+    assert_eq!(
+        chemins(&valider(&p).erreurs),
+        ["batiments[0].zones[0].groupes[0].baies[1].exposition.inclinaison_deg"]
+    );
+}
+
+#[test]
 fn un_projet_vide_est_refuse_sans_panique() {
     let mut p = projet();
     p.batiments.clear();

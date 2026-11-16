@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Bâti (Th-BCE 2020 §5).
 //!
+//! - [`baie`] : fiches `C_BAT_Baie vitrée` (§5.10) et `C_BAT_ensemble_baies` (§5.14) ;
 //! - [`paroi_opaque`] : fiches `C_BAT_paroi opaque` (§5.17) et `C_BAT_ensemble_parois opaques`
 //!   (§5.16), assemblées selon le §5.15 ;
 //! - [`pont_thermique`] : fiches `C_BAT_pont thermique` (§5.19) et
@@ -9,6 +10,7 @@
 //! Les espaces tampons (lot 4b du plan, §5.2 à 5.4) ne sont pas encore pris en charge : les
 //! coefficients `btherm`, `bsolaire` et `bvoute` valent 1.
 
+pub mod baie;
 pub mod paroi_opaque;
 pub mod pont_thermique;
 
@@ -61,6 +63,10 @@ pub struct ConditionsExterieures {
     pub idn_w_m2: f64,
     /// « Idi » : rayonnement diffus horizontal, en W/m².
     pub idi_w_m2: f64,
+    /// « EDn » : éclairement direct normal, en lux.
+    pub edn_lux: f64,
+    /// « Edi » : éclairement diffus horizontal, en lux.
+    pub edi_lux: f64,
     /// « Te » : température extérieure, en °C.
     pub te_c: f64,
     /// « Teciel » : température du ciel, en °C.

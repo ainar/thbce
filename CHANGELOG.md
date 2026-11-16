@@ -40,3 +40,5 @@ Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consol
 - Harnais des cas de validation (`tests/cas/`) avec tolérances par indicateur.
 - Intégration continue : format, clippy, licences, tests sur Linux, macOS et Windows, build et tests WebAssembly, parité natif / `wasm32-wasip1`.
 - Parois opaques et ponts thermiques (§5.15 à §5.20) : coefficient U selon l'inclinaison, flux solaire et flux vers la voûte céleste, cumuls par groupe. Les résultats donnent par groupe les grandeurs d'enveloppe (`enveloppe` : surfaces, longueurs, coefficients HTh).
+- Baies vitrées (§5.10 et §5.14) : coefficient U selon l'inclinaison, coefficient Hges selon la position des protections mobiles, flux solaires Fs1, Fs2 et Fs3, flux vers la voûte céleste, flux lumineux par type de baie, seconde protection mobile, cumuls par groupe. Les résultats d'enveloppe donnent les surfaces de baies et `h_ges_sp_w_k`. Les stores vénitiens ne sont pas pris en charge.
+- Validation : une baie est inclinée de 0 à 90°, et son type doit donner le coefficient U nécessaire à son inclinaison.
