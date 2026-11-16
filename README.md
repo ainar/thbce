@@ -7,7 +7,7 @@ Moteur de calcul de la méthode **Th-BCE 2020**, la méthode réglementaire de l
 
 ## État
 
-Le projet en est au **squelette** (phase 2). La lecture des entrées, la validation, la ligne de commande, le module WebAssembly et la structure des résultats fonctionnent ; **aucun indicateur réglementaire n'est encore calculé** (Bbio, Cep, Cep,nr, DH et Ic énergie valent `null`). Seule la surface de référence est déterminée.
+Le projet en est au **lot « climat et ensoleillement »** (phase 3). Sont en place : la lecture des entrées et des fichiers météo, la validation, la ligne de commande, le module WebAssembly, le climat du site (corrections d'altitude, période de confort adaptatif) et le calcul du rayonnement sur les parois avec masques. **Aucun indicateur réglementaire n'est encore calculé** (Bbio, Cep, Cep,nr, DH et Ic énergie valent `null`).
 
 - Avancement fiche par fiche : [`docs/couverture.md`](docs/couverture.md) (144 fiches).
 - Ambiguïtés du texte et décisions de lecture : [`docs/questions.md`](docs/questions.md).
@@ -19,7 +19,15 @@ La première version visera la maison individuelle et le logement collectif.
 
 Le moteur **n'embarque aucune donnée météo**. Les fichiers météorologiques conventionnels de la RE2020 sont soumis à des conditions d'utilisation qui interdisent de les diffuser : ils ne sont ni dans ce dépôt ni dans les binaires. Chaque utilisateur les obtient auprès de l'administration et les fournit au moment du calcul.
 
-Format lu : un fichier CSV de colonnes `zone, mode, h, te0, we0, dirN_W_m2, diff_W_m2, Teciel_C, Vent_m_s, Teau_C, Gamma, Psi`, dérivé du classeur officiel `4_scenarios_meteorologiques_th-bc_th-d_re2020.xlsx` (8 zones × 2 modes × 8 760 heures). La lecture directe du classeur et celle des fichiers ouverts ADEME / Météo-France viendront avec le lot « climat ».
+Formats lus, reconnus d'après le contenu du fichier :
+
+| Format | Résultat |
+|---|---|
+| classeur officiel `4_scenarios_meteorologiques_th-bc_th-d_re2020.xlsx` (16 onglets `<zone>_<mode>`) | réglementaire |
+| CSV dérivé, colonnes `zone, mode, h, te0, we0, dirN_W_m2, diff_W_m2, Teciel_C, Vent_m_s, Teau_C, Gamma, Psi` | réglementaire |
+| fichiers ouverts ADEME / Météo-France (`docs/reference/meteo/ademe/`) | **non réglementaire** |
+
+Le module WebAssembly ne lit pas le classeur `.xlsx` : dans le navigateur, fournir le CSV dérivé. Les fichiers ADEME décrivent un climat futur (+2,7 °C) et sont convertis par des règles documentées dans `crates/thbce-io/src/meteo/ademe.rs` ; ils servent aux essais et à la CI.
 
 Les résultats portent un champ `reglementaire`, faux dès que les données météo ne sont pas les fichiers conventionnels. Un fichier retravaillé ou un jeu d'essai doit le déclarer par une ligne `# thbce-origine: <description>` ; le moteur ne peut pas vérifier l'authenticité d'un fichier.
 
@@ -36,7 +44,7 @@ cargo build --release -p thbce-cli      # exécutable : target/release/thbce
 ## Ligne de commande
 
 ```sh
-thbce calcul projet.json --meteo meteo-re2020.csv -o resultats.json
+thbce calcul projet.json --meteo meteo-re2020.xlsx -o resultats.json
 thbce valider projet.json
 thbce schema                 # JSON Schema du format d'entrée (--resultats pour celui des résultats)
 thbce version                # version du moteur et de la méthode implémentée
@@ -88,7 +96,7 @@ Les fonctions sont typées (`pkg/thbce_wasm.d.ts`), synchrones et sans état ; p
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
-cargo run -p xtask -- zones-climatiques --verifier
+cargo run -p xtask -- verifier
 ```
 
 Les tests qui ont besoin de la météo réglementaire sont ignorés par défaut :
@@ -102,6 +110,7 @@ Voir [`CONTRIBUTING.md`](CONTRIBUTING.md).
 ## Limites connues
 
 - Aucun indicateur calculé à ce stade.
+- Une question de calage horaire entre le fichier météo et le calendrier de la méthode reste ouverte (Q25 de `docs/questions.md`).
 - Usages autres que maison individuelle et logement collectif : reconnus à la lecture, refusés au calcul.
 - Pas de lecteur RSEE XML : le schéma n'est pas public.
 - Aucun cas de validation issu du moteur réglementaire n'est encore disponible ; plusieurs lectures du texte restent à confirmer (voir `docs/questions.md`).
