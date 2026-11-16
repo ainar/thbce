@@ -56,7 +56,9 @@ fn calcul_ecrit_les_resultats_en_json() {
     let r: serde_json::Value = serde_json::from_slice(&s.stdout).unwrap();
     assert_eq!(r["batiments"][0]["sref_m2"], 96.4);
     assert_eq!(r["reglementaire"], false);
-    assert_eq!(r["batiments"][0]["bbio_pts"], serde_json::Value::Null);
+    // Jeu synthétique à 10 °C sans soleil : le besoin de chauffage, donc le Bbio, est positif.
+    assert!(r["batiments"][0]["bbio_pts"].as_f64().unwrap() > 0.0);
+    assert_eq!(r["batiments"][0]["cep_kwhep_m2"], serde_json::Value::Null);
     assert!(String::from_utf8_lossy(&s.stderr).contains("non réglementaire"));
 
     let s = thbce(&[

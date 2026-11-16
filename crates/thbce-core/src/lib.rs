@@ -5,19 +5,23 @@
 //! Les références « Th-BCE 2020 § » renvoient à l'annexe III de l'arrêté du 4 août 2021 modifié,
 //! versionnée dans `docs/reference/arrete/`.
 //!
-//! État : squelette (phase 2). Les types d'entrée, la validation et la structure des résultats
-//! sont en place ; les indicateurs réglementaires ne sont pas encore calculés et valent `None`.
-//! L'avancement fiche par fiche est tenu dans `docs/couverture.md`.
+//! État : le calcul annuel au pas horaire en mode Th-B est en place pour la maison individuelle
+//! et le logement collectif, et produit les besoins de chauffage, de refroidissement et
+//! d'éclairage et le Bbio. Cep, Cep,nr, DH et Ic énergie ne sont pas encore calculés et valent
+//! `None`. L'avancement fiche par fiche est tenu dans `docs/couverture.md`.
 //!
 //! Ce moteur n'est pas le moteur réglementaire officiel et ne vaut pas attestation de conformité.
 
 pub mod bati;
 pub mod calcul;
+pub mod chauffage_refroidissement;
 pub mod climat;
+pub mod confort;
 pub mod conventions;
 pub mod eclairage;
 pub mod entree;
 pub mod erreur;
+pub mod indicateurs;
 pub mod resultats;
 pub mod scenarios;
 pub mod validation;

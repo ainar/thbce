@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Bâti (Th-BCE 2020 §5).
 //!
+//! - [`assemblage_zone`] et [`assemblage_groupe`] : fiches `S2_BAT-assemblage_zone` (§5.5) et
+//!   `S2_BAT_assemblage_groupe` (§5.7), enchaînement horaire du calcul du Bbio ;
 //! - [`comportement_thermique`] : fiche `C_BAT_comportement thermique d'un groupe` (§5.21) ;
 //! - [`baie`] : fiches `C_BAT_Baie vitrée` (§5.10) et `C_BAT_ensemble_baies` (§5.14) ;
 //! - [`protection_mobile`] : fiches `C_BAT_Gestion_protections_mobiles` (§5.9) et
@@ -15,6 +17,8 @@
 //! Les espaces tampons (lot 4b du plan, §5.2 à 5.4) ne sont pas encore pris en charge : les
 //! coefficients `btherm`, `bsolaire` et `bvoute` valent 1.
 
+pub mod assemblage_groupe;
+pub mod assemblage_zone;
 pub mod baie;
 pub mod comportement_thermique;
 pub mod paroi_opaque;

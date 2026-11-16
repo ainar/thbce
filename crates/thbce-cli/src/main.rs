@@ -110,7 +110,7 @@ fn executer(commande: Commande) -> Result<(), Echec> {
         } => {
             if horaire {
                 return Err(Echec(
-                    "--horaire : les séries horaires ne sont pas encore disponibles (squelette du moteur)".into(),
+                    "--horaire : les séries horaires ne sont pas encore disponibles".into(),
                     CODE_USAGE,
                 ));
             }
@@ -135,7 +135,9 @@ fn executer(commande: Commande) -> Result<(), Echec> {
             let resultats = calculer(&projet, &donnees, &options).map_err(|e| match e {
                 Erreur::Saisie(r) => Echec(rapport::en_texte(&r), CODE_ENTREE_INVALIDE),
                 Erreur::Meteo(_) => Echec(e.to_string(), CODE_ENTREE_INVALIDE),
-                Erreur::NonPrisEnCharge { .. } => Echec(e.to_string(), CODE_ERREUR_CALCUL),
+                Erreur::NonPrisEnCharge { .. } | Erreur::Calcul(_) => {
+                    Echec(e.to_string(), CODE_ERREUR_CALCUL)
+                }
             })?;
             for a in &resultats.avertissements {
                 eprintln!("avertissement : {a}");

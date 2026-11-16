@@ -7,7 +7,7 @@ Moteur de calcul de la méthode **Th-BCE 2020**, la méthode réglementaire de l
 
 ## État
 
-Le projet en est au **lot « climat et ensoleillement »** (phase 3). Sont en place : la lecture des entrées et des fichiers météo, la validation, la ligne de commande, le module WebAssembly, le climat du site (corrections d'altitude, période de confort adaptatif) et le calcul du rayonnement sur les parois avec masques. **Aucun indicateur réglementaire n'est encore calculé** (Bbio, Cep, Cep,nr, DH et Ic énergie valent `null`).
+Le projet en est au **lot « besoins »** (phase 4). Sont en place : la lecture des entrées et des fichiers météo, la validation, la ligne de commande, le module WebAssembly, le climat du site, le rayonnement sur les parois avec masques, et le **calcul annuel au pas horaire en mode Th-B** pour la maison individuelle et le logement collectif, qui produit les besoins de chauffage, de refroidissement et d'éclairage et le **Bbio**. Aucun cas de référence n'a encore permis de valider ces résultats : plusieurs lectures du texte restent à confirmer (`docs/questions.md`). Cep, Cep,nr, DH et Ic énergie ne sont pas encore calculés et valent `null`.
 
 - Avancement fiche par fiche : [`docs/couverture.md`](docs/couverture.md) (144 fiches).
 - Ambiguïtés du texte et décisions de lecture : [`docs/questions.md`](docs/questions.md).

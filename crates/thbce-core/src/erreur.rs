@@ -17,6 +17,10 @@ pub enum Erreur {
         /// Élément ou fiche de la méthode concerné.
         element: String,
     },
+    /// Le calcul n'a pas abouti alors que l'entrée est valide : un cas que la validation aurait
+    /// dû écarter. Le message nomme l'élément et la grandeur en cause.
+    #[error("calcul impossible : {0}")]
+    Calcul(String),
     /// Les données météo fournies sont incomplètes ou ne correspondent pas au projet.
     #[error("données météo : {0}")]
     Meteo(String),

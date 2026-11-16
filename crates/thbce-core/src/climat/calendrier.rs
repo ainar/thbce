@@ -46,6 +46,42 @@ pub fn case_scenario(h: usize) -> u8 {
     (ihj(h) + ehlo(h) - 1) % 24 + 1
 }
 
+/// Heure légale à laquelle la fiche des saisons clôt la journée et décide des autorisations
+/// (§4.6.3 : « chaque jour j de simulation, lorsque hleg = 9h »).
+pub const HLEG_BASCULE_SAISONS: u8 = 9;
+
+/// Indice du jour légal du pas de temps, à partir de 0.
+///
+/// Le jour légal commence à minuit en heure légale, c'est-à-dire au pas de temps dont la case
+/// de scénario vaut 1 ; l'itération 0 (1 h à 2 h légales) appartient au jour 0. C'est **le**
+/// jour du comportement des occupants : jour des scénarios (décision Q28), jour de l'éq. (175)
+/// des protections mobiles (« incrémentation de Jour_année », décision Q39) et numéro du jour
+/// de la fiche des saisons (« 57e jour de simulation (1er mars au sens des scénarios) »,
+/// §4.6.3.1). Le jour de la moyenne glissante de la température extérieure reste celui du
+/// fichier météo ([`jour`], « h tel que IHJ = 1 », §3.1.3 et §4.5.3.2.1).
+///
+/// Les deux changements d'heure ne créent ni ne suppriment de jour : la journée du passage à
+/// l'heure d'été compte 23 pas de temps, celle du retour à l'heure d'hiver 25.
+pub fn jour_legal(h: usize) -> usize {
+    (h + usize::from(ehlo(h))) / 24
+}
+
+/// Vrai si le pas de temps `h` est le premier d'un jour légal (minuit légal vient de sonner).
+/// Faux à l'itération 0, où la simulation commence.
+pub fn nouveau_jour_legal(h: usize) -> bool {
+    h > 0 && jour_legal(h) != jour_legal(h - 1)
+}
+
+/// Numéro du jour de la fiche des saisons, de 1 à 365, si le pas de temps `h` est celui où
+/// elle clôt la journée : `hleg(h) = 9 h`, heure légale de fin du pas de temps.
+///
+/// Th-BCE 2020 §4.6.3 : les sommes vont « de hleg = 9h (jour j−1) à 9h (jour j) » ; la journée
+/// close comprend donc le pas de temps qui se termine à 9 h légales, et la décision s'applique
+/// à partir du pas suivant (décision Q39).
+pub fn jour_bascule_saisons(h: usize) -> Option<u16> {
+    (hleg(h) == HLEG_BASCULE_SAISONS).then(|| (jour_legal(h) + 1) as u16)
+}
+
 /// Nombre de semaines de chaque mois de l'année conventionnelle (§4.1.3).
 pub const SEMAINES_PAR_MOIS: [u8; 12] = thbce_data::scenarios::SEMAINES_PAR_MOIS;
 
@@ -79,7 +115,7 @@ pub fn date_scenario(h: usize) -> DateScenario {
     let heure = case_scenario(h);
     // Indice du jour légal : l'itération 0 est la case 2 du premier jour ; le jour suivant
     // commence à l'itération dont la case vaut 1.
-    let jour_legal = (h + usize::from(ehlo(h))) / 24;
+    let jour_legal = jour_legal(h);
     if jour_legal >= 364 {
         return DateScenario {
             mois: 12,
@@ -168,6 +204,47 @@ mod tests {
             );
             assert!((1..=7).contains(&date.jour) && (1..=24).contains(&date.heure));
         }
+    }
+
+    #[test]
+    fn jour_legal_et_bascule_des_saisons() {
+        // Minuit légal : l'itération 23 (23 h–24 h UTC, 0 h–1 h légales) ouvre le jour 1.
+        assert_eq!((jour_legal(0), jour_legal(22), jour_legal(23)), (0, 0, 1));
+        assert!(!nouveau_jour_legal(0) && !nouveau_jour_legal(22) && nouveau_jour_legal(23));
+        // Le jour légal change exactement quand la case de scénario revient à 1.
+        for h in 1..8760 {
+            assert_eq!(
+                nouveau_jour_legal(h),
+                case_scenario(h) == 1,
+                "itération {h}"
+            );
+            assert_eq!(
+                nouveau_jour_legal(h),
+                date_scenario(h).heure == 1,
+                "itération {h}"
+            );
+        }
+        // 365 jours légaux, de 23 pas de temps au passage à l'heure d'été (jour d'indice 79),
+        // de 25 au retour à l'heure d'hiver (jour d'indice 293), de 24 sinon ; le premier
+        // commence à 1 h légale et n'en compte que 23, et une heure du jour 365 clôt l'année.
+        let mut pas = [0_u32; 366];
+        for h in 0..8760 {
+            pas[jour_legal(h)] += 1;
+        }
+        assert_eq!((pas[0], pas[79], pas[293], pas[365]), (23, 23, 25, 1));
+        assert!(pas
+            .iter()
+            .enumerate()
+            .all(|(j, n)| *n == 24 || [0, 79, 293, 365].contains(&j)));
+        // Bascule des saisons : pas de temps qui se termine à 9 h légales, une fois par jour.
+        // En hiver, 7 h–8 h UTC (itération 7 le premier jour) ; en été, 6 h–7 h UTC.
+        assert_eq!(jour_bascule_saisons(7), Some(1));
+        assert_eq!(jour_bascule_saisons(6), None);
+        assert_eq!(jour_bascule_saisons(24 + 7), Some(2));
+        assert_eq!(jour_bascule_saisons(100 * 24 + 6), Some(101));
+        assert_eq!(jour_bascule_saisons(100 * 24 + 7), None);
+        let bascules: Vec<u16> = (0..8760).filter_map(jour_bascule_saisons).collect();
+        assert_eq!(bascules, (1..=365).collect::<Vec<u16>>());
     }
 
     #[test]

@@ -66,8 +66,11 @@ pub struct ResultatsBatiment {
     pub id: Id,
     /// « SREF_bat » : surface de référence, en m² (Th-BCE 2020 §13.1.3, éq. 2378).
     pub sref_m2: f64,
-    /// « Bbio » : besoin bioclimatique, en points (§13.1.3, éq. 2385 et 2386).
+    /// « Bbio_pts_annuel » : besoin bioclimatique du bâtiment, en points (§13.1.3, éq. 2385 et
+    /// 2386). Même valeur que `bbio.annuel.bbio_pts`.
     pub bbio_pts: Option<f64>,
+    /// Besoins mensuels et annuels et Bbio du bâtiment (§13.1, « Sortie_Batiment_B »).
+    pub bbio: Option<ResultatsBbio>,
     /// « Cep » : consommation d'énergie primaire, en kWhep/(m².an) (§13.2).
     pub cep_kwhep_m2: Option<f64>,
     /// « Cep,nr » : consommation d'énergie primaire non renouvelable, en kWhep/(m².an).
@@ -89,6 +92,8 @@ pub struct ResultatsZone {
     pub sref_m2: f64,
     /// « Nadeq » : nombre d'adultes équivalents de la zone, en habitation (§4.1.3, éq. 32 et 36).
     pub nadeq: Option<f64>,
+    /// Besoins mensuels et annuels et Bbio de la zone (§13.1, « Sortie_Zone_B »).
+    pub bbio: Option<ResultatsBbio>,
     /// Résultats par groupe.
     pub groupes: Vec<ResultatsGroupe>,
 }
@@ -105,11 +110,84 @@ pub struct ResultatsGroupe {
     /// Débits du système de ventilation conventionnel du Bbio ; `null` si le groupe ne décrit
     /// aucune bouche de ventilation ou hors habitation.
     pub debits_bbio: Option<ResultatsDebitsBbio>,
+    /// Besoins mensuels et annuels et Bbio du groupe (§13.1, « Sortie_Groupe_B »).
+    pub bbio: Option<ResultatsBbio>,
+    /// Saisons propres du groupe en calcul du Bbio (§4.6).
+    pub saisons_bbio: Option<ResultatsSaisons>,
+    /// Indicateurs de confort du groupe en calcul du Bbio (§4.5), en évolution libre.
+    pub confort_bbio: Option<ResultatsConfort>,
     /// Résultats par baie.
     pub baies: Vec<ResultatsBaie>,
     /// Valeurs par défaut de la méthode appliquées aux paramètres non saisis du groupe ; liste
     /// vide si aucune.
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+}
+
+/// Besoins et besoin bioclimatique d'un mois ou de l'année (Th-BCE 2020 §13.1.2, sorties).
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
+pub struct BesoinsBbio {
+    /// « B_Ch » : besoin de chauffage, en kWh par m² de surface de référence (éq. 2379 et
+    /// 2382).
+    pub b_ch_kwh_m2: f64,
+    /// « B_Fr » : besoin de refroidissement, en kWh par m² de surface de référence, compté
+    /// positivement (éq. 2380 et 2383).
+    pub b_fr_kwh_m2: f64,
+    /// « B_Ecl » : besoin d'éclairage, en kWh par m² de surface de référence (éq. 2381 et
+    /// 2384).
+    pub b_ecl_kwh_m2: f64,
+    /// « Bbio_pts » : besoin bioclimatique, en points (éq. 2385 et 2386 ; décision Q10).
+    pub bbio_pts: f64,
+}
+
+/// Sorties du mode Th-B d'un groupe, d'une zone ou d'un bâtiment (Th-BCE 2020 §13.1).
+///
+/// Sans arrondi de restitution, le Bbio annuel est la somme des douze Bbio mensuels (éq. 2386) ;
+/// avec l'arrondi, chaque valeur est arrondie séparément à une décimale (décision Q8) et la
+/// somme des valeurs mensuelles arrondies peut différer de la valeur annuelle arrondie.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsBbio {
+    /// Besoins et Bbio de l'année.
+    pub annuel: BesoinsBbio,
+    /// Besoins et Bbio de chacun des douze mois de l'année conventionnelle (§4.1.3 : mois de 4
+    /// ou 5 semaines, au sens des scénarios).
+    pub mensuel: Vec<BesoinsBbio>,
+}
+
+/// Saisons propres d'un groupe (Th-BCE 2020 §4.6.3.6, éq. 92) : jours de l'année conventionnelle
+/// de 1 à 365, au sens des scénarios (le jour 57 est le premier jour de mars). `null` si
+/// l'événement n'a pas eu lieu.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsSaisons {
+    /// « jfin_ch » : dernier jour où la saison de chauffage s'est arrêtée.
+    pub j_fin_ch: Option<u16>,
+    /// « jdebut_ch » : dernier jour où la saison de chauffage a commencé (hors début d'année,
+    /// où le chauffage est autorisé d'emblée).
+    pub j_debut_ch: Option<u16>,
+    /// « jdebut_fr » : dernier jour où la saison de refroidissement a commencé.
+    pub j_debut_fr: Option<u16>,
+    /// « jfin_fr » : dernier jour où la saison de refroidissement s'est arrêtée.
+    pub j_fin_fr: Option<u16>,
+}
+
+/// Indicateurs de confort d'un groupe sur l'année (Th-BCE 2020 §4.5.3.4 et 4.5.3.5), calculés
+/// en occupation sur la température opérative en évolution libre.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsConfort {
+    /// « Nbhinc_cons,ch » : heures d'inconfort froid par rapport à la consigne de chauffage.
+    pub nbh_inc_cons_ch: u32,
+    /// « DHinc_cons,ch » : degrés-heures d'inconfort froid, en K.h (éq. 64).
+    pub dh_inc_cons_ch_k_h: f64,
+    /// « Nbhinc_cons,fr » : heures d'inconfort chaud par rapport à la consigne de
+    /// refroidissement.
+    pub nbh_inc_cons_fr: u32,
+    /// « DHinc_cons,fr » : degrés-heures d'inconfort chaud par rapport à la consigne de
+    /// refroidissement, en K.h (éq. 65).
+    pub dh_inc_cons_fr_k_h: f64,
+    /// « Nbhinc_C1,fr » à « Nbhinc_C3,fr » : heures d'inconfort chaud par rapport au seuil des
+    /// catégories d'ambiance 1 à 3.
+    pub nbh_inc_c_fr: [u32; 3],
+    /// « DHinc_C1,fr » à « DHinc_C3,fr », en K.h (éq. 65).
+    pub dh_inc_c_fr_k_h: [f64; 3],
 }
 
 /// Débits spécifiques d'un groupe pour le calcul du Bbio (Th-BCE 2020 §6.1 et §6.2), constants
@@ -184,6 +262,18 @@ pub struct ResultatsEnveloppe {
     pub h_th_pt_w_k: f64,
 }
 
+impl ResultatsBbio {
+    /// Applique l'arrondi de restitution à chaque valeur (§1.3.1, décision Q8).
+    fn arrondir(&mut self) {
+        for b in std::iter::once(&mut self.annuel).chain(&mut self.mensuel) {
+            b.b_ch_kwh_m2 = arrondir_restitution(b.b_ch_kwh_m2);
+            b.b_fr_kwh_m2 = arrondir_restitution(b.b_fr_kwh_m2);
+            b.b_ecl_kwh_m2 = arrondir_restitution(b.b_ecl_kwh_m2);
+            b.bbio_pts = arrondir_restitution(b.bbio_pts);
+        }
+    }
+}
+
 impl Resultats {
     /// Applique l'arrondi de restitution à toutes les grandeurs (§1.3.1, décision Q8).
     pub fn arrondir(&mut self) {
@@ -191,6 +281,9 @@ impl Resultats {
         for b in &mut self.batiments {
             b.sref_m2 = a(b.sref_m2);
             b.bbio_pts = b.bbio_pts.map(a);
+            if let Some(bbio) = &mut b.bbio {
+                bbio.arrondir();
+            }
             b.cep_kwhep_m2 = b.cep_kwhep_m2.map(a);
             b.cep_nr_kwhep_m2 = b.cep_nr_kwhep_m2.map(a);
             b.dh_c_h = b.dh_c_h.map(a);
@@ -198,8 +291,21 @@ impl Resultats {
             for z in &mut b.zones {
                 z.sref_m2 = a(z.sref_m2);
                 z.nadeq = z.nadeq.map(a);
+                if let Some(bbio) = &mut z.bbio {
+                    bbio.arrondir();
+                }
                 for g in &mut z.groupes {
                     g.sref_m2 = a(g.sref_m2);
+                    if let Some(bbio) = &mut g.bbio {
+                        bbio.arrondir();
+                    }
+                    if let Some(c) = &mut g.confort_bbio {
+                        c.dh_inc_cons_ch_k_h = a(c.dh_inc_cons_ch_k_h);
+                        c.dh_inc_cons_fr_k_h = a(c.dh_inc_cons_fr_k_h);
+                        for v in &mut c.dh_inc_c_fr_k_h {
+                            *v = a(*v);
+                        }
+                    }
                     if let Some(d) = &mut g.debits_bbio {
                         d.q_spec_repris_m3_h = a(d.q_spec_repris_m3_h);
                         d.q_spec_souffle_m3_h = a(d.q_spec_souffle_m3_h);

@@ -2,22 +2,25 @@
 //! Point d'entrée du calcul.
 //!
 //! État : le calcul valide l'entrée et les données météo, détermine le climat du site (lot 3) et
-//! les surfaces de référence, et renvoie la structure des résultats. Les indicateurs
-//! réglementaires restent à `None` jusqu'à l'implémentation des lots 4 à 7
-//! (`docs/couverture.md`).
+//! les surfaces de référence, puis déroule l'année au pas horaire en mode Th-B (lot 4) : besoins
+//! de chauffage, de refroidissement et d'éclairage et Bbio (§13.1). Cep, Cep,nr, DH et
+//! Ic énergie restent à `None` jusqu'à l'implémentation des lots 5 à 7 (`docs/couverture.md`).
 
+use crate::bati::assemblage_groupe::{EnveloppeResolue, GroupeBbio};
+use crate::bati::assemblage_zone::ZoneBbio;
 use crate::bati::baie::{BaieResolue, EnsembleBaies, Protections};
-use crate::bati::paroi_opaque::{EnsembleParois, ParoiResolue};
-use crate::bati::pont_thermique::{EnsemblePonts, PontResolu};
+use crate::bati::paroi_opaque::EnsembleParois;
+use crate::bati::pont_thermique::EnsemblePonts;
 use crate::bati::surventilation::H_TTF_CAS_GENERAL_M;
 use crate::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
-use crate::entree::{Catalogue, Groupe, Projet, UsageZone};
+use crate::entree::{Catalogue, Groupe, Projet, UsageZone, Zone};
 use crate::erreur::Erreur;
+use crate::indicateurs::sorties_th_b::{sorties, EnergiesMensuelles};
 use crate::resultats::{
     PeriodeConfortAdaptatif, Resultats, ResultatsBaie, ResultatsBatiment, ResultatsClimat,
-    ResultatsDebitsBbio, ResultatsEnveloppe, ResultatsGroupe, ResultatsZone, ValeurParDefaut,
+    ResultatsConfort, ResultatsDebitsBbio, ResultatsEnveloppe, ResultatsGroupe, ResultatsSaisons,
+    ResultatsZone, ValeurParDefaut,
 };
-use crate::scenarios::ScenariosZone;
 use crate::validation::valider;
 use crate::ventilation::bouche_conduit::debits_specifiques_bbio_groupe;
 use crate::ventilation::ven_bbio::{debits_systeme_conventionnel, LectureDebitsBbio};
@@ -91,63 +94,37 @@ pub fn calculer(
         .iter()
         .map(|p| format!("{} : {}", p.chemin, p.message))
         .collect();
-    avertissements.push(
-        "squelette du moteur : Bbio, Cep, Cep,nr, DH et Ic énergie ne sont pas encore calculés"
-            .to_owned(),
-    );
+    avertissements
+        .push("Cep, Cep,nr, DH et Ic énergie ne sont pas encore calculés par le moteur".to_owned());
 
-    let batiments = projet
-        .batiments
-        .iter()
-        .map(|bat| {
-            let zones: Vec<ResultatsZone> = bat
-                .zones
-                .iter()
-                .map(|zone| {
-                    let groupes: Vec<ResultatsGroupe> = zone
-                        .groupes
-                        .iter()
-                        .map(|g| ResultatsGroupe {
-                            id: g.id.clone(),
-                            sref_m2: sref_groupe(g, zone.usage),
-                            enveloppe: enveloppe_groupe(g, &projet.catalogue),
-                            debits_bbio: debits_bbio_groupe(g, zone.usage),
-                            baies: resultats_baies(g, &projet.catalogue),
-                            valeurs_par_defaut: defauts_groupe(g, &projet.catalogue),
-                        })
-                        .collect();
-                    // Th-BCE 2020 §13.1.3, éq. (2377) : SREF_zn = somme des SREF_gr de la zone.
-                    let sref_m2 = groupes.iter().map(|g| g.sref_m2).sum();
-                    // Th-BCE 2020 §4.1 : scénarios de la zone, préparés avant la boucle horaire.
-                    let a_gr: Vec<f64> = zone
-                        .groupes
-                        .iter()
-                        .map(|g| g.su_m2.unwrap_or(0.0))
-                        .collect();
-                    let scenarios =
-                        ScenariosZone::nouveau(zone.usage, &a_gr, zone.nb_lgt.unwrap_or(1)).ok();
-                    ResultatsZone {
-                        id: zone.id.clone(),
-                        sref_m2,
-                        nadeq: scenarios.map(|s| s.nadeq),
-                        groupes,
-                    }
-                })
-                .collect();
-            // Th-BCE 2020 §13.1.3, éq. (2378) : SREF_bat = somme des SREF_zn du bâtiment.
-            let sref_m2 = zones.iter().map(|z| z.sref_m2).sum();
-            ResultatsBatiment {
-                id: bat.id.clone(),
-                sref_m2,
-                bbio_pts: None,
-                cep_kwhep_m2: None,
-                cep_nr_kwhep_m2: None,
-                dh_c_h: None,
-                ic_energie_kgco2_m2: None,
-                zones,
-            }
-        })
-        .collect();
+    // Th-BCE 2020 §4.5.3.2.1, éq. (57) : moyenne glissante de la température extérieure du jeu
+    // météo « Th-BC », employée par les indicateurs de confort du calcul Th-B.
+    let confort_th_bc = ConfortAdaptatif::nouveau(&climat_th_bc.te_c);
+    let mut batiments = Vec::with_capacity(projet.batiments.len());
+    for bat in &projet.batiments {
+        let mut zones = Vec::with_capacity(bat.zones.len());
+        let mut energies_bat = EnergiesMensuelles::default();
+        for zone in &bat.zones {
+            let (resultats_zone, energies_zone) =
+                calculer_zone(zone, projet, &climat_th_bc, &confort_th_bc)?;
+            energies_bat.ajouter(&energies_zone);
+            zones.push(resultats_zone);
+        }
+        // Th-BCE 2020 §13.1.3, éq. (2378) : SREF_bat = somme des SREF_zn du bâtiment.
+        let sref_m2: f64 = zones.iter().map(|z| z.sref_m2).sum();
+        let bbio = sorties(&energies_bat, sref_m2);
+        batiments.push(ResultatsBatiment {
+            id: bat.id.clone(),
+            sref_m2,
+            bbio_pts: Some(bbio.annuel.bbio_pts),
+            bbio: Some(bbio),
+            cep_kwhep_m2: None,
+            cep_nr_kwhep_m2: None,
+            dh_c_h: None,
+            ic_energie_kgco2_m2: None,
+            zones,
+        });
+    }
 
     let mut resultats = Resultats {
         version_moteur: VERSION_MOTEUR.to_owned(),
@@ -166,10 +143,86 @@ pub fn calculer(
     Ok(resultats)
 }
 
-/// Surface de référence d'un groupe.
+/// Calcul annuel d'une zone en mode Th-B et restitution de ses résultats.
 ///
-/// Th-BCE 2020 §13.1.3, éq. (2375) et (2376) : `SREF_gr = SHAB_gr` si l'usage vaut 1 ou 2,
-/// `SREF_gr = SU_gr` sinon. La validation garantit la présence de la surface requise.
+/// Th-BCE 2020 §5.5 (assemblage de la zone, figure 18) et §13.1 (sorties du mode Th-B). Renvoie
+/// aussi les énergies mensuelles de la zone, que le bâtiment somme (§13.1.3).
+fn calculer_zone(
+    zone: &Zone,
+    projet: &Projet,
+    climat: &ClimatExterieur,
+    confort: &ConfortAdaptatif,
+) -> Result<(ResultatsZone, EnergiesMensuelles), Erreur> {
+    // Humidité initiale de l'air des groupes : celle de l'air extérieur au premier pas de temps
+    // (décision Q39 point 4).
+    let omega_initiale = climat.we_kg_kg.first().copied().unwrap_or(0.0);
+    let mut calcul = ZoneBbio::nouvelle(
+        zone,
+        &projet.catalogue,
+        projet.localisation.alt_m,
+        omega_initiale,
+    )?;
+    calcul.simuler(climat, confort)?;
+
+    let mut energies_zone = EnergiesMensuelles::default();
+    let groupes: Vec<ResultatsGroupe> = zone
+        .groupes
+        .iter()
+        .zip(&calcul.groupes)
+        .map(|(g, c)| {
+            let sref_m2 = sref_groupe(g, zone.usage);
+            let energies = energies_groupe(c);
+            energies_zone.ajouter(&energies);
+            let s = &c.etat.saisons;
+            let k = &c.cumuls.confort;
+            ResultatsGroupe {
+                id: g.id.clone(),
+                sref_m2,
+                enveloppe: enveloppe_groupe(g, &projet.catalogue, zone.usage),
+                debits_bbio: debits_bbio_groupe(g, zone.usage),
+                bbio: Some(sorties(&energies, sref_m2)),
+                saisons_bbio: Some(ResultatsSaisons {
+                    j_fin_ch: s.j_fin_ch,
+                    j_debut_ch: s.j_debut_ch,
+                    j_debut_fr: s.j_debut_fr,
+                    j_fin_fr: s.j_fin_fr,
+                }),
+                confort_bbio: Some(ResultatsConfort {
+                    nbh_inc_cons_ch: k.nbh_inc_cons_ch,
+                    dh_inc_cons_ch_k_h: k.dh_inc_cons_ch_k_h,
+                    nbh_inc_cons_fr: k.nbh_inc_cons_fr,
+                    dh_inc_cons_fr_k_h: k.dh_inc_cons_fr_k_h,
+                    nbh_inc_c_fr: k.nbh_inc_c_fr,
+                    dh_inc_c_fr_k_h: k.dh_inc_c_fr_k_h,
+                }),
+                baies: resultats_baies(g, &projet.catalogue),
+                valeurs_par_defaut: defauts_groupe(g, &projet.catalogue),
+            }
+        })
+        .collect();
+    // Th-BCE 2020 §13.1.3, éq. (2377) : SREF_zn = somme des SREF_gr de la zone.
+    let sref_m2: f64 = groupes.iter().map(|g| g.sref_m2).sum();
+    Ok((
+        ResultatsZone {
+            id: zone.id.clone(),
+            sref_m2,
+            nadeq: Some(calcul.scenarios.nadeq),
+            bbio: Some(sorties(&energies_zone, sref_m2)),
+            groupes,
+        },
+        energies_zone,
+    ))
+}
+
+/// Énergies mensuelles d'un groupe à l'issue du calcul annuel.
+fn energies_groupe(groupe: &GroupeBbio) -> EnergiesMensuelles {
+    EnergiesMensuelles {
+        q_sys_ch_wh: groupe.cumuls.q_sys_ch_wh,
+        q_sys_fr_wh: groupe.cumuls.q_sys_fr_wh,
+        c_ecl_kwh: groupe.cumuls.c_ecl_kwh,
+    }
+}
+
 /// Débits du système de ventilation conventionnel du Bbio pour un groupe d'habitation.
 ///
 /// Th-BCE 2020 §6.2.3.1.3 et §6.2.3.2.1 (débits des bouches en Bbio), §6.1.3 (système
@@ -229,27 +282,17 @@ fn resultats_baies(groupe: &Groupe, catalogue: &Catalogue) -> Vec<ResultatsBaie>
 
 /// Grandeurs d'enveloppe d'un groupe (Th-BCE 2020 §5.14.3, éq. 279, 281 et 282 ; §5.16.3,
 /// éq. 283, 286 et 287 ; §5.20.3, éq. 307 et 310). Les références au catalogue ont été vérifiées par la validation.
-fn enveloppe_groupe(groupe: &Groupe, catalogue: &Catalogue) -> ResultatsEnveloppe {
-    let parois: Vec<ParoiResolue> = groupe
-        .parois_opaques
-        .iter()
-        .filter_map(|p| {
-            let type_paroi = catalogue.parois.iter().find(|t| t.id == p.type_paroi)?;
-            Some(ParoiResolue::nouvelle(p, type_paroi, catalogue))
-        })
-        .collect();
-    let mut ponts = Vec::new();
-    for pont in &groupe.ponts_thermiques {
-        PontResolu::resoudre(pont, catalogue, &mut ponts);
-    }
-    let baies: Vec<BaieResolue> = groupe
-        .baies
-        .iter()
-        .filter_map(|b| {
-            let type_baie = catalogue.baies.iter().find(|t| t.id == b.type_baie)?;
-            BaieResolue::nouvelle(b, type_baie, catalogue)
-        })
-        .collect();
+fn enveloppe_groupe(
+    groupe: &Groupe,
+    catalogue: &Catalogue,
+    usage: UsageZone,
+) -> ResultatsEnveloppe {
+    let EnveloppeResolue {
+        parois,
+        ponts,
+        baies,
+        ..
+    } = EnveloppeResolue::de(groupe, catalogue, usage);
     let ba = EnsembleBaies::de(&baies);
     let op = EnsembleParois::de(&parois);
     let pt = EnsemblePonts::de(&ponts);
@@ -274,6 +317,10 @@ fn enveloppe_groupe(groupe: &Groupe, catalogue: &Catalogue) -> ResultatsEnvelopp
     }
 }
 
+/// Surface de référence d'un groupe.
+///
+/// Th-BCE 2020 §13.1.3, éq. (2375) et (2376) : `SREF_gr = SHAB_gr` si l'usage vaut 1 ou 2,
+/// `SREF_gr = SU_gr` sinon. La validation garantit la présence de la surface requise.
 fn sref_groupe(groupe: &Groupe, usage: UsageZone) -> f64 {
     let surface = if usage.est_habitation() {
         groupe.shab_m2
