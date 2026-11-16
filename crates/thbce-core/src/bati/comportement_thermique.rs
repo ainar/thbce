@@ -11,7 +11,9 @@
 //! groupes (`φmig`, `Hs,ig,eq` des éq. 365 et 367), que la fiche ne définit pas, sont nuls.
 //!
 //! Le texte ne dit pas où va la part des apports radiatifs et solaires reçue par les parois
-//! légères : voir [`LectureFluxRadiatifs`] (`docs/questions.md`, Q34).
+//! légères : voir [`LectureFluxRadiatifs`] (`docs/questions.md`, Q34). Les échanges entre
+//! groupes étant nuls, le modèle ne décrit pas les transferts entre les groupes d'un logement
+//! collectif qui en compte plusieurs.
 
 use crate::entree::InertieQuotidienne;
 
@@ -127,10 +129,16 @@ impl AirEquivalent {
 /// équation n'injecte la part des parois légères dans le bilan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LectureFluxRadiatifs {
-    /// Lecture retenue (question Q34) : la part des parois légères est injectée au nœud `θs`,
-    /// comme l'annoncent `frs`, `frsd` et `frld`. Le bilan est alors fermé : tout apport
-    /// radiatif ou solaire entre dans le groupe, hormis la part des baies perdue vers
-    /// l'extérieur (éq. 361).
+    /// Lecture retenue (décision Q34 : lacune du texte, reconstruction cohérente avec la
+    /// nomenclature, l'éq. 372 et la conservation de l'énergie ; à confirmer par un cas de
+    /// référence) : la part des parois légères est injectée au nœud `θs`,
+    /// `φs = (1 − Hges/(Abaies·his))·φl + frs·(apports radiatifs) + frld·(1 − fsa)·Fs1`, avec
+    /// `frs = (Atparois − Amq − Abaies)/Atparois` et `frsd = frld`. Le premier terme est
+    /// l'éq. (361) ; les deux autres manquent au texte. Tout apport radiatif ou solaire entre
+    /// alors dans le groupe, hormis la part des baies perdue vers l'extérieur.
+    ///
+    /// **Premier paramètre à tester si le Bbio ou le DH s'écarte d'un cas de référence**, devant
+    /// Q25, Q28 et Q32 : son effet est le plus fort (environ 40 % des apports radiatifs).
     Complete,
     /// Équations imprimées, telles quelles : seule la part des baies atteint `θs` ; la part des
     /// parois légères n'est injectée nulle part.
@@ -269,6 +277,19 @@ impl GroupeThermique {
         }
     }
 
+    /// « frs » de l'éq. (372) : part de la puissance radiative du système d'émission reçue au
+    /// nœud `θs`.
+    ///
+    /// Th-BCE 2020 §5.21.3.14, éq. (372) : `φsys-rad-s = frs·φsys-rad` et
+    /// `φsys-rad-m = frm·φsys-rad`. Le système d'émission ne voit que deux nœuds, `θs` (baies et
+    /// parois légères confondues) et `θmq` : `frs = 1 − frm` (décision Q34), pour que toute la
+    /// puissance émise entre dans le bilan. Cette grandeur est distincte de la part des apports
+    /// radiatifs internes reçue à `θs` ([`Self::parts_noeud_s`]), que l'éq. (361) diminue de ce
+    /// que les baies perdent vers l'extérieur.
+    pub fn part_emission_noeud_s(fr_m: f64) -> f64 {
+        1.0 - fr_m
+    }
+
     /// Résout le bilan thermique du groupe sur un pas de temps, avec la lecture retenue des flux
     /// radiatifs ([`LECTURE_FLUX_RADIATIFS`]).
     pub fn resoudre(
@@ -296,7 +317,8 @@ impl GroupeThermique {
     /// - éq. (348) `φmq = frmd·(1 − fsa)·Fs1 + frm·apports radiatifs`, avec
     ///   `frm = Amq/Atparois` (éq. 350) et `frmd = Amq/(Atparois − Abaies)` (éq. 352) ;
     /// - `φs` : voir [`Self::parts_noeud_s`] ;
-    /// - éq. (372) `φsys-rad-s = frs·φsys-rad`, `φsys-rad-m = frm·φsys-rad` ;
+    /// - éq. (372) `φsys-rad-s = frs·φsys-rad`, `φsys-rad-m = frm·φsys-rad`, avec
+    ///   `frs = 1 − frm` ([`Self::part_emission_noeud_s`]) ;
     /// - éq. (362) `U1 = 1/(1/Hgei + 1/Hgis)` ; éq. (363) `U2 = U1 + Hges` ;
     ///   éq. (364) `U3 = 1/(1/U2 + 1/Hgmqs)` ;
     /// - éq. (342) `θes = θe + φsl/Hges` ; éq. (344) `θem = θe + φsh·(1/Hgemq + 1/Hgmqs)` ;
@@ -345,7 +367,9 @@ impl GroupeThermique {
         let (fr_s, fr_sd) = self.parts_noeud_s(hg_es, lecture);
         let solaire_clo = (1.0 - F_SA) * s.fs1_w;
         let phi_i = F_SA * s.fs1_w + s.fs3_w + s.phi_conv_w + phi_sys_conv_w;
-        let phi_s = fr_sd * solaire_clo + fr_s * (s.phi_rad_w + phi_sys_rad_w);
+        // Éq. (372) : la puissance radiative du système d'émission se partage entre θs et θmq.
+        let fr_s_sys = Self::part_emission_noeud_s(fr_m);
+        let phi_s = fr_sd * solaire_clo + fr_s * s.phi_rad_w + fr_s_sys * phi_sys_rad_w;
         let phi_mq = fr_md * solaire_clo + fr_m * (s.phi_rad_w + phi_sys_rad_w);
 
         // Coefficients de transfert.
