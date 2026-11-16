@@ -76,6 +76,21 @@ fn consommation_et_apports_d_un_groupe_d_habitation() {
 }
 
 #[test]
+fn ordre_de_grandeur_et_unites_des_apports_d_eclairage() {
+    // Décision Q33, point 1. Logement de 100 m², éclairage autorisé, sans lumière naturelle :
+    // éq. (789), 1 W/m² × 0,9 × 1 × 100 m² / 1000 = 0,09 kWh sur l'heure. Les apports transmis au
+    // modèle thermique sont en watts : 0,09 kWh sur une heure = 90 W, dont 45 W convectifs et
+    // 45 W radiatifs (§7.1.3.7).
+    let e = eclairage_habitation(true, 0.0, 100.0);
+    assert_proche!(e.c_ecl_kwh, 0.09);
+    assert_proche!(e.f_ecl_c_w, 45.0);
+    assert_proche!(e.f_ecl_r_w, 45.0);
+    assert_proche!(e.f_ecl_c_w + e.f_ecl_r_w, 90.0);
+    // Cohérence des unités : la somme des apports, en W, vaut 1000 fois la consommation en kWh.
+    assert_proche!(e.f_ecl_c_w + e.f_ecl_r_w, 1_000.0 * e.c_ecl_kwh);
+}
+
+#[test]
 fn autonomie_en_lumiere_naturelle() {
     // Éq. (785), seuil de 300 lux.
     let mut a = AutonomieLumineuse::default();
