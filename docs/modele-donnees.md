@@ -15,6 +15,7 @@
 - **Masques (phase 3)** : un masque lointain azimutal se saisit par ses 36 hauteurs `gamma_i_deg`, une par tranche de 10° repérée par rapport à la normale au composant ; le masque d'arbres à feuilles caduques a la même forme. Un masque proche exige la largeur (`lpb_m`) ou la hauteur (`hpb_m`) du composant.
 - **Résultats (phase 3)** : bloc `climat` avec la zone, `altcorr_m`, `base_ext_c` et la période de confort adaptatif de chaque jeu météo.
 - **Lecteurs météo (phase 3)** : `meteo::lire` reconnaît le classeur `.xlsx`, le CSV dérivé et les fichiers ADEME. Le module WebAssembly ne lit pas le classeur.
+- **Surfaces (lot 4b)** : `su_m2` est la surface utile du groupe (« Agr », §4.1.2), obligatoire pour tous les usages ; `shab_m2` reste la surface de référence en habitation. `nb_lgt` est obligatoire en logement collectif. Les résultats de zone portent `nadeq`.
 - **Inertie** : les classes des tableaux 53 et 54 (§5.21.3) sont des variantes d'énumération ; `Ams_surf` et `Ama_surf` sont toujours saisies, comme le dit le texte.
 
 Ce document décrit les types Rust d'entrée et de sortie du moteur. Il ne fixe que la structure. Les champs cités viennent des nomenclatures de l'annexe III déjà lues (§3.1, 3.2, 4.1, 5.1, 5.10, 5.17, 5.19, 5.21, 13.1, 13.2, 13.4, 13.5) ; les autres fiches compléteront les types au moment où elles seront implémentées, chaque champ portant la référence de la nomenclature dont il sort. Aucun champ n'est ajouté s'il ne figure pas dans une nomenclature du texte.

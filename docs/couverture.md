@@ -80,7 +80,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
-| 2.1 | LES DONNEES CONVENTIONNELLES D'OCCUPATION ET D'USAGE | 17–26 | 4 | `data/scenarios/ (voir aussi §15)` | non commencé |
+| 2.1 | LES DONNEES CONVENTIONNELLES D'OCCUPATION ET D'USAGE | 17–26 | 4 | `data/scenarios/ (voir aussi §15)` | implémenté : données converties du classeur officiel |
 
 ### 3. Meteo et environnement exterieur (p. 27–51)
 
@@ -93,7 +93,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
-| 4.1 | C_EIN_Scénarios conventionnels | 52–63 | 4 | `core/src/scenarios/scenarios_conventionnels.rs` | non commencé |
+| 4.1 | C_EIN_Scénarios conventionnels | 52–63 | 4 | `core/src/scenarios/scenarios_conventionnels.rs` | implémenté pour les usages 1 et 2 : éq. (27) à (55), calendrier dans `climat/calendrier.rs` ; autres usages non pris en charge |
 | 4.2 | FA_Maison_individuelle_Logement_Collectif | 64–68 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
 | 4.3 | FA_Comment identifier l’usage d’un bâtiment et l’exigence associée | 69–69 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
 | 4.4 | FA_Extension_de_bâtiment | 70–70 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
