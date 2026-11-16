@@ -13,6 +13,7 @@
 
 pub mod bati;
 pub mod calcul;
+pub mod chauffage_refroidissement;
 pub mod climat;
 pub mod confort;
 pub mod conventions;
