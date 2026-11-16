@@ -5,10 +5,14 @@
 //! (`Autch,pro`) et à refroidir (`Autfr,pro`). Le démarrage d'une saison se décide sur une somme
 //! glissante de degrés-heures d'inconfort ; son arrêt, sur une moyenne glissante des besoins.
 //!
-//! Périmètre : procédure du calcul du Bbio, où les autorisations effectives sont égales aux
-//! autorisations propres (§4.6.3.4, éq. 91) et où les besoins sont ceux de l'émission,
-//! `Qsys_ch` et `Qsys_fr`. Les degrés-heures d'inconfort viennent de la fiche des indicateurs de
-//! confort (§4.5) ; ils sont ici des entrées.
+//! Périmètre : autorisations propres. En calcul du Bbio, les autorisations effectives leur sont
+//! égales (§4.6.3.3, éq. 91), sans égard pour la présence d'un système de refroidissement, et
+//! les besoins sont ceux de l'émission, `Qsys_ch` et `Qsys_fr`. En calcul des consommations,
+//! les autorisations effectives se décident au niveau de la génération (lot 6). Les
+//! degrés-heures d'inconfort viennent de la fiche des indicateurs de confort (§4.5) ; ils sont
+//! ici des entrées.
+
+use crate::conventions::ModeCalcul;
 
 /// « Seuil_debut_ch » et « Seuil_debut_fr » : seuil de démarrage d'une saison, en °C.h (§4.6.2).
 pub const SEUIL_DEBUT_C_H: f64 = 40.0;
@@ -83,12 +87,28 @@ impl Journee {
     }
 }
 
+/// Le groupe peut-il recevoir une autorisation propre de refroidir ?
+///
+/// Th-BCE 2020 §4.6.3.2 : « Dans le cas où le groupe ne dispose pas de système de
+/// refroidissement (iclim = 0), la variable Autfr,pro(j) est nulle toute l'année. » §4.6.3.3,
+/// éq. (91), cas particulier du calcul du Bbio : les autorisations propres sont calculées par la
+/// procédure de la fiche et les autorisations effectives leur sont égales. Le Bbio ne décrivant
+/// aucun système, la procédure s'y applique sans égard pour `iclim` (décision du mainteneur,
+/// `docs/questions.md`, Q35 point 7). En Th-C et en Th-D, « pas de système, pas de froid ».
+pub fn refroidissement_possible(mode: ModeCalcul, i_clim: bool) -> bool {
+    match mode {
+        ModeCalcul::ThB => true,
+        ModeCalcul::ThC | ModeCalcul::ThD => i_clim,
+    }
+}
+
 /// État des saisons propres d'un groupe.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Saisons {
     a_gr_m2: f64,
     nbh_occ_ref: f64,
-    i_clim: bool,
+    mode: ModeCalcul,
+    froid_possible: bool,
     historique: [Journee; NB_JOURS_FENETRE],
     en_cours: Journee,
     /// « Autch,pro(j) ».
@@ -113,13 +133,15 @@ impl Saisons {
     /// État initial : chauffage autorisé, refroidissement interdit (§4.6.3.2 et 4.6.3.3).
     ///
     /// `nbh_occ_ref` est le nombre d'heures d'occupation d'une semaine type de l'usage
-    /// (§4.6.3.1, éq. 66) ; `i_clim` indique si le groupe peut être refroidi : sinon,
-    /// `Autfr,pro` est nul toute l'année (§4.6.3.3).
-    pub fn nouveau(a_gr_m2: f64, nbh_occ_ref: f64, i_clim: bool) -> Self {
+    /// (§4.6.3.1, éq. 66) ; `i_clim` indique si le groupe dispose d'un système de
+    /// refroidissement : sinon, hors calcul du Bbio, `Autfr,pro` est nul toute l'année
+    /// ([`refroidissement_possible`]).
+    pub fn nouveau(a_gr_m2: f64, nbh_occ_ref: f64, mode: ModeCalcul, i_clim: bool) -> Self {
         Self {
             a_gr_m2,
             nbh_occ_ref,
-            i_clim,
+            mode,
+            froid_possible: refroidissement_possible(mode, i_clim),
             historique: [Journee::default(); NB_JOURS_FENETRE],
             en_cours: Journee::default(),
             aut_ch: true,
@@ -138,6 +160,45 @@ impl Saisons {
     /// Saison propre courante (tableau 11).
     pub fn saison(&self) -> Saison {
         Saison::de(self.aut_ch, self.aut_fr)
+    }
+
+    /// « Autch,eff(j) » et « Autfr,eff(j) » : autorisations effectives de chauffer et de
+    /// refroidir, dans le cas particulier du calcul du Bbio.
+    ///
+    /// Th-BCE 2020 §4.6.3.3, éq. (91) : `Autch,eff(j) = Autch,pro(j)` et
+    /// `Autfr,eff(j) = Autfr,pro(j)`. Hors calcul du Bbio, les autorisations effectives viennent
+    /// de la génération qui dessert le groupe : `None`.
+    pub fn autorisations_effectives_bbio(&self) -> Option<(bool, bool)> {
+        (self.mode == ModeCalcul::ThB).then_some((self.aut_ch, self.aut_fr))
+    }
+
+    /// Nombre de journées closes sur lesquelles porte `MGbch` au jour `j`.
+    ///
+    /// Th-BCE 2020 §4.6.3.1.2 : 28 jours (éq. 71, 72 et 75) ; après un redémarrage au jour
+    /// `jr`, « le calcul commence une semaine après le redémarrage » avec
+    /// `Nbh_total_somme_ch = 168` (éq. 73), puis s'étend d'un jour par jour (éq. 74) jusqu'à
+    /// 28 jours. L'éq. (73) écrit une somme de 9 h (j − 1) à 9 h (j) : coquille, la somme porte
+    /// sur les 168 h du dénominateur, de 9 h (j − 7) à 9 h (j) (Q35 point 3).
+    fn nb_jours_mgb_ch(&self, j: u16) -> u16 {
+        self.jour_redemarrage
+            .map_or(FENETRE, |jr| j.saturating_sub(jr).clamp(1, FENETRE))
+    }
+
+    /// « MGbch(j) » : moyenne glissante des besoins de chauffage, en Wh/m² par heure, telle que
+    /// la verrait un test fait au jour `j` après la clôture de la journée.
+    ///
+    /// Th-BCE 2020 §4.6.3.1.2, éq. (71) à (75) : somme des `Qsys_ch(h)` de la fenêtre, divisée
+    /// par le nombre d'heures et par `Agr`. `Qsys_ch(h)` est une puissance horaire en W tenue
+    /// une heure, soit des Wh ; la moyenne est en Wh/m², unité du seuil d'arrêt (Q35 point 1).
+    pub fn mgb_ch_wh_m2(&self, j: u16) -> f64 {
+        let n = self.nb_jours_mgb_ch(j);
+        self.somme(n).q_ch_wh / (f64::from(n) * 24.0) / self.a_gr_m2
+    }
+
+    /// « MGbfr(j) » : moyenne glissante des besoins de refroidissement sur 28 jours, en Wh/m²
+    /// par heure. Th-BCE 2020 §4.6.3.2, éq. (85) et (86).
+    pub fn mgb_fr_wh_m2(&self) -> f64 {
+        self.somme(FENETRE).q_fr_wh / (f64::from(FENETRE) * 24.0) / self.a_gr_m2
     }
 
     /// Ajoute les grandeurs d'un pas de temps au cumul de la journée en cours.
@@ -183,7 +244,8 @@ impl Saisons {
     /// - à partir du jour 253 (éq. 81) : démarre quand `MGdh_ch` atteint le seuil, puis reste en
     ///   fonction.
     ///
-    /// §4.6.3.3, refroidissement, si le groupe peut être refroidi :
+    /// §4.6.3.2, refroidissement, si le groupe peut être refroidi
+    /// ([`refroidissement_possible`]) :
     /// - jours 1 à 7 : interdit (éq. 87) ;
     /// - jours 8 à 182 (éq. 88) : démarre quand `MGdh_fr` atteint le seuil, ou, en Th-D, en
     ///   période de confort adaptatif ; puis reste en fonction ;
@@ -215,10 +277,7 @@ impl Saisons {
             true
         } else if j < J_INTERDICTION_CH {
             if ch_prec {
-                let n = self
-                    .jour_redemarrage
-                    .map_or(FENETRE, |jr| (j - jr).min(FENETRE));
-                let mgb_ch = self.somme(n).q_ch_wh / (f64::from(n) * 24.0) / self.a_gr_m2;
+                let mgb_ch = self.mgb_ch_wh_m2(j);
                 !(mgb_ch <= SEUIL_FIN_WH_M2 && self.jours_ch_consecutifs >= 7)
             } else {
                 let redemarre = self.nb_redemarrage < SEUIL_NB_REDEMARRAGE
@@ -253,7 +312,7 @@ impl Saisons {
 
         // Refroidissement.
         let fr_prec = self.aut_fr;
-        let aut_fr = if !self.i_clim || j < J_DEMARRAGE_FR {
+        let aut_fr = if !self.froid_possible || j < J_DEMARRAGE_FR {
             false
         } else if j < J_AUTORISATION_FR {
             fr_prec || confort_adaptatif_th_d || {
@@ -263,8 +322,7 @@ impl Saisons {
         } else if j < J_ARRET_FR {
             true
         } else if fr_prec {
-            let n = FENETRE;
-            let mgb_fr = self.somme(n).q_fr_wh / (f64::from(n) * 24.0) / self.a_gr_m2;
+            let mgb_fr = self.mgb_fr_wh_m2();
             !(mgb_fr <= SEUIL_FIN_WH_M2 && !confort_adaptatif_th_d)
         } else {
             false

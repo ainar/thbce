@@ -20,6 +20,7 @@
 - **Baies (lot 4c)** : une baie est inclinée de 0 à 90° ; son type doit donner `u_sp_horiz_w_m2k` si elle est inclinée de moins de 60° et `u_sp_vert_w_m2k` à partir de 30° (§5.10.3.5, éq. 207). La position des protections mobiles, calculée par la fiche 5.9, n'est pas encore une entrée du projet.
 - **Protections mobiles (lot 4c)** : `protection_mobile` sur le type de baie, avec `type_pm` (`volet`, `store_enroulable`, `store_venitien`), `gestion` (`manuelle_non_motorisee`, `manuelle_motorisee`, `automatique_avec_derogation`), `exterieure`, `seconde_protection` et `typo_pm` facultatif (§5.12.3.1, typologie 0 par défaut, signalée). Le store vénitien et la gestion automatique sont refusés par la validation dans cette version. Une protection déclarée exige `avec_protection` et un coefficient `u_ap_…`.
 - **Surventilation naturelle (lot 4c)** : `ouvrant` sur le type de baie (`r_ouv_max` ou `type_ouvrant`, l'un des deux ; absent, la baie n'est pas ouvrable), `expo_br` sur la baie (`br1`, `br2`, `br3`, requis si le type a un ouvrant), `traversant` sur le groupe (conventionnel en maison individuelle, à ne pas saisir ; requis en logement collectif si des baies sont ouvrables) et `h_ttf_m` facultatif (1,5 m par défaut ; saisie admise entre 4 et 15 m). Les résultats de groupe portent `valeurs_par_defaut`.
+- **Ventilation (lot 4d1)** : `bouches_conduits` sur le groupe, au moins une en habitation. Chaque élément est un circuit de reprise ou de soufflage : `id`, `isouf` (`reprise` ou `soufflage`), `q_spec_conv_pointe_m3_h` et `q_spec_conv_base_m3_h`, débits d'hygiène de pointe et de base de la ventilation installée pour le groupe (§6.2.2 ; la méthode ne donne pas les débits réglementaires par nombre de pièces). Pour un système hygroréglable, on saisit `qvarep_spec_m3_h` (valeur de l'avis technique) à la place du débit de base, qui en est déduit (§6.2.3.1.1.2). Le débit de pointe est au moins égal au débit de base. Les résultats de groupe portent `debits_bbio` (`q_spec_repris_m3_h`, négatif, et `q_spec_souffle_m3_h`) : débits du système de ventilation conventionnel du Bbio (§6.1 ; lecture Q36).
 - **Valeurs par défaut (règle générale)** : le moteur n'applique une valeur par défaut que lorsque le texte de la méthode la donne, et la signale toujours dans les résultats. Premier cas : les facteurs de baie `sw1_c`, `sw2_c`, `sw3_c` (ensemble) et `tlid`, facultatifs (§5.10.3.6.3, éq. 215, 216 et 218) ; les résultats de groupe portent `baies[].valeurs_par_defaut` (`champ`, `valeur`, `regle`). `su_m2` et `incl_k` restent obligatoires : le texte ne leur donne pas de valeur par défaut.
 - **Inertie** : les classes des tableaux 53 et 54 (§5.21.3) sont des variantes d'énumération ; `Ams_surf` et `Ama_surf` sont toujours saisies, comme le dit le texte.
 
@@ -102,7 +103,8 @@ pub struct Groupe {
     pub ponts_thermiques: Vec<PontThermique>,
     pub locaux: Vec<Local>,                    // par défaut : ratios conventionnels de l'usage
     pub eclairage: Eclairage,                  // A3 §7.1 (phase 4)
-    pub ventilation: VentilationGroupe,        // A3 §6.1 (phase 4), ch. 6 (phase 6)
+    pub bouches_conduits: Vec<BoucheConduit>,  // A3 §6.2 : débits d'hygiène de pointe et de base (lot 4d1)
+    pub ventilation: VentilationGroupe,        // ch. 6 (phase 6)
     pub emissions: Vec<Emission>,              // A3 §8.1 (phase 6)
 }
 

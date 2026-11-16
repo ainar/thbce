@@ -21,6 +21,10 @@
             {
               "id": "volume-chauffe",
               "sref_m2": 96.4,
+              "debits_bbio": {
+                "q_spec_repris_m3_h": -111.3,
+                "q_spec_souffle_m3_h": 111.3
+              },
               "enveloppe": {
                 "a_op_m2": 290.0,
                 "a_opv_m2": 90.0,

@@ -13,10 +13,11 @@ use thbce_data::ZoneClimatique;
 use crate::bati::baie::{u_baie, EtatBaie, REDUCTION_SW_SP_C};
 use crate::bati::surventilation::traversant_conventionnel;
 use crate::entree::{
-    Baie, BaieType, Exposition, FacteursBaie, GestionPm, Groupe, Inertie, InertieAnnuelle,
-    InertieQuotidienne, InertieSequentielle, Masque, ParoiOpaque, ParoiType, PontThermique, Projet,
-    TypePm, Zone,
+    Baie, BaieType, BoucheConduit, Exposition, FacteursBaie, GestionPm, Groupe, Inertie,
+    InertieAnnuelle, InertieQuotidienne, InertieSequentielle, Masque, ParoiOpaque, ParoiType,
+    PontThermique, Projet, TypePm, Zone,
 };
+use crate::ventilation::bouche_conduit::{q_spec_conv_base_m3_h, DUGD_BBIO_H};
 
 /// Nombre maximal de masques protégeant une surface (Th-BCE 2020 §3.2.2, « Nmasque »).
 pub const NB_MASQUES_MAX: usize = 7;
@@ -326,6 +327,76 @@ fn valider_groupe(
     );
     for (i, p) in g.ponts_thermiques.iter().enumerate() {
         valider_pont_thermique(r, &format!("{c}.ponts_thermiques[{i}]"), p, refs);
+    }
+    // Th-BCE 2020 §6.2.3.1.3 : en habitation, les débits du Bbio sont les débits d'hygiène des
+    // bouches du groupe.
+    if zone.usage.est_habitation() && g.bouches_conduits.is_empty() {
+        r.erreur(
+            format!("{c}.bouches_conduits"),
+            None,
+            "au moins une bouche de ventilation requise en habitation : ses débits d'hygiène de \
+             pointe et de base donnent les débits du Bbio (Th-BCE 2020 §6.2.3.1.1.2)",
+        );
+    }
+    r.ids_uniques(
+        &format!("{c}.bouches_conduits"),
+        g.bouches_conduits.iter().map(|b| &b.id),
+    );
+    for (i, b) in g.bouches_conduits.iter().enumerate() {
+        valider_bouche_conduit(r, &format!("{c}.bouches_conduits[{i}]"), b);
+    }
+}
+
+/// Th-BCE 2020 §6.2.2 : les débits ont pour minimum 0 ; §6.2.3.1.1.2 : le débit de pointe est le
+/// débit maximal de la bouche, le débit de base son débit minimal.
+fn valider_bouche_conduit(r: &mut RapportValidation, c: &str, b: &BoucheConduit) {
+    r.positif(
+        format!("{c}.q_spec_conv_pointe_m3_h"),
+        b.q_spec_conv_pointe_m3_h,
+    );
+    let (champ, valeur) = match (b.q_spec_conv_base_m3_h, b.qvarep_spec_m3_h) {
+        (Some(base), None) => ("q_spec_conv_base_m3_h", base),
+        (None, Some(q)) => ("qvarep_spec_m3_h", q),
+        (Some(_), Some(_)) => {
+            r.erreur(
+                format!("{c}.qvarep_spec_m3_h"),
+                None,
+                "saisir le débit de base ou, pour un système hygroréglable, le débit Qvarepspec \
+                 de l'avis technique, mais pas les deux (Th-BCE 2020 §6.2.3.1.1.2)",
+            );
+            return;
+        }
+        (None, None) => {
+            r.erreur(
+                format!("{c}.q_spec_conv_base_m3_h"),
+                None,
+                "débit de base requis, ou débit Qvarepspec pour un système hygroréglable \
+                 (Th-BCE 2020 §6.2.3.1.1.2)",
+            );
+            return;
+        }
+    };
+    r.positif(format!("{c}.{champ}"), valeur);
+    // Le débit de base d'un système hygroréglable se déduit de Qvarepspec avec la durée
+    // d'utilisation du grand débit ; celle du Bbio sert ici.
+    if let Some(base) = q_spec_conv_base_m3_h(b, DUGD_BBIO_H) {
+        if base.is_finite() && b.q_spec_conv_pointe_m3_h.is_finite() {
+            if base > b.q_spec_conv_pointe_m3_h {
+                r.erreur(
+                    format!("{c}.{champ}"),
+                    Some(valeur.to_string()),
+                    "le débit de pointe doit être au moins égal au débit de base (Th-BCE 2020 \
+                     §6.2.3.1.1.2)",
+                );
+            } else if base < 0.0 {
+                r.erreur(
+                    format!("{c}.{champ}"),
+                    Some(valeur.to_string()),
+                    "le débit de base déduit de Qvarepspec est négatif : Qvarepspec est trop \
+                     faible devant le débit de pointe (Th-BCE 2020 §6.2.3.1.1.2)",
+                );
+            }
+        }
     }
 }
 

@@ -7,11 +7,13 @@
     clippy::float_cmp
 )]
 
-use thbce_core::scenarios::saisons::{Journee, Saison, Saisons};
+use thbce_core::conventions::ModeCalcul;
+use thbce_core::scenarios::saisons::{refroidissement_possible, Journee, Saison, Saisons};
 
-/// Groupe de 100 m², occupé en permanence (168 h par semaine type).
+/// Groupe de 100 m², occupé en permanence (168 h par semaine type), en calcul des
+/// consommations.
 fn saisons(i_clim: bool) -> Saisons {
-    Saisons::nouveau(100.0, 168.0, i_clim)
+    Saisons::nouveau(100.0, 168.0, ModeCalcul::ThC, i_clim)
 }
 
 /// Déroule une année. `journee(d)` donne le cumul de la journée close à 9 h le jour `d`
@@ -168,4 +170,129 @@ fn calcul_th_d_en_periode_de_confort_adaptatif() {
     }
     // Avant la période, les besoins de chauffage maintiennent la saison de chauffage.
     assert!(a[118].0);
+}
+
+#[test]
+fn en_bbio_le_froid_est_autorise_sans_systeme_de_refroidissement() {
+    // §4.6.3.3, éq. (91) : en calcul du Bbio, les autorisations effectives sont les autorisations
+    // propres, calculées par la procédure de la fiche sans égard pour iclim. Même scénario que
+    // `demarrage_et_arret_du_refroidissement`, sans système de refroidissement : démarrage au
+    // jour 150, arrêt au jour 283.
+    assert!(refroidissement_possible(ModeCalcul::ThB, false));
+    assert!(!refroidissement_possible(ModeCalcul::ThC, false));
+    assert!(!refroidissement_possible(ModeCalcul::ThD, false));
+    assert!(refroidissement_possible(ModeCalcul::ThC, true));
+    let journee = |d: u16| Journee {
+        dh_fr_c_h: if d == 150 { 50.0 } else { 0.0 },
+        q_fr_wh: if d <= 260 { 24_000.0 } else { 0.0 },
+        ..occupe()
+    };
+    let mut s = Saisons::nouveau(100.0, 168.0, ModeCalcul::ThB, false);
+    for j in 1..=365_u16 {
+        s.accumuler(&journee(j));
+        s.nouveau_jour(j, false);
+        // L'autorisation effective vaut l'autorisation propre, chaque jour.
+        assert_eq!(
+            s.autorisations_effectives_bbio(),
+            Some((s.aut_ch, s.aut_fr))
+        );
+        assert_eq!(s.aut_fr, (150..=282).contains(&j), "jour {j}");
+        // Plein été : le froid est autorisé (éq. 89), sans système de refroidissement.
+        if (183..=245).contains(&j) {
+            assert!(s.aut_fr);
+        }
+    }
+    assert_eq!((s.j_debut_fr, s.j_fin_fr), (Some(150), Some(283)));
+    // En calcul des consommations, sans système : jamais de froid, et les autorisations
+    // effectives ne sont pas celles du groupe.
+    let mut s = Saisons::nouveau(100.0, 168.0, ModeCalcul::ThC, false);
+    for j in 1..=365_u16 {
+        s.accumuler(&journee(j));
+        s.nouveau_jour(j, false);
+        assert!(!s.aut_fr);
+    }
+    assert_eq!(s.autorisations_effectives_bbio(), None);
+}
+
+#[test]
+fn moyenne_des_besoins_apres_un_redemarrage_sur_168_heures() {
+    // Éq. (73) : une semaine après le redémarrage, Nbh_total_somme_ch = 168 ; la somme porte sur
+    // les sept journées écoulées, de 9 h (j − 7) à 9 h (j), et non sur la seule dernière journée
+    // comme l'écrit la formule (coquille, Q35 point 3).
+    // Arrêt au jour 123 et redémarrage au jour 130, comme dans
+    // `arret_redemarrage_et_reprise_du_chauffage`. Journées 131 à 136 : 10 Wh/m² par heure
+    // (24 000 Wh) ; journée 137 : rien. Au jour 137, la moyenne sur 168 h vaut
+    // 6 × 24 000 / 168 / 100 = 8,57 Wh/m² : le chauffage continue. Avec la somme sur 24 h de la
+    // formule, elle vaudrait 0 et le chauffage s'arrêterait.
+    let journee = |d: u16| Journee {
+        q_ch_wh: if d <= 100 || (131..=136).contains(&d) {
+            24_000.0
+        } else {
+            0.0
+        },
+        dh_ch_c_h: if d == 130 { 30.0 } else { 0.0 },
+        ..occupe()
+    };
+    let mut s = saisons(false);
+    for j in 1..=137_u16 {
+        s.accumuler(&journee(j));
+        s.nouveau_jour(j, false);
+        if j == 137 {
+            let attendu = 6.0 * 24_000.0 / 168.0 / 100.0;
+            assert!((s.mgb_ch_wh_m2(j) - attendu).abs() < 1e-12);
+            assert!(s.aut_ch, "le chauffage continue au jour 137");
+        }
+    }
+    // Ensuite la fenêtre s'étend d'un jour par jour (éq. 74) : au jour 138, 8 journées, 192 h.
+    s.accumuler(&journee(138));
+    s.nouveau_jour(138, false);
+    assert!((s.mgb_ch_wh_m2(138) - 6.0 * 24_000.0 / 192.0 / 100.0).abs() < 1e-12);
+    // La fenêtre atteint 28 jours au jour 158 (journées 131 à 158 : six journées chauffées,
+    // 6 × 24 000/672/100 = 2,14 Wh/m², au-dessus du seuil). Au jour 159, elle couvre les
+    // journées 132 à 159 : cinq journées chauffées, 1,79 Wh/m² : arrêt.
+    let mut arret = None;
+    for j in 139..=170_u16 {
+        s.accumuler(&journee(j));
+        s.nouveau_jour(j, false);
+        if !s.aut_ch && arret.is_none() {
+            arret = Some(j);
+        }
+    }
+    assert_eq!(arret, Some(159));
+}
+
+#[test]
+fn ordre_de_grandeur_de_la_moyenne_glissante_des_besoins() {
+    // Q35 point 1 : Qsys_ch(h) est une puissance horaire en W sur 1 h, soit des Wh ; divisée par
+    // Agr, la moyenne est en Wh/m², unité du seuil d'arrêt (2 Wh/m²).
+    // Maison d'exemple de 100 m² dont les déperditions valent 100 W/K (enveloppe et
+    // renouvellement d'air). En plein hiver, 15 K d'écart et 500 W d'apports gratuits :
+    // 1 000 W de besoin, 24 000 Wh par jour, soit une moyenne de 10 Wh/m² par heure, du même
+    // ordre que le seuil et au-dessus : la saison de chauffage se maintient. En kWh, la même
+    // moyenne vaudrait 0,01 et toute maison arrêterait son chauffage au jour 57.
+    let besoin_w = 100.0 * 15.0 - 500.0;
+    let mut s = Saisons::nouveau(100.0, 168.0, ModeCalcul::ThB, false);
+    for j in 1..=57_u16 {
+        s.accumuler(&Journee {
+            q_ch_wh: besoin_w * 24.0,
+            ..occupe()
+        });
+        s.nouveau_jour(j, false);
+    }
+    let mgb = s.mgb_ch_wh_m2(57);
+    assert!((mgb - 10.0).abs() < 1e-12);
+    assert!((1.0..100.0).contains(&mgb), "ordre de grandeur du seuil");
+    assert!(s.aut_ch);
+    // À la mi-saison, 2 K d'écart utile : 200 W, soit 2 Wh/m² par heure, au seuil : arrêt
+    // quand la fenêtre de 28 jours ne contient plus que cela.
+    for j in 58..=90_u16 {
+        s.accumuler(&Journee {
+            q_ch_wh: 200.0 * 24.0,
+            ..occupe()
+        });
+        s.nouveau_jour(j, false);
+    }
+    assert!((s.mgb_ch_wh_m2(90) - 2.0).abs() < 1e-12);
+    assert!(!s.aut_ch);
+    assert_eq!(s.j_fin_ch, Some(85));
 }

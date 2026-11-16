@@ -15,10 +15,12 @@ use crate::entree::{Catalogue, Groupe, Projet, UsageZone};
 use crate::erreur::Erreur;
 use crate::resultats::{
     PeriodeConfortAdaptatif, Resultats, ResultatsBaie, ResultatsBatiment, ResultatsClimat,
-    ResultatsEnveloppe, ResultatsGroupe, ResultatsZone, ValeurParDefaut,
+    ResultatsDebitsBbio, ResultatsEnveloppe, ResultatsGroupe, ResultatsZone, ValeurParDefaut,
 };
 use crate::scenarios::ScenariosZone;
 use crate::validation::valider;
+use crate::ventilation::bouche_conduit::debits_specifiques_bbio_groupe;
+use crate::ventilation::ven_bbio::{debits_systeme_conventionnel, LectureDebitsBbio};
 use crate::{VERSION_METHODE, VERSION_MOTEUR};
 
 /// Options de calcul.
@@ -109,6 +111,7 @@ pub fn calculer(
                             id: g.id.clone(),
                             sref_m2: sref_groupe(g, zone.usage),
                             enveloppe: enveloppe_groupe(g, &projet.catalogue),
+                            debits_bbio: debits_bbio_groupe(g, zone.usage),
                             baies: resultats_baies(g, &projet.catalogue),
                             valeurs_par_defaut: defauts_groupe(g, &projet.catalogue),
                         })
@@ -167,6 +170,23 @@ pub fn calculer(
 ///
 /// Th-BCE 2020 §13.1.3, éq. (2375) et (2376) : `SREF_gr = SHAB_gr` si l'usage vaut 1 ou 2,
 /// `SREF_gr = SU_gr` sinon. La validation garantit la présence de la surface requise.
+/// Débits du système de ventilation conventionnel du Bbio pour un groupe d'habitation.
+///
+/// Th-BCE 2020 §6.2.3.1.3 et §6.2.3.2.1 (débits des bouches en Bbio), §6.1.3 (système
+/// conventionnel à débit soufflé et extrait constant). Les autres usages (débits conventionnels
+/// du tableau 56-1) ne sont pas pris en charge.
+fn debits_bbio_groupe(groupe: &Groupe, usage: UsageZone) -> Option<ResultatsDebitsBbio> {
+    if !usage.est_habitation() || groupe.bouches_conduits.is_empty() {
+        return None;
+    }
+    let bouches = debits_specifiques_bbio_groupe(&groupe.bouches_conduits)?;
+    let d = debits_systeme_conventionnel(bouches, LectureDebitsBbio::default());
+    Some(ResultatsDebitsBbio {
+        q_spec_repris_m3_h: d.q_rep_m3_h,
+        q_spec_souffle_m3_h: d.q_souffle_m3_h,
+    })
+}
+
 /// Valeurs par défaut appliquées au groupe. Th-BCE 2020 §5.13.3.2.2 : sans saisie, la hauteur
 /// de tirage thermique vaut 1,5 m ; elle n'intervient que si le groupe a des baies ouvrables.
 fn defauts_groupe(groupe: &Groupe, catalogue: &Catalogue) -> Vec<ValeurParDefaut> {

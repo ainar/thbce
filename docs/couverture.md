@@ -98,7 +98,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 4.3 | FA_Comment identifier l’usage d’un bâtiment et l’exigence associée | 69–69 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
 | 4.4 | FA_Extension_de_bâtiment | 70–70 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
 | 4.5 | C_Ein_Indicateurs de confort | 71–79 | 5 | `core/src/confort/indicateurs_confort.rs` | non commencé |
-| 4.6 | C_Ein_Détermination des saisons | 80–94 | 4 | `core/src/scenarios/saisons.rs` | partiel : saisons propres, procédure du Bbio (éq. 67 à 92) ; lectures Q35 ; indicateurs de confort en entrée ; branchement horaire au lot 4d2 |
+| 4.6 | C_Ein_Détermination des saisons | 80–94 | 4 | `core/src/scenarios/saisons.rs` | partiel : saisons propres (éq. 67 à 92) ; en Bbio, autorisations effectives égales aux autorisations propres, sans égard pour `iclim` (éq. 91) ; lectures Q35 ; indicateurs de confort en entrée ; autorisations effectives du calcul des consommations au lot 6 ; branchement horaire au lot 4d2 |
 | 4.7 | C_EIN_calcul des consommations electriques des équipements mobiliers | 95–96 | 7 | `core/src/scenarios/equipements_mobiliers.rs` | non commencé |
 
 ### 5. Bati (p. 97–320)
@@ -131,8 +131,8 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
-| 6.1 | C_VEN_BBIO | 321–325 | 4 | `core/src/ventilation/ven_bbio.rs` | implémenté : éq. (374) à (382) ; les débits sont des entrées |
-| 6.2 | C_VEN_Bouche_conduit | 326–341 | 6a | `core/src/ventilation/bouche_conduit.rs` | non commencé |
+| 6.1 | C_VEN_BBIO | 321–325 | 4 | `core/src/ventilation/ven_bbio.rs` | implémenté : éq. (374) à (382) ; débits du système conventionnel tirés des bouches du groupe (fiche 6.2, lecture Q36) |
+| 6.2 | C_VEN_Bouche_conduit | 326–341 | 4, 6a | `core/src/ventilation/bouche_conduit.rs` | partiel : calcul du Bbio en habitation — débits maximal et minimal (éq. 387 à 390), débit de base hygroréglable (§6.2.3.1.1.2), débit régulé (éq. 403, `Crdbnr = 1`, `Dugd = 14`), dépassement (éq. 412 à 414, `Cdep = 1`), fuites nulles (tableau 59, éq. 428 à 431) ; restent pour le lot 6a : autres usages (éq. 383 à 386, 399 à 402, tableau 56-1), CTA et double flux (éq. 391 à 398, 404 à 411, 415 à 418), valeurs de `Crdbnr`, `Dugd`, `Cdep` et `Kres` du calcul des consommations, surfaces et fuites des conduits (éq. 419 à 427, tableau 60), éq. (432) à (439) |
 | 6.3 | C_VEN_ CTA et Double_flux | 342–395 | 6a | `core/src/ventilation/cta_et_double_flux.rs` | non commencé |
 | 6.4 | C_VEN_Mécanique_Basse-Pression | 396–399 | 6a | `core/src/ventilation/mecanique_basse_pression.rs` | non commencé |
 | 6.5 | C_VEN_Mécanique_SF | 400–410 | 6a | `core/src/ventilation/mecanique_sf.rs` | non commencé |

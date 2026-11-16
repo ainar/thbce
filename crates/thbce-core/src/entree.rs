@@ -227,6 +227,51 @@ pub struct Groupe {
     /// l'ouvrant le plus haut dépasse 4 m, dans la limite de 15 m.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub h_ttf_m: Option<f64>,
+    /// Bouches et conduits de ventilation du groupe (§6.2) : débits d'hygiène de la ventilation
+    /// installée. Au moins une en habitation : le calcul du Bbio en tire les débits du système
+    /// de ventilation conventionnel (§6.1 et §6.2.3.1.3).
+    #[serde(default)]
+    pub bouches_conduits: Vec<BoucheConduit>,
+}
+
+/// Th-BCE 2020 §6.2.2 — ensemble « bouche et conduit » d'un groupe, en maison individuelle ou
+/// accolée et en logement collectif : un circuit de reprise ou un circuit de soufflage.
+///
+/// Les débits sont les débits d'hygiène du circuit pour le groupe, en pointe (grand débit) et en
+/// base. La méthode ne donne pas les débits réglementaires par nombre de pièces : ils se
+/// saisissent. Pour un système hygroréglable, le débit de pointe vient des débits maximaux de
+/// l'avis technique en cuisine et en WC et des débits d'hygiène des autres pièces ; le débit de
+/// base se déduit de `qvarep_spec_m3_h` (§6.2.3.1.1.2).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BoucheConduit {
+    /// Identifiant, unique dans le groupe.
+    pub id: Id,
+    /// « Isouf » : sens du circuit.
+    pub isouf: Isouf,
+    /// « qspec,rep,conv_pointe » ou « qspec,souffle,conv_pointe » : débit volumique spécifique
+    /// conventionnel en pointe, en m³/h, positif.
+    pub q_spec_conv_pointe_m3_h: f64,
+    /// « qspec,rep,conv_base » ou « qspec,souffle,conv_base » : débit volumique spécifique
+    /// conventionnel en base, en m³/h, positif et au plus égal au débit de pointe. À saisir sauf
+    /// pour un système hygroréglable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub q_spec_conv_base_m3_h: Option<f64>,
+    /// « Qvarepspec » : débit de l'avis technique d'un système hygroréglable, en m³/h
+    /// (§6.2.3.1.1.2). Le débit de base en est déduit ; ne pas saisir alors
+    /// `q_spec_conv_base_m3_h`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qvarep_spec_m3_h: Option<f64>,
+}
+
+/// « Isouf » (§6.2.2) : sens d'un circuit de ventilation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Isouf {
+    /// 0 : extraction (bouches et conduits de reprise).
+    Reprise,
+    /// 1 : insufflation (bouches et conduits de soufflage).
+    Soufflage,
 }
 
 /// Catégorie de contrainte extérieure du groupe (§13.1.2 : « 1 = CE1 / 2 = CE2 »).
