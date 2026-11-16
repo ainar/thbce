@@ -4,8 +4,9 @@
 //! Th-D), qui emploie le même assemblage (`docs/questions.md`, Q40).
 //!
 //! À chaque pas de temps : climat et scénarios de la zone ; bilan aéraulique de la zone (§5.6)
-//! avec les débits du système de ventilation conventionnel (§6.1 et §6.2) et les températures
-//! des groupes au pas précédent ; puis comportement thermique de chaque groupe (§5.7), dans
+//! avec les débits et l'air soufflé du système de ventilation — conventionnel en Th-B (§6.1 et
+//! §6.2), celui du projet en Th-D (§6.2 à 6.5, lecture Q42) — et les températures des groupes au
+//! pas précédent ; puis comportement thermique de chaque groupe (§5.7), dans
 //! l'ordre de la figure 20 : les groupes qui cèdent de l'air au hall, le hall, puis les groupes
 //! qui en reçoivent.
 //!
@@ -24,9 +25,13 @@ use crate::ventilation::debits_air_cep::{
     flux_entrants, hall_fictif, trav_zone_conventionnel, EtatGroupe, Exterieur, ZoneAeraulique,
 };
 use crate::ventilation::ven_bbio::{omega_air_souffle_kg_kg, t_air_souffle_c};
+use crate::ventilation::ventilation_projet::{
+    AirSouffle, EtatGroupeVentilation, PasVentilation, VentilationProjet,
+};
 
 use super::assemblage_groupe::{
-    nbh_occ_ref, ConditionsPas, GroupeHoraire, Lectures, SortiesPasGroupe,
+    nbh_occ_ref, ConditionsPas, GroupeHoraire, Lectures, SortiesPasGroupe, VentilationThD,
+    THETA_INITIALE_C,
 };
 use super::espace_tampon::espace_tampon::CoefficientsEt;
 use super::ConditionsExterieures;
@@ -46,7 +51,25 @@ pub struct ZoneHoraire {
     pub groupes: Vec<GroupeHoraire>,
     /// Sorties de chaque groupe au dernier pas de temps calculé.
     pub sorties: Vec<Option<SortiesPasGroupe>>,
+    /// Système de ventilation du projet (§6.2 à 6.5), employé hors calcul du Bbio ; `None` en
+    /// Th-B, où le système conventionnel de la fiche 6.1 s'applique.
+    pub ventilation: Option<VentilationProjet>,
+    /// Sorties du système de ventilation du projet au dernier pas de temps calculé.
+    pub sorties_ventilation: PasVentilation,
+    /// Cumuls annuels du système de ventilation du projet.
+    pub cumuls_ventilation: CumulsVentilation,
     etats: Vec<EtatGroupe>,
+    air_souffle: Vec<AirSouffle>,
+    etats_ventilation: Vec<EtatGroupeVentilation>,
+}
+
+/// Cumuls annuels du système de ventilation du projet d'une zone.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct CumulsVentilation {
+    /// Nombre de pas de temps où l'échangeur est contourné par son bypass (éq. 494).
+    pub nbh_bypass: u32,
+    /// Énergie fournie pour la sécurité antigel, en Wh (éq. 508).
+    pub w_ag_wh: f64,
 }
 
 impl ZoneHoraire {
@@ -117,7 +140,7 @@ impl ZoneHoraire {
         let scenarios = ScenariosZone::nouveau(zone.usage, &a_gr, zone.nb_lgt.unwrap_or(1))?;
         let nbh_occ_ref = nbh_occ_ref(scenarios.usage().occupation.grille_hebdo());
         let q4pa = zone.q4pa_surf_m3_h_m2.unwrap_or(0.0);
-        let groupes: Vec<GroupeHoraire> = zone
+        let mut groupes: Vec<GroupeHoraire> = zone
             .groupes
             .iter()
             .map(|g| {
@@ -134,6 +157,17 @@ impl ZoneHoraire {
                 )
             })
             .collect();
+        // Ventilation : système conventionnel de la fiche 6.1 en Th-B (§6.1.3, décision Q36) ;
+        // système du projet en Th-C et en Th-D (lecture Q42).
+        let ventilation = (mode != ModeCalcul::ThB
+            && lectures.ventilation_th_d == VentilationThD::Projet)
+            .then(|| VentilationProjet::nouvelle(zone, THETA_INITIALE_C))
+            .flatten();
+        if let Some(v) = &ventilation {
+            for (ig, g) in groupes.iter_mut().enumerate() {
+                g.debits = v.debits_groupe(ig);
+            }
+        }
         let aerauliques: Vec<_> = groupes.iter().map(|g| g.aeraulique).collect();
         let aeraulique = ZoneAeraulique::nouvelle(
             &aerauliques,
@@ -155,7 +189,12 @@ impl ZoneHoraire {
             aeraulique,
             groupes,
             sorties: vec![None; nb],
+            ventilation,
+            sorties_ventilation: PasVentilation::default(),
+            cumuls_ventilation: CumulsVentilation::default(),
             etats: Vec::with_capacity(nb),
+            air_souffle: vec![AirSouffle::default(); nb],
+            etats_ventilation: Vec::with_capacity(nb),
         })
     }
 
@@ -170,6 +209,13 @@ impl ZoneHoraire {
         confort: &ConfortAdaptatif,
     ) -> Result<(), Erreur> {
         self.pas_avec_espaces_tampons(h, climat, confort, &[])
+    }
+
+    /// Air soufflé dans chaque groupe au dernier pas de temps calculé (température et
+    /// humidité), par le système conventionnel du Bbio en Th-B et par le système du projet
+    /// sinon.
+    pub fn air_souffle(&self) -> &[AirSouffle] {
+        &self.air_souffle
     }
 
     /// « iocc_zone(h) » : indicateur d'occupation de la zone au pas de temps (§4.1.3).
@@ -206,23 +252,48 @@ impl ZoneHoraire {
         };
 
         // §5.5.3, étape 1 : bilan aéraulique de la zone, avec les températures et les humidités
-        // des groupes à la fin du pas précédent. §6.1.3 : air soufflé par le système
-        // conventionnel du Bbio, après l'échangeur.
-        self.etats.clear();
-        self.etats.extend(self.groupes.iter().map(|g| {
-            EtatGroupe {
-                theta_i_fin_c: g.etat.fin.theta_i_c,
-                omega_i_fin_kg_kg: g.etat.omega_i_fin_kg_kg,
-                q_spec_repris_m3_h: g.debits.q_rep_m3_h,
-                q_spec_souffle_m3_h: g.debits.q_souffle_m3_h,
-                t_air_souffle_c: t_air_souffle_c(ext.te_c, g.etat.fin.theta_i_c),
-                omega_air_souffle_kg_kg: omega_air_souffle_kg_kg(c.omega_e_kg_kg),
-                theta_an_c: g
-                    .entree_air_espace_tampon
-                    .and_then(|i| espaces_tampons.get(i))
-                    .map(|e| e.theta_et_c),
+        // des groupes à la fin du pas précédent. Air soufflé : en Th-B, par le système
+        // conventionnel du Bbio, après l'échangeur (§6.1.3) ; sinon, par le système du projet
+        // (§6.3.3.4 et §6.5.3.4), calculé avant les groupes (§6.3.3.3, « première phase »).
+        if let Some(v) = &mut self.ventilation {
+            self.etats_ventilation.clear();
+            self.etats_ventilation
+                .extend(self.groupes.iter().map(|g| EtatGroupeVentilation {
+                    theta_i_fin_c: g.etat.fin.theta_i_c,
+                    saison_de_chauffage: g.etat.saisons.aut_ch,
+                }));
+            self.sorties_ventilation = v.pas(
+                ext.te_c,
+                c.omega_e_kg_kg,
+                &self.etats_ventilation,
+                &mut self.air_souffle,
+            );
+            self.cumuls_ventilation.nbh_bypass += u32::from(self.sorties_ventilation.bypass);
+            self.cumuls_ventilation.w_ag_wh += self.sorties_ventilation.w_ag_wh;
+        } else {
+            for (a, g) in self.air_souffle.iter_mut().zip(&self.groupes) {
+                *a = AirSouffle {
+                    t_air_souffle_c: t_air_souffle_c(ext.te_c, g.etat.fin.theta_i_c),
+                    omega_air_souffle_kg_kg: omega_air_souffle_kg_kg(c.omega_e_kg_kg),
+                };
             }
-        }));
+        }
+        self.etats.clear();
+        self.etats
+            .extend(self.groupes.iter().zip(&self.air_souffle).map(|(g, a)| {
+                EtatGroupe {
+                    theta_i_fin_c: g.etat.fin.theta_i_c,
+                    omega_i_fin_kg_kg: g.etat.omega_i_fin_kg_kg,
+                    q_spec_repris_m3_h: g.debits.q_rep_m3_h,
+                    q_spec_souffle_m3_h: g.debits.q_souffle_m3_h,
+                    t_air_souffle_c: a.t_air_souffle_c,
+                    omega_air_souffle_kg_kg: a.omega_air_souffle_kg_kg,
+                    theta_an_c: g
+                        .entree_air_espace_tampon
+                        .and_then(|i| espaces_tampons.get(i))
+                        .map(|e| e.theta_et_c),
+                }
+            }));
         let bilan = self
             .aeraulique
             .bilan(&exterieur, &self.etats)
