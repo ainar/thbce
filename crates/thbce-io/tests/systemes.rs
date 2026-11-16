@@ -195,6 +195,27 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
         syc.w_vent_loc_kwh,
         rc.batiments[0].dh_c_h.unwrap(),
     );
+    // Variante à plancher chauffant à eau : la génération reçoit la demande des émetteurs
+    // augmentée des pertes du réseau du groupe (éq. 880) ; réseau intergroupes individuel sans
+    // pertes (éq. 905).
+    let plancher = cas("maison-plancher-ademe");
+    let rp = brut(&plancher, &m);
+    let bp = &rp.batiments[0];
+    let syp = bp.zones[0].groupes[0].systemes.as_ref().unwrap();
+    let d = &syp.distributions[0];
+    assert_eq!(bp.bbio_pts, b.bbio_pts);
+    assert!(d.pertes_vc_kwh > 0.0 && d.w_aux_kwh > 0.0);
+    assert!((bp.generations[0].q_ch_kwh - syp.q_sys_ch_kwh - d.pertes_vc_kwh).abs() < 1e-6);
+    assert_eq!(bp.distributions_intergroupes[0].pertes_vc_kwh, 0.0);
+    println!(
+        "{titre} : plancher chauffant, demande {:.1} kWh, émetteurs {:.1} kWh, pertes en volume \
+         chauffé {:.1} kWh, circulateur {:.1} kWh, DH = {:.1} °C.h",
+        bp.generations[0].q_ch_kwh,
+        syp.q_sys_ch_kwh,
+        d.pertes_vc_kwh,
+        d.w_aux_kwh,
+        bp.dh_c_h.unwrap(),
+    );
     let veranda = cas("maison-veranda-ademe");
     let rv = brut(&veranda, &m);
     let dh_v = rv.batiments[0].dh_c_h.unwrap();

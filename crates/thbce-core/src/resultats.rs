@@ -160,9 +160,26 @@ pub struct ResultatsSystemesGroupe {
     pub w_vent_loc_kwh: f64,
     /// Nombre d'heures de relance (éq. 848).
     pub nbh_relance: u32,
+    /// Réseaux de distribution du groupe (§8.7 et §8.8).
+    pub distributions: Vec<ResultatsDistributionGroupe>,
     /// Saisons propres du groupe en calcul Th-C (§4.6), dont les générations tirent les
     /// saisons effectives (§8.4).
     pub saisons_th_c: Option<ResultatsSaisons>,
+}
+
+/// Réseau de distribution du groupe, calcul Th-C (valeurs absolues en refroidissement).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsDistributionGroupe {
+    /// Identifiant.
+    pub id: Id,
+    /// Demande transmise au réseau intergroupes, pertes comprises, en kWh.
+    pub q_kwh: f64,
+    /// Pertes vers le volume chauffé, en kWh (récupérables, §11.1).
+    pub pertes_vc_kwh: f64,
+    /// Pertes hors volume chauffé, en kWh.
+    pub pertes_hvc_kwh: f64,
+    /// Consommation du circulateur, en kWh d'énergie finale électrique.
+    pub w_aux_kwh: f64,
 }
 
 /// Émetteur, calcul Th-C.
@@ -192,6 +209,12 @@ impl ResultatsSystemesGroupe {
         for e in &mut self.emetteurs {
             e.q_ch_kwh = a(e.q_ch_kwh);
             e.q_fr_kwh = a(e.q_fr_kwh);
+        }
+        for d in &mut self.distributions {
+            d.q_kwh = a(d.q_kwh);
+            d.pertes_vc_kwh = a(d.pertes_vc_kwh);
+            d.pertes_hvc_kwh = a(d.pertes_hvc_kwh);
+            d.w_aux_kwh = a(d.w_aux_kwh);
         }
     }
 }

@@ -29,11 +29,11 @@ use crate::erreur::Erreur;
 use crate::indicateurs::sorties_th_b::{sorties, EnergiesMensuelles};
 use crate::resultats::{
     PeriodeConfortAdaptatif, Resultats, ResultatsBaie, ResultatsBatiment, ResultatsClimat,
-    ResultatsConfort, ResultatsConfortEte, ResultatsDebitsBbio, ResultatsEmetteur,
-    ResultatsEnveloppe, ResultatsEspaceTampon, ResultatsEspaceTamponMode, ResultatsGeneration,
-    ResultatsGroupe, ResultatsIntergroupes, ResultatsSaisons, ResultatsSystemesGroupe,
-    ResultatsVentilationGroupe, ResultatsVentilationMode, ResultatsVentilationZone, ResultatsZone,
-    ValeurParDefaut,
+    ResultatsConfort, ResultatsConfortEte, ResultatsDebitsBbio, ResultatsDistributionGroupe,
+    ResultatsEmetteur, ResultatsEnveloppe, ResultatsEspaceTampon, ResultatsEspaceTamponMode,
+    ResultatsGeneration, ResultatsGroupe, ResultatsIntergroupes, ResultatsSaisons,
+    ResultatsSystemesGroupe, ResultatsVentilationGroupe, ResultatsVentilationMode,
+    ResultatsVentilationZone, ResultatsZone, ValeurParDefaut,
 };
 use crate::validation::valider;
 use crate::ventilation::bouche_conduit::debits_specifiques_bbio_groupe;
@@ -604,6 +604,18 @@ fn resultats_systemes(g: &GroupeHoraire) -> Option<ResultatsSystemesGroupe> {
             .collect(),
         w_vent_loc_kwh: c.w_vent_loc_wh / 1000.0,
         nbh_relance: c.nbh_relance,
+        distributions: sy
+            .distributions
+            .iter()
+            .zip(&c.distributions)
+            .map(|(d, k)| ResultatsDistributionGroupe {
+                id: d.id.clone(),
+                q_kwh: k.q_wh / 1000.0,
+                pertes_vc_kwh: k.phi_pertes_vc_wh / 1000.0,
+                pertes_hvc_kwh: k.phi_pertes_hvc_wh / 1000.0,
+                w_aux_kwh: k.w_aux_wh / 1000.0,
+            })
+            .collect(),
         saisons_th_c: Some(resultats_saisons(g)),
     })
 }

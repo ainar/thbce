@@ -619,7 +619,7 @@ impl GroupeHoraire {
             // Les indices des réseaux intergroupes sont fixés par le bâtiment
             // ([`GroupeHoraire::lier_systemes`]).
             systemes: (mode != ModeCalcul::ThB)
-                .then(|| SystemesGroupe::nouveaux(groupe, |_| None))
+                .then(|| SystemesGroupe::nouveaux(groupe, |_| None, |_| None))
                 .flatten(),
             recup_w: (0.0, 0.0),
             cumuls: CumulsGroupe::default(),
@@ -654,9 +654,14 @@ impl GroupeHoraire {
 
     /// Résout à nouveau les systèmes du groupe, `intergroupes` donnant l'indice d'un réseau
     /// intergroupes du bâtiment d'après son identifiant. Sans effet en Th-B.
-    pub fn lier_systemes(&mut self, groupe: &Groupe, intergroupes: impl Fn(&str) -> Option<usize>) {
+    pub fn lier_systemes(
+        &mut self,
+        groupe: &Groupe,
+        intergroupes: impl Fn(&str) -> Option<usize>,
+        espaces_tampons: impl Fn(&str) -> Option<usize>,
+    ) {
         if self.mode != ModeCalcul::ThB {
-            self.systemes = SystemesGroupe::nouveaux(groupe, intergroupes);
+            self.systemes = SystemesGroupe::nouveaux(groupe, intergroupes, espaces_tampons);
         }
     }
 
@@ -1010,11 +1015,23 @@ impl GroupeHoraire {
                 for (i, l) in indices.zip(latent_froid) {
                     latent[i] = l;
                 }
-                sy.distribuer(&latent, usize::from(sc.date.mois) - 1);
+                sy.distribuer(
+                    &latent,
+                    usize::from(sc.date.mois) - 1,
+                    theta_e,
+                    c.theta_ext_base_c,
+                    espaces_tampons,
+                );
                 fin
             }
             (Some(sy), _) => {
-                sy.distribuer(&[], usize::from(sc.date.mois) - 1);
+                sy.distribuer(
+                    &[],
+                    usize::from(sc.date.mois) - 1,
+                    theta_e,
+                    c.theta_ext_base_c,
+                    espaces_tampons,
+                );
                 omega_fin_bbio_kg_kg(self.etat.omega_i_fin_kg_kg, &echanges)
             }
             (None, _) => omega_fin_bbio_kg_kg(self.etat.omega_i_fin_kg_kg, &echanges),
