@@ -32,7 +32,7 @@ jobs:
       - name: cargo clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Données générées à jour
-        run: cargo run -p xtask -- zones-climatiques --verifier
+        run: cargo run -p xtask -- verifier
       - name: Aucun fichier météo réglementaire dans le dépôt
         run: |
           if git ls-files | grep -E -i 'scenarios_meteorologiques|meteo-re2020|meteo/reglementaire/'; then

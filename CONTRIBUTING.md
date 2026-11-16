@@ -40,7 +40,7 @@ Avant de pousser :
 cargo fmt --all
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo run -p xtask -- zones-climatiques --verifier
+cargo run -p xtask -- verifier
 ```
 
 ## Branches et versions
