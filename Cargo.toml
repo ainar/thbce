@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[workspace]
+resolver = "2"
+members = ["crates/*", "xtask"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/ainar/thbce"
+authors = ["Contributeurs du projet thbce"]
+
+[workspace.dependencies]
+thbce-core = { path = "crates/thbce-core" }
+thbce-data = { path = "crates/thbce-data" }
+thbce-io = { path = "crates/thbce-io" }
+clap = { version = "4", features = ["derive"] }
+schemars = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_path_to_error = "0.1"
+serde-wasm-bindgen = "0.6"
+thiserror = "2"
+toml = "0.8"
+wasm-bindgen = "0.2.100"
+wasm-bindgen-test = "0.3"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+float_cmp = "warn"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
