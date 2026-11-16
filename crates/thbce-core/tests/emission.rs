@@ -67,12 +67,7 @@ fn emission_conventionnelle_du_bbio() {
     // §8.1.3.1.
     let e = EmetteurEquivalent::BBIO;
     assert_eq!(
-        (
-            e.p_sd,
-            e.p_em_conv,
-            e.delta_theta_vs_k,
-            e.delta_theta_vt_k
-        ),
+        (e.p_sd, e.p_em_conv, e.delta_theta_vs_k, e.delta_theta_vt_k),
         (0.5, 0.5, 0.0, 0.0)
     );
     // Éq. (801) : θsd = 0,5 × 17 + 0,5 × 16 = 16,5 °C.
@@ -227,7 +222,11 @@ fn la_puissance_requise_tient_la_consigne_dans_le_modele_thermique() {
     let m = g.matrice(&s, 17.0, 0.0).unwrap();
     let e = emission_bbio(&m, g.a_gr_m2, &consignes());
     assert_eq!(e.sollicitation, Sollicitation::Chauffage);
-    assert!(e.q_sys_ch_wh > 500.0 && e.q_sys_ch_wh < 5000.0, "{}", e.q_sys_ch_wh);
+    assert!(
+        e.q_sys_ch_wh > 500.0 && e.q_sys_ch_wh < 5000.0,
+        "{}",
+        e.q_sys_ch_wh
+    );
     let direct = g
         .resoudre(&s, 17.0, 0.0, 0.5 * e.phi_util_w, 0.5 * e.phi_util_w)
         .unwrap();
@@ -280,7 +279,11 @@ fn bilan_hydrique_calcule_a_la_main() {
     // ωfin = 0,006 − 0,000611111 × 0,381216608 = 0,005767034.
     let omega = omega_fin_bbio_kg_kg(0.006, &echanges());
     assert!(
-        proche(omega, 0.006 - 0.000_611_111_111_111 * 0.381_216_608_109_13, 1e-12),
+        proche(
+            omega,
+            0.006 - 0.000_611_111_111_111 * 0.381_216_608_109_13,
+            1e-12
+        ),
         "{omega}"
     );
     // Éq. (834) : c'est CalculHumiditeSpeFin(1 ; 0 ; 0 ; 3600 ; ωini).
@@ -302,7 +305,10 @@ fn proprietes_du_bilan_hydrique() {
         omega_inf
     );
     // Sur une durée nulle, l'humidité initiale est conservée.
-    assert_eq!(calcul_humidite_spe_fin(1.0, 0.0, 0.0, 0.0, 0.006, &e), 0.006);
+    assert_eq!(
+        calcul_humidite_spe_fin(1.0, 0.0, 0.0, 0.0, 0.006, &e),
+        0.006
+    );
     // Sans débit d'air : limite de la formule, les apports internes s'accumulent,
     // ωfin = 0,006 + (0,2/3600) × 3600/(250 × 1,2) = 0,006 + 0,2/300.
     let ferme = EchangesHydriques {

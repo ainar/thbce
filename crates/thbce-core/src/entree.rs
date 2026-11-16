@@ -223,6 +223,11 @@ pub struct Groupe {
     /// habitable, `Rat_hab · Az` (éq. 33), distincte de la SHAB saisie comme surface de référence.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub su_m2: Option<f64>,
+    /// « V » : volume du groupe, en m³ (§8.3.2). Requis : le bilan hydrique du groupe en tire la
+    /// masse d'air dans laquelle se diluent les apports d'humidité (§8.3.3, éq. 831). Le texte ne
+    /// lui donne pas de valeur par défaut.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub v_m3: Option<f64>,
     /// « Categorie_CE1_CE2 » (§13.1.2).
     pub categorie_ce1_ce2: CategorieCe,
     /// Inertie thermique du groupe (§5.21.2).

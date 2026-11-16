@@ -503,7 +503,15 @@ impl ZoneAeraulique {
     /// d'air et par les défauts d'étanchéité, `qm = ρ × qv` (éq. 160 et 161), avec la masse
     /// volumique de l'air du groupe si l'air sort (`ΔP < 0`) et celle de l'air neuf ou de l'air
     /// extérieur s'il entre (Q37 point 4).
-    fn debits(&self, ext: &Exterieur, etats: &[EtatGroupe], p_ib_pa: f64) -> Vec<BilanGroupe> {
+    ///
+    /// Renvoie un itérateur : le solveur de l'éq. (167) l'évalue des dizaines de fois par pas de
+    /// temps, sans allocation.
+    fn debits<'a>(
+        &'a self,
+        ext: &'a Exterieur,
+        etats: &'a [EtatGroupe],
+        p_ib_pa: f64,
+    ) -> impl Iterator<Item = BilanGroupe> + 'a {
         let rho_ext = rho_kg_m3(ext.theta_ext_c, ext.omega_e_kg_kg);
         // Sans espace tampon, l'air neuf est à la température extérieure : ρAN = ρext (éq. 134).
         let rho_an = rho_ext;
@@ -513,7 +521,7 @@ impl ZoneAeraulique {
             .iter()
             .zip(etats)
             .zip(&self.c_def)
-            .map(|((g, e), &(c_facade, c_toit))| {
+            .map(move |((g, e), &(c_facade, c_toit))| {
                 let rho_int = rho_kg_m3(e.theta_i_fin_c, e.omega_i_fin_kg_kg);
                 let dp = |c_p: f64, z: f64| {
                     delta_p_comp_pa(c_p, rho_ext, ext.v_ventc_m_s, z, rho_int, p_ib_pa)
@@ -555,7 +563,6 @@ impl ZoneAeraulique {
                     / 3600.0;
                 b
             })
-            .collect()
     }
 
     /// Équilibre aéraulique de la zone.
@@ -572,12 +579,7 @@ impl ZoneAeraulique {
         if etats.len() != self.groupes.len() {
             return None;
         }
-        let residu = |p: f64| -> f64 {
-            self.debits(ext, etats, p)
-                .iter()
-                .map(BilanGroupe::somme_kg_s)
-                .sum()
-        };
+        let residu = |p: f64| -> f64 { self.debits(ext, etats, p).map(|b| b.somme_kg_s()).sum() };
         // Encadrement : le résidu est positif pour une pression intérieure assez basse.
         let (mut bas, mut haut) = (-1.0, 1.0);
         let mut pas = 1.0;
@@ -608,7 +610,7 @@ impl ZoneAeraulique {
             }
         }
         let p_ib_pa = 0.5 * (bas + haut);
-        let mut groupes = self.debits(ext, etats, p_ib_pa);
+        let mut groupes: Vec<BilanGroupe> = self.debits(ext, etats, p_ib_pa).collect();
         let mut h_v_def_w_k = 0.0;
         for b in &mut groupes {
             // Éq. (168) et (170).

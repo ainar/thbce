@@ -10,14 +10,19 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thbce_data::ZoneClimatique;
 
-use crate::bati::baie::{u_baie, EtatBaie, REDUCTION_SW_SP_C};
+use crate::bati::assemblage_groupe::EnveloppeResolue;
+use crate::bati::baie::{u_baie, EnsembleBaies, EtatBaie, REDUCTION_SW_SP_C};
+use crate::bati::comportement_thermique::GroupeThermique;
+use crate::bati::paroi_opaque::EnsembleParois;
 use crate::bati::surventilation::traversant_conventionnel;
 use crate::entree::{
-    Baie, BaieType, BoucheConduit, EntreesAir, Exposition, FacteursBaie, GestionPm, Groupe,
-    Inertie, InertieAnnuelle, InertieQuotidienne, InertieSequentielle, Masque, ParoiOpaque,
+    Baie, BaieType, BoucheConduit, Catalogue, EntreesAir, Exposition, FacteursBaie, GestionPm,
+    Groupe, Inertie, InertieAnnuelle, InertieQuotidienne, InertieSequentielle, Masque, ParoiOpaque,
     ParoiType, PontThermique, Projet, TypePm, Zone,
 };
-use crate::ventilation::bouche_conduit::{q_spec_conv_base_m3_h, DUGD_BBIO_H};
+use crate::ventilation::bouche_conduit::{
+    debits_specifiques_bbio_groupe, q_spec_conv_base_m3_h, DUGD_BBIO_H,
+};
 use crate::ventilation::debits_air_cep::{trav_zone_conventionnel, EntreeAir};
 
 /// Nombre maximal de masques protégeant une surface (Th-BCE 2020 §3.2.2, « Nmasque »).
@@ -202,6 +207,18 @@ pub fn valider(projet: &Projet) -> RapportValidation {
             valider_zone(&mut r, &format!("{cb}.zones[{iz}]"), zone, &refs);
         }
     }
+    // Contrôles de cohérence entre composants, une fois chaque élément valide : ils demandent
+    // de résoudre l'enveloppe des groupes.
+    if r.est_valide() {
+        for (ib, bat) in projet.batiments.iter().enumerate() {
+            for (iz, zone) in bat.zones.iter().enumerate() {
+                if zone.usage.est_pris_en_charge() {
+                    let c = format!("batiments[{ib}].zones[{iz}]");
+                    valider_coherence_zone(&mut r, &c, zone, cat);
+                }
+            }
+        }
+    }
     r
 }
 
@@ -279,6 +296,16 @@ fn valider_groupe(
         ),
         (false, None) => {}
     }
+    // Th-BCE 2020 §8.3.2 : volume du groupe, paramètre d'intégration du bilan hydrique.
+    match g.v_m3 {
+        Some(v) => r.strictement_positif(format!("{c}.v_m3"), v),
+        None if zone.usage.est_pris_en_charge() => r.erreur(
+            format!("{c}.v_m3"),
+            None,
+            "volume du groupe requis (V, Th-BCE 2020 §8.3.2)",
+        ),
+        None => {}
+    }
     valider_inertie(r, &format!("{c}.inertie"), &g.inertie);
 
     r.ids_uniques(
@@ -349,6 +376,66 @@ fn valider_groupe(
     }
     if let Some(e) = &g.entrees_air {
         valider_entrees_air(r, &format!("{c}.entrees_air"), e);
+    }
+}
+
+/// Contrôles qui portent sur l'assemblage des composants d'une zone calculée.
+///
+/// 1. Th-BCE 2020 §5.21.3.6, éq. (339) : `Hgemq = 1/(1/HTH,k+pt − 1/Hgmqs)` n'a de sens que si
+///    l'enveloppe opaque du groupe conduit moins que l'échange superficiel de ses parois
+///    lourdes, `HTH,k+pt < Hgmqs = his × Amq` (éq. 326) ; sinon le modèle thermique n'a pas de
+///    solution (décision Q34 point 5).
+/// 2. Th-BCE 2020 §5.6.3.5, éq. (167) : la pression intérieure équilibre les débits massiques
+///    de la zone par ses défauts d'étanchéité et ses entrées d'air. Une zone qui n'a ni les uns
+///    ni les autres ne peut pas équilibrer des débits soufflés et repris de masses différentes
+///    (décision Q37 point 11) ; or l'air soufflé et l'air repris n'ont pas la même masse
+///    volumique, même à débits volumiques égaux.
+fn valider_coherence_zone(r: &mut RapportValidation, c: &str, zone: &Zone, catalogue: &Catalogue) {
+    let mut surface_permeable = 0.0;
+    let mut module_entrees_air = 0.0;
+    let mut debits_specifiques = 0.0;
+    for (ig, g) in zone.groupes.iter().enumerate() {
+        let enveloppe = EnveloppeResolue::de(g, catalogue, zone.usage);
+        let op = EnsembleParois::de(&enveloppe.parois);
+        let ba = EnsembleBaies::de(&enveloppe.baies);
+        surface_permeable += op.a_opv_m2 + ba.a_baies_v_m2 + op.a_ophh_m2 + ba.a_baies_h_m2;
+        module_entrees_air += g.entrees_air.as_ref().map_or(0.0, |e| e.m_m3_h);
+        if let Some(d) = debits_specifiques_bbio_groupe(&g.bouches_conduits) {
+            debits_specifiques += d.q_souffle_m3_h - d.q_rep_m3_h;
+        }
+        let Some(a_gr_m2) = g.su_m2 else { continue };
+        let h_th_k_pt = enveloppe.h_th_k_pt_w_k();
+        let thermique = GroupeThermique::nouveau(a_gr_m2, ba.a_baies_m2, &g.inertie.quotidienne);
+        if thermique.hg_emq_w_k(h_th_k_pt).is_none() {
+            r.erreur(
+                format!("{c}.groupes[{ig}]"),
+                Some(g.id.clone()),
+                format!(
+                    "groupe « {} » : l'enveloppe opaque conduit plus que l'échange superficiel \
+                     des parois lourdes : HTH,k+pt = {h_th_k_pt:.1} W/K (parois opaques et ponts \
+                     thermiques, éq. 340) pour Hgmqs = {:.1} W/K (his × Amq, éq. 326) ; le \
+                     modèle thermique demande HTH,k+pt < Hgmqs (Th-BCE 2020 §5.21.3.6, \
+                     éq. 339) ; vérifier les surfaces et les coefficients des parois et des \
+                     ponts thermiques, la surface utile et l'inertie quotidienne",
+                    g.id, thermique.hg_mqs_w_k
+                ),
+            );
+        }
+    }
+    let permeabilite = surface_permeable * zone.q4pa_surf_m3_h_m2.unwrap_or(0.0);
+    if permeabilite <= 0.0 && module_entrees_air <= 0.0 && debits_specifiques > 0.0 {
+        r.erreur(
+            format!("{c}.q4pa_surf_m3_h_m2"),
+            zone.q4pa_surf_m3_h_m2.map(|q| q.to_string()),
+            format!(
+                "zone « {} » : sans perméabilité à l'air (perméabilité nulle ou aucune paroi \
+                 déperditive hors plancher bas) ni entrée d'air, les débits massiques soufflés \
+                 et repris par la ventilation ne peuvent pas s'équilibrer : le bilan aéraulique \
+                 n'a pas de solution (Th-BCE 2020 §5.6.3.5, éq. 167) ; saisir une perméabilité \
+                 non nulle ou des entrées d'air",
+                zone.id
+            ),
+        );
     }
 }
 

@@ -58,7 +58,10 @@ fn calcule_les_surfaces_de_reference() {
         !arrondi.reglementaire,
         "un jeu météo synthétique n'est jamais réglementaire"
     );
-    assert_eq!(arrondi.batiments[0].bbio_pts, None);
+    // Le Bbio est calculé (lot 4d2) ; les autres indicateurs ne le sont pas encore.
+    assert!(arrondi.batiments[0].bbio_pts.is_some_and(|b| b > 0.0));
+    assert_eq!(arrondi.batiments[0].cep_kwhep_m2, None);
+    assert_eq!(arrondi.batiments[0].dh_c_h, None);
 }
 
 #[test]
@@ -329,6 +332,18 @@ fn la_surface_utile_et_le_nombre_de_logements_sont_exiges() {
     assert_eq!(
         chemins(&valider(&p).erreurs),
         ["batiments[0].zones[0].groupes[0].su_m2"]
+    );
+    // Th-BCE 2020 §8.3.2 : le volume du groupe est requis par le bilan hydrique.
+    let mut p = projet();
+    p.batiments[0].zones[0].groupes[0].v_m3 = None;
+    assert_eq!(
+        chemins(&valider(&p).erreurs),
+        ["batiments[0].zones[0].groupes[0].v_m3"]
+    );
+    p.batiments[0].zones[0].groupes[0].v_m3 = Some(0.0);
+    assert_eq!(
+        chemins(&valider(&p).erreurs),
+        ["batiments[0].zones[0].groupes[0].v_m3"]
     );
     let mut p = projet();
     p.batiments[0].zones[0].usage = UsageZone::LogementCollectif;

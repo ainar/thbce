@@ -503,10 +503,21 @@ impl BaieResolue {
 
     /// Flux transmis au groupe par la baie.
     pub fn flux(&self, c: &ConditionsExterieures, p: &Protections) -> FluxBaies {
-        let incident = self.incident(c);
+        self.flux_depuis_incident(&self.incident(c), c, p)
+    }
+
+    /// Flux transmis au groupe par la baie, le rayonnement atteignant la baie
+    /// ([`Self::incident`]) étant déjà connu : la gestion des protections mobiles (§5.9) en a
+    /// besoin avant le calcul des flux.
+    pub fn flux_depuis_incident(
+        &self,
+        incident: &FluxParoi,
+        c: &ConditionsExterieures,
+        p: &Protections,
+    ) -> FluxBaies {
         let qer = qer_w_m2(&self.surface, c.teciel_c, c.te_c);
         let ap = FacteursProteges::uniformes(&self.avec_protection, c.mode);
-        self.flux_transmis(&incident, qer, p, c.mode, &ap)
+        self.flux_transmis(incident, qer, p, c.mode, &ap)
     }
 
     /// Flux transmis au groupe, à partir des flux incidents et des facteurs de la partie

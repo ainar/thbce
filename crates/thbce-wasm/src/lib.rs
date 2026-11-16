@@ -61,23 +61,58 @@ export interface ResultatsEnveloppe {
   a_baies_v_m2: number;
   a_baies_h_m2: number;
   h_ges_sp_w_k: number;
+  a_f_perm_m2: number;
+  a_toit_perm_m2: number;
   l_pt_m: number;
   h_th_pt_w_k: number;
 }
 export interface ValeurParDefaut { champ: string; valeur: number; regle: string; }
 export interface ResultatsBaie { id: string; valeurs_par_defaut: ValeurParDefaut[]; }
+/** Besoins (kWh par m² de surface de référence) et Bbio (points) d'un mois ou de l'année. */
+export interface BesoinsBbio { b_ch_kwh_m2: number; b_fr_kwh_m2: number; b_ecl_kwh_m2: number; bbio_pts: number; }
+/** Sorties du mode Th-B : année et douze mois de l'année conventionnelle. */
+export interface ResultatsBbio { annuel: BesoinsBbio; mensuel: BesoinsBbio[]; }
+/** Débits du système de ventilation conventionnel du Bbio, en m³/h (repris négatif). */
+export interface ResultatsDebitsBbio { q_spec_repris_m3_h: number; q_spec_souffle_m3_h: number; }
+/** Saisons propres du groupe en calcul du Bbio : jours de 1 à 365, `null` si l'événement n'a pas eu lieu. */
+export interface ResultatsSaisons {
+  j_fin_ch: number | null;
+  j_debut_ch: number | null;
+  j_debut_fr: number | null;
+  j_fin_fr: number | null;
+}
+/** Indicateurs de confort du groupe en évolution libre : heures et degrés-heures d'inconfort. */
+export interface ResultatsConfort {
+  nbh_inc_cons_ch: number;
+  dh_inc_cons_ch_k_h: number;
+  nbh_inc_cons_fr: number;
+  dh_inc_cons_fr_k_h: number;
+  nbh_inc_c_fr: [number, number, number];
+  dh_inc_c_fr_k_h: [number, number, number];
+}
 export interface ResultatsGroupe {
   id: string;
   sref_m2: number;
   enveloppe: ResultatsEnveloppe;
+  debits_bbio: ResultatsDebitsBbio | null;
+  bbio: ResultatsBbio | null;
+  saisons_bbio: ResultatsSaisons | null;
+  confort_bbio: ResultatsConfort | null;
   baies: ResultatsBaie[];
   valeurs_par_defaut: ValeurParDefaut[];
 }
-export interface ResultatsZone { id: string; sref_m2: number; nadeq: number | null; groupes: ResultatsGroupe[]; }
+export interface ResultatsZone {
+  id: string;
+  sref_m2: number;
+  nadeq: number | null;
+  bbio: ResultatsBbio | null;
+  groupes: ResultatsGroupe[];
+}
 export interface ResultatsBatiment {
   id: string;
   sref_m2: number;
   bbio_pts: number | null;
+  bbio: ResultatsBbio | null;
   cep_kwhep_m2: number | null;
   cep_nr_kwhep_m2: number | null;
   dh_c_h: number | null;
@@ -98,7 +133,7 @@ export interface Resultats {
 }
 /** Erreur levée par `calculer` (propriété `cause` de l'exception). */
 export interface ErreurCalcul {
-  nature: "lecture" | "saisie" | "meteo" | "non_pris_en_charge";
+  nature: "lecture" | "saisie" | "meteo" | "non_pris_en_charge" | "calcul";
   message: string;
   rapport?: RapportValidation;
 }
@@ -208,6 +243,7 @@ pub fn calculer(
             Erreur::Saisie(r) => erreur("saisie", e.to_string(), Some(RapportJs::depuis(r))),
             Erreur::Meteo(_) => erreur("meteo", e.to_string(), None),
             Erreur::NonPrisEnCharge { .. } => erreur("non_pris_en_charge", e.to_string(), None),
+            Erreur::Calcul(_) => erreur("calcul", e.to_string(), None),
         }),
     }
 }

@@ -34,7 +34,10 @@ fn calcule_le_cas_de_demonstration() {
     let batiments = js_sys::Array::from(&champ(&r, "batiments"));
     assert_eq!(batiments.length(), 1);
     assert_eq!(champ(&batiments.get(0), "sref_m2").as_f64(), Some(96.4));
-    assert!(champ(&batiments.get(0), "bbio_pts").is_null());
+    // Jeu synthétique à 10 °C sans soleil : le besoin de chauffage, donc le Bbio, est positif.
+    let bbio = champ(&batiments.get(0), "bbio_pts").as_f64();
+    assert!(bbio.is_some_and(|b| b > 0.0), "{bbio:?}");
+    assert!(champ(&batiments.get(0), "cep_kwhep_m2").is_null());
 }
 
 #[wasm_bindgen_test]
