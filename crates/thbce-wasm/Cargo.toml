@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "thbce-wasm"
+description = "Moteur de calcul Th-BCE 2020 (RE2020) en WebAssembly"
+version.workspace = true
+edition.workspace = true
+license = "GPL-3.0-or-later"
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+thbce-core.workspace = true
+thbce-io.workspace = true
+serde.workspace = true
+serde-wasm-bindgen.workspace = true
+wasm-bindgen.workspace = true
+
+[dev-dependencies]
+thbce-data.workspace = true
+js-sys = "0.3"
+wasm-bindgen-test.workspace = true
+
+[package.metadata.wasm-pack.profile.release]
+# Les fonctionnalités listées sont celles que rustc active par défaut pour wasm32 ;
+# wasm-opt doit les connaître pour valider le module.
+wasm-opt = [
+    "-O3",
+    "--enable-bulk-memory",
+    "--enable-multivalue",
+    "--enable-mutable-globals",
+    "--enable-nontrapping-float-to-int",
+    "--enable-reference-types",
+    "--enable-sign-ext",
+]
+
+[lints]
+workspace = true
