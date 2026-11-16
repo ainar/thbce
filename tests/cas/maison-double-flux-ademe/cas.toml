@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Maison d'exemple (tests/cas/maison-climat-ademe) équipée d'une VMC double flux à débits constants, sans entrée d'air, sur la météo ouverte ADEME (station de Tours, zone H2b) : échangeur à plaques d'efficacité certifiée 0,85 avec bypass, réseau de classe A dans les combles. Résultat non réglementaire."
+source = "aucune : valeurs attendues calculées à la main. Débits du Bbio, §6.2.3.2.2.2 éq. 403 : (180 × 14 + 90 × 154)/168 = 97,5 m³/h repris et soufflé (les deux sens sont saisis, décision Q36). Débits du projet, par bouche : Cdep = 1,30 par défaut (tableau 58), Dugd = 14 h par défaut (tableau 57) : qdep = 1,3 × 97,5 = 126,75 m³/h ; surface de conduit par défaut en maison, éq. (421) à (423) : 96,44 × 0,05 = 4,822 m² sur chaque circuit ; fuites, éq. (419) et (420), classe A : 3600 × 0,027·10⁻³ × 4,822 × 80^0,667 = 8,715 m³/h ; Ratfuitevc = 0,25 (tableau 60) : qspec = 126,75 + 0,25 × 8,715 = 128,93 m³/h ; qcond = 135,46 m³/h. Ventilateurs, éq. (390) à (394) : 2 × (45 × 14 + 15 × 154)/168 = 35 W, soit 35 × 8 760 = 306,6 kWh/an et 3,18 kWh/m². Ce n'est pas un cas de référence."
+meteo = "ademe"
+
+# Facteurs solaires des parois opaques (`sf_c_k`, `sf_e_k` du catalogue), calculés selon les
+# règles Th-Bat 2020 (29 avril 2026), fascicule « Parois opaques », §4.3.1.3.1, formule 259 :
+#   Sp-C = αp · Up-C · Rse-C   et   Sp-E = αp · Up-E · Rse-E,
+# avec Rse-C = 0,04 et Rse-E = 0,07 m².K/W (tableau 67) et 1/Up-E = 1/Up-C + 0,03 (formule 260).
+# αp = 0,6 : valeur par défaut de la catégorie « moyen » (rouge sombre, vert clair, bleu clair,
+# gris clair), tableau 66.
+#   mur (Up-C = 0,20)     : Sp-C = 0,6 × 0,20 × 0,04 = 0,0048 ;
+#                           Up-E = 1/(5 + 0,03) = 0,19881 ; Sp-E = 0,6 × 0,19881 × 0,07 = 0,00835.
+#   toiture (Up-C = 0,12) : Sp-C = 0,6 × 0,12 × 0,04 = 0,00288 ;
+#                           Up-E = 1/(8,3333 + 0,03) = 0,11957 ; Sp-E = 0,6 × 0,11957 × 0,07 = 0,00502.
+#   plancher bas : non exposé au rayonnement, 0.

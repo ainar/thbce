@@ -1,0 +1,336 @@
+{
+  "nom": "Maison de démonstration avec double flux sur météo ouverte ADEME (non réglementaire)",
+  "localisation": {
+    "departement": "37",
+    "alt_m": 80,
+    "dmer_km": 200,
+    "durb_km": 5
+  },
+  "catalogue": {
+    "parois": [
+      {
+        "id": "mur",
+        "u_k_w_m2k": 0.2,
+        "sf_c_k": 0.0048,
+        "sf_e_k": 0.00835,
+        "incl_k": "verticale"
+      },
+      {
+        "id": "toiture",
+        "u_k_w_m2k": 0.12,
+        "sf_c_k": 0.00288,
+        "sf_e_k": 0.00502,
+        "incl_k": "horizontale_flux_ascendant"
+      },
+      {
+        "id": "plancher",
+        "u_k_w_m2k": 0.15,
+        "sf_c_k": 0,
+        "sf_e_k": 0,
+        "incl_k": "horizontale_flux_descendant"
+      }
+    ],
+    "baies": [
+      {
+        "id": "fenetre",
+        "u_sp_vert_w_m2k": 1.3,
+        "u_ap_vert_w_m2k": 1.1,
+        "sans_protection": {
+          "sw1_e": 0.4,
+          "sw2_e": 0.05,
+          "sw3_e": 0,
+          "tli": 0.6
+        },
+        "avec_protection": {
+          "sw1_e": 0.02,
+          "sw2_e": 0.03,
+          "sw3_e": 0,
+          "tli": 0
+        },
+        "protection_mobile": {
+          "type_pm": "volet",
+          "gestion": "manuelle_motorisee",
+          "exterieure": true,
+          "seconde_protection": false
+        },
+        "ouvrant": {
+          "type_ouvrant": "francaise_ou_anglaise"
+        }
+      }
+    ],
+    "masques": [
+      {
+        "id": "casquette-sud",
+        "masque": {
+          "proche_horizontal": {
+            "dhm_m": 0.6,
+            "dhp_m": 0.2
+          }
+        }
+      },
+      {
+        "id": "relief-nord",
+        "masque": {
+          "lointain_azimutal": {
+            "gamma_i_deg": [
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5
+            ]
+          }
+        }
+      },
+      {
+        "id": "haie-ouest",
+        "masque": {
+          "lointain_arbres_caducs": {
+            "gamma_i_deg": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              25,
+              25,
+              25,
+              25,
+              25,
+              25,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "batiments": [
+    {
+      "id": "maison",
+      "zones": [
+        {
+          "id": "logement",
+          "usage": "maison_individuelle",
+          "h_zone_m": 2.5,
+          "h_plancher_m": 0,
+          "q4pa_surf_m3_h_m2": 0.6,
+          "ventilation": {
+            "id": "vmc-double-flux",
+            "systeme": {
+              "double_flux": {
+                "p_vent_base_rep_w": 15,
+                "p_vent_pointe_rep_w": 45,
+                "p_vent_base_sou_w": 15,
+                "p_vent_pointe_sou_w": 45,
+                "echangeur": {
+                  "representation": {
+                    "simplifiee": {
+                      "epsilon_saisi": 0.85,
+                      "statut": "certifie"
+                    }
+                  },
+                  "bypass": {
+                    "theta_ext_bypass_hiver_c": 15,
+                    "theta_ext_bypass_ete_c": 12,
+                    "theta_int_bypass_hiver_c": 24,
+                    "theta_int_bypass_ete_c": 22
+                  }
+                }
+              }
+            },
+            "reseau": {
+              "classe_etancheite": "A",
+              "r_rep_m2k_w": 0.6,
+              "r_souf_m2k_w": 0.6,
+              "b": 1.0
+            }
+          },
+          "groupes": [
+            {
+              "id": "volume-chauffe",
+              "shab_m2": 96.44,
+              "su_m2": 96.44,
+              "v_m3": 241.1,
+              "categorie_ce1_ce2": "CE1",
+              "inertie": {
+                "quotidienne": "moyenne",
+                "sequentielle": "par_defaut",
+                "ams_surf_m2_m2": 2.5,
+                "annuelle": "par_defaut",
+                "ama_surf_m2_m2": 2.5
+              },
+              "parois_opaques": [
+                {
+                  "id": "mur-sud",
+                  "type_paroi": "mur",
+                  "a_k_m2": 22,
+                  "exposition": {
+                    "azimut_deg": 0,
+                    "inclinaison_deg": 90
+                  }
+                },
+                {
+                  "id": "mur-ouest",
+                  "type_paroi": "mur",
+                  "a_k_m2": 20,
+                  "exposition": {
+                    "azimut_deg": 90,
+                    "inclinaison_deg": 90,
+                    "masques": [
+                      "haie-ouest"
+                    ]
+                  }
+                },
+                {
+                  "id": "mur-nord",
+                  "type_paroi": "mur",
+                  "a_k_m2": 28,
+                  "exposition": {
+                    "azimut_deg": 180,
+                    "inclinaison_deg": 90
+                  }
+                },
+                {
+                  "id": "mur-est",
+                  "type_paroi": "mur",
+                  "a_k_m2": 20,
+                  "exposition": {
+                    "azimut_deg": 270,
+                    "inclinaison_deg": 90
+                  }
+                },
+                {
+                  "id": "toiture",
+                  "type_paroi": "toiture",
+                  "a_k_m2": 100,
+                  "exposition": {
+                    "azimut_deg": 0,
+                    "inclinaison_deg": 0
+                  }
+                },
+                {
+                  "id": "plancher-bas",
+                  "type_paroi": "plancher",
+                  "a_k_m2": 100,
+                  "exposition": {
+                    "azimut_deg": 0,
+                    "inclinaison_deg": 180
+                  }
+                }
+              ],
+              "baies": [
+                {
+                  "id": "baie-sud",
+                  "type_baie": "fenetre",
+                  "a_b_m2": 8,
+                  "exposition": {
+                    "azimut_deg": 0,
+                    "inclinaison_deg": 90,
+                    "lpb_m": 4,
+                    "hpb_m": 2,
+                    "masques": [
+                      "casquette-sud"
+                    ]
+                  },
+                  "expo_br": "br1"
+                },
+                {
+                  "id": "baie-nord",
+                  "type_baie": "fenetre",
+                  "a_b_m2": 2,
+                  "exposition": {
+                    "azimut_deg": 180,
+                    "inclinaison_deg": 90,
+                    "masques": [
+                      "relief-nord"
+                    ]
+                  },
+                  "expo_br": "br1"
+                }
+              ],
+              "ponts_thermiques": [
+                {
+                  "id": "plancher-bas-mur",
+                  "psi_l_w_mk": 0.1,
+                  "l_l_m": 40,
+                  "sf_c_l": 0,
+                  "sf_e_l": 0
+                }
+              ],
+              "bouches_conduits": [
+                {
+                  "id": "extraction",
+                  "isouf": "reprise",
+                  "q_spec_conv_pointe_m3_h": 180,
+                  "q_spec_conv_base_m3_h": 90
+                },
+                {
+                  "id": "soufflage",
+                  "isouf": "soufflage",
+                  "q_spec_conv_pointe_m3_h": 180,
+                  "q_spec_conv_base_m3_h": 90
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

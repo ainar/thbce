@@ -89,6 +89,19 @@
           "h_zone_m": 2.5,
           "h_plancher_m": 0,
           "q4pa_surf_m3_h_m2": 0.6,
+          "ventilation": {
+            "id": "vmc-autoreglable",
+            "systeme": {
+              "simple_flux_extraction": {
+                "p_vent_base_w": 15,
+                "p_vent_pointe_w": 30
+              }
+            },
+            "reseau": {
+              "r_rep_m2k_w": 0.6,
+              "b": 1.0
+            }
+          },
           "groupes": [
             {
               "id": "volume-chauffe",
@@ -203,7 +216,8 @@
                   "id": "extraction",
                   "isouf": "reprise",
                   "q_spec_conv_pointe_m3_h": 180,
-                  "q_spec_conv_base_m3_h": 105
+                  "q_spec_conv_base_m3_h": 105,
+                  "cdep": 1.15
                 }
               ]
             }

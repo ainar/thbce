@@ -23,7 +23,7 @@
 
 use std::path::Path;
 
-use thbce_core::bati::assemblage_groupe::Lectures;
+use thbce_core::bati::assemblage_groupe::{Lectures, VentilationThD};
 use thbce_core::bati::assemblage_zone::ZoneHoraire;
 use thbce_core::bati::surventilation::LectureHysteresis;
 use thbce_core::calcul::AVERTISSEMENT_DH;
@@ -34,7 +34,6 @@ use thbce_core::entree::{
 };
 use thbce_core::resultats::{Resultats, ResultatsConfortEte};
 use thbce_core::scenarios::saisons::{LectureSaisonFroidThD, Saison};
-use thbce_core::ventilation::ven_bbio::LectureDebitsBbio;
 use thbce_core::{calculer, series_horaires, Options};
 use thbce_io::{json, meteo};
 
@@ -385,7 +384,8 @@ fn dh_selon(projet: &Projet, annee: &AnneeMeteo, lectures: Lectures) -> (f64, f6
 
 /// Sensibilité du DH aux lectures du texte qui peuvent être basculées sans modifier le code :
 /// hystérésis de l'ouverture des baies (Q32), lecture du fichier météo (Q25), saison de
-/// refroidissement et ventilation du calcul Th-D (Q40). Mesure, sans assertion de valeur.
+/// refroidissement (Q40) et ventilation du calcul Th-D (Q40 et Q42). Mesure, sans assertion de
+/// valeur.
 fn mesurer_les_sensibilites(projet: &Projet, meteo: &MeteoProjet) {
     let d = Lectures::default();
     let variantes: [(&str, Projet, AnneeMeteo, Lectures); 7] = [
@@ -415,11 +415,12 @@ fn mesurer_les_sensibilites(projet: &Projet, meteo: &MeteoProjet) {
             },
         ),
         (
-            "Q40, débits des bouches tels quels (extraction seule)",
+            "Q40 point 1 et Q42 point 1, assemblage provisoire du lot 5 (ventilation \
+             conventionnelle du Bbio)",
             projet.clone(),
             meteo.th_d.clone(),
             Lectures {
-                debits: LectureDebitsBbio::Litterale,
+                ventilation_th_d: VentilationThD::ConventionnelleBbio,
                 ..d
             },
         ),

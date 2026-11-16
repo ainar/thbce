@@ -170,6 +170,19 @@
           "h_zone_m": 2.5,
           "h_plancher_m": 0,
           "q4pa_surf_m3_h_m2": 0.6,
+          "ventilation": {
+            "id": "vmc-hygro",
+            "systeme": {
+              "simple_flux_extraction": {
+                "p_vent_base_w": 14,
+                "p_vent_pointe_w": 32
+              }
+            },
+            "reseau": {
+              "r_rep_m2k_w": 0.6,
+              "b": 1.0
+            }
+          },
           "groupes": [
             {
               "id": "volume-chauffe",
@@ -290,7 +303,8 @@
                   "id": "extraction",
                   "isouf": "reprise",
                   "q_spec_conv_pointe_m3_h": 180,
-                  "q_spec_conv_base_m3_h": 105
+                  "qvarep_spec_m3_h": 92,
+                  "dugd_h": 7
                 }
               ]
             }
