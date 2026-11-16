@@ -163,9 +163,7 @@ impl Ballon {
                     fin += 1;
                     m = moyenne(fin, &self.theta_c, &self.v_l);
                 }
-                for j in a..=fin {
-                    self.theta_c[j] = m;
-                }
+                self.theta_c[a..=fin].fill(m);
                 a = 0;
             } else {
                 a += 1;
@@ -190,8 +188,8 @@ impl Ballon {
         let v_tot = self.v_tot_l();
         let mut reste = h_rel_ech;
         let mut somme = 0.0;
-        for z in z_ech..NB_ZONES {
-            let h = (self.v_l[z] / v_tot).min(reste);
+        for (z, v) in self.v_l.iter().enumerate().skip(z_ech) {
+            let h = (v / v_tot).min(reste);
             somme += h * moy(z);
             reste -= h;
             if reste <= 0.0 {

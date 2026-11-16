@@ -723,9 +723,7 @@ impl SystemesBatiment {
         let mut origines: Vec<Origine> = Vec::new();
         let mut sources: Vec<ConditionsSource> = Vec::new();
         let mut phi_vc_gen = vec![0.0; groupes.len()];
-        for x in &mut self.phi_rejet_et_w {
-            *x = 0.0;
-        }
+        self.phi_rejet_et_w.fill(0.0);
         for ig in 0..self.generations_horaires.len() {
             vus.clear();
             origines.clear();
