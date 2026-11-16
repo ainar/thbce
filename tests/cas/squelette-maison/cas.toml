@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Cas de plomberie de la phase 2 : vérifie la chaîne lecture, validation, calcul, comparaison."
+source = "aucune : valeurs attendues calculées à la main (surface de référence, Th-BCE 2020 §13.1.3)"
+meteo = "synthetique"
+
+[tolerances]
+defaut = 0.005

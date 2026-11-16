@@ -1,0 +1,458 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+//! Validation de la description d'un projet, séparée du calcul.
+//!
+//! Les contraintes vérifiées sont les plages des nomenclatures de l'annexe III (colonnes
+//! « Min » et « Max »), l'unicité des identifiants et l'existence des références au catalogue.
+
+use std::collections::BTreeSet;
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use thbce_data::ZoneClimatique;
+
+use crate::entree::{
+    Baie, BaieType, Exposition, FacteursBaie, Groupe, Inertie, InertieAnnuelle, InertieQuotidienne,
+    InertieSequentielle, Masque, ParoiOpaque, ParoiType, PontThermique, Projet, Zone,
+};
+
+/// Nombre maximal de masques protégeant une surface (Th-BCE 2020 §3.2.2, « Nmasque »).
+pub const NB_MASQUES_MAX: usize = 7;
+
+/// Un problème relevé dans l'entrée.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Probleme {
+    /// Chemin de l'élément dans l'entrée, par exemple
+    /// `batiments[0].zones[1].groupes[0].baies[3].a_b_m2`.
+    pub chemin: String,
+    /// Valeur fautive, quand elle est simple à afficher.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub valeur: Option<String>,
+    /// Contrainte non respectée, ou nature de l'avertissement.
+    pub message: String,
+}
+
+/// Rapport de validation d'une entrée.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RapportValidation {
+    /// Erreurs : l'entrée ne peut pas être calculée.
+    pub erreurs: Vec<Probleme>,
+    /// Avertissements : l'entrée est acceptée, mais un point mérite l'attention.
+    pub avertissements: Vec<Probleme>,
+}
+
+impl RapportValidation {
+    /// Vrai si l'entrée ne comporte aucune erreur.
+    pub fn est_valide(&self) -> bool {
+        self.erreurs.is_empty()
+    }
+
+    fn erreur(
+        &mut self,
+        chemin: impl Into<String>,
+        valeur: Option<String>,
+        message: impl Into<String>,
+    ) {
+        self.erreurs.push(Probleme {
+            chemin: chemin.into(),
+            valeur,
+            message: message.into(),
+        });
+    }
+
+    fn avertissement(
+        &mut self,
+        chemin: impl Into<String>,
+        valeur: Option<String>,
+        message: impl Into<String>,
+    ) {
+        self.avertissements.push(Probleme {
+            chemin: chemin.into(),
+            valeur,
+            message: message.into(),
+        });
+    }
+
+    /// Vérifie `min <= v <= max` ; une borne infinie n'est pas contrôlée.
+    fn plage(&mut self, chemin: String, v: f64, min: f64, max: f64) {
+        if !v.is_finite() {
+            self.erreur(chemin, Some(v.to_string()), "valeur non finie");
+        } else if v < min || v > max {
+            let contrainte = if max.is_infinite() {
+                format!("doit être supérieur ou égal à {min}")
+            } else {
+                format!("doit être compris entre {min} et {max}")
+            };
+            self.erreur(chemin, Some(v.to_string()), contrainte);
+        }
+    }
+
+    fn positif(&mut self, chemin: String, v: f64) {
+        self.plage(chemin, v, 0.0, f64::INFINITY);
+    }
+
+    fn strictement_positif(&mut self, chemin: String, v: f64) {
+        if v.is_finite() && v <= 0.0 {
+            self.erreur(chemin, Some(v.to_string()), "doit être strictement positif");
+        } else {
+            self.positif(chemin, v);
+        }
+    }
+
+    /// Vérifie l'unicité d'une famille d'identifiants et renvoie leur ensemble.
+    fn ids_uniques<'a>(
+        &mut self,
+        chemin: &str,
+        ids: impl Iterator<Item = &'a String>,
+    ) -> BTreeSet<&'a str> {
+        let mut vus = BTreeSet::new();
+        for (i, id) in ids.enumerate() {
+            if id.trim().is_empty() {
+                self.erreur(format!("{chemin}[{i}].id"), None, "identifiant vide");
+            } else if !vus.insert(id.as_str()) {
+                self.erreur(
+                    format!("{chemin}[{i}].id"),
+                    Some(id.clone()),
+                    "identifiant déjà utilisé par un autre élément de la même liste",
+                );
+            }
+        }
+        vus
+    }
+}
+
+/// Valide la description d'un projet.
+pub fn valider(projet: &Projet) -> RapportValidation {
+    let mut r = RapportValidation::default();
+
+    // Th-BCE 2020 §3.1.2 : Alt, Dmer, Durb, minimum 0.
+    let loc = &projet.localisation;
+    r.positif("localisation.alt_m".into(), loc.alt_m);
+    r.positif("localisation.dmer_km".into(), loc.dmer_km);
+    r.positif("localisation.durb_km".into(), loc.durb_km);
+    let zone_departement = ZoneClimatique::du_departement(loc.departement);
+    if let Some(zone) = loc.zone_climatique {
+        if zone != zone_departement {
+            r.avertissement(
+                "localisation.zone_climatique",
+                Some(zone.to_string()),
+                format!(
+                    "la zone saisie contredit celle du département {} ({zone_departement}, arrêté \
+                     du 26 octobre 2010, annexe I) ; la zone saisie est conservée",
+                    loc.departement
+                ),
+            );
+        }
+    }
+
+    // Catalogue.
+    let cat = &projet.catalogue;
+    let types_parois = r.ids_uniques("catalogue.parois", cat.parois.iter().map(|p| &p.id));
+    let types_baies = r.ids_uniques("catalogue.baies", cat.baies.iter().map(|b| &b.id));
+    let masques = r.ids_uniques("catalogue.masques", cat.masques.iter().map(|m| &m.id));
+    for (i, p) in cat.parois.iter().enumerate() {
+        valider_paroi_type(&mut r, &format!("catalogue.parois[{i}]"), p);
+    }
+    for (i, b) in cat.baies.iter().enumerate() {
+        valider_baie_type(&mut r, &format!("catalogue.baies[{i}]"), b);
+    }
+    for (i, m) in cat.masques.iter().enumerate() {
+        valider_masque(&mut r, &format!("catalogue.masques[{i}].masque"), &m.masque);
+    }
+
+    // Hiérarchie bâtiment → zone → groupe.
+    if projet.batiments.is_empty() {
+        r.erreur(
+            "batiments",
+            None,
+            "le projet doit contenir au moins un bâtiment",
+        );
+    }
+    r.ids_uniques("batiments", projet.batiments.iter().map(|b| &b.id));
+    let refs = References {
+        types_parois: &types_parois,
+        types_baies: &types_baies,
+        masques: &masques,
+    };
+    for (ib, bat) in projet.batiments.iter().enumerate() {
+        let cb = format!("batiments[{ib}]");
+        if bat.zones.is_empty() {
+            r.erreur(
+                format!("{cb}.zones"),
+                None,
+                "le bâtiment doit contenir au moins une zone",
+            );
+        }
+        r.ids_uniques(&format!("{cb}.zones"), bat.zones.iter().map(|z| &z.id));
+        for (iz, zone) in bat.zones.iter().enumerate() {
+            valider_zone(&mut r, &format!("{cb}.zones[{iz}]"), zone, &refs);
+        }
+    }
+    r
+}
+
+struct References<'a> {
+    types_parois: &'a BTreeSet<&'a str>,
+    types_baies: &'a BTreeSet<&'a str>,
+    masques: &'a BTreeSet<&'a str>,
+}
+
+fn valider_zone(r: &mut RapportValidation, c: &str, zone: &Zone, refs: &References<'_>) {
+    if !zone.usage.est_pris_en_charge() {
+        r.avertissement(
+            format!("{c}.usage"),
+            Some(format!("{:?}", zone.usage)),
+            format!(
+                "usage n° {} reconnu mais non calculé par cette version du moteur (seuls les \
+                 usages 1 et 2 le sont)",
+                zone.usage.numero()
+            ),
+        );
+    }
+    if zone.groupes.is_empty() {
+        r.erreur(
+            format!("{c}.groupes"),
+            None,
+            "la zone doit contenir au moins un groupe",
+        );
+    }
+    r.ids_uniques(&format!("{c}.groupes"), zone.groupes.iter().map(|g| &g.id));
+    for (ig, groupe) in zone.groupes.iter().enumerate() {
+        valider_groupe(r, &format!("{c}.groupes[{ig}]"), groupe, zone, refs);
+    }
+}
+
+fn valider_groupe(
+    r: &mut RapportValidation,
+    c: &str,
+    g: &Groupe,
+    zone: &Zone,
+    refs: &References<'_>,
+) {
+    // Th-BCE 2020 §13.1.3, éq. (2375) et (2376) : SREF = SHAB en habitation, SU sinon.
+    let (champ, surface) = if zone.usage.est_habitation() {
+        ("shab_m2", g.shab_m2)
+    } else {
+        ("su_m2", g.su_m2)
+    };
+    match surface {
+        Some(s) => r.strictement_positif(format!("{c}.{champ}"), s),
+        None => r.erreur(
+            format!("{c}.{champ}"),
+            None,
+            "surface de référence requise pour cet usage (Th-BCE 2020 §13.1.3)",
+        ),
+    }
+    for (champ, autre) in [("shab_m2", g.shab_m2), ("su_m2", g.su_m2)] {
+        if let Some(s) = autre {
+            r.positif(format!("{c}.{champ}"), s);
+        }
+    }
+    valider_inertie(r, &format!("{c}.inertie"), &g.inertie);
+
+    r.ids_uniques(
+        &format!("{c}.parois_opaques"),
+        g.parois_opaques.iter().map(|p| &p.id),
+    );
+    for (i, p) in g.parois_opaques.iter().enumerate() {
+        valider_paroi(r, &format!("{c}.parois_opaques[{i}]"), p, refs);
+    }
+    r.ids_uniques(&format!("{c}.baies"), g.baies.iter().map(|b| &b.id));
+    for (i, b) in g.baies.iter().enumerate() {
+        valider_baie(r, &format!("{c}.baies[{i}]"), b, refs);
+    }
+    r.ids_uniques(
+        &format!("{c}.ponts_thermiques"),
+        g.ponts_thermiques.iter().map(|p| &p.id),
+    );
+    for (i, p) in g.ponts_thermiques.iter().enumerate() {
+        valider_pont_thermique(r, &format!("{c}.ponts_thermiques[{i}]"), p);
+    }
+}
+
+/// Th-BCE 2020 §5.21.2 : toutes les grandeurs d'inertie ont pour minimum 0.
+fn valider_inertie(r: &mut RapportValidation, c: &str, i: &Inertie) {
+    if let InertieQuotidienne::Personnalisee {
+        amq_surf_m2_m2,
+        cmq_surf_kj_k_m2,
+    } = i.quotidienne
+    {
+        r.positif(format!("{c}.quotidienne.amq_surf_m2_m2"), amq_surf_m2_m2);
+        r.positif(
+            format!("{c}.quotidienne.cmq_surf_kj_k_m2"),
+            cmq_surf_kj_k_m2,
+        );
+    }
+    if let InertieSequentielle::Personnalisee { cms_surf_kj_k_m2 } = i.sequentielle {
+        r.positif(
+            format!("{c}.sequentielle.cms_surf_kj_k_m2"),
+            cms_surf_kj_k_m2,
+        );
+    }
+    if let InertieAnnuelle::Personnalisee { cma_surf_kj_k_m2 } = i.annuelle {
+        r.positif(format!("{c}.annuelle.cma_surf_kj_k_m2"), cma_surf_kj_k_m2);
+    }
+    r.positif(format!("{c}.ams_surf_m2_m2"), i.ams_surf_m2_m2);
+    r.positif(format!("{c}.ama_surf_m2_m2"), i.ama_surf_m2_m2);
+}
+
+/// Th-BCE 2020 §3.2.2 : α de 0 à 360°, β de 0 à 180°, dimensions positives, 0 à 7 masques.
+fn valider_exposition(r: &mut RapportValidation, c: &str, e: &Exposition, refs: &References<'_>) {
+    r.plage(format!("{c}.azimut_deg"), e.azimut_deg, 0.0, 360.0);
+    r.plage(
+        format!("{c}.inclinaison_deg"),
+        e.inclinaison_deg,
+        0.0,
+        180.0,
+    );
+    if let Some(l) = e.lpb_m {
+        r.positif(format!("{c}.lpb_m"), l);
+    }
+    if let Some(h) = e.hpb_m {
+        r.positif(format!("{c}.hpb_m"), h);
+    }
+    if e.masques.len() > NB_MASQUES_MAX {
+        r.erreur(
+            format!("{c}.masques"),
+            Some(e.masques.len().to_string()),
+            format!("au plus {NB_MASQUES_MAX} masques par surface (Th-BCE 2020 §3.2.2)"),
+        );
+    }
+    for (i, id) in e.masques.iter().enumerate() {
+        if !refs.masques.contains(id.as_str()) {
+            r.erreur(
+                format!("{c}.masques[{i}]"),
+                Some(id.clone()),
+                "masque absent du catalogue",
+            );
+        }
+    }
+}
+
+fn valider_paroi(r: &mut RapportValidation, c: &str, p: &ParoiOpaque, refs: &References<'_>) {
+    if !refs.types_parois.contains(p.type_paroi.as_str()) {
+        r.erreur(
+            format!("{c}.type_paroi"),
+            Some(p.type_paroi.clone()),
+            "type de paroi absent du catalogue",
+        );
+    }
+    r.positif(format!("{c}.a_k_m2"), p.a_k_m2);
+    valider_exposition(r, &format!("{c}.exposition"), &p.exposition, refs);
+}
+
+fn valider_baie(r: &mut RapportValidation, c: &str, b: &Baie, refs: &References<'_>) {
+    if !refs.types_baies.contains(b.type_baie.as_str()) {
+        r.erreur(
+            format!("{c}.type_baie"),
+            Some(b.type_baie.clone()),
+            "type de baie absent du catalogue",
+        );
+    }
+    r.positif(format!("{c}.a_b_m2"), b.a_b_m2);
+    valider_exposition(r, &format!("{c}.exposition"), &b.exposition, refs);
+}
+
+/// Th-BCE 2020 §5.19.2.
+fn valider_pont_thermique(r: &mut RapportValidation, c: &str, p: &PontThermique) {
+    r.positif(format!("{c}.psi_l_w_mk"), p.psi_l_w_mk);
+    r.positif(format!("{c}.l_l_m"), p.l_l_m);
+    r.plage(format!("{c}.sf_c_l"), p.sf_c_l, 0.0, 1.0);
+    r.plage(format!("{c}.sf_e_l"), p.sf_e_l, 0.0, 1.0);
+}
+
+/// Th-BCE 2020 §5.17.2.
+fn valider_paroi_type(r: &mut RapportValidation, c: &str, p: &ParoiType) {
+    r.positif(format!("{c}.u_k_w_m2k"), p.u_k_w_m2k);
+    r.plage(format!("{c}.sf_c_k"), p.sf_c_k, 0.0, 1.0);
+    r.plage(format!("{c}.sf_e_k"), p.sf_e_k, 0.0, 1.0);
+    if let Some(v) = &p.vegetalisation {
+        r.plage(format!("{c}.vegetalisation.sf_c_v_k"), v.sf_c_v_k, 0.0, 1.0);
+        r.plage(format!("{c}.vegetalisation.sf_e_v_k"), v.sf_e_v_k, 0.0, 1.0);
+    }
+}
+
+/// Th-BCE 2020 §5.10.2.
+fn valider_baie_type(r: &mut RapportValidation, c: &str, b: &BaieType) {
+    if b.u_sp_vert_w_m2k.is_none() && b.u_sp_horiz_w_m2k.is_none() {
+        r.erreur(
+            c.to_owned(),
+            None,
+            "au moins un des coefficients u_sp_vert_w_m2k et u_sp_horiz_w_m2k est requis",
+        );
+    }
+    for (champ, u) in [
+        ("u_sp_vert_w_m2k", b.u_sp_vert_w_m2k),
+        ("u_sp_horiz_w_m2k", b.u_sp_horiz_w_m2k),
+        ("u_ap_vert_w_m2k", b.u_ap_vert_w_m2k),
+        ("u_ap_horiz_w_m2k", b.u_ap_horiz_w_m2k),
+    ] {
+        if let Some(u) = u {
+            r.positif(format!("{c}.{champ}"), u);
+        }
+    }
+    valider_facteurs_baie(r, &format!("{c}.sans_protection"), &b.sans_protection);
+    if let Some(f) = &b.avec_protection {
+        valider_facteurs_baie(r, &format!("{c}.avec_protection"), f);
+    }
+}
+
+fn valider_facteurs_baie(r: &mut RapportValidation, c: &str, f: &FacteursBaie) {
+    for (champ, v) in [
+        ("sw1_c", f.sw1_c),
+        ("sw2_c", f.sw2_c),
+        ("sw3_c", f.sw3_c),
+        ("sw1_e", f.sw1_e),
+        ("sw2_e", f.sw2_e),
+        ("sw3_e", f.sw3_e),
+        ("tli", f.tli),
+        ("tlid", f.tlid),
+    ] {
+        r.plage(format!("{c}.{champ}"), v, 0.0, 1.0);
+    }
+}
+
+/// Th-BCE 2020 §3.2.2.
+fn valider_masque(r: &mut RapportValidation, c: &str, m: &Masque) {
+    match m {
+        Masque::LointainAzimutal { tranches } => {
+            if tranches.is_empty() {
+                r.erreur(
+                    format!("{c}.tranches"),
+                    None,
+                    "au moins une tranche azimutale est requise",
+                );
+            }
+            for (i, t) in tranches.iter().enumerate() {
+                if !t.az_deg.is_finite() {
+                    r.erreur(
+                        format!("{c}.tranches[{i}].az_deg"),
+                        Some(t.az_deg.to_string()),
+                        "valeur non finie",
+                    );
+                }
+                r.plage(
+                    format!("{c}.tranches[{i}].gamma_deg"),
+                    t.gamma_deg,
+                    0.0,
+                    90.0,
+                );
+            }
+        }
+        Masque::LointainPlanVertical { de_m, hpe_m } => {
+            r.positif(format!("{c}.de_m"), *de_m);
+            r.positif(format!("{c}.hpe_m"), *hpe_m);
+        }
+        Masque::ProcheVerticalDroit { dvd_m, dpd_m } => {
+            r.positif(format!("{c}.dvd_m"), *dvd_m);
+            r.positif(format!("{c}.dpd_m"), *dpd_m);
+        }
+        Masque::ProcheVerticalGauche { dvg_m, dpg_m } => {
+            r.positif(format!("{c}.dvg_m"), *dvg_m);
+            r.positif(format!("{c}.dpg_m"), *dpg_m);
+        }
+        Masque::ProcheHorizontal { dhm_m, dhp_m } => {
+            r.positif(format!("{c}.dhm_m"), *dhm_m);
+            r.positif(format!("{c}.dhp_m"), *dhp_m);
+        }
+    }
+}

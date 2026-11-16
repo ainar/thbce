@@ -1,0 +1,12 @@
+{
+  "reglementaire": false,
+  "batiments": [
+    {
+      "id": "maison",
+      "sref_m2": 96.4,
+      "zones": [
+        { "id": "logement", "sref_m2": 96.4, "groupes": [{ "id": "volume-chauffe", "sref_m2": 96.4 }] }
+      ]
+    }
+  ]
+}
