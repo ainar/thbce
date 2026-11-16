@@ -372,6 +372,13 @@ pub struct ResultatsGenerateur {
     /// « Cef_aux » : consommation des auxiliaires du générateur, propres et amont, en kWh
     /// d'énergie finale électrique (éq. 1527 et 1528) ; elle est comprise dans `consommations`.
     pub w_aux_kwh: f64,
+    /// « φrejet » : énergie échangée par un générateur thermodynamique avec sa source amont, en
+    /// kWh (négative : chaleur puisée ; positive : chaleur rejetée en refroidissement).
+    #[serde(default, skip_serializing_if = "est_nul")]
+    pub phi_rejet_kwh: f64,
+    /// Valeurs par défaut de la méthode appliquées au générateur.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub valeurs_par_defaut: Vec<ValeurParDefaut>,
 }
 
 /// Systèmes d'émission d'un groupe, calcul Th-C (§8.1).
@@ -913,6 +920,7 @@ impl Resultats {
                     x.q_fou_fr_kwh = a(x.q_fou_fr_kwh);
                     x.q_fou_ecs_kwh = a(x.q_fou_ecs_kwh);
                     x.w_aux_kwh = a(x.w_aux_kwh);
+                    x.phi_rejet_kwh = a(x.phi_rejet_kwh);
                     x.consommations.arrondir();
                     // Efficacités restituées avec deux décimales.
                     for e in [

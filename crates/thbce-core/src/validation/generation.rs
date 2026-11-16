@@ -3,9 +3,16 @@
 //! priorités, emplacement, cohérence du montage (§8.17.3.1) et génération associée à la
 //! sécurité antigel d'un double flux.
 
+use crate::chauffage_refroidissement::thermodynamique_elec::{
+    fonctionnement_continu, grille_chauffage, grille_refroidissement, performances_saisies,
+    taux_auxiliaires, FonctionnementCompresseur, Grille, PerformancesSaisies,
+};
 use crate::entree::{
-    Batiment, FonctionEffetJoule, FonctionReseau, Generation, GestionTemperatureGeneration,
-    NatureGenerateur, PositionGeneration, ReseauIntergroupes, SystemeVentilation, TypePriorite,
+    Batiment, FonctionEffetJoule, FonctionReseau, FonctionnementCompresseurSaisi,
+    FonctionnementContinu, Generation, GestionTemperatureGeneration, NatureGenerateur,
+    PerformancesPac, PositionGeneration, ReseauIntergroupes, SourceAmontSaisie, SystemeVentilation,
+    TechnologieChauffagePac, TechnologieRefroidissementPac, ThermodynamiqueElectriqueSaisi,
+    TypePriorite,
 };
 
 use super::RapportValidation;
@@ -19,6 +26,9 @@ pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
             FonctionEffetJoule::Chauffage => [true, false, false],
             FonctionEffetJoule::Ecs => [false, false, true],
         },
+        NatureGenerateur::ThermodynamiqueElectrique(t) => {
+            [t.chauffage.is_some(), t.refroidissement.is_some(), false]
+        }
         _ => [false; 3],
     }
 }
@@ -135,6 +145,14 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
         match &x.nature {
             NatureGenerateur::EffetJoule(j) => {
                 r.strictement_positif(format!("{cg}.nature.effet_joule.pn_gen_w"), j.pn_gen_w);
+            }
+            NatureGenerateur::ThermodynamiqueElectrique(t) => {
+                valider_thermodynamique(
+                    r,
+                    &format!("{cg}.nature.thermodynamique_electrique"),
+                    t,
+                    bat,
+                );
             }
             autre => {
                 let (nom, quoi) = match autre {
@@ -268,6 +286,41 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
             _ => {}
         }
     }
+    // Cohérence entre les réseaux et le fluide aval des générateurs thermodynamiques
+    // (§8.17.3.1) : réseaux fictifs et générateurs sur air, réseaux hydrauliques et générateurs
+    // sur eau.
+    for (k, x) in g.generateurs.iter().enumerate() {
+        let NatureGenerateur::ThermodynamiqueElectrique(t) = &x.nature else {
+            continue;
+        };
+        let sur_air = [
+            t.chauffage
+                .as_ref()
+                .map(|m| m.technologie == TechnologieChauffagePac::AirExterieurAirRecycle),
+            t.refroidissement
+                .as_ref()
+                .map(|m| m.technologie == TechnologieRefroidissementPac::AirExterieurAirRecycle),
+        ];
+        for p in 0..2 {
+            if let (Some(air), Some(hydraulique)) = (sur_air[p], types[p]) {
+                if air == hydraulique {
+                    r.erreur(
+                        format!(
+                            "{c}.generateurs[{k}].nature.thermodynamique_electrique.{}.technologie",
+                            noms[p]
+                        ),
+                        None,
+                        format!(
+                            "technologie incohérente avec les réseaux de {} de la génération : \
+                             un générateur sur air alimente des réseaux fictifs, un générateur \
+                             sur eau des réseaux hydrauliques (Th-BCE 2020 §8.17.3.1)",
+                            noms[p]
+                        ),
+                    );
+                }
+            }
+        }
+    }
     for (p, nom) in [
         "gestion_temperature_chauffage",
         "gestion_temperature_refroidissement",
@@ -308,4 +361,179 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
 /// Chemin du bâtiment à partir de celui d'une de ses générations.
 fn c_batiment(c: &str) -> &str {
     c.rfind(".generations[").map_or(c, |i| &c[..i])
+}
+
+/// Th-BCE 2020 §8.23 et §8.26 : générateur thermodynamique à compression électrique.
+fn valider_thermodynamique(
+    r: &mut RapportValidation,
+    c: &str,
+    t: &ThermodynamiqueElectriqueSaisi,
+    bat: &Batiment,
+) {
+    if t.chauffage.is_none() && t.refroidissement.is_none() {
+        r.erreur(
+            c.to_owned(),
+            None,
+            "au moins un mode requis : `chauffage` ou `refroidissement` (Th-BCE 2020 §8.23.3.2)",
+        );
+    }
+    let (source, p_vent) = match &t.source_amont {
+        SourceAmontSaisie::AirExterieur { p_vent_gaine_w } => ("air_exterieur", *p_vent_gaine_w),
+        SourceAmontSaisie::AirAmbiant {
+            espace_tampon,
+            p_vent_gaine_w,
+        } => {
+            if !bat.espaces_tampons.iter().any(|e| e.id == *espace_tampon) {
+                r.erreur(
+                    format!("{c}.source_amont.air_ambiant.espace_tampon"),
+                    Some(espace_tampon.clone()),
+                    "espace tampon inconnu du bâtiment",
+                );
+            }
+            ("air_ambiant", *p_vent_gaine_w)
+        }
+        SourceAmontSaisie::AirExtrait {
+            zone,
+            p_vent_gaine_w,
+            ..
+        } => {
+            if !bat.zones.iter().any(|z| z.id == *zone) {
+                r.erreur(
+                    format!("{c}.source_amont.air_extrait.zone"),
+                    Some(zone.clone()),
+                    "zone inconnue du bâtiment",
+                );
+            }
+            ("air_extrait", *p_vent_gaine_w)
+        }
+    };
+    if let Some(p) = p_vent {
+        r.positif(format!("{c}.source_amont.{source}.p_vent_gaine_w"), p);
+    }
+    if let Some(taux) = t.taux_auxiliaires {
+        r.plage(
+            format!("{c}.taux_auxiliaires.valeur"),
+            taux.valeur,
+            0.0,
+            1.0,
+        );
+    }
+    let compresseur = match t.compresseur {
+        FonctionnementCompresseurSaisi::PuissanceVariable => {
+            FonctionnementCompresseur::PuissanceVariable
+        }
+        FonctionnementCompresseurSaisi::ToutOuRien => FonctionnementCompresseur::ToutOuRien,
+    };
+    let (taux, _) = taux_auxiliaires(t.taux_auxiliaires, t.chauffage.is_some());
+    let mut mode = |nom: &str,
+                    grille: Option<&'static Grille>,
+                    performances: &PerformancesPac,
+                    continu: Option<FonctionnementContinu>| {
+        let cm = format!("{c}.{nom}");
+        let Some(grille) = grille else {
+            r.erreur(
+                format!("{cm}.technologie"),
+                None,
+                format!(
+                    "technologie {HORS_VERSION} : seules les machines sur air extérieur, à eau \
+                     ou à air recyclé, sont prises en charge (Th-BCE 2020 §8.23.3.2, tableau 145)"
+                ),
+            );
+            return;
+        };
+        // Les technologies prises en charge en chauffage et en refroidissement puisent dans
+        // l'air extérieur.
+        if source != "air_exterieur" {
+            r.erreur(
+                format!("{c}.source_amont"),
+                Some(source.to_owned()),
+                format!(
+                    "source amont incohérente avec la technologie du mode {nom} : une machine \
+                     sur air extérieur a pour source `air_exterieur` (Th-BCE 2020 §8.26.3.3.1)"
+                ),
+            );
+        }
+        match performances_saisies(performances) {
+            PerformancesSaisies::Mesurees(points) => {
+                if let Err(message) = grille.verifier_mesures(&points) {
+                    r.erreur(format!("{cm}.performances.mesurees"), None, message);
+                } else if !points.iter().any(|p| {
+                    (p.theta_aval_c - grille.theta_aval_c[grille.pivot.0]).abs() < 1e-9
+                        && (p.theta_amont_c - grille.theta_amont_c[grille.pivot.1]).abs() < 1e-9
+                }) {
+                    r.erreur(
+                        format!("{cm}.performances.mesurees"),
+                        None,
+                        "la valeur pivot de la technologie est requise (Th-BCE 2020 §8.23.3.3)",
+                    );
+                }
+            }
+            PerformancesSaisies::PivotDeclare {
+                performance,
+                pabs_w,
+            } => {
+                r.strictement_positif(
+                    format!("{cm}.performances.pivot_declare.performance"),
+                    performance,
+                );
+                r.strictement_positif(format!("{cm}.performances.pivot_declare.pabs_kw"), pabs_w);
+            }
+            PerformancesSaisies::PivotParDefaut { pabs_w } => {
+                r.strictement_positif(
+                    format!("{cm}.performances.pivot_par_defaut.pabs_kw"),
+                    pabs_w,
+                );
+            }
+        }
+        if let Some(f) = continu {
+            if compresseur == FonctionnementCompresseur::ToutOuRien {
+                r.erreur(
+                    format!("{cm}.fonctionnement_continu"),
+                    None,
+                    "sans objet pour un compresseur tout ou rien (Th-BCE 2020 §8.23.3.6)",
+                );
+            }
+            r.plage(
+                format!("{cm}.fonctionnement_continu.lr_contmin"),
+                f.lr_contmin,
+                0.0,
+                1.0,
+            );
+            r.strictement_positif(
+                format!("{cm}.fonctionnement_continu.ccp_lr_contmin"),
+                f.ccp_lr_contmin,
+            );
+        }
+        // Éq. (1282) : cohérence des données de charge partielle.
+        let (lr_contmin, ccp, _) = fonctionnement_continu(compresseur, continu);
+        if compresseur == FonctionnementCompresseur::PuissanceVariable
+            && (lr_contmin * 0.3 < ccp * taux || lr_contmin >= 1.0 || lr_contmin <= 0.0)
+        {
+            r.erreur(
+                format!("{cm}.fonctionnement_continu"),
+                None,
+                "Générateur thermodynamique : les données caractérisant la charge partielle du \
+                 générateur thermodynamique sont en dehors des limites tolérées. Assurez-vous \
+                 de la cohérence des paramètres LRcontmin, CCP_LRcontmin, Pabs et Taux (Th-BCE \
+                 2020 §8.23.3.6, éq. 1282 ; après correction de statut, LRcontmin est \
+                 strictement compris entre 0 et 1)",
+            );
+        }
+    };
+    if let Some(m) = &t.chauffage {
+        mode(
+            "chauffage",
+            grille_chauffage(m.technologie),
+            &m.performances,
+            m.fonctionnement_continu,
+        );
+    }
+    if let Some(m) = &t.refroidissement {
+        mode(
+            "refroidissement",
+            grille_refroidissement(m.technologie),
+            &m.performances,
+            m.fonctionnement_continu,
+        );
+    }
 }

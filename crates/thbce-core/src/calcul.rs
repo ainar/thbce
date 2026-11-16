@@ -696,6 +696,8 @@ fn resultats_generations(b: &BatimentHoraire) -> Vec<ResultatsGeneration> {
                             eta_eff_fr_an: k.eta_eff_an(Poste::Refroidissement),
                             eta_eff_ecs_an: k.eta_eff_an(Poste::Ecs),
                             w_aux_kwh: k.w_aux_wh / 1000.0,
+                            phi_rejet_kwh: k.phi_rejet_wh / 1000.0,
+                            valeurs_par_defaut: x.valeurs_par_defaut.clone(),
                         }
                     })
                     .collect(),

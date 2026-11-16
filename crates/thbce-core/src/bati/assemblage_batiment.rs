@@ -13,11 +13,12 @@ use crate::chauffage_refroidissement::distribution::{
     ApportReseauGroupe, DistributionIntergroupesResolue, SortiesDistributionIntergroupes,
 };
 use crate::chauffage_refroidissement::generation::{
-    EntreesGeneration, GenerationHoraire, ReseauVu,
+    ConditionsSource, EntreesGeneration, GenerationHoraire, ReseauVu,
 };
 use crate::chauffage_refroidissement::saisons_fonctionnement::{
     autorisations_effectives, DesserteGroupe,
 };
+use crate::chauffage_refroidissement::sources_amont::{SourceAmont, C_PA_J_KG_K};
 use crate::chauffage_refroidissement::systemes_groupe::Liens;
 use crate::climat::calendrier::{date_scenario, jour_bascule_saisons};
 use crate::climat::environnement_proche::ventc_m_s;
@@ -355,10 +356,11 @@ impl SystemesBatiment {
             .iter()
             .map(|g| g.raccordement_reseaux == RaccordementReseaux::Permanent)
             .collect();
+        let ids_zones: Vec<String> = bat.zones.iter().map(|z| z.id.clone()).collect();
         let mut generations_horaires: Vec<GenerationHoraire> = bat
             .generations
             .iter()
-            .map(GenerationHoraire::resoudre)
+            .map(|g| GenerationHoraire::resoudre(g, &ids_et, &ids_zones))
             .collect();
         let et_generation = bat
             .generations
@@ -713,6 +715,7 @@ impl SystemesBatiment {
         // un réseau sur air à la température de l'air neuf ; lecture Q46).
         let mut vus: Vec<ReseauVu> = Vec::new();
         let mut origines: Vec<Origine> = Vec::new();
+        let mut sources: Vec<ConditionsSource> = Vec::new();
         let mut phi_vc_gen = vec![0.0; groupes.len()];
         for ig in 0..self.generations_horaires.len() {
             vus.clear();
@@ -778,6 +781,31 @@ impl SystemesBatiment {
                 .map_or(1.0, |e| e.b_therm);
             let (aut_ch, aut_fr) = self.aut_gen.get(ig).copied().unwrap_or((false, false));
             let gen = &mut self.generations_horaires[ig];
+            // Fiche 8.26, éq. (1405) à (1407) et (1453) : conditions des sources amont.
+            sources.clear();
+            sources.extend(gen.generateurs.iter().map(|g| {
+                match g.source.map(|s| s.source) {
+                    None | Some(SourceAmont::AirExterieur) => ConditionsSource {
+                        theta_amont_c: theta_ext_c,
+                        air_extrait_w_k: None,
+                    },
+                    Some(SourceAmont::AirAmbiant { espace_tampon }) => ConditionsSource {
+                        theta_amont_c: espaces_tampons
+                            .get(espace_tampon)
+                            .map_or(theta_ext_c, |e| e.theta_et_c),
+                        air_extrait_w_k: None,
+                    },
+                    Some(SourceAmont::AirExtrait { zone }) => {
+                        let v = zones.get(zone).map(|z| z.sorties_ventilation);
+                        ConditionsSource {
+                            theta_amont_c: v.map_or(theta_ext_c, |v| v.theta_air_extrait_c),
+                            air_extrait_w_k: Some(
+                                v.map_or(0.0, |v| v.qm_air_extrait_kg_s) * C_PA_J_KG_K,
+                            ),
+                        }
+                    }
+                }
+            }));
             let s = gen.pas(
                 &EntreesGeneration {
                     reseaux: &vus,
@@ -788,7 +816,7 @@ impl SystemesBatiment {
                     theta_ext_c,
                     b_therm,
                     w_rechauf_wh: w_rechauf,
-                    sources: &[],
+                    sources: &sources,
                 },
                 mois,
             );

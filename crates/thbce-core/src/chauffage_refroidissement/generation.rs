@@ -19,6 +19,9 @@ use super::calculs_generation::{
     classe_charge, CumulsCef, CumulsGenerateur, Energie, MatriceCef, Poste,
 };
 use super::generateur_direct_a_effet_joule::GenerateurEffetJoule;
+use super::sources_amont::SourceAmontGenerateur;
+use super::thermodynamique_elec::GenerateurThermodynamique;
+use crate::resultats::ValeurParDefaut;
 
 /// « θamb_ch » : température d'ambiance conventionnelle en chauffage, en °C (tableau 110).
 pub const THETA_AMB_CH_C: f64 = 20.0;
@@ -192,6 +195,8 @@ impl GenerateurIdeal {
 pub enum Generateur {
     /// Type 500 : générateur direct à effet Joule (§8.18).
     EffetJoule(GenerateurEffetJoule),
+    /// Type 503 : générateur thermodynamique à compression électrique (§8.23).
+    Thermodynamique(Box<GenerateurThermodynamique>),
     /// Générateur idéal, pour les tests.
     Ideal(GenerateurIdeal),
 }
@@ -201,6 +206,7 @@ impl Generateur {
     pub fn fonction(&self) -> FonctionGenerateur {
         match self {
             Self::EffetJoule(g) => FonctionGenerateur::mono(g.fonction),
+            Self::Thermodynamique(g) => g.fonction(),
             Self::Ideal(g) => g.fonction,
         }
     }
@@ -212,6 +218,7 @@ impl Generateur {
         }
         match self {
             Self::EffetJoule(g) => g.p_max_w(),
+            Self::Thermodynamique(g) => g.pn_gen_tot_w(poste),
             // Sans puissance nominale : parts égales en mode sans priorité.
             Self::Ideal(_) => 1.0,
         }
@@ -221,6 +228,7 @@ impl Generateur {
     pub fn appel(&mut self, e: &EntreesAppel) -> SortiesAppel {
         match self {
             Self::EffetJoule(g) => g.appel(e),
+            Self::Thermodynamique(g) => g.appel(e),
             Self::Ideal(g) => g.appel(e),
         }
     }
@@ -292,6 +300,10 @@ pub struct GenerateurHoraire {
     pub priorite: [u32; 3],
     /// Modèle du générateur.
     pub modele: Generateur,
+    /// Source amont d'un générateur thermodynamique (fiche 8.26).
+    pub source: Option<SourceAmontGenerateur>,
+    /// Valeurs par défaut de la méthode appliquées au générateur.
+    pub valeurs_par_defaut: Vec<ValeurParDefaut>,
     /// Jeu de données du pas de temps.
     pub jeu: JeuDonnees,
     /// Cumuls annuels.
@@ -305,6 +317,8 @@ impl GenerateurHoraire {
             id: id.into(),
             priorite: [1; 3],
             modele,
+            source: None,
+            valeurs_par_defaut: Vec::new(),
             jeu: JeuDonnees::default(),
             cumuls: CumulsGenerateur::default(),
         }
@@ -498,8 +512,13 @@ impl GenerationHoraire {
         Self::nouvelle(id, generateurs)
     }
 
-    /// Résout une génération saisie et validée.
-    pub fn resoudre(g: &crate::entree::Generation) -> Self {
+    /// Résout une génération saisie et validée ; `ids_et` et `ids_zones` donnent les
+    /// identifiants des espaces tampons et des zones du bâtiment, dans l'ordre de leurs indices.
+    pub fn resoudre(
+        g: &crate::entree::Generation,
+        ids_et: &[String],
+        ids_zones: &[String],
+    ) -> Self {
         use crate::entree::{
             FonctionEffetJoule, GestionTemperatureGeneration, NatureGenerateur, PositionGeneration,
             TypePriorite,
@@ -509,7 +528,20 @@ impl GenerationHoraire {
             .iter()
             .filter_map(|s| {
                 let rdim = f64::from(s.rdim.max(1));
+                let mut source = None;
+                let mut valeurs_par_defaut = Vec::new();
                 let modele = match &s.nature {
+                    NatureGenerateur::ThermodynamiqueElectrique(t) => {
+                        let (pac, src, defauts) = GenerateurThermodynamique::resoudre(
+                            t,
+                            rdim,
+                            |id| ids_et.iter().position(|e| e == id),
+                            |id| ids_zones.iter().position(|z| z == id),
+                        )?;
+                        source = Some(src);
+                        valeurs_par_defaut = defauts;
+                        Generateur::Thermodynamique(Box::new(pac))
+                    }
                     NatureGenerateur::EffetJoule(j) => {
                         Generateur::EffetJoule(GenerateurEffetJoule {
                             fonction: match j.fonction {
@@ -531,6 +563,8 @@ impl GenerationHoraire {
                         s.priorite_ecs.unwrap_or(1),
                     ],
                     modele,
+                    source,
+                    valeurs_par_defaut,
                     jeu: JeuDonnees::default(),
                     cumuls: CumulsGenerateur::default(),
                 })
@@ -564,7 +598,11 @@ impl GenerationHoraire {
         if self.en_volume_chauffe {
             conv
         } else {
-            b_therm * theta_ext_c + (1.0 - b_therm) * conv
+            crate::bati::espace_tampon::espace_tampon::theta_ambiance_hors_volume_chauffe_c(
+                b_therm,
+                theta_ext_c,
+                conv,
+            )
         }
     }
 
@@ -667,6 +705,33 @@ impl GenerationHoraire {
                 // demande éventuelle reste reportée (éq. 1028).
                 q_ar[p]
             };
+        }
+
+        // §8.17.3.8, éq. (1053) à (1055) : auxiliaires amont des générateurs thermodynamiques,
+        // ajoutés à leurs auxiliaires et à leur matrice au prorata des charges des postes.
+        for g in &mut self.generateurs {
+            let Some(source) = g.source else { continue };
+            let w = source.w_aux_am_wh(g.jeu.tau_charge);
+            if w == 0.0 {
+                continue;
+            }
+            g.jeu.w_aux_wh += w;
+            let e_el = Energie::Electricite;
+            if g.jeu.ia_refroidi {
+                g.jeu.q_cef.ajouter(Poste::Refroidissement, e_el, w);
+            } else if g.jeu.tau_charge > 0.0 {
+                // Lecture Q47 : la case « (2;50) » de la branche sans refroidissement de
+                // l'éq. (1055) est lue « (1;50) », chauffage.
+                let part_ecs = (g.jeu.r_fonct_ecs / g.jeu.tau_charge).clamp(0.0, 1.0);
+                g.jeu
+                    .q_cef
+                    .ajouter(Poste::Chauffage, e_el, (1.0 - part_ecs) * w);
+                g.jeu.q_cef.ajouter(Poste::Ecs, e_el, part_ecs * w);
+            } else if g.modele.fonction() == FonctionGenerateur::Ecs || !e.aut_ch {
+                g.jeu.q_cef.ajouter(Poste::Ecs, e_el, w);
+            } else {
+                g.jeu.q_cef.ajouter(Poste::Chauffage, e_el, w);
+            }
         }
 
         // §8.17.3.9, éq. (1056) à (1058) : matrice et pertes de la génération.
@@ -1123,6 +1188,78 @@ mod tests {
         e.b_therm = 0.6;
         let s = g.pas(&e, 0).clone();
         assert!((s.theta_amb_c - (0.6 * 5.0 + 0.4 * 20.0)).abs() < 1e-12);
+    }
+
+    #[test]
+    fn pompe_a_chaleur_gainee_et_appoint_en_cascade() {
+        use crate::chauffage_refroidissement::sources_amont::{SourceAmont, SourceAmontGenerateur};
+        use crate::chauffage_refroidissement::thermodynamique_elec::{
+            FonctionnementCompresseur, GenerateurThermodynamique, LecturePasPartage, Limites,
+            ModePac, PerformancesSaisies, CH_AIR_EXTERIEUR_EAU,
+        };
+        // PAC air/eau par défaut : 2 kW absorbés et COP 2,8 au point pivot, soit 5,6 kW ;
+        // machine gainée, 50 W de ventilateurs de conduits à pleine charge.
+        let pac = GenerateurThermodynamique {
+            chauffage: Some(ModePac {
+                matrice: CH_AIR_EXTERIEUR_EAU
+                    .construire(&PerformancesSaisies::PivotParDefaut { pabs_w: 2000.0 }),
+                limites: Limites::Aucune,
+                dfou0_min: 32.0,
+                lr_contmin: 1.0,
+                ccp_lr_contmin: 1.0,
+                t_air_lim_c: None,
+            }),
+            refroidissement: None,
+            ecs: None,
+            compresseur: FonctionnementCompresseur::ToutOuRien,
+            w_aux_0_w: 40.0,
+            rdim: 1.0,
+            lecture_pas_partage: LecturePasPartage::Litterale,
+        };
+        let mut base =
+            GenerateurHoraire::nouveau("pac", Generateur::Thermodynamique(Box::new(pac)));
+        base.source = Some(SourceAmontGenerateur {
+            source: SourceAmont::AirExterieur,
+            p_vent_gaine_w: 50.0,
+        });
+        let mut appoint = joule("appoint", Poste::Chauffage, 3000.0);
+        appoint.priorite = [2; 3];
+        let mut g = GenerationHoraire::nouvelle("g", vec![base, appoint]);
+        g.priorite = ModePriorite::Cascade;
+        g.gestion_ch = GestionTemperature::Constante(32.5);
+        let mut r = [reseau(Poste::Chauffage, 2800.0)];
+        r[0].hydraulique = true;
+        let sources = [ConditionsSource {
+            theta_amont_c: 7.0,
+            air_extrait_w_k: None,
+        }; 2];
+        let mut e = entrees(&r);
+        e.sources = &sources;
+        // Demande de 2 800 Wh à 7 °C : LR = 0,5 ; consommation 1 027,65625 Wh (voir le point de
+        // fonctionnement de la fiche 8.23), plus les auxiliaires amont, 50 × 0,5 = 25 Wh, au
+        // poste chauffage (éq. 1054 et 1055) ; l'appoint n'est pas sollicité.
+        let s = g.pas(&e, 0).clone();
+        assert!((s.q_fou_wh[0] - 2800.0).abs() < 1e-9);
+        let attendu = 1027.65625 + 25.0;
+        assert!((s.q_cef.valeur(Poste::Chauffage, Energie::Electricite) - attendu).abs() < 1e-9);
+        assert!((g.generateurs[0].jeu.w_aux_wh - 65.0).abs() < 1e-9);
+        assert_eq!(g.generateurs[1].jeu.q_fou_wh[0], 0.0);
+        assert_eq!(g.generateurs[0].jeu.theta_amont_c, 7.0);
+        // Demande de 7 000 Wh : la PAC plafonne à 5 600 Wh, l'appoint fournit 1 400 Wh.
+        let mut r = [reseau(Poste::Chauffage, 7000.0)];
+        r[0].hydraulique = true;
+        let mut e = entrees(&r);
+        e.sources = &sources;
+        let s = g.pas(&e, 0).clone();
+        assert!((g.generateurs[0].jeu.q_fou_wh[0] - 5600.0).abs() < 1e-9);
+        assert!((g.generateurs[1].jeu.q_fou_wh[0] - 1400.0).abs() < 1e-9);
+        assert_eq!(s.q_rep_wh[0], 0.0);
+        // Pleine charge : 2 000 Wh absorbés, 50 Wh d'auxiliaires amont, 1 400 Wh d'appoint.
+        assert!((s.q_cef.valeur(Poste::Chauffage, Energie::Electricite) - 3450.0).abs() < 1e-9);
+        // COP annuel du générateur (éq. 1526) sur ces deux pas de temps.
+        let c = &g.generateurs[0].cumuls;
+        let cop = c.eta_eff_an(Poste::Chauffage).unwrap();
+        assert!((cop - 8400.0 / (attendu + 2050.0)).abs() < 1e-9);
     }
 
     #[test]
