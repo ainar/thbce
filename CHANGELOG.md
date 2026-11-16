@@ -19,7 +19,18 @@ Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consol
 - `Saisons::nouveau` reçoit le mode de calcul : en Bbio, l'autorisation de refroidir ne dépend plus de la présence d'un système de refroidissement.
 - **Format d'entrée, changement incompatible** : une zone porte `h_zone_m`, `h_plancher_m` et `q4pa_surf_m3_h_m2` (perméabilité à l'air sous 4 Pa), obligatoires (annexe III §5.6.2) ; en logement collectif, `trav_zone` (caractère traversant au sens des conditions d'hiver, tableau 22) est obligatoire. Un groupe accepte `entrees_air` (module total, comportement autoréglable, anti-retour), facultatif.
 
+- **Format d'entrée, changement incompatible** : un groupe porte `v_m3`, son volume en m³, obligatoire (annexe III §8.3.2) : le bilan hydrique du groupe en a besoin et le texte ne lui donne pas de valeur par défaut.
+- La validation refuse un groupe dont les parois opaques et les ponts thermiques conduisent plus que l'échange superficiel de ses parois lourdes (`HTH,k+pt ≥ Hgmqs`, §5.21.3.6, éq. 339 ; le message nomme le groupe et les deux conductances) et une zone ventilée qui n'a ni perméabilité à l'air ni entrée d'air (§5.6.3.5, éq. 167).
+- Résultats : `bbio_pts` du bâtiment est calculé ; l'avertissement « squelette du moteur » ne cite plus le Bbio. Nouvelle erreur `Erreur::Calcul` (nature `calcul` dans le module WebAssembly, code de retour d'erreur de calcul en ligne de commande).
+
 ### Ajouté
+
+- **Premier indicateur réglementaire : le Bbio.** Calcul annuel au pas horaire (8 760 h) en mode Th-B pour la maison individuelle et le logement collectif : besoins de chauffage, de refroidissement et d'éclairage et Bbio, par mois et pour l'année, au niveau du groupe, de la zone et du bâtiment (annexe III §13.1, éq. 2379 à 2386). Résultats : `bbio` (`annuel` et `mensuel`), `saisons_bbio` et `confort_bbio` sur le groupe.
+- Indicateurs de confort (§4.5) : indicateurs et écarts d'inconfort froid et chaud, seuils des trois catégories d'ambiance, heures et degrés-heures d'inconfort.
+- Émission équivalente conventionnelle du calcul du Bbio (§8.1) : puissance nécessaire pour tenir la consigne, à partir de la matrice de comportement du groupe, effet des saisons, températures finales et moyennes.
+- Bilan hydrique du groupe en calcul du Bbio (§8.3), sans déshumidification.
+- Assemblage horaire de la zone et du groupe (§5.5 et §5.7) : climat, scénarios, parois, ponts thermiques, baies, protections mobiles, surventilation naturelle, éclairage, bilan aéraulique avec le système de ventilation conventionnel, modèle thermique, émission, saisons.
+- Calendrier : jour légal (changement à minuit en heure légale) pour les scénarios et les protections mobiles ; bascule des saisons après le pas de temps qui se termine à 9 h légales.
 
 - Workspace Cargo : `thbce-core`, `thbce-data`, `thbce-io`, `thbce-cli`, `thbce-wasm`, `xtask`.
 - Types d'entrée du projet (localisation, catalogue, bâtiment, zone, groupe, parois, baies, ponts thermiques, masques, inertie), d'après les nomenclatures de l'annexe III.
