@@ -14,8 +14,12 @@ pub mod pont_thermique;
 
 use crate::conventions::ModeCalcul;
 
-/// « he » : coefficient d'échange global (convectif et radiatif) extérieur, en W/(m².K)
-/// (§5.17.2 et §5.19.2, constantes).
+/// « he » : coefficient d'échange global (convectif et radiatif) extérieur, en W/(m².K).
+///
+/// Th-BCE 2020 : constante « he = 25,0 W/m²K » du tableau des constantes de la fiche
+/// `C_BAT_paroi opaque` (§5.17.2, p. 290), employée dans l'éq. (297), et du tableau des
+/// constantes de la fiche `C_BAT_pont thermique` (§5.19.2, p. 300), employée dans l'éq. (306).
+/// Le texte donne donc la valeur pour les deux fiches.
 pub const HE_W_M2K: f64 = 25.0;
 
 /// Coefficient d'interpolation `fce(h)` entre les facteurs solaires en conditions « c » et « e ».
@@ -24,8 +28,8 @@ pub const HE_W_M2K: f64 = 25.0;
 /// calculs Th-B et Th-C ; `fce = 1 − isconfort_adaptatif(j)` en calcul Th-D. Le facteur solaire
 /// vaut ensuite `fce·Sf-c + (1 − fce)·Sf-e` (éq. 292 et 303).
 ///
-/// La nomenclature dit l'inverse (« 0 : conditions c ; 1 : conditions e ») ; les équations
-/// sont retenues (question Q29).
+/// Coquille du texte : la nomenclature dit l'inverse (« 0 : conditions c ; 1 : conditions e »,
+/// soit 1 en période de confort d'été). Les équations sont retenues (décision Q29).
 pub fn fce(mode: ModeCalcul, is_conf_adapt: bool) -> f64 {
     match mode {
         ModeCalcul::ThB | ModeCalcul::ThC => 1.0,

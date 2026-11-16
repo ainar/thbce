@@ -392,8 +392,13 @@ pub struct ParoiType {
     pub id: Id,
     /// « Uk » : coefficient de transmission thermique, en W/(m².K), dans la position `incl_k`.
     pub u_k_w_m2k: f64,
-    /// « Inclk » : position pour laquelle `Uk` est donné. Le moteur en déduit le coefficient de la
-    /// paroi dans son inclinaison réelle (§5.17.3, éq. 294).
+    /// « Inclk » : position pour laquelle `Uk` est donné. Obligatoire, sans valeur par défaut :
+    /// une position supposée changerait U en silence. Le moteur en déduit le coefficient de la
+    /// paroi dans son inclinaison réelle (§5.17.3, éq. 294). Correspondance avec les règles
+    /// Th-Bat, d'après les résistances superficielles cumulées que le texte retire de `1/Uk` :
+    /// `verticale` pour un U de paroi verticale (0,17 m².K/W) ; `horizontale_flux_ascendant` pour
+    /// un U de plancher haut (0,14) ; `horizontale_flux_descendant` pour un U de plancher bas
+    /// (0,21).
     pub incl_k: PositionParoi,
     /// « Sf-c,k » : facteur solaire pour le calcul du Cep (paroi non végétalisée).
     pub sf_c_k: f64,
@@ -408,11 +413,11 @@ pub struct ParoiType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PositionParoi {
-    /// 1 : paroi verticale.
+    /// 1 : paroi verticale (Th-Bat : paroi verticale, flux horizontal).
     Verticale,
-    /// 2 : paroi horizontale, flux ascendant.
+    /// 2 : paroi horizontale, flux ascendant (Th-Bat : plancher haut).
     HorizontaleFluxAscendant,
-    /// 3 : paroi horizontale, flux descendant.
+    /// 3 : paroi horizontale, flux descendant (Th-Bat : plancher bas).
     HorizontaleFluxDescendant,
 }
 
@@ -520,10 +525,10 @@ pub struct PontThermique {
     /// « Sf-e,l » : facteur solaire pour le calcul de DH, en m⁻¹ (le texte dit « Tic » :
     /// décision Q14).
     pub sf_e_l: f64,
-    /// Orientation, inclinaison et masques du pont thermique (§5.18.3). Présente : description
-    /// détaillée. Absente : description simplifiée, où le pont thermique est réparti en quatre
-    /// ponts verticaux orientés au sud, à l'ouest, au nord et à l'est, d'un quart de la longueur
-    /// chacun, sans masque (éq. 298).
+    /// Orientation, inclinaison et masques du pont thermique (§5.18.3). Champ facultatif.
+    /// Présent : description détaillée. **Absent : la description simplifiée s'applique**, où le
+    /// pont thermique est réparti en quatre ponts verticaux orientés au sud, à l'ouest, au nord
+    /// et à l'est, d'un quart de la longueur chacun, sans masque (éq. 298).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exposition: Option<Exposition>,
 }
