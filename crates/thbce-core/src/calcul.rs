@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Point d'entrée du calcul.
 //!
-//! Phase 2 : le calcul valide l'entrée et les données météo, détermine les surfaces de
-//! référence et renvoie la structure des résultats. Les indicateurs réglementaires restent à
-//! `None` jusqu'à l'implémentation des lots 3 à 7 (`docs/couverture.md`).
+//! État : le calcul valide l'entrée et les données météo, détermine le climat du site (lot 3) et
+//! les surfaces de référence, et renvoie la structure des résultats. Les indicateurs
+//! réglementaires restent à `None` jusqu'à l'implémentation des lots 4 à 7
+//! (`docs/couverture.md`).
 
-use crate::climat::MeteoProjet;
+use crate::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
 use crate::entree::{Groupe, Projet, UsageZone};
 use crate::erreur::Erreur;
-use crate::resultats::{Resultats, ResultatsBatiment, ResultatsGroupe, ResultatsZone};
+use crate::resultats::{
+    PeriodeConfortAdaptatif, Resultats, ResultatsBatiment, ResultatsClimat, ResultatsGroupe,
+    ResultatsZone,
+};
 use crate::validation::valider;
 use crate::{VERSION_METHODE, VERSION_MOTEUR};
 
@@ -50,7 +54,30 @@ pub fn calculer(
             }
         }
     }
-    meteo.verifier(projet.localisation.zone_climatique_retenue())?;
+    let loc = &projet.localisation;
+    let zone = loc.zone_climatique_retenue();
+    meteo.verifier(zone)?;
+
+    // Th-BCE 2020 §3.1 : climat du site pour chacun des deux jeux météo, calculé une fois avant
+    // la boucle horaire.
+    let climat_th_bc = ClimatExterieur::nouveau(&meteo.th_bc, loc.departement, loc.alt_m);
+    let climat_th_d = ClimatExterieur::nouveau(&meteo.th_d, loc.departement, loc.alt_m);
+    let periode = |climat: &ClimatExterieur| {
+        let c = ConfortAdaptatif::nouveau(&climat.te_c);
+        // Jours restitués de 1 à 365 (« Jour_année », §3.1.2).
+        let numero = |j: Option<usize>| j.and_then(|j| u16::try_from(j + 1).ok());
+        PeriodeConfortAdaptatif {
+            premier_jour: numero(c.premier_jour),
+            dernier_jour: numero(c.dernier_jour),
+        }
+    };
+    let climat = ResultatsClimat {
+        zone_climatique: zone,
+        altcorr_m: climat_th_bc.altcorr_m,
+        base_ext_c: climat_th_bc.base_ext_c,
+        confort_adaptatif_th_bc: periode(&climat_th_bc),
+        confort_adaptatif_th_d: periode(&climat_th_d),
+    };
 
     let mut avertissements: Vec<String> = rapport
         .avertissements
@@ -110,6 +137,7 @@ pub fn calculer(
         origine_meteo_th_d: meteo.th_d.origine.clone(),
         valeurs_arrondies: false,
         avertissements,
+        climat,
         batiments,
     };
     if options.arrondir {

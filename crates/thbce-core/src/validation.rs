@@ -4,7 +4,7 @@
 //! Les contraintes vérifiées sont les plages des nomenclatures de l'annexe III (colonnes
 //! « Min » et « Max »), l'unicité des identifiants et l'existence des références au catalogue.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -17,6 +17,9 @@ use crate::entree::{
 
 /// Nombre maximal de masques protégeant une surface (Th-BCE 2020 §3.2.2, « Nmasque »).
 pub const NB_MASQUES_MAX: usize = 7;
+
+/// Nombre de tranches d'un masque lointain azimutal (Th-BCE 2020 §3.2.3).
+pub const NB_TRANCHES_AZIMUTALES: usize = 36;
 
 /// Un problème relevé dans l'entrée.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -148,7 +151,12 @@ pub fn valider(projet: &Projet) -> RapportValidation {
     let cat = &projet.catalogue;
     let types_parois = r.ids_uniques("catalogue.parois", cat.parois.iter().map(|p| &p.id));
     let types_baies = r.ids_uniques("catalogue.baies", cat.baies.iter().map(|b| &b.id));
-    let masques = r.ids_uniques("catalogue.masques", cat.masques.iter().map(|m| &m.id));
+    r.ids_uniques("catalogue.masques", cat.masques.iter().map(|m| &m.id));
+    let masques: BTreeMap<&str, &Masque> = cat
+        .masques
+        .iter()
+        .map(|m| (m.id.as_str(), &m.masque))
+        .collect();
     for (i, p) in cat.parois.iter().enumerate() {
         valider_paroi_type(&mut r, &format!("catalogue.parois[{i}]"), p);
     }
@@ -193,7 +201,7 @@ pub fn valider(projet: &Projet) -> RapportValidation {
 struct References<'a> {
     types_parois: &'a BTreeSet<&'a str>,
     types_baies: &'a BTreeSet<&'a str>,
-    masques: &'a BTreeSet<&'a str>,
+    masques: &'a BTreeMap<&'a str, &'a Masque>,
 }
 
 fn valider_zone(r: &mut RapportValidation, c: &str, zone: &Zone, refs: &References<'_>) {
@@ -317,12 +325,37 @@ fn valider_exposition(r: &mut RapportValidation, c: &str, e: &Exposition, refs: 
             format!("au plus {NB_MASQUES_MAX} masques par surface (Th-BCE 2020 §3.2.2)"),
         );
     }
+    #[allow(clippy::float_cmp)]
+    let verticale = e.inclinaison_deg == 90.0;
     for (i, id) in e.masques.iter().enumerate() {
-        if !refs.masques.contains(id.as_str()) {
+        let Some(masque) = refs.masques.get(id.as_str()) else {
             r.erreur(
                 format!("{c}.masques[{i}]"),
                 Some(id.clone()),
                 "masque absent du catalogue",
+            );
+            continue;
+        };
+        // Th-BCE 2020 §3.2.3, éq. (19) et (20) : les masques proches divisent par la largeur lp
+        // (masques verticaux) ou la hauteur hp (masque horizontal) du composant.
+        let (dimension, champ, valeur) = match masque {
+            Masque::ProcheVerticalDroit { .. } | Masque::ProcheVerticalGauche { .. } => {
+                ("largeur", "lpb_m", e.lpb_m)
+            }
+            Masque::ProcheHorizontal { .. } => ("hauteur", "hpb_m", e.hpb_m),
+            _ => continue,
+        };
+        if !verticale {
+            r.avertissement(
+                format!("{c}.masques[{i}]"),
+                Some(id.clone()),
+                "masque proche sans effet : il ne s'applique qu'à un composant vertical (inclinaison de 90°, Th-BCE 2020 §3.2.3)",
+            );
+        } else if !valeur.is_some_and(|v| v > 0.0) {
+            r.erreur(
+                format!("{c}.{champ}"),
+                valeur.map(|v| v.to_string()),
+                format!("{dimension} strictement positive requise par le masque proche « {id} »"),
             );
         }
     }
@@ -414,28 +447,16 @@ fn valider_facteurs_baie(r: &mut RapportValidation, c: &str, f: &FacteursBaie) {
 /// Th-BCE 2020 §3.2.2.
 fn valider_masque(r: &mut RapportValidation, c: &str, m: &Masque) {
     match m {
-        Masque::LointainAzimutal { tranches } => {
-            if tranches.is_empty() {
+        Masque::LointainAzimutal { gamma_i_deg } | Masque::LointainArbresCaducs { gamma_i_deg } => {
+            if gamma_i_deg.len() != NB_TRANCHES_AZIMUTALES {
                 r.erreur(
-                    format!("{c}.tranches"),
-                    None,
-                    "au moins une tranche azimutale est requise",
+                    format!("{c}.gamma_i_deg"),
+                    Some(gamma_i_deg.len().to_string()),
+                    format!("{NB_TRANCHES_AZIMUTALES} tranches azimutales de 10° attendues (Th-BCE 2020 §3.2.3)"),
                 );
             }
-            for (i, t) in tranches.iter().enumerate() {
-                if !t.az_deg.is_finite() {
-                    r.erreur(
-                        format!("{c}.tranches[{i}].az_deg"),
-                        Some(t.az_deg.to_string()),
-                        "valeur non finie",
-                    );
-                }
-                r.plage(
-                    format!("{c}.tranches[{i}].gamma_deg"),
-                    t.gamma_deg,
-                    0.0,
-                    90.0,
-                );
+            for (i, g) in gamma_i_deg.iter().enumerate() {
+                r.plage(format!("{c}.gamma_i_deg[{i}]"), *g, 0.0, 90.0);
             }
         }
         Masque::LointainPlanVertical { de_m, hpe_m } => {

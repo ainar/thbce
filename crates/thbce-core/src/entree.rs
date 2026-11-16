@@ -328,17 +328,27 @@ pub struct MasqueDefinition {
     pub masque: Masque,
 }
 
-/// Th-BCE 2020 §3.2 — masques solaires.
+/// Th-BCE 2020 §3.2 — masques solaires (identifiants du texte : `E_AZ`, `E_Az_cad`, `E_LV`,
+/// `vd`, `vg`, `h`).
 ///
-/// Le masque lointain constitué d'arbres à feuilles caduques (§3.2.1) sera ajouté à la lecture
-/// détaillée de la fiche (lot 3).
+/// Les masques proches ne portent que sur les composants verticaux (§3.2.3) ; les masques
+/// lointains portent sur toute inclinaison.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum Masque {
-    /// Masque lointain défini par tranches azimutales.
+    /// Masque lointain défini par tranches azimutales (`E_AZ`).
     LointainAzimutal {
-        /// Tranches azimutales.
-        tranches: Vec<TrancheAzimutale>,
+        /// « γi » : hauteur de l'horizon vu du centre du composant, en degrés (0 à 90), pour
+        /// chacune des 36 tranches de 10° (§3.2.3). Les tranches sont repérées par rapport à la
+        /// normale au composant : la tranche 1 commence à l'opposé de la normale (Φ = −180°) et
+        /// les tranches 18 et 19 encadrent la normale (figure 10).
+        gamma_i_deg: Vec<f64>,
+    },
+    /// Masque lointain constitué d'arbres à feuilles caduques (`E_Az_cad`) : mêmes tranches,
+    /// actif pendant la seule saison végétative conventionnelle.
+    LointainArbresCaducs {
+        /// « γi », comme pour le masque lointain azimutal.
+        gamma_i_deg: Vec<f64>,
     },
     /// Masque lointain de type plan vertical éloigné.
     LointainPlanVertical {
@@ -368,16 +378,6 @@ pub enum Masque {
         /// « dhp » : distance entre la paroi et le masque, en m.
         dhp_m: f64,
     },
-}
-
-/// Tranche d'un masque lointain azimutal (§3.2.2).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct TrancheAzimutale {
-    /// « Az » : angle de la tranche azimutale, en degrés.
-    pub az_deg: f64,
-    /// « γi » : hauteur de l'horizon vu du centre de la paroi, en degrés (0 à 90).
-    pub gamma_deg: f64,
 }
 
 /// Th-BCE 2020 §5.17.2 — paramètres intrinsèques d'une paroi opaque.

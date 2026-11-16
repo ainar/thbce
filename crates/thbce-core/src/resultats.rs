@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::climat::OrigineMeteo;
 use crate::conventions::arrondir_restitution;
 use crate::entree::Id;
+use thbce_data::ZoneClimatique;
 
 /// Résultats d'un calcul sur un projet.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -26,8 +27,35 @@ pub struct Resultats {
     pub valeurs_arrondies: bool,
     /// Avertissements émis par la validation et par le calcul.
     pub avertissements: Vec<String>,
+    /// Climat du projet (Th-BCE 2020 §3.1).
+    pub climat: ResultatsClimat,
     /// Résultats par bâtiment.
     pub batiments: Vec<ResultatsBatiment>,
+}
+
+/// Grandeurs du climat extérieur propres au projet (Th-BCE 2020 §3.1.3).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsClimat {
+    /// Zone climatique retenue.
+    pub zone_climatique: ZoneClimatique,
+    /// « altcorr » : altitude conventionnelle du site, en m.
+    pub altcorr_m: f64,
+    /// « θbase_ext » : température extérieure de base corrigée de l'altitude, en °C.
+    pub base_ext_c: f64,
+    /// Période de confort adaptatif déterminée sur le jeu météo « Th-BC ».
+    pub confort_adaptatif_th_bc: PeriodeConfortAdaptatif,
+    /// Période de confort adaptatif déterminée sur le jeu météo « Th-D ».
+    pub confort_adaptatif_th_d: PeriodeConfortAdaptatif,
+}
+
+/// Période de confort adaptatif (§3.1.3, éq. 1 et 2) : jours de l'année numérotés de 1 à 365.
+/// Les deux bornes valent `null` si la moyenne glissante n'atteint jamais 16 °C.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct PeriodeConfortAdaptatif {
+    /// « Premier_jour ».
+    pub premier_jour: Option<u16>,
+    /// « Dernier_jour ».
+    pub dernier_jour: Option<u16>,
 }
 
 /// Résultats d'un bâtiment. Un indicateur vaut `null` tant que la partie correspondante de la
