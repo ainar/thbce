@@ -125,13 +125,13 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 5.18 | S1_BAT_assemblage_ponts_thermiques | 294–297 | 4 | `core/src/bati/pont_thermique.rs` | implémenté : descriptions simplifiée (éq. 298) et détaillée |
 | 5.19 | C_BAT_pont thermique | 298–302 | 4 | `core/src/bati/pont_thermique.rs` | implémenté : éq. (299) à (306) ; masques proches sur 30 cm (Q24) |
 | 5.20 | C_BAT_ensemble_ponts_thermiques | 303–305 | 4 | `core/src/bati/pont_thermique.rs` | implémenté : éq. (307) à (310) |
-| 5.21 | C_BAT_comportement thermique d’un groupe | 306–320 | 4 | `core/src/bati/comportement_thermique_groupe.rs` | non commencé |
+| 5.21 | C_BAT_comportement thermique d’un groupe | 306–320 | 4 | `core/src/bati/comportement_thermique.rs` | partiel : inertie quotidienne, éq. (311) à (314), (317), (320), (323) à (326), (333) à (352), (361) à (373) ; lecture des flux radiatifs à confirmer (Q34) ; inerties séquentielle et annuelle avec le confort d'été |
 
 ### 6. Ventilation (p. 321–469)
 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
-| 6.1 | C_VEN_BBIO | 321–325 | 4 | `core/src/ventilation/ven_bbio.rs` | non commencé |
+| 6.1 | C_VEN_BBIO | 321–325 | 4 | `core/src/ventilation/ven_bbio.rs` | implémenté : éq. (374) à (382) ; les débits sont des entrées |
 | 6.2 | C_VEN_Bouche_conduit | 326–341 | 6a | `core/src/ventilation/bouche_conduit.rs` | non commencé |
 | 6.3 | C_VEN_ CTA et Double_flux | 342–395 | 6a | `core/src/ventilation/cta_et_double_flux.rs` | non commencé |
 | 6.4 | C_VEN_Mécanique_Basse-Pression | 396–399 | 6a | `core/src/ventilation/mecanique_basse_pression.rs` | non commencé |

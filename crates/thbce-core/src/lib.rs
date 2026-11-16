@@ -21,6 +21,7 @@ pub mod erreur;
 pub mod resultats;
 pub mod scenarios;
 pub mod validation;
+pub mod ventilation;
 
 pub use calcul::{calculer, Options};
 pub use erreur::Erreur;

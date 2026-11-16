@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Bâti (Th-BCE 2020 §5).
 //!
+//! - [`comportement_thermique`] : fiche `C_BAT_comportement thermique d'un groupe` (§5.21) ;
 //! - [`baie`] : fiches `C_BAT_Baie vitrée` (§5.10) et `C_BAT_ensemble_baies` (§5.14) ;
 //! - [`protection_mobile`] : fiches `C_BAT_Gestion_protections_mobiles` (§5.9) et
 //!   `C_BAT_Perméabilité_des_PM` (§5.12) ;
@@ -15,6 +16,7 @@
 //! coefficients `btherm`, `bsolaire` et `bvoute` valent 1.
 
 pub mod baie;
+pub mod comportement_thermique;
 pub mod paroi_opaque;
 pub mod pont_thermique;
 pub mod protection_mobile;
