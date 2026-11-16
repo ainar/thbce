@@ -15,6 +15,7 @@ use crate::climat::environnement_proche::{
 };
 use crate::conventions::ModeCalcul;
 use crate::entree::{Baie, BaieType, Catalogue, FacteursBaie};
+use crate::resultats::ValeurParDefaut;
 
 use super::paroi_opaque::resoudre_masques;
 use super::{ConditionsExterieures, HE_W_M2K};
@@ -126,20 +127,129 @@ pub struct FacteursSolaires {
 }
 
 impl FacteursSolaires {
+    /// Facteur solaire global, somme des trois composantes (éq. 215).
+    pub fn global(&self) -> f64 {
+        self.sw1 + self.sw2 + self.sw3
+    }
+}
+
+/// État d'une baie auquel se rapportent des facteurs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EtatBaie {
+    /// Sans protection mobile en place (indice « sp »).
+    SansProtection,
+    /// Avec la première protection mobile en place (indice « ap »).
+    AvecProtection,
+}
+
+/// Écart par défaut entre les facteurs solaires globaux sans protection mobile en Th-D et en
+/// Th-BC (§5.10.3.6.3, éq. 215 : `Swsp-c = Swsp-e − 0,1`).
+pub const REDUCTION_SW_SP_C: f64 = 0.1;
+/// Valeur par défaut de `Tlid` (§5.10.3.6.3, éq. 218).
+pub const TLID_DEFAUT: f64 = 0.0;
+
+/// Facteurs d'un état de la baie, valeurs par défaut du texte appliquées.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FacteursResolus {
+    /// Facteurs solaires pour les calculs Th-B et Th-C (« -c »).
+    pub sw_c: FacteursSolaires,
+    /// Facteurs solaires pour le calcul Th-D (« -e »).
+    pub sw_e: FacteursSolaires,
+    /// « Tli » : transmission lumineuse globale.
+    pub tli: f64,
+    /// « Tlid » : part du flux direct transmise sous forme diffuse.
+    pub tlid: f64,
+}
+
+impl FacteursResolus {
+    /// Applique les valeurs par défaut du texte aux facteurs non saisis, et les signale dans
+    /// `defauts`.
+    ///
+    /// Th-BCE 2020 §5.10.3.6.3 :
+    /// - éq. (215) : sans protection mobile, `Swsp-c = Swsp-e − 0,1` (facteurs globaux) ;
+    /// - éq. (216) : avec protection mobile, `Swap-c = Swap-e` ;
+    /// - éq. (218) : `Tlid = 0`.
+    ///
+    /// Le texte donne la valeur par défaut du facteur global et renvoie aux règles Th-S pour sa
+    /// décomposition en `Sw1`, `Sw2` et `Sw3`. Lecture retenue (question Q30) : les composantes
+    /// « -c » gardent les proportions des composantes « -e », soit
+    /// `Swi-c = Swi-e × Sw-c/Sw-e` ; avec protection mobile, elles leur sont donc égales.
+    ///
+    /// Renvoie `None` si les composantes « -c » ne sont saisies qu'en partie, ou si la valeur
+    /// par défaut de l'éq. (215) n'est pas positive (cas écartés par la validation).
+    pub fn de(
+        f: &FacteursBaie,
+        etat: EtatBaie,
+        defauts: &mut Vec<ValeurParDefaut>,
+    ) -> Option<Self> {
+        let sw_e = FacteursSolaires {
+            sw1: f.sw1_e,
+            sw2: f.sw2_e,
+            sw3: f.sw3_e,
+        };
+        let prefixe = match etat {
+            EtatBaie::SansProtection => "sans_protection",
+            EtatBaie::AvecProtection => "avec_protection",
+        };
+        let sw_c = match (f.sw1_c, f.sw2_c, f.sw3_c) {
+            (Some(sw1), Some(sw2), Some(sw3)) => FacteursSolaires { sw1, sw2, sw3 },
+            (None, None, None) => {
+                let (rapport, regle) = match etat {
+                    EtatBaie::SansProtection => {
+                        let global_e = sw_e.global();
+                        if global_e <= REDUCTION_SW_SP_C {
+                            return None;
+                        }
+                        (
+                            (global_e - REDUCTION_SW_SP_C) / global_e,
+                            "Th-BCE 2020 §5.10.3.6.3, éq. (215) : Swsp-c = Swsp-e − 0,1 ; \
+                             composantes dans les proportions de Swsp-e (question Q30)",
+                        )
+                    }
+                    EtatBaie::AvecProtection => (
+                        1.0,
+                        "Th-BCE 2020 §5.10.3.6.3, éq. (216) : Swap-c = Swap-e ; composantes \
+                         égales à celles de Swap-e (question Q30)",
+                    ),
+                };
+                let c = FacteursSolaires {
+                    sw1: sw_e.sw1 * rapport,
+                    sw2: sw_e.sw2 * rapport,
+                    sw3: sw_e.sw3 * rapport,
+                };
+                for (champ, valeur) in [("sw1_c", c.sw1), ("sw2_c", c.sw2), ("sw3_c", c.sw3)] {
+                    defauts.push(ValeurParDefaut {
+                        champ: format!("{prefixe}.{champ}"),
+                        valeur,
+                        regle: regle.to_owned(),
+                    });
+                }
+                c
+            }
+            _ => return None,
+        };
+        let tlid = f.tlid.unwrap_or_else(|| {
+            defauts.push(ValeurParDefaut {
+                champ: format!("{prefixe}.tlid"),
+                valeur: TLID_DEFAUT,
+                regle: "Th-BCE 2020 §5.10.3.6.3, éq. (218) : Tlid = 0".to_owned(),
+            });
+            TLID_DEFAUT
+        });
+        Some(Self {
+            sw_c,
+            sw_e,
+            tli: f.tli,
+            tlid,
+        })
+    }
+
     /// Th-BCE 2020 §5.10.3.7, éq. (223) et (224) : facteurs « -c » en Th-B et Th-C, « -e » en
     /// Th-D.
-    fn de(f: &FacteursBaie, mode: ModeCalcul) -> Self {
+    fn solaires(&self, mode: ModeCalcul) -> FacteursSolaires {
         match mode {
-            ModeCalcul::ThB | ModeCalcul::ThC => Self {
-                sw1: f.sw1_c,
-                sw2: f.sw2_c,
-                sw3: f.sw3_c,
-            },
-            ModeCalcul::ThD => Self {
-                sw1: f.sw1_e,
-                sw2: f.sw2_e,
-                sw3: f.sw3_e,
-            },
+            ModeCalcul::ThB | ModeCalcul::ThC => self.sw_c,
+            ModeCalcul::ThD => self.sw_e,
         }
     }
 }
@@ -170,8 +280,8 @@ pub struct FacteursProteges {
 
 impl FacteursProteges {
     /// Volet ou store enroulable : Th-BCE 2020 §5.10.3.6.3, éq. (214).
-    fn uniformes(f: &FacteursBaie, mode: ModeCalcul) -> Self {
-        let s = FacteursSolaires::de(f, mode);
+    fn uniformes(f: &FacteursResolus, mode: ModeCalcul) -> Self {
+        let s = f.solaires(mode);
         Self {
             dir: s,
             dif: s,
@@ -211,9 +321,11 @@ pub struct BaieResolue {
     /// `Usp,b` si le type de baie ne le donne pas (baie sans protection mobile).
     pub u_ap_w_m2k: f64,
     /// Facteurs sans protection mobile.
-    pub sans_protection: FacteursBaie,
+    pub sans_protection: FacteursResolus,
     /// Facteurs avec la première protection mobile ; ceux de la baie nue s'il n'y en a pas.
-    pub avec_protection: FacteursBaie,
+    pub avec_protection: FacteursResolus,
+    /// Valeurs par défaut du texte appliquées aux facteurs non saisis.
+    pub valeurs_par_defaut: Vec<ValeurParDefaut>,
     /// Type de la baie pour l'éclairement naturel.
     pub type_eclairage: TypeBaieEclairage,
     /// Orientation et dimensions.
@@ -245,8 +357,8 @@ pub struct FluxBaies {
 
 impl BaieResolue {
     /// Résout une baie à partir de son type et de son exposition. Renvoie `None` si le type ne
-    /// donne pas le coefficient U nécessaire à l'inclinaison de la baie (cas écarté par la
-    /// validation).
+    /// donne pas le coefficient U nécessaire à l'inclinaison de la baie, ou si ses facteurs
+    /// solaires ne peuvent pas être résolus (cas écartés par la validation).
     pub fn nouvelle(baie: &Baie, type_baie: &BaieType, catalogue: &Catalogue) -> Option<Self> {
         let beta_deg = baie.exposition.inclinaison_deg;
         let u_sp = u_baie(
@@ -259,17 +371,27 @@ impl BaieResolue {
             type_baie.u_ap_horiz_w_m2k,
             beta_deg,
         );
+        let mut valeurs_par_defaut = Vec::new();
+        let sans_protection = FacteursResolus::de(
+            &type_baie.sans_protection,
+            EtatBaie::SansProtection,
+            &mut valeurs_par_defaut,
+        )?;
+        // Sans protection mobile, la partie « protégée » n'intervient pas (Rprot = 0) : elle
+        // reprend les facteurs de la baie nue.
+        let avec_protection = match &type_baie.avec_protection {
+            Some(f) => FacteursResolus::de(f, EtatBaie::AvecProtection, &mut valeurs_par_defaut)?,
+            None => sans_protection,
+        };
         Some(Self {
             a_b_m2: baie.a_b_m2,
             alpha_deg: baie.exposition.azimut_deg,
             beta_deg,
             u_sp_w_m2k: u_sp,
             u_ap_w_m2k: u_ap.unwrap_or(u_sp),
-            sans_protection: type_baie.sans_protection.clone(),
-            avec_protection: type_baie
-                .avec_protection
-                .clone()
-                .unwrap_or_else(|| type_baie.sans_protection.clone()),
+            sans_protection,
+            avec_protection,
+            valeurs_par_defaut,
             // §5.10.3.2 : les grands volumes n'existent que dans des usages hors du périmètre
             // actuel (industrie, établissements sportifs, commerces).
             type_eclairage: TypeBaieEclairage::VolumeNormal,
@@ -357,7 +479,7 @@ impl BaieResolue {
     ) -> FluxBaies {
         let a = self.a_b_m2;
         let r = p.r_prot();
-        let sp = FacteursSolaires::de(&self.sans_protection, mode);
+        let sp = self.sans_protection.solaires(mode);
         let (drp, dfp, rrp) = (incident.drp_w_m2, incident.dfp_w_m2, incident.rrp_w_m2);
         let isr = incident.isr_w_m2();
         let composante = |sw_sp: f64, dir: f64, dif: f64, refl: f64| {

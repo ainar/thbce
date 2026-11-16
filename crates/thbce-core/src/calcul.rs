@@ -13,8 +13,8 @@ use crate::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
 use crate::entree::{Catalogue, Groupe, Projet, UsageZone};
 use crate::erreur::Erreur;
 use crate::resultats::{
-    PeriodeConfortAdaptatif, Resultats, ResultatsBatiment, ResultatsClimat, ResultatsEnveloppe,
-    ResultatsGroupe, ResultatsZone,
+    PeriodeConfortAdaptatif, Resultats, ResultatsBaie, ResultatsBatiment, ResultatsClimat,
+    ResultatsEnveloppe, ResultatsGroupe, ResultatsZone,
 };
 use crate::scenarios::ScenariosZone;
 use crate::validation::valider;
@@ -108,6 +108,7 @@ pub fn calculer(
                             id: g.id.clone(),
                             sref_m2: sref_groupe(g, zone.usage),
                             enveloppe: enveloppe_groupe(g, &projet.catalogue),
+                            baies: resultats_baies(g, &projet.catalogue),
                         })
                         .collect();
                     // Th-BCE 2020 §13.1.3, éq. (2377) : SREF_zn = somme des SREF_gr de la zone.
@@ -164,6 +165,25 @@ pub fn calculer(
 ///
 /// Th-BCE 2020 §13.1.3, éq. (2375) et (2376) : `SREF_gr = SHAB_gr` si l'usage vaut 1 ou 2,
 /// `SREF_gr = SU_gr` sinon. La validation garantit la présence de la surface requise.
+/// Valeurs par défaut appliquées à chaque baie d'un groupe (Th-BCE 2020 §5.10.3.6.3, éq. 215,
+/// 216 et 218).
+fn resultats_baies(groupe: &Groupe, catalogue: &Catalogue) -> Vec<ResultatsBaie> {
+    groupe
+        .baies
+        .iter()
+        .map(|b| ResultatsBaie {
+            id: b.id.clone(),
+            valeurs_par_defaut: catalogue
+                .baies
+                .iter()
+                .find(|t| t.id == b.type_baie)
+                .and_then(|t| BaieResolue::nouvelle(b, t, catalogue))
+                .map(|r| r.valeurs_par_defaut)
+                .unwrap_or_default(),
+        })
+        .collect()
+}
+
 /// Grandeurs d'enveloppe d'un groupe (Th-BCE 2020 §5.14.3, éq. 279, 281 et 282 ; §5.16.3,
 /// éq. 283, 286 et 287 ; §5.20.3, éq. 307 et 310). Les références au catalogue ont été vérifiées par la validation.
 fn enveloppe_groupe(groupe: &Groupe, catalogue: &Catalogue) -> ResultatsEnveloppe {

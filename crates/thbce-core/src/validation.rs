@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thbce_data::ZoneClimatique;
 
-use crate::bati::baie::u_baie;
+use crate::bati::baie::{u_baie, EtatBaie, REDUCTION_SW_SP_C};
 use crate::entree::{
     Baie, BaieType, Exposition, FacteursBaie, Groupe, Inertie, InertieAnnuelle, InertieQuotidienne,
     InertieSequentielle, Masque, ParoiOpaque, ParoiType, PontThermique, Projet, Zone,
@@ -484,22 +484,56 @@ fn valider_baie_type(r: &mut RapportValidation, c: &str, b: &BaieType) {
             r.positif(format!("{c}.{champ}"), u);
         }
     }
-    valider_facteurs_baie(r, &format!("{c}.sans_protection"), &b.sans_protection);
+    valider_facteurs_baie(
+        r,
+        &format!("{c}.sans_protection"),
+        &b.sans_protection,
+        EtatBaie::SansProtection,
+    );
     if let Some(f) = &b.avec_protection {
-        valider_facteurs_baie(r, &format!("{c}.avec_protection"), f);
+        valider_facteurs_baie(
+            r,
+            &format!("{c}.avec_protection"),
+            f,
+            EtatBaie::AvecProtection,
+        );
     }
 }
 
-fn valider_facteurs_baie(r: &mut RapportValidation, c: &str, f: &FacteursBaie) {
+fn valider_facteurs_baie(r: &mut RapportValidation, c: &str, f: &FacteursBaie, etat: EtatBaie) {
+    let composantes_c = [("sw1_c", f.sw1_c), ("sw2_c", f.sw2_c), ("sw3_c", f.sw3_c)];
+    let saisies = composantes_c.iter().filter(|(_, v)| v.is_some()).count();
+    if saisies != 0 && saisies != composantes_c.len() {
+        r.erreur(
+            c.to_owned(),
+            None,
+            "sw1_c, sw2_c et sw3_c se saisissent ensemble ou pas du tout (absents, la valeur par \
+             défaut du §5.10.3.6.3 s'applique au facteur solaire global)",
+        );
+    }
+    // Th-BCE 2020 §5.10.3.6.3, éq. (215) : la valeur par défaut `Swsp-c = Swsp-e − 0,1` n'a de
+    // sens que si elle reste positive.
+    if saisies == 0
+        && etat == EtatBaie::SansProtection
+        && f.sw1_e + f.sw2_e + f.sw3_e <= REDUCTION_SW_SP_C
+    {
+        r.erreur(
+            c.to_owned(),
+            None,
+            "la valeur par défaut Swsp-c = Swsp-e − 0,1 (éq. 215) n'est pas positive : saisir \
+             sw1_c, sw2_c et sw3_c",
+        );
+    }
+    for (champ, v) in composantes_c.into_iter().chain([("tlid", f.tlid)]) {
+        if let Some(v) = v {
+            r.plage(format!("{c}.{champ}"), v, 0.0, 1.0);
+        }
+    }
     for (champ, v) in [
-        ("sw1_c", f.sw1_c),
-        ("sw2_c", f.sw2_c),
-        ("sw3_c", f.sw3_c),
         ("sw1_e", f.sw1_e),
         ("sw2_e", f.sw2_e),
         ("sw3_e", f.sw3_e),
         ("tli", f.tli),
-        ("tlid", f.tlid),
     ] {
         r.plage(format!("{c}.{champ}"), v, 0.0, 1.0);
     }

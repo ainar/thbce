@@ -475,15 +475,30 @@ pub struct BaieType {
 }
 
 /// Facteurs solaires et lumineux d'une baie dans un état de protection (§5.10.2).
+///
+/// Trois grandeurs ont une valeur par défaut donnée par la méthode (§5.10.3.6.3) et sont
+/// facultatives : les facteurs solaires « -c » (éq. 215 et 216) et `tlid` (éq. 218). Toute
+/// valeur par défaut appliquée est listée dans les résultats (`valeurs_par_defaut`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FacteursBaie {
     /// « Sw1-c » : composante courte longueur d'onde (directe), calcul du Cep.
-    pub sw1_c: f64,
-    /// « Sw2-c » : composante grande longueur d'onde et convective, calcul du Cep.
-    pub sw2_c: f64,
-    /// « Sw3-c » : composante liée à la lame d'air intérieure ventilée, calcul du Cep.
-    pub sw3_c: f64,
+    ///
+    /// Les trois composantes « -c » se saisissent ensemble ou pas du tout. Absentes, la valeur
+    /// par défaut du texte s'applique au facteur solaire global `Sw-c = Sw1-c + Sw2-c + Sw3-c` :
+    /// sans protection mobile, `Swsp-c = Swsp-e − 0,1` (éq. 215) ; avec protection mobile,
+    /// `Swap-c = Swap-e` (éq. 216). Le texte renvoie aux règles Th-S pour la décomposition en
+    /// trois composantes : le moteur garde les proportions des composantes « -e » (question
+    /// Q30).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sw1_c: Option<f64>,
+    /// « Sw2-c » : composante grande longueur d'onde et convective, calcul du Cep. Voir `sw1_c`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sw2_c: Option<f64>,
+    /// « Sw3-c » : composante liée à la lame d'air intérieure ventilée, calcul du Cep. Voir
+    /// `sw1_c`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sw3_c: Option<f64>,
     /// « Sw1-e » : composante courte longueur d'onde (directe), calcul de DH.
     pub sw1_e: f64,
     /// « Sw2-e » : composante grande longueur d'onde et convective, calcul de DH.
@@ -492,8 +507,10 @@ pub struct FacteursBaie {
     pub sw3_e: f64,
     /// « Tli » : facteur de transmission lumineuse global.
     pub tli: f64,
-    /// « Tlid » : transmission lumineuse du flux direct transmis sous forme diffuse.
-    pub tlid: f64,
+    /// « Tlid » : transmission lumineuse du flux direct transmis sous forme diffuse. Absente :
+    /// 0, valeur par défaut du texte (éq. 218).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tlid: Option<f64>,
 }
 
 /// Baie vitrée d'un groupe : paramètres d'intégration (§5.10.2).

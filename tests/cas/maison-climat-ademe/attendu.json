@@ -34,7 +34,83 @@
                 "a_baies_v_m2": 10.0,
                 "a_baies_h_m2": 0.0,
                 "h_ges_sp_w_k": 13.0
-              }
+              },
+              "baies": [
+                {
+                  "id": "baie-sud",
+                  "valeurs_par_defaut": [
+                    {
+                      "champ": "sans_protection.sw1_c",
+                      "valeur": 0.31111111111111106
+                    },
+                    {
+                      "champ": "sans_protection.sw2_c",
+                      "valeur": 0.03888888888888888
+                    },
+                    {
+                      "champ": "sans_protection.sw3_c",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "sans_protection.tlid",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "avec_protection.sw1_c",
+                      "valeur": 0.02
+                    },
+                    {
+                      "champ": "avec_protection.sw2_c",
+                      "valeur": 0.03
+                    },
+                    {
+                      "champ": "avec_protection.sw3_c",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "avec_protection.tlid",
+                      "valeur": 0.0
+                    }
+                  ]
+                },
+                {
+                  "id": "baie-nord",
+                  "valeurs_par_defaut": [
+                    {
+                      "champ": "sans_protection.sw1_c",
+                      "valeur": 0.31111111111111106
+                    },
+                    {
+                      "champ": "sans_protection.sw2_c",
+                      "valeur": 0.03888888888888888
+                    },
+                    {
+                      "champ": "sans_protection.sw3_c",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "sans_protection.tlid",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "avec_protection.sw1_c",
+                      "valeur": 0.02
+                    },
+                    {
+                      "champ": "avec_protection.sw2_c",
+                      "valeur": 0.03
+                    },
+                    {
+                      "champ": "avec_protection.sw3_c",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "avec_protection.tlid",
+                      "valeur": 0.0
+                    }
+                  ]
+                }
+              ]
             }
           ]
         }

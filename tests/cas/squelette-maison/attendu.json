@@ -33,7 +33,17 @@
                 "a_baies_v_m2": 10.0,
                 "a_baies_h_m2": 0.0,
                 "h_ges_sp_w_k": 13.0
-              }
+              },
+              "baies": [
+                {
+                  "id": "baie-sud",
+                  "valeurs_par_defaut": []
+                },
+                {
+                  "id": "baie-nord",
+                  "valeurs_par_defaut": []
+                }
+              ]
             }
           ],
           "nadeq": 1.9

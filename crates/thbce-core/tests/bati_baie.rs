@@ -44,24 +44,24 @@ fn fenetre() -> BaieType {
         u_ap_vert_w_m2k: Some(1.1),
         u_ap_horiz_w_m2k: Some(1.2),
         sans_protection: FacteursBaie {
-            sw1_c: 0.4,
-            sw2_c: 0.05,
-            sw3_c: 0.0,
+            sw1_c: Some(0.4),
+            sw2_c: Some(0.05),
+            sw3_c: Some(0.0),
             sw1_e: 0.45,
             sw2_e: 0.05,
             sw3_e: 0.0,
             tli: 0.6,
-            tlid: 0.0,
+            tlid: Some(0.0),
         },
         avec_protection: Some(FacteursBaie {
-            sw1_c: 0.02,
-            sw2_c: 0.03,
-            sw3_c: 0.01,
+            sw1_c: Some(0.02),
+            sw2_c: Some(0.03),
+            sw3_c: Some(0.01),
             sw1_e: 0.02,
             sw2_e: 0.03,
             sw3_e: 0.01,
             tli: 0.1,
-            tlid: 0.04,
+            tlid: Some(0.04),
         }),
     }
 }
@@ -295,4 +295,94 @@ fn ensemble_des_baies_d_un_groupe() {
     assert_proche!(total.fs1_w, fs1);
     // Hges = 16 × 1,3 + 4 × 1,5 + 1 × 1,4 (baie à 45°) = 28,2 W/K.
     assert_proche!(total.h_ges_w_k, 28.2);
+}
+
+#[test]
+fn valeurs_par_defaut_des_facteurs_solaires() {
+    // §5.10.3.6.3. Sans protection : Swsp-e = 0,45 + 0,05 = 0,5 ; éq. (215) : Swsp-c = 0,4 ;
+    // composantes dans les proportions de Swsp-e : Sw1 = 0,45 × 0,8 = 0,36 ; Sw2 = 0,05 × 0,8 = 0,04.
+    // Avec protection, éq. (216) : Swap-c = Swap-e, composantes égales. Éq. (218) : Tlid = 0.
+    let mut t = fenetre();
+    for f in [&mut t.sans_protection, t.avec_protection.as_mut().unwrap()] {
+        (f.sw1_c, f.sw2_c, f.sw3_c, f.tlid) = (None, None, None, None);
+    }
+    let b = Baie {
+        id: "b".into(),
+        type_baie: "f".into(),
+        a_b_m2: 8.0,
+        exposition: exposition(0.0, 90.0),
+    };
+    let r = BaieResolue::nouvelle(&b, &t, &Catalogue::default()).unwrap();
+    assert_proche!(r.sans_protection.sw_c.sw1, 0.36);
+    assert_proche!(r.sans_protection.sw_c.sw2, 0.04);
+    assert_proche!(r.sans_protection.sw_c.sw3, 0.0);
+    assert_proche!(
+        r.sans_protection.sw_c.global(),
+        r.sans_protection.sw_e.global() - 0.1
+    );
+    assert_eq!(r.avec_protection.sw_c, r.avec_protection.sw_e);
+    assert_eq!((r.sans_protection.tlid, r.avec_protection.tlid), (0.0, 0.0));
+    // Chaque valeur par défaut appliquée est signalée, avec la règle du texte.
+    let champs: Vec<&str> = r
+        .valeurs_par_defaut
+        .iter()
+        .map(|d| d.champ.as_str())
+        .collect();
+    assert_eq!(
+        champs,
+        [
+            "sans_protection.sw1_c",
+            "sans_protection.sw2_c",
+            "sans_protection.sw3_c",
+            "sans_protection.tlid",
+            "avec_protection.sw1_c",
+            "avec_protection.sw2_c",
+            "avec_protection.sw3_c",
+            "avec_protection.tlid",
+        ]
+    );
+    assert_proche!(r.valeurs_par_defaut[0].valeur, 0.36);
+    assert!(r.valeurs_par_defaut[0].regle.contains("éq. (215)"));
+    assert!(r.valeurs_par_defaut[4].regle.contains("éq. (216)"));
+    assert!(r.valeurs_par_defaut[3].regle.contains("éq. (218)"));
+    // Le flux Th-B utilise la valeur par défaut : Fs1 = 8 × 0,36 × 792,8203230.
+    let f = r.flux(&conditions(TH_B), &Protections::OUVERTES);
+    assert_proche!(f.fs1_w, 8.0 * 0.36 * 792.820_323_027_551);
+    // Tout saisi : aucune valeur par défaut.
+    assert!(baie(8.0, exposition(0.0, 90.0))
+        .valeurs_par_defaut
+        .is_empty());
+    // Valeur par défaut non positive (Swsp-e ≤ 0,1) ou saisie partielle : pas de résolution.
+    let mut t2 = t.clone();
+    t2.sans_protection.sw1_e = 0.05;
+    assert!(BaieResolue::nouvelle(&b, &t2, &Catalogue::default()).is_none());
+    let mut t3 = t.clone();
+    t3.sans_protection.sw1_c = Some(0.3);
+    assert!(BaieResolue::nouvelle(&b, &t3, &Catalogue::default()).is_none());
+}
+
+/// À revoir quand ces grandeurs seront consommées (décision Q30, point 3).
+///
+/// Th-BCE 2020 §5.14.3 : les parts par orientation (éq. 271, 273, 275 et 277) sont rapportées à
+/// la surface des baies verticales, mais les éq. (272), (274), (276) et (278) les multiplient par
+/// la surface de toutes les baies. Pour un groupe qui a des baies horizontales, la surface
+/// « orientée au sud » dépasse donc la surface des baies verticales réellement au sud. Le moteur
+/// applique le texte tel quel ; ce test fixe l'écart sur un exemple : 8 m² de baies verticales,
+/// toutes au sud, et 4 m² de fenêtres de toit donnent Abaies-sud = 1 × 12 = 12 m², et non 8 m².
+///
+/// Marqué `#[ignore]` parce qu'il décrit un écart et non une propriété voulue ; il passe avec
+/// `--include-ignored` tant que le texte est appliqué tel quel.
+#[test]
+#[ignore = "écart documenté de l'éq. (272), à revoir quand ces grandeurs seront consommées (Q30)"]
+fn ecart_de_l_eq_272_pour_un_groupe_avec_des_baies_horizontales() {
+    let baies = vec![
+        baie(8.0, exposition(0.0, 90.0)),
+        baie(4.0, exposition(0.0, 0.0)),
+    ];
+    let e = EnsembleBaies::de(&baies);
+    assert_proche!(e.part_sud, 1.0);
+    assert_proche!(e.a_baies_v_m2, 8.0);
+    // Texte tel quel : 12 m². Lecture « physique » attendue : 8 m².
+    assert_proche!(e.a_baies_sud_m2(), 12.0);
+    assert_proche!(e.a_baies_sud_m2() - e.a_baies_v_m2, 4.0);
 }

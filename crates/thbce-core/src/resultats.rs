@@ -102,6 +102,32 @@ pub struct ResultatsGroupe {
     pub sref_m2: f64,
     /// Grandeurs d'enveloppe du groupe.
     pub enveloppe: ResultatsEnveloppe,
+    /// Résultats par baie.
+    pub baies: Vec<ResultatsBaie>,
+}
+
+/// Résultats d'une baie.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsBaie {
+    /// Identifiant de la baie.
+    pub id: Id,
+    /// Valeurs par défaut de la méthode appliquées aux paramètres non saisis de la baie ; liste
+    /// vide si tout a été saisi.
+    pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+}
+
+/// Valeur par défaut donnée par le texte de la méthode et appliquée à un paramètre non saisi.
+/// Le moteur n'applique de valeur par défaut que lorsque le texte la donne, et la signale ici.
+/// Ces valeurs sont des paramètres du calcul : l'arrondi de restitution ne leur est pas appliqué.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ValeurParDefaut {
+    /// Champ de l'entrée auquel la valeur s'applique, relatif à l'élément (par exemple
+    /// `sans_protection.sw1_c` pour le type d'une baie).
+    pub champ: String,
+    /// Valeur appliquée.
+    pub valeur: f64,
+    /// Règle du texte dont elle provient.
+    pub regle: String,
 }
 
 /// Grandeurs d'enveloppe d'un groupe (Th-BCE 2020 §5.16.3 et §5.20.3). Les coefficients de

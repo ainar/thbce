@@ -142,6 +142,49 @@ fn le_type_de_baie_doit_donner_u_a_l_inclinaison_de_la_baie() {
 }
 
 #[test]
+fn les_facteurs_solaires_c_se_saisissent_ensemble_et_leur_defaut_doit_etre_positif() {
+    // Th-BCE 2020 §5.10.3.6.3, éq. (215), (216) et (218).
+    let mut p = projet();
+    let f = &mut p.catalogue.baies[0].sans_protection;
+    f.sw2_c = None;
+    assert_eq!(
+        chemins(&valider(&p).erreurs),
+        ["catalogue.baies[0].sans_protection"]
+    );
+    // Tout absent : valeurs par défaut, signalées par baie dans les résultats.
+    let f = &mut p.catalogue.baies[0].sans_protection;
+    (f.sw1_c, f.sw3_c, f.tlid) = (None, None, None);
+    assert!(valider(&p).est_valide());
+    let meteo = MeteoProjet::synthetique(ZoneClimatique::H2b);
+    let r = calculer(&p, &meteo, &Options::default()).unwrap();
+    let baies = &r.batiments[0].zones[0].groupes[0].baies;
+    assert_eq!(baies.len(), 2);
+    for b in baies {
+        let champs: Vec<&str> = b
+            .valeurs_par_defaut
+            .iter()
+            .map(|d| d.champ.as_str())
+            .collect();
+        assert_eq!(
+            champs,
+            [
+                "sans_protection.sw1_c",
+                "sans_protection.sw2_c",
+                "sans_protection.sw3_c",
+                "sans_protection.tlid"
+            ]
+        );
+    }
+    // Swsp-e ≤ 0,1 : la valeur par défaut de l'éq. (215) ne serait pas positive.
+    let f = &mut p.catalogue.baies[0].sans_protection;
+    (f.sw1_e, f.sw2_e, f.sw3_e) = (0.08, 0.02, 0.0);
+    assert_eq!(
+        chemins(&valider(&p).erreurs),
+        ["catalogue.baies[0].sans_protection"]
+    );
+}
+
+#[test]
 fn un_projet_vide_est_refuse_sans_panique() {
     let mut p = projet();
     p.batiments.clear();
