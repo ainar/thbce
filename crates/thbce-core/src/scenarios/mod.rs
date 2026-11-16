@@ -3,6 +3,7 @@
 //!
 //! - [`scenarios_conventionnels`] : fiche `C_EIN_Scénarios conventionnels` (§4.1).
 
+pub mod saisons;
 pub mod scenarios_conventionnels;
 
 pub use scenarios_conventionnels::{nadeq, ScenariosZone, SortiesZone};
