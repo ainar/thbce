@@ -7,6 +7,10 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consolidée au 19 mars 2026.
 
+### Modifié
+
+- **Format d'entrée, changement incompatible** : un masque lointain azimutal se saisit par `gamma_i_deg`, liste de 36 hauteurs d'horizon (une par tranche de 10° repérée par rapport à la normale au composant, annexe III §3.2.3), et non plus par une liste de tranches `{ az_deg, gamma_deg }`. Le JSON Schema (`thbce schema`) est à jour.
+
 ### Ajouté
 
 - Workspace Cargo : `thbce-core`, `thbce-data`, `thbce-io`, `thbce-cli`, `thbce-wasm`, `xtask`.
@@ -23,5 +27,8 @@ Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consol
 - Environnement proche (§3.2) : rayonnement et éclairement sur une paroi inclinée, masques proches verticaux et horizontal, masques lointains par plan vertical, par tranches azimutales et d'arbres à feuilles caduques, rayonnement vers la voûte céleste.
 - Lecture du classeur météo réglementaire `.xlsx` et des fichiers ouverts ADEME / Météo-France, avec reconnaissance automatique du format.
 - Résultats : bloc `climat` (zone, altitude conventionnelle, température de base, période de confort adaptatif).
+- Scénarios conventionnels des 28 usages, convertis du classeur officiel du 29 avril 2026 par script.
+- Commande `thbce meteo convertir <classeur.xlsx> -o <fichier.csv>`, qui prépare le fichier météo à charger dans le navigateur.
+- Masque lointain d'arbres à feuilles caduques (`lointain_arbres_caducs`).
 - Harnais des cas de validation (`tests/cas/`) avec tolérances par indicateur.
 - Intégration continue : format, clippy, licences, tests sur Linux, macOS et Windows, build et tests WebAssembly, parité natif / `wasm32-wasip1`.

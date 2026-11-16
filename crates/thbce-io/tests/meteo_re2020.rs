@@ -149,4 +149,13 @@ fn classeur_reglementaire() {
             thbce_io::meteo::lire(&octets, zone).unwrap_or_else(|e| panic!("{zone} : {e}"));
         assert_eq!(&classeur, csv, "{zone}");
     }
+    // La conversion `thbce meteo convertir` redonne les mêmes données que le CSV fourni.
+    let converti = thbce_io::meteo::classeur::convertir_en_csv(&octets).unwrap();
+    for (csv, zone) in charger().iter().zip(ZoneClimatique::TOUTES) {
+        assert_eq!(
+            &thbce_io::meteo::lire(converti.as_bytes(), zone).unwrap(),
+            csv,
+            "{zone}"
+        );
+    }
 }

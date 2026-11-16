@@ -27,7 +27,7 @@ Formats lus, reconnus d'après le contenu du fichier :
 | CSV dérivé, colonnes `zone, mode, h, te0, we0, dirN_W_m2, diff_W_m2, Teciel_C, Vent_m_s, Teau_C, Gamma, Psi` | réglementaire |
 | fichiers ouverts ADEME / Météo-France (`docs/reference/meteo/ademe/`) | **non réglementaire** |
 
-Le module WebAssembly ne lit pas le classeur `.xlsx` : dans le navigateur, fournir le CSV dérivé. Les fichiers ADEME décrivent un climat futur (+2,7 °C) et sont convertis par des règles documentées dans `crates/thbce-io/src/meteo/ademe.rs` ; ils servent aux essais et à la CI.
+Le module WebAssembly ne lit pas le classeur `.xlsx` : dans le navigateur, fournir le CSV dérivé, que produit `thbce meteo convertir`. Ce CSV reste soumis aux mêmes conditions d'utilisation que le classeur. Les fichiers ADEME décrivent un climat futur (+2,7 °C) et sont convertis par des règles documentées dans `crates/thbce-io/src/meteo/ademe.rs` ; ils servent aux essais et à la CI.
 
 Les résultats portent un champ `reglementaire`, faux dès que les données météo ne sont pas les fichiers conventionnels. Un fichier retravaillé ou un jeu d'essai doit le déclarer par une ligne `# thbce-origine: <description>` ; le moteur ne peut pas vérifier l'authenticité d'un fichier.
 
@@ -46,6 +46,7 @@ cargo build --release -p thbce-cli      # exécutable : target/release/thbce
 ```sh
 thbce calcul projet.json --meteo meteo-re2020.xlsx -o resultats.json
 thbce valider projet.json
+thbce meteo convertir meteo-re2020.xlsx -o meteo-re2020.csv   # CSV pour le module WebAssembly
 thbce schema                 # JSON Schema du format d'entrée (--resultats pour celui des résultats)
 thbce version                # version du moteur et de la méthode implémentée
 ```
@@ -82,7 +83,7 @@ Les fonctions sont typées (`pkg/thbce_wasm.d.ts`), synchrones et sans état ; p
 | Dossier | Contenu |
 |---|---|
 | `crates/thbce-core` | calcul pur : types d'entrée, validation, résultats ; aucune entrée-sortie |
-| `crates/thbce-data` | tables réglementaires (zones climatiques, pondération dynamique…) |
+| `crates/thbce-data` | tables réglementaires (zones climatiques, températures de base, scénarios conventionnels, pondération dynamique) |
 | `crates/thbce-io` | lecture du JSON et des fichiers météo, JSON Schema, rapports |
 | `crates/thbce-cli` | exécutable `thbce` |
 | `crates/thbce-wasm` | bindings JavaScript |
@@ -96,7 +97,7 @@ Les fonctions sont typées (`pkg/thbce_wasm.d.ts`), synchrones et sans état ; p
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
-cargo run -p xtask -- verifier
+cargo run -p xtask -- verifier          # fichiers générés à jour
 ```
 
 Les tests qui ont besoin de la météo réglementaire sont ignorés par défaut :

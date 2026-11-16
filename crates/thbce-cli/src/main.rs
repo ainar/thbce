@@ -54,8 +54,27 @@ enum Commande {
         #[arg(long)]
         resultats: bool,
     },
+    /// Outils sur les fichiers météo.
+    Meteo {
+        #[command(subcommand)]
+        action: ActionMeteo,
+    },
     /// Affiche la version du moteur et celle de la méthode implémentée.
     Version,
+}
+
+#[derive(Subcommand)]
+enum ActionMeteo {
+    /// Convertit le classeur météo réglementaire (.xlsx) en CSV, format lu par le module
+    /// WebAssembly. Le fichier produit reste soumis aux conditions d'utilisation des données :
+    /// usage limité au calcul réglementaire RE2020, diffusion interdite.
+    Convertir {
+        /// Classeur officiel `4_scenarios_meteorologiques_th-bc_th-d_re2020.xlsx`.
+        classeur: PathBuf,
+        /// Fichier CSV à écrire.
+        #[arg(short = 'o', long, value_name = "FICHIER")]
+        sortie: PathBuf,
+    },
 }
 
 /// Erreur fatale : message et code de retour.
@@ -153,6 +172,23 @@ fn executer(commande: Commande) -> Result<(), Echec> {
                 } else {
                     json::schema_entree()
                 }
+            );
+            Ok(())
+        }
+        Commande::Meteo {
+            action: ActionMeteo::Convertir { classeur, sortie },
+        } => {
+            let csv = meteo::classeur::convertir_en_csv(&lire(&classeur)?).map_err(|e| {
+                Echec(
+                    format!("{} : {e}", classeur.display()),
+                    CODE_ENTREE_INVALIDE,
+                )
+            })?;
+            std::fs::write(&sortie, csv)
+                .map_err(|e| Echec(format!("{} : {e}", sortie.display()), CODE_USAGE))?;
+            eprintln!(
+                "{} écrit. Ces données restent réservées au calcul réglementaire RE2020 et ne doivent pas être diffusées.",
+                sortie.display()
             );
             Ok(())
         }

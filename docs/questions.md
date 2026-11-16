@@ -28,12 +28,14 @@ Chaque entrée indique la section du texte, la nature du manque ou de l'ambiguï
 | Q17 | 365e jour de l'année | tranchée, **à vérifier à la lecture de la fiche 4.1** |
 | Q18 | Lots de systèmes | tranchée |
 | Q19 | Rayonnement direct non nul quand `Gamma` vaut zéro | tranchée par le texte |
-| Q20 | Unité de γ dans le polynôme de l'éclairement direct | **ouverte**, hypothèse : degrés |
-| Q21 | `dhg` non défini dans l'éq. (20) | **ouverte**, hypothèse : `dhp` |
-| Q22 | Dernière ligne du tableau du calendrier | **ouverte**, mineure |
-| Q23 | Détails de la fiche 3.2 : `Tsimul`, égalité dans l'éq. (22), repli de Φ, paramètre `Az` | **ouverte**, mineure |
+| Q20 | Unité de γ dans le polynôme de l'éclairement direct | tranchée, hypothèse du mainteneur : degrés |
+| Q21 | `dhg` non défini dans l'éq. (20) | tranchée, hypothèse du mainteneur : `dhp` |
+| Q22 | Dernière ligne du tableau du calendrier | tranchée, hypothèse du mainteneur |
+| Q23 | Détails de la fiche 3.2 : `Tsimul`, égalité dans l'éq. (22), repli de Φ, paramètre `Az` | tranchée, hypothèse du mainteneur |
 | Q24 | Masques proches des ponts thermiques | reportée au lot 4 |
-| Q25 | **Décalage d'une heure entre le fichier météo et le calendrier du texte** | **ouverte, pèse sur les résultats** |
+| Q25 | **Décalage d'une heure entre le fichier météo et le calendrier du texte** | tranchée : lecture ligne à ligne, **premier paramètre à tester si un cas de référence diverge** |
+| Q26 | Trois cellules du classeur des scénarios saisies « 0;5 » | **ouverte**, hors périmètre v1 |
+| Q27 | Valeurs fractionnaires dans des indicateurs booléens, ratios d'aérogare | **ouverte**, hors périmètre v1 |
 
 « Hypothèse du mainteneur » signifie : lecture retenue le 16 novembre 2026, **à confirmer par un cas de validation**. Ce sont les premiers points à revoir si un cas de référence diverge.
 
@@ -188,8 +190,9 @@ Le fichier réglementaire ne contient pas toutes les grandeurs que la fiche `C_E
 
 ## Questions ouvertes
 
-### Q25 — Décalage d'une heure entre le fichier météo et le calendrier du texte — ouverte, pèse sur les résultats
+### Q25 — Décalage d'une heure entre le fichier météo et le calendrier du texte — tranchée le 16 novembre 2026, à confirmer par le premier cas de référence
 
+- **Décision** : **lecture 2**. Le moteur lit le fichier météo ligne à ligne, la ligne `h` alimentant l'itération `h`, comme le moteur officiel le fait vraisemblablement, sans décaler les scénarios. Le but est de reproduire les résultats de référence, pas de corriger la convention du texte. Vérification indépendante du mainteneur : au solstice d'été, `Psi` passe par zéro entre les lignes 12 et 13 (vers 12 h 25 en indice de ligne) alors que le midi solaire vrai de Trappes est vers 11 h 52 UTC, ce qui n'est cohérent qu'avec des valeurs prises au milieu d'une heure exprimée en UTC+1. Le choix reste isolé dans `crates/thbce-core/src/climat/calendrier.rs`. **Si un cas COMETH diverge sur le Bbio ou le DH, c'est le premier paramètre à tester** (décaler d'une ligne la lecture du fichier météo), avant Q11.
 - **Texte** : A3 §4.1.3 (p. 56). Le tableau fait correspondre l'itération 0 à l'intervalle 0 h – 1 h UTC, soit 1 h – 2 h en heure légale d'hiver. La décision Q1b retient que la ligne `h = 0` du fichier météo est l'itération 0.
 - **Constat sur le fichier réglementaire** : pour les huit zones, le midi solaire (passage de `Psi` par zéro, et centre de la courbe de `Gamma`) tombe à la ligne d'indice `12,5 − longitude/15`, soit 12,37 pour Trappes et 12,46 pour Agen, alors qu'il a lieu à `12 − longitude/15` en heure UTC (11,87 et 11,96). Les rayonnements sont centrés sur le même instant. La ligne `h` décrit donc l'intervalle de `h − 1` à `h` en heure UTC, et non de `h` à `h + 1` : autrement dit, le fichier est indexé en UTC+1. La nomenclature du §3.1.2 dit d'ailleurs « Htsm : heure pour le calcul annuel (UTC+1) ».
 - **Contrôle croisé** : dans les fichiers ADEME, où l'heure UTC est explicite, le midi solaire tombe bien à `12 − longitude/15` (11,86 pour Trappes).
@@ -198,23 +201,27 @@ Le fichier réglementaire ne contient pas toutes les grandeurs que la fiche `C_E
   2. le tableau est juste et le moteur réglementaire lit le fichier ligne à ligne : le décalage existe dans le calcul de référence.
 - **État du code** : lecture 2, c'est-à-dire la décision Q1b appliquée telle quelle. Le choix est isolé dans `climat/calendrier.rs`. **C'est le deuxième point à revoir, avec Q11, si un cas de validation diverge** ; il touche le Bbio comme le DH. À trancher par le mainteneur, ou par le premier cas de référence.
 
-### Q20 — Unité de γ dans le polynôme de l'éclairement direct (A3 §3.1.3, p. 32) — ouverte
+### Q20 — Unité de γ dans le polynôme de l'éclairement direct (A3 §3.1.3, p. 32) — tranchée le 16 novembre 2026, hypothèse du mainteneur, à confirmer par un cas de validation
 
+- **Décision** : γ en degrés ; l'argument de l'efficacité lumineuse est décisif. Le test `efficacite_lumineuse_du_direct_entre_50_et_150_lm_par_w` vérifie qu'elle reste entre 50 et 150 lm/W dès que le soleil dépasse 5°.
 - **Texte** : `EDn = IDn × (−1,03753210E-08·γ⁶ + … + 1,24650445E+01·γ + 2,38954889E+00)`, sans unité pour γ, alors que la fiche donne γ en radians.
 - **Hypothèse retenue dans le code** : γ en degrés. Le polynôme vaut alors 77 lm/W à 10°, 104 à 30° et 108 à 60°, ordre de grandeur attendu pour l'efficacité lumineuse du rayonnement direct. En radians, il ne dépasserait pas 17 lm/W. Implémenté dans `climat_exterieur::edn_lux`.
 
-### Q21 — `dhg` non défini dans l'éq. (20) (A3 §3.2.3, p. 44) — ouverte
+### Q21 — `dhg` non défini dans l'éq. (20) (A3 §3.2.3, p. 44) — tranchée le 16 novembre 2026, hypothèse du mainteneur, à confirmer par un cas de validation
 
+- **Décision** : coquille du texte : lire `dhp` à la place de `dhg`.
 - **Texte** : `Fh,dir = min[max(0 ; 1 − (dh − dhg)/hp) ; 1]`. `dhg` n'apparaît ni dans la nomenclature ni sur la figure 8, qui montrent `dhp`, « distance entre la paroi et le masque proche horizontal ».
 - **Hypothèse retenue dans le code** : coquille, lire `dhp`, par symétrie avec `dpg` et `dpd` dans l'éq. (19).
 
-### Q22 — Dernière ligne du tableau du calendrier (A3 §4.1.3, p. 56) — ouverte, mineure
+### Q22 — Dernière ligne du tableau du calendrier (A3 §4.1.3, p. 56) — tranchée le 16 novembre 2026, hypothèse du mainteneur, à confirmer par un cas de validation
 
+- **Décision** : la règle `Hleg = IHJ + EHLO` est appliquée partout.
 - **Texte** : l'itération 8759 (23 h – 0 h UTC, en hiver) est donnée avec « Hleg 1H – 2H, case 2 », comme l'itération 7031 qui est en été. La règle d'hiver appliquée aux autres lignes donne 0 h – 1 h et la case 1.
 - **Hypothèse retenue dans le code** : coquille de recopie ; la règle `Hleg = IHJ + EHLO` est appliquée partout.
 
-### Q23 — Détails de lecture de la fiche 3.2 — ouverte, mineure
+### Q23 — Détails de lecture de la fiche 3.2 — tranchée le 16 novembre 2026, hypothèse du mainteneur, à confirmer par un cas de validation
 
+- **Décision** : les cinq lectures sont retenues.
 1. **`Tsimul`** (arbres à feuilles caduques, p. 50) : le texte ne dit pas si l'heure de simulation part de 0 ou de 1. Retenu : l'itération `h`, à partir de 0. L'enjeu est d'une heure aux deux bornes de la saison végétative (2161 et 6553).
 2. **Égalité dans l'éq. (22)** (p. 47) : le texte donne `dhE > hpE ⇒ 1` et `dhE < hpE ⇒ 0`, sans le cas d'égalité. Retenu : composant éclairé.
 3. **Repli de Φ** (éq. 3 et 4, p. 39–40) : le test `|Φ| ≥ π/2` suppose Φ dans [−π ; π], ce que la différence de deux angles eux-mêmes dans [−π ; π] ne garantit pas. Retenu : Φ est ramené dans [−π ; π[.
@@ -225,11 +232,23 @@ Le fichier réglementaire ne contient pas toutes les grandeurs que la fiche `C_E
 
 - Le texte modélise un pont thermique vertical, pour les masques proches, comme une paroi verticale de 30 cm de large. Ce cas sera traité avec la fiche des ponts thermiques ; le calcul des masques est prêt à le recevoir.
 
-### Q19 — Rayonnement direct non nul alors que `Gamma` vaut zéro — tranchée par le texte
+### Q19 — Rayonnement direct non nul alors que `Gamma` vaut zéro — tranchée par le texte, lecture confirmée par le mainteneur
 
 - **Constat** : 111 heures sur les 16 jeux du fichier réglementaire ont `Gamma = 0` et un rayonnement direct strictement positif (jusqu'à 100 W/m²), aux heures de lever et de coucher. Explication probable : les rayonnements sont des moyennes horaires, la position du soleil une valeur ponctuelle (voir Q25).
 - **Ce que dit le texte** (A3 §3.2.3, éq. 7 à 11) : aucun traitement particulier. `Drp = cos(θ)·IDn` reste défini : nul sur une paroi horizontale, puisque `cos(θ) = sin(γ) = 0`, et non nul sur une paroi verticale tournée vers le soleil. Seul `Jour_astro` (éq. 18) teste la hauteur du soleil.
 - **Code** : formules appliquées telles quelles ; un test couvre ce cas.
+
+### Q26 — Trois cellules du classeur des scénarios saisies « 0;5 » — ouverte, hors périmètre v1
+
+- **Constat** : dans le classeur officiel du 29 avril 2026, la cellule J242 de l'onglet `VES` et la cellule J394 des onglets `GYM_MUN` et `GYM_PRI` contiennent le texte « 0;5 » au lieu d'un nombre. Il s'agit chaque fois du facteur correctif de la semaine d'un local, pour la semaine 3 du mois d'août ; la semaine 4 du même mois vaut 0,5.
+- **Hypothèse retenue dans la conversion** : erreur de saisie, lire 0,5. Les trois corrections sont listées explicitement dans `xtask/src/scenarios.rs` (`CORRECTIONS`) et rappelées en tête du fichier généré ; toute autre cellule non numérique fait échouer la conversion.
+- **Portée** : usages 18 (vestiaires), 25 et 28 (établissements sportifs), hors première version. À confirmer avant de calculer ces usages ; une valeur de 0 ou de 1 changerait leur occupation d'août.
+
+### Q27 — Valeurs inattendues dans le classeur des scénarios, hors habitation — ouverte, hors périmètre v1
+
+- **Constat** : la fiche 4.1 (§4.1.2) déclare booléens les indicateurs de zone (occupation, ventilation, éclairage) et à trois états les indicateurs de consigne. Or le classeur contient 0,5 dans la ventilation et l'éclairage des commerces (usage 17), 0,35 dans l'éclairage des établissements de santé de nuit (usage 20), et 0,5 dans une case de la grille annuelle de l'occupation, de la ventilation, de l'éclairage, du chauffage et du refroidissement des deux usages d'industrie (23 et 24). Par ailleurs, les ratios de surface des locaux d'aérogare (usage 22) somment à 0,999.
+- **Usages 1 et 2** : aucune anomalie ; les indicateurs sont bien booléens et les ratios somment exactement à 1 (tests de `thbce-data`).
+- **Proposition** : lire la description mathématique de la fiche 4.1 pour ces cas au moment d'ouvrir les usages concernés. Les grilles sont converties telles quelles.
 
 ## Remarque de méthode : fiabilité de l'extraction du PDF
 

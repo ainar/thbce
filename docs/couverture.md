@@ -62,7 +62,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | Annexe II §5.1, 5.2 | Indicateurs DH, Bbio, Cep, Cep,nr | `core/src/indicateurs/` | non commencé |
 | Annexe 7 de l'arrêté du 15 septembre 2006 | Facteur d'émission (5e colonne) et ratio EnR&R (6e colonne) par réseau de chaleur | `thbce-data`, par script | non commencé |
 | A3 §3.1.3, tableau des températures de base | Température de base par département | `data/src/temperature_base/`, table générée par `xtask` | implémenté |
-| Scénarios conventionnels (classeur du 29 avril 2026) | 28 onglets, un par usage | `thbce-data`, par script (`tools/`) | non commencé |
+| Scénarios conventionnels (classeur du 29 avril 2026) | 28 onglets, un par usage | `data/src/scenarios/`, table générée par `xtask` (187 grilles hebdomadaires et 29 grilles annuelles distinctes) | converti et recoupé avec le tableau de synthèse pour les usages 1 à 3 |
 | Annexe VI | Contenu du RSEE, au niveau des chapitres seulement | insuffisant pour écrire un lecteur XML (décision Q3) | en attente de fichiers d'exemple |
 | Règles Th-Bat 2020 | Détermination des données d'entrée (U, Ψ, inertie, facteurs solaires) | hors moteur : ces grandeurs sont des entrées | — |
 

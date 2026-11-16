@@ -208,6 +208,26 @@ mod tests {
         assert_eq!(edn_lux(0.0, 0.5), 0.0);
     }
 
+    /// Décision Q20 : γ est en degrés dans le polynôme. Contrôle de vraisemblance : l'efficacité
+    /// lumineuse du rayonnement direct reste entre 50 et 150 lm/W dès que le soleil dépasse 5°.
+    #[test]
+    fn efficacite_lumineuse_du_direct_entre_50_et_150_lm_par_w() {
+        let mut gamma_deg = 5.0;
+        while gamma_deg <= 90.0 {
+            let efficacite = edn_lux(1.0, f64::to_radians(gamma_deg));
+            assert!(
+                (50.0..=150.0).contains(&efficacite),
+                "γ = {gamma_deg}° : {efficacite} lm/W"
+            );
+            gamma_deg += 0.25;
+        }
+        // En radians, la même formule ne dépasserait pas 21 lm/W : cette lecture est exclue.
+        let en_radians = COEFFICIENTS_EDN
+            .iter()
+            .fold(0.0, |acc, c| acc * std::f64::consts::FRAC_PI_2 + c);
+        assert!(en_radians < 21.0);
+    }
+
     #[test]
     fn eclairement_diffus_par_seuils() {
         assert_eq!(edi_lux(0.0, 10.0), 1240.0);

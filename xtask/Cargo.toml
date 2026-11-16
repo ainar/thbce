@@ -10,6 +10,7 @@ authors.workspace = true
 publish = false
 
 [dependencies]
+calamine.workspace = true
 thbce-core.workspace = true
 thbce-data.workspace = true
 thbce-io = { workspace = true, features = ["classeur"] }
