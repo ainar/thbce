@@ -75,7 +75,9 @@ pub struct ResultatsBatiment {
     pub cep_kwhep_m2: Option<f64>,
     /// « Cep,nr » : consommation d'énergie primaire non renouvelable, en kWhep/(m².an).
     pub cep_nr_kwhep_m2: Option<f64>,
-    /// « DH » : degrés-heures d'inconfort, en °C.h (§13.5.3, éq. 2551).
+    /// « DH » : degrés-heures d'inconfort, en °C.h (§13.5.3, éq. 2551). L'indicateur est défini
+    /// par groupe (§13.5.1) : c'est ici celui du groupe le plus défavorable du bâtiment ; le DH
+    /// de chaque groupe est dans `zones[].groupes[].confort_ete`.
     pub dh_c_h: Option<f64>,
     /// « Ic énergie », en kg éq. CO2/m² (annexe II §4.3.2, éq. 74).
     pub ic_energie_kgco2_m2: Option<f64>,
@@ -94,6 +96,8 @@ pub struct ResultatsZone {
     pub nadeq: Option<f64>,
     /// Besoins mensuels et annuels et Bbio de la zone (§13.1, « Sortie_Zone_B »).
     pub bbio: Option<ResultatsBbio>,
+    /// « DH » du groupe le plus défavorable de la zone, en °C.h (§13.5.3, éq. 2551).
+    pub dh_c_h: Option<f64>,
     /// Résultats par groupe.
     pub groupes: Vec<ResultatsGroupe>,
 }
@@ -116,6 +120,10 @@ pub struct ResultatsGroupe {
     pub saisons_bbio: Option<ResultatsSaisons>,
     /// Indicateurs de confort du groupe en calcul du Bbio (§4.5), en évolution libre.
     pub confort_bbio: Option<ResultatsConfort>,
+    /// Confort d'été du groupe, issu du calcul Th-D (§13.5).
+    pub confort_ete: Option<ResultatsConfortEte>,
+    /// Saisons propres du groupe en calcul Th-D (§4.6).
+    pub saisons_th_d: Option<ResultatsSaisons>,
     /// Résultats par baie.
     pub baies: Vec<ResultatsBaie>,
     /// Valeurs par défaut de la méthode appliquées aux paramètres non saisis du groupe ; liste
@@ -188,6 +196,30 @@ pub struct ResultatsConfort {
     pub nbh_inc_c_fr: [u32; 3],
     /// « DHinc_C1,fr » à « DHinc_C3,fr », en K.h (éq. 65).
     pub dh_inc_c_fr_k_h: [f64; 3],
+}
+
+/// Confort d'été d'un groupe (Th-BCE 2020 §13.5), issu du calcul Th-D : jeu météo avec séquence
+/// caniculaire, sans refroidissement. Les indicateurs portent sur les pas de temps occupés de
+/// la période de confort adaptatif.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsConfortEte {
+    /// « DH » : degrés-heures d'inconfort, en °C.h (éq. 2551).
+    pub dh_c_h: f64,
+    /// « Nbhinconf » : heures où la température opérative atteint la température d'inconfort
+    /// chaud (éq. 2548).
+    pub nbh_inconf: u32,
+    /// « Nbhinconf+1C » : heures où elle la dépasse d'au moins 1 °C (éq. 2549).
+    pub nbh_inconf_1c: u32,
+    /// « Nbhinconf+2C » : heures où elle la dépasse d'au moins 2 °C (éq. 2550).
+    pub nbh_inconf_2c: u32,
+    /// Nombre d'heures occupées de la période de confort adaptatif, sur lesquelles portent les
+    /// indicateurs.
+    pub nbh_occ_conf_adapt: u32,
+    /// Température opérative maximale du groupe sur l'année, en °C (fin de pas de temps).
+    pub theta_op_max_c: f64,
+    /// Température opérative maximale du groupe en occupation pendant la période de confort
+    /// adaptatif, en °C ; `null` si la période est vide.
+    pub theta_op_max_occ_c: Option<f64>,
 }
 
 /// Débits spécifiques d'un groupe pour le calcul du Bbio (Th-BCE 2020 §6.1 et §6.2), constants
@@ -291,6 +323,7 @@ impl Resultats {
             for z in &mut b.zones {
                 z.sref_m2 = a(z.sref_m2);
                 z.nadeq = z.nadeq.map(a);
+                z.dh_c_h = z.dh_c_h.map(a);
                 if let Some(bbio) = &mut z.bbio {
                     bbio.arrondir();
                 }
@@ -305,6 +338,11 @@ impl Resultats {
                         for v in &mut c.dh_inc_c_fr_k_h {
                             *v = a(*v);
                         }
+                    }
+                    if let Some(c) = &mut g.confort_ete {
+                        c.dh_c_h = a(c.dh_c_h);
+                        c.theta_op_max_c = a(c.theta_op_max_c);
+                        c.theta_op_max_occ_c = c.theta_op_max_occ_c.map(a);
                     }
                     if let Some(d) = &mut g.debits_bbio {
                         d.q_spec_repris_m3_h = a(d.q_spec_repris_m3_h);

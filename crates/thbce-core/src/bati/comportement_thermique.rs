@@ -6,8 +6,9 @@
 //! (inertie quotidienne) et un nœud de résolution `θs`.
 //!
 //! Périmètre : inertie quotidienne, seule prise en compte en Th-B et Th-C (§5.21.3.2). Les
-//! inerties séquentielle et annuelle (§5.21.3.10, calcul Th-D) viendront avec le confort d'été ;
-//! leur flux entre dans [`GroupeThermique::resoudre`] par `phi_mq_seq_ann_w`. Les échanges entre
+//! inerties séquentielle et annuelle du calcul Th-D (§5.21.3.10) sont dans
+//! [`super::inerties_longues`] ; leur flux entre dans [`GroupeThermique::resoudre`] par
+//! `phi_mq_seq_ann_w`. Les échanges entre
 //! groupes (`φmig`, `Hs,ig,eq` des éq. 365 et 367), que la fiche ne définit pas, sont nuls.
 //!
 //! Le texte ne dit pas où va la part des apports radiatifs et solaires reçue par les parois
@@ -341,7 +342,7 @@ impl GroupeThermique {
     /// que le texte ne définit pas : `(θmq(h−1) + θmq(h))/2`, par cohérence avec le schéma de
     /// Crank-Nicolson (question Q34).
     ///
-    /// `phi_mq_seq_ann_w` est `φmq_seq + φmq_ann`, nul en Th-B et Th-C. Renvoie `None` si
+    /// `phi_mq_seq_ann_w` est `φmq_seq + φmq_ann` (éq. 355 et 359), nul en Th-B et Th-C. Renvoie `None` si
     /// `HTH,k+pt ≥ Hgmqs` (voir [`Self::hg_emq_w_k`]).
     pub fn resoudre_selon(
         &self,

@@ -74,7 +74,7 @@ export interface BesoinsBbio { b_ch_kwh_m2: number; b_fr_kwh_m2: number; b_ecl_k
 export interface ResultatsBbio { annuel: BesoinsBbio; mensuel: BesoinsBbio[]; }
 /** Débits du système de ventilation conventionnel du Bbio, en m³/h (repris négatif). */
 export interface ResultatsDebitsBbio { q_spec_repris_m3_h: number; q_spec_souffle_m3_h: number; }
-/** Saisons propres du groupe en calcul du Bbio : jours de 1 à 365, `null` si l'événement n'a pas eu lieu. */
+/** Saisons propres du groupe (calcul du Bbio ou calcul Th-D) : jours de 1 à 365, `null` si l'événement n'a pas eu lieu. */
 export interface ResultatsSaisons {
   j_fin_ch: number | null;
   j_debut_ch: number | null;
@@ -90,6 +90,16 @@ export interface ResultatsConfort {
   nbh_inc_c_fr: [number, number, number];
   dh_inc_c_fr_k_h: [number, number, number];
 }
+/** Confort d'été du groupe, issu du calcul Th-D : DH en °C.h, heures d'inconfort, températures opératives maximales en °C. */
+export interface ResultatsConfortEte {
+  dh_c_h: number;
+  nbh_inconf: number;
+  nbh_inconf_1c: number;
+  nbh_inconf_2c: number;
+  nbh_occ_conf_adapt: number;
+  theta_op_max_c: number;
+  theta_op_max_occ_c: number | null;
+}
 export interface ResultatsGroupe {
   id: string;
   sref_m2: number;
@@ -98,6 +108,8 @@ export interface ResultatsGroupe {
   bbio: ResultatsBbio | null;
   saisons_bbio: ResultatsSaisons | null;
   confort_bbio: ResultatsConfort | null;
+  confort_ete: ResultatsConfortEte | null;
+  saisons_th_d: ResultatsSaisons | null;
   baies: ResultatsBaie[];
   valeurs_par_defaut: ValeurParDefaut[];
 }
@@ -106,6 +118,8 @@ export interface ResultatsZone {
   sref_m2: number;
   nadeq: number | null;
   bbio: ResultatsBbio | null;
+  /** DH du groupe le plus défavorable de la zone, en °C.h. */
+  dh_c_h: number | null;
   groupes: ResultatsGroupe[];
 }
 export interface ResultatsBatiment {

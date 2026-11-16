@@ -20,9 +20,10 @@
 
 use std::path::Path;
 
-use thbce_core::bati::assemblage_zone::ZoneBbio;
+use thbce_core::bati::assemblage_zone::ZoneHoraire;
 use thbce_core::climat::calendrier::{hleg, nouveau_jour_legal};
 use thbce_core::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
+use thbce_core::conventions::ModeCalcul;
 use thbce_core::entree::Projet;
 use thbce_core::resultats::{Resultats, ResultatsBbio};
 use thbce_core::{calculer, Options};
@@ -147,9 +148,10 @@ fn verifier_l_enchainement(projet: &Projet, meteo: &MeteoProjet) {
     let loc = &projet.localisation;
     let climat = ClimatExterieur::nouveau(&meteo.th_bc, loc.departement, loc.alt_m);
     let confort = ConfortAdaptatif::nouveau(&climat.te_c);
-    let mut zone = ZoneBbio::nouvelle(
+    let mut zone = ZoneHoraire::nouvelle(
         &projet.batiments[0].zones[0],
         &projet.catalogue,
+        ModeCalcul::ThB,
         loc.alt_m,
         climat.we_kg_kg[0],
     )

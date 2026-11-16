@@ -33,7 +33,7 @@ Tant qu'aucun cas de référence n'est disponible, aucune fiche ne peut dépasse
 | 3 | Climat et ensoleillement | 2 | 25 |
 | 4 | Besoins (Bbio) : bâti, scénarios, éclairage, modèle thermique de groupe, indicateurs de confort ; émission et bilan hydrique conventionnels du Bbio | 23 | 261 |
 | 4b | Espaces tampons | 3 | 24 |
-| 5 | Confort d'été (DH) | 1 | 8 |
+| 5 | Confort d'été (DH) : calcul Th-D, inerties séquentielle et annuelle | 1 | 8 |
 | 6a | Ventilation : simple flux, puis double flux | 5 | 110 |
 | 6b | Émission et distribution (chauffage, refroidissement, ECS), pertes récupérables | 16 | 160 |
 | 6c | Effet Joule et pompes à chaleur (air/eau, chauffe-eau thermodynamique), assemblage de la génération, ballons | 13 | 239 |
@@ -59,7 +59,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | Arrêté du 26 octobre 2010, annexe I | Zone climatique de chaque département | `data/src/zones_climatiques/`, table générée par `xtask` | implémenté |
 | Annexe II §2.2.1 | Données conventionnelles du calcul énergétique | `thbce-data` | non commencé |
 | Annexe II §4.3 | Ic énergie, éq. (72) à (75) | `core/src/indicateurs/ic_energie.rs` (lot 7) | non commencé |
-| Annexe II §5.1, 5.2 | Indicateurs DH, Bbio, Cep, Cep,nr | `core/src/indicateurs/` | non commencé |
+| Annexe II §5.1, 5.2 | Indicateurs DH, Bbio, Cep, Cep,nr | `core/src/indicateurs/`, `core/src/confort/confort_ete.rs` | partiel : Bbio (§5.2.1) et DH (§5.1, éq. 126) ; Cep et Cep,nr au lot 7 |
 | Annexe 7 de l'arrêté du 15 septembre 2006 | Facteur d'émission (5e colonne) et ratio EnR&R (6e colonne) par réseau de chaleur | `thbce-data`, par script | non commencé |
 | A3 §3.1.3, tableau des températures de base | Température de base par département | `data/src/temperature_base/`, table générée par `xtask` | implémenté |
 | Scénarios conventionnels (classeur du 29 avril 2026) | 28 onglets, un par usage | `data/src/scenarios/`, table générée par `xtask` (187 grilles hebdomadaires et 29 grilles annuelles distinctes) | converti et recoupé avec le tableau de synthèse pour les usages 1 à 3 |
@@ -98,7 +98,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 4.3 | FA_Comment identifier l’usage d’un bâtiment et l’exigence associée | 69–69 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
 | 4.4 | FA_Extension_de_bâtiment | 70–70 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
 | 4.5 | C_Ein_Indicateurs de confort | 71–79 | 4 | `core/src/confort/indicateurs_confort.rs` | implémenté : éq. (56) à (65) ; `θrm` (éq. 57) reprise du climat ; facteur des écarts d'inconfort chaud lu comme une coquille (Q38) ; branché sur le calcul Th-B |
-| 4.6 | C_Ein_Détermination des saisons | 80–94 | 4 | `core/src/scenarios/saisons.rs` | partiel : saisons propres (éq. 67 à 92) ; en Bbio, autorisations effectives égales aux autorisations propres, sans égard pour `iclim` (éq. 91) ; lectures Q35 ; branché sur le calcul Th-B, bascule après le pas de temps de 9 h légales (Q39) ; autorisations effectives du calcul des consommations au lot 6 |
+| 4.6 | C_Ein_Détermination des saisons | 80–94 | 4 | `core/src/scenarios/saisons.rs` | partiel : saisons propres (éq. 67 à 92) ; en Bbio, autorisations effectives égales aux autorisations propres, sans égard pour `iclim` (éq. 91) ; lectures Q35 ; branché sur les calculs Th-B et Th-D, bascule après le pas de temps de 9 h légales (Q39) ; en Th-D, règles des éq. (76), (77), (80), (88) et (90), l'autorisation propre de refroidir suivant la procédure sans égard pour `iclim` (Q40) ; autorisations effectives du calcul des consommations au lot 6 |
 | 4.7 | C_EIN_calcul des consommations electriques des équipements mobiliers | 95–96 | 7 | `core/src/scenarios/equipements_mobiliers.rs` | non commencé |
 
 ### 5. Bati (p. 97–320)
@@ -109,15 +109,15 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 5.2 | S1-Bat-Assemblage des espaces tampons | 104–107 | 4b | `core/src/bati/espace_tampon/assemblage.rs` | non commencé |
 | 5.3 | Gestion/Régulation des espaces tampons solarisés | 108–117 | 4b | `core/src/bati/espace_tampon/gestion_solarise.rs` | non commencé |
 | 5.4 | Espaces tampons | 118–127 | 4b | `core/src/bati/espace_tampon/espace_tampon.rs` | non commencé |
-| 5.5 | S2_BAT-assemblage_zone | 128–135 | 4 | `core/src/bati/assemblage_zone.rs` | partiel : assemblage de la zone pour le calcul du Bbio (figure 18), ordre des groupes autour du hall fictif (figure 20, éq. 130) ; lectures Q39 ; restent : groupe de circulation saisi, espaces tampons, assemblage du calcul des consommations (figure 19) |
+| 5.5 | S2_BAT-assemblage_zone | 128–135 | 4 | `core/src/bati/assemblage_zone.rs` | partiel : assemblage de la zone pour le calcul du Bbio (figure 18), ordre des groupes autour du hall fictif (figure 20, éq. 130) ; même assemblage en mode Th-D, paramétré par `ModeCalcul` (Q40) ; lectures Q39 ; restent : groupe de circulation saisi, espaces tampons, assemblage du calcul des consommations (figure 19) |
 | 5.6 | C_VEN_Débits_d’air_Cep | 136–160 | 4, 6a | `core/src/ventilation/debits_air_cep.rs` | partiel : éq. (131) à (157), (160), (161), (167) à (174), tableaux 22 à 29, hall fictif (éq. 130) ; applicable en Th-B (figure 18) ; lectures Q37 ; branché sur le calcul Th-B ; restent : espaces tampons, groupe de circulation saisi, aération, ventilation naturelle et CTA à débit variable (éq. 158, 159, 162 à 166) |
-| 5.7 | S2_BAT_assemblage_groupe | 161–172 | 4 | `core/src/bati/assemblage_groupe.rs` | partiel : assemblage du groupe pour le calcul du Bbio (figure 23), enchaînement horaire du §5.7.3 ; bilan d'énergie de contrôle ; lectures Q39 ; restent : assemblage du calcul des consommations (figure 24), moyennes des débits en occupation |
+| 5.7 | S2_BAT_assemblage_groupe | 161–172 | 4 | `core/src/bati/assemblage_groupe.rs` | partiel : assemblage du groupe pour le calcul du Bbio (figure 23), enchaînement horaire du §5.7.3 ; même assemblage en mode Th-D, avec les règles propres au mode (Q40) ; bilan d'énergie de contrôle ; lectures Q39 ; restent : assemblage du calcul des consommations (figure 24), moyennes des débits en occupation |
 | 5.8 | S1_BAT_assemblage_baies | 173–178 | 4 | `core/src/bati/baie.rs` | partiel : étapes 3 et 4 de l'assemblage (baie, ensemble) ; protections mobiles et ouverture des baies à venir |
-| 5.9 | C_BAT_Gestion_protections_mobiles | 179–218 | 4 | `core/src/bati/protection_mobile.rs`, `data/src/protections_mobiles.rs` | partiel : gestion manuelle des volets et stores enroulables pour les usages 1 et 2, seconde protection, règles Th-D (éq. 175 à 178, 181, 183, 188, 189, 192, 193, 198 à 204) ; matrices vérifiées sur les figures du JO (`docs/reference/arrete/figures/`) ; gestion automatique classée **après v1** (Q31) ; stores vénitiens après v1 (Q30) ; branché sur le calcul Th-B, jour de l'éq. (175) à minuit légal (Q39) |
+| 5.9 | C_BAT_Gestion_protections_mobiles | 179–218 | 4 | `core/src/bati/protection_mobile.rs`, `data/src/protections_mobiles.rs` | partiel : gestion manuelle des volets et stores enroulables pour les usages 1 et 2, seconde protection, règles Th-D (éq. 175 à 178, 181, 183, 188, 189, 192, 193, 198 à 204) ; matrices vérifiées sur les figures du JO (`docs/reference/arrete/figures/`) ; gestion automatique classée **après v1** (Q31) ; stores vénitiens après v1 (Q30) ; branché sur les calculs Th-B et Th-D (tableau 34 et éq. 201 à 204 en période de confort adaptatif), jour de l'éq. (175) à minuit légal (Q39) |
 | 5.10 | C_BAT_Baie vitrée | 219–244 | 4 | `core/src/bati/baie.rs` | partiel : éq. (206) à (211), (214), (219) à (238) hors `Aouvmax` ; stores vénitiens (§5.10.3.6.2) classés **après v1** (décision Q30) ; valeurs par défaut des éq. (215), (216) et (218) appliquées et signalées dans les résultats ; espaces tampons non pris en charge |
 | 5.11 | FA_Classement_au_bruit_d’une_baie | 245–250 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
 | 5.12 | C_BAT_Perméabilité_des_PM | 251–254 | 4 | `core/src/bati/protection_mobile.rs` | implémenté : tableau 40 et éq. (239) ; employé par la fiche 5.13 |
-| 5.13 | C_BAT_Surventilation naturelle par ouverture des baies pour le confort thermique | 255–271 | 4 | `core/src/bati/surventilation.rs` | partiel : gestion manuelle et règles Th-B (éq. 240 à 245), surface équivalente (éq. 248 à 250), débits (éq. 251 à 256), tableaux 42 à 44 ; hystérésis et comportement de nuit selon les décisions Q32 ; gestion automatique non prise en charge ; branché sur le calcul Th-B, `Δθconf_adapt` nul en Th-B (Q39) |
+| 5.13 | C_BAT_Surventilation naturelle par ouverture des baies pour le confort thermique | 255–271 | 4 | `core/src/bati/surventilation.rs` | partiel : gestion manuelle et règles Th-B (éq. 240 à 245), surface équivalente (éq. 248 à 250), débits (éq. 251 à 256), tableaux 42 à 44 ; hystérésis et comportement de nuit selon les décisions Q32 ; gestion automatique non prise en charge ; branché sur les calculs Th-B et Th-D ; `Δθconf_adapt` nul en Th-B (Q39), calculé par la fiche 13.5 en Th-D (éq. 2546) |
 | 5.14 | C_BAT_ensemble_baies | 272–280 | 4 | `core/src/bati/baie.rs` | implémenté : éq. (257) à (282) |
 | 5.15 | S1_BAT_assemblage_parois opaques | 281–283 | 4 | `core/src/bati/paroi_opaque.rs` | implémenté : résolution des parois d'un groupe (`ParoiResolue::nouvelle`) ; branché sur les résultats d'enveloppe et sur le modèle thermique |
 | 5.16 | C_BAT_ensemble_parois opaques | 284–287 | 4 | `core/src/bati/paroi_opaque.rs` | implémenté : éq. (283) à (287) |
@@ -125,7 +125,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 5.18 | S1_BAT_assemblage_ponts_thermiques | 294–297 | 4 | `core/src/bati/pont_thermique.rs` | implémenté : descriptions simplifiée (éq. 298) et détaillée |
 | 5.19 | C_BAT_pont thermique | 298–302 | 4 | `core/src/bati/pont_thermique.rs` | implémenté : éq. (299) à (306) ; masques proches sur 30 cm (Q24) |
 | 5.20 | C_BAT_ensemble_ponts_thermiques | 303–305 | 4 | `core/src/bati/pont_thermique.rs` | implémenté : éq. (307) à (310) |
-| 5.21 | C_BAT_comportement thermique d’un groupe | 306–320 | 4 | `core/src/bati/comportement_thermique.rs` | partiel : inertie quotidienne, éq. (311) à (314), (317), (320), (323) à (326), (333) à (352), (361) à (373) ; lecture des flux radiatifs à confirmer (Q34) ; branché sur le calcul Th-B, état initial à 18 °C (Q39) ; inerties séquentielle et annuelle avec le confort d'été |
+| 5.21 | C_BAT_comportement thermique d’un groupe | 306–320 | 4 | `core/src/bati/comportement_thermique.rs` | implémenté hors échanges entre groupes : éq. (311) à (373) ; inertie quotidienne (`comportement_thermique.rs`) ; inerties séquentielle et annuelle, prises en compte en Th-D seulement (`inerties_longues.rs`, éq. 315, 316, 318, 319, 321, 322, 327 à 332, 353 à 360, lectures Q40) ; lecture des flux radiatifs à confirmer (Q34) ; état initial à 18 °C (Q39) ; `φmig` et `Hs,ig,eq` nuls (Q34) |
 
 ### 6. Ventilation (p. 321–469)
 
@@ -155,7 +155,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
-| 8.1 | C-Emi-Systèmes Emissions du groupe en chaud et en froid | 504–529 | 4, 6b | `core/src/chauffage_refroidissement/emission.rs` | partiel : émission équivalente conventionnelle du calcul du Bbio (§8.1.3.1), éq. (800) à (810) sans relance ni détection de présence, éq. (824) à (827) ; lectures Q38 ; restent pour le lot 6b : émetteurs du projet (tableaux 82 à 88, éq. 795 à 799), ventilateurs locaux (éq. 811 à 823), énergie latente (éq. 828) |
+| 8.1 | C-Emi-Systèmes Emissions du groupe en chaud et en froid | 504–529 | 4, 6b | `core/src/chauffage_refroidissement/emission.rs` | partiel : émission équivalente conventionnelle du calcul du Bbio (§8.1.3.1), éq. (800) à (810) sans relance ni détection de présence, éq. (824) à (827) ; lectures Q38 ; la même émission sert au calcul Th-D, sans refroidissement (§13.5.3.1, Q40) ; restent pour le lot 6b : émetteurs du projet (tableaux 82 à 88, éq. 795 à 799), ventilateurs locaux (éq. 811 à 823), énergie latente (éq. 828) |
 | 8.2 | FA_Emissions_mixte_et_composite | 530–542 | 6b | `io : règles de saisie (fiche d’application)` | non commencé |
 | 8.3 | C_Emi_Bilan hydrique | 543–550 | 4, 6b | `core/src/chauffage_refroidissement/bilan_hydrique.rs` | partiel : calcul du Bbio, sans déshumidification (éq. 830, 831 et 834) ; reste pour le lot 6b : déshumidification sur les batteries froides (éq. 832, 833, 835 à 838) |
 | 8.4 | C_Ein_Détermination des saisons de fonctionnement des systèmes de chaud et de froid | 551–555 | 6b | `core/src/chauffage_refroidissement/determination_des_saisons_de_fonctionnement.rs` | non commencé |
@@ -248,9 +248,9 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 |---|---|---|---|---|---|
 | 13.1 | C_CALC_Sorties du mode Th-B | 1355–1364 | 4 | `core/src/indicateurs/sorties_th_b.rs` | partiel : surfaces de référence, éq. (2375) à (2378), dans `core/src/calcul.rs` ; besoins mensuels et annuels et Bbio du groupe, de la zone et du bâtiment, éq. (2379) à (2386) (décision Q10, lectures Q39) ; restent : surfaces par catégorie CE1/CE2 (éq. 2387), ratios d'enveloppe, perméabilité et déperditions de la zone et du bâtiment (éq. 2388 et suivantes) |
 | 13.2 | C_CALC_Sorties du mode Th-C | 1365–1378 | 7 | `core/src/indicateurs/sorties_th_c.rs` | non commencé |
-| 13.3 | C_Sn_Methode_Th_C_Forfait de consommations de refroidissement | 1379–1385 | 7 | `core/src/indicateurs/forfait_refroidissement.rs` | non commencé |
+| 13.3 | C_Sn_Methode_Th_C_Forfait de consommations de refroidissement | 1379–1385 | 7 | `core/src/indicateurs/forfait_refroidissement.rs` | non commencé : dépend du seuil haut `DH_max` (annexe de l'article R. 172-4 du CCH, absente du dépôt), de `Groupe_is_climatisé` et des sorties du mode Th-C ; seuil bas de 350 °C.h transcrit (`confort_ete::SEUIL_BAS_DH_C_H`) ; Q40 point 8 |
 | 13.4 | C_Calc_Bilans_Energies_Consommees_et_importées | 1386–1395 | 7 | `core/src/indicateurs/bilans_energies.rs` | non commencé |
-| 13.5 | C_BAT_Confort_d’été | 1396–1403 | 5 | `core/src/confort/confort_ete.rs` | non commencé |
+| 13.5 | C_BAT_Confort_d’été | 1396–1403 | 5 | `core/src/confort/confort_ete.rs` | implémenté hors systèmes modifiant la sensation thermique (`Δθcorr_syst = 0`) : éq. (2543) à (2551), usages d'habitation ; DH par groupe, groupe le plus défavorable au niveau de la zone et du bâtiment ; calculé sur l'assemblage du Bbio (ventilation et émission conventionnelles) en attendant les systèmes du projet (Q40) |
 | 13.6 | C_CALC_Indicateurs pédagogiques en fonction du nombre d’occupants | 1404–1406 | 7 | `core/src/indicateurs/indicateurs_pedagogiques.rs` | non commencé |
 
 ### 14. Glossaire (p. 1407–1408)

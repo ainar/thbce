@@ -8,7 +8,10 @@
 )]
 
 use thbce_core::conventions::ModeCalcul;
-use thbce_core::scenarios::saisons::{refroidissement_possible, Journee, Saison, Saisons};
+use thbce_core::scenarios::saisons::{
+    autorisation_propre_de_refroidir_possible, refroidissement_possible, Journee,
+    LectureSaisonFroidThD, Saison, Saisons,
+};
 
 /// Groupe de 100 m², occupé en permanence (168 h par semaine type), en calcul des
 /// consommations.
@@ -295,4 +298,78 @@ fn ordre_de_grandeur_de_la_moyenne_glissante_des_besoins() {
     assert!((s.mgb_ch_wh_m2(90) - 2.0).abs() < 1e-12);
     assert!(!s.aut_ch);
     assert_eq!(s.j_fin_ch, Some(85));
+}
+
+#[test]
+fn en_th_d_la_saison_de_refroidissement_suit_la_periode_de_confort_adaptatif() {
+    // §13.5.3.1 : en Th-D, aucun système ne refroidit, que le groupe soit climatisé ou non.
+    assert!(!refroidissement_possible(ModeCalcul::ThD, true));
+    // Lecture retenue (Q40) : l'autorisation propre de refroidir suit pourtant la procédure de
+    // la fiche, pour que les règles Th-D des éq. (88) et (90) aient un effet.
+    let retenue = LectureSaisonFroidThD::default();
+    assert_eq!(retenue, LectureSaisonFroidThD::ProcedureDeLaFiche);
+    assert!(autorisation_propre_de_refroidir_possible(
+        ModeCalcul::ThD,
+        false,
+        retenue
+    ));
+    assert!(autorisation_propre_de_refroidir_possible(
+        ModeCalcul::ThB,
+        false,
+        retenue
+    ));
+    assert!(!autorisation_propre_de_refroidir_possible(
+        ModeCalcul::ThC,
+        false,
+        retenue
+    ));
+    let litterale = LectureSaisonFroidThD::NulleSansSysteme;
+    assert!(!autorisation_propre_de_refroidir_possible(
+        ModeCalcul::ThD,
+        false,
+        litterale
+    ));
+    assert!(autorisation_propre_de_refroidir_possible(
+        ModeCalcul::ThD,
+        true,
+        litterale
+    ));
+
+    // Groupe sans système, sans inconfort ni besoin, période de confort adaptatif du jour 140
+    // au jour 270.
+    //  - Éq. (88) : le refroidissement démarre au premier jour de la période (140), avant le
+    //    jour 183 où il est autorisé d'office (éq. 89).
+    //  - Éq. (90) : à partir du jour 246, l'arrêt (besoin nul, donc sous le seuil) n'est
+    //    décrété qu'en dehors de la période, soit au jour 271.
+    //  - Éq. (77) et (80) : pas de chauffage dans la période ; l'arrêt du chauffage est donc
+    //    décrété au jour 140 au plus tard. Ici, sans besoin de chauffage, il l'est dès le jour
+    //    57 (éq. 78) ; il ne redémarre pas, faute d'inconfort froid.
+    let periode = |j: u16| (140..=270).contains(&j);
+    let mut s = Saisons::nouveau(100.0, 168.0, ModeCalcul::ThD, false);
+    for j in 1..=365_u16 {
+        s.accumuler(&occupe());
+        let saison = s.nouveau_jour(j, periode(j));
+        if periode(j) {
+            assert!(!s.aut_ch && s.aut_fr, "jour {j}");
+            assert_eq!(saison, Saison::Refroidissement);
+        }
+        if !periode(j) {
+            assert!(!s.aut_fr, "jour {j}");
+        }
+    }
+    assert_eq!((s.j_debut_fr, s.j_fin_fr), (Some(140), Some(271)));
+    assert_eq!(s.j_fin_ch, Some(57));
+
+    // Variante littérale : jamais d'autorisation de refroidir sans système ; le chauffage
+    // reste interdit dans la période.
+    let mut s = Saisons::nouveau_selon(100.0, 168.0, ModeCalcul::ThD, false, litterale);
+    for j in 1..=365_u16 {
+        s.accumuler(&occupe());
+        let saison = s.nouveau_jour(j, periode(j));
+        assert!(!s.aut_fr);
+        if periode(j) {
+            assert_eq!(saison, Saison::MiSaison);
+        }
+    }
+    assert_eq!(s.j_debut_fr, None);
 }

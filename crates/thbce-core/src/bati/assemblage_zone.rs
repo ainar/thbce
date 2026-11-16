@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Assemblage des composants d'une zone pour le calcul du Bbio : fiche
-//! `S2_BAT-assemblage_zone` (Th-BCE 2020 §5.5, figure 18).
+//! Assemblage des composants d'une zone : fiche `S2_BAT-assemblage_zone` (Th-BCE 2020 §5.5,
+//! figure 18), pour le calcul du Bbio (mode Th-B) et pour le calcul du confort d'été (mode
+//! Th-D), qui emploie le même assemblage (`docs/questions.md`, Q40).
 //!
 //! À chaque pas de temps : climat et scénarios de la zone ; bilan aéraulique de la zone (§5.6)
 //! avec les débits du système de ventilation conventionnel (§6.1 et §6.2) et les températures
@@ -8,8 +9,8 @@
 //! l'ordre de la figure 20 : les groupes qui cèdent de l'air au hall, le hall, puis les groupes
 //! qui en reçoivent.
 //!
-//! Périmètre : calcul Th-B des usages d'habitation ; hall fictif (aucun groupe de circulation
-//! saisi) ; pas d'espace tampon.
+//! Périmètre : calculs Th-B et Th-D des usages d'habitation ; hall fictif (aucun groupe de
+//! circulation saisi) ; pas d'espace tampon.
 
 use crate::climat::calendrier::{jour, nouveau_jour_legal};
 use crate::climat::environnement_proche::{ventc_m_s, Soleil};
@@ -23,37 +24,67 @@ use crate::ventilation::debits_air_cep::{
 };
 use crate::ventilation::ven_bbio::{omega_air_souffle_kg_kg, t_air_souffle_c};
 
-use super::assemblage_groupe::{nbh_occ_ref, ConditionsPas, GroupeBbio, SortiesPasGroupe};
+use super::assemblage_groupe::{
+    nbh_occ_ref, ConditionsPas, GroupeHoraire, Lectures, SortiesPasGroupe,
+};
 use super::ConditionsExterieures;
 
-/// Zone d'habitation prête pour le calcul du Bbio.
+/// Zone d'habitation prête pour un calcul annuel au pas horaire, en mode Th-B ou Th-D.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ZoneBbio {
+pub struct ZoneHoraire {
     /// Identifiant de la zone.
     pub id: String,
+    /// Mode de calcul : Th-B (Bbio) ou Th-D (confort d'été).
+    pub mode: ModeCalcul,
     /// Scénarios conventionnels de la zone (§4.1).
     pub scenarios: ScenariosZone,
     /// Modèle aéraulique de la zone (§5.6).
     pub aeraulique: ZoneAeraulique,
     /// Groupes de la zone.
-    pub groupes: Vec<GroupeBbio>,
+    pub groupes: Vec<GroupeHoraire>,
     /// Sorties de chaque groupe au dernier pas de temps calculé.
     pub sorties: Vec<Option<SortiesPasGroupe>>,
     etats: Vec<EtatGroupe>,
 }
 
-impl ZoneBbio {
-    /// Prépare une zone d'habitation validée.
+impl ZoneHoraire {
+    /// Prépare une zone d'habitation validée, avec les lectures retenues du texte.
     ///
-    /// `alt_m` est l'altitude du projet ; `omega_initiale_kg_kg`, l'humidité de l'air des
-    /// groupes avant le premier pas de temps (celle de l'air extérieur au premier pas de temps,
-    /// décision Q39 point 4).
+    /// `mode` : Th-B ou Th-D ; `alt_m` est l'altitude du projet ; `omega_initiale_kg_kg`,
+    /// l'humidité de l'air des groupes avant le premier pas de temps (celle de l'air extérieur
+    /// au premier pas de temps, décision Q39 point 4).
     pub fn nouvelle(
         zone: &Zone,
         catalogue: &Catalogue,
+        mode: ModeCalcul,
         alt_m: f64,
         omega_initiale_kg_kg: f64,
     ) -> Result<Self, Erreur> {
+        Self::nouvelle_selon(
+            zone,
+            catalogue,
+            mode,
+            Lectures::default(),
+            alt_m,
+            omega_initiale_kg_kg,
+        )
+    }
+
+    /// Prépare une zone d'habitation validée pour des lectures données du texte (mesure des
+    /// sensibilités).
+    pub fn nouvelle_selon(
+        zone: &Zone,
+        catalogue: &Catalogue,
+        mode: ModeCalcul,
+        lectures: Lectures,
+        alt_m: f64,
+        omega_initiale_kg_kg: f64,
+    ) -> Result<Self, Erreur> {
+        if mode == ModeCalcul::ThC {
+            return Err(Erreur::Calcul(
+                "le calcul des consommations (Th-C) n'est pas encore pris en charge".to_owned(),
+            ));
+        }
         let a_gr: Vec<f64> = zone
             .groupes
             .iter()
@@ -62,14 +93,16 @@ impl ZoneBbio {
         let scenarios = ScenariosZone::nouveau(zone.usage, &a_gr, zone.nb_lgt.unwrap_or(1))?;
         let nbh_occ_ref = nbh_occ_ref(scenarios.usage().occupation.grille_hebdo());
         let q4pa = zone.q4pa_surf_m3_h_m2.unwrap_or(0.0);
-        let groupes: Vec<GroupeBbio> = zone
+        let groupes: Vec<GroupeHoraire> = zone
             .groupes
             .iter()
             .map(|g| {
-                GroupeBbio::nouveau(
+                GroupeHoraire::nouveau_selon(
                     g,
                     catalogue,
                     zone.usage,
+                    mode,
+                    lectures,
                     q4pa,
                     nbh_occ_ref,
                     omega_initiale_kg_kg,
@@ -92,6 +125,7 @@ impl ZoneBbio {
         let nb = groupes.len();
         Ok(Self {
             id: zone.id.clone(),
+            mode,
             scenarios,
             aeraulique,
             groupes,
@@ -100,10 +134,10 @@ impl ZoneBbio {
         })
     }
 
-    /// Calcule le pas de temps `h` de la zone en mode Th-B.
+    /// Calcule le pas de temps `h` de la zone dans son mode de calcul.
     ///
-    /// `climat` est le climat du site pour le jeu météo « Th-BC » et `confort` la moyenne
-    /// glissante de la température extérieure qui s'en déduit.
+    /// `climat` est le climat du site pour le jeu météo du mode (« Th-BC » en Th-B, « Th-D » en
+    /// Th-D) et `confort` la moyenne glissante de la température extérieure qui s'en déduit.
     pub fn pas(
         &mut self,
         h: usize,
@@ -122,7 +156,7 @@ impl ZoneBbio {
             te_c: climat.te_c[h],
             teciel_c: climat.teciel_c[h],
             h,
-            mode: ModeCalcul::ThB,
+            mode: self.mode,
             is_conf_adapt: confort.is_conf_adapt(h),
         };
         let scenarios = self.scenarios.evaluer(h);
@@ -208,8 +242,21 @@ impl ZoneBbio {
         climat: &ClimatExterieur,
         confort: &ConfortAdaptatif,
     ) -> Result<(), Erreur> {
+        self.simuler_avec(climat, confort, |_, _| {})
+    }
+
+    /// Calcule les 8 760 pas de temps de l'année et appelle `apres_le_pas(h, zone)` à la fin de
+    /// chacun : les sorties horaires des groupes sont alors dans [`Self::sorties`]. C'est le
+    /// point d'accès aux séries horaires.
+    pub fn simuler_avec(
+        &mut self,
+        climat: &ClimatExterieur,
+        confort: &ConfortAdaptatif,
+        mut apres_le_pas: impl FnMut(usize, &Self),
+    ) -> Result<(), Erreur> {
         for h in 0..NB_HEURES_AN {
             self.pas(h, climat, confort)?;
+            apres_le_pas(h, self);
         }
         Ok(())
     }

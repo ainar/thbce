@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Assemblage des composants d'un groupe pour le calcul du Bbio : fiche
-//! `S2_BAT_assemblage_groupe` (Th-BCE 2020 §5.7, figure 23).
+//! Assemblage des composants d'un groupe : fiche `S2_BAT_assemblage_groupe` (Th-BCE 2020 §5.7,
+//! figure 23), pour le calcul du Bbio (mode Th-B) et pour le calcul du confort d'été (mode
+//! Th-D).
 //!
 //! À chaque pas de temps, dans l'ordre du §5.7.3 : flux des parois opaques et des ponts
 //! thermiques ; baies (protections mobiles, flux solaires et lumineux, ouverture et débit de
@@ -8,20 +9,35 @@
 //! émission ; bilan hydrique ; saisons. Les débits d'air reçus de la zone (bilan aéraulique,
 //! §5.6) sont une entrée : voir [`super::assemblage_zone`].
 //!
-//! Périmètre : calcul Th-B des usages d'habitation, sans espace tampon.
+//! Le même enchaînement sert aux deux modes ; [`ModeCalcul`] sélectionne les règles propres à
+//! chacun. En Th-D : facteurs solaires « e » (§5.10.3.7, §5.17.3 et §5.19.3), tableau 34 des
+//! protections mobiles (§5.9.3.6), règles générales de l'ouverture des baies avec
+//! `Δθconf_adapt` (§5.13.3.1.1 et §13.5.3.4), inerties séquentielle et annuelle (§5.21.3.10),
+//! saisons du Th-D (§4.6.3.2), aucun refroidissement (§13.5.3.1), indicateur DH (§13.5.3.8).
 //!
-//! Lectures propres à l'enchaînement horaire : `docs/questions.md`, Q39.
+//! Périmètre : calculs Th-B et Th-D des usages d'habitation, sans espace tampon. Le calcul
+//! Th-D emploie l'assemblage du calcul du Bbio (figure 23) : système de ventilation et émission
+//! conventionnels, faute des systèmes du projet (lot 6) ; c'est le confort d'été « en mode
+//! besoins » que le texte nomme Th-DB (§6.11.3). Voir `docs/questions.md`, Q40.
+//!
+//! Lectures propres à l'enchaînement horaire : `docs/questions.md`, Q39 et Q40.
 
 use thbce_data::protections_mobiles::parts_occupation;
 
 use crate::chauffage_refroidissement::bilan_hydrique::{omega_fin_bbio_kg_kg, EchangesHydriques};
 use crate::chauffage_refroidissement::emission::{emission_bbio, Consignes};
 use crate::climat::calendrier::{hleg, jour_bascule_saisons};
+use crate::confort::confort_ete::{
+    delta_theta_conf_adapt_c, theta_op_conf_ch_c, theta_op_conf_ch_corr_c, CumulsConfortEte,
+    PasConfortEte,
+};
 use crate::confort::indicateurs_confort::{indicateurs, CumulsConfort, CAT_AMB};
 use crate::conventions::ModeCalcul;
 use crate::eclairage::{eclairage_habitation, einat_vn_lux};
 use crate::entree::{Catalogue, Groupe, UsageZone};
-use crate::scenarios::saisons::{refroidissement_possible, Journee, Saison, Saisons};
+use crate::scenarios::saisons::{
+    refroidissement_possible, Journee, LectureSaisonFroidThD, Saison, Saisons,
+};
 use crate::scenarios::scenarios_conventionnels::{ApportsGroupe, SortiesZone};
 use crate::ventilation::bouche_conduit::{debits_specifiques_bbio_groupe, Debits};
 use crate::ventilation::debits_air_cep::{rho_kg_m3, EntreeAir, GroupeAeraulique};
@@ -32,14 +48,16 @@ use super::comportement_thermique::{
     AirEntrant, AirEquivalent, GroupeThermique, Sollicitations, Temperatures, F_SA,
     LECTURE_FLUX_RADIATIFS,
 };
+use super::inerties_longues::{EtatInerties, FluxInerties, InertiesLongues};
 use super::paroi_opaque::{EnsembleParois, ParoiResolue};
 use super::pont_thermique::{EnsemblePonts, PontResolu};
 use super::protection_mobile::{
     a_ouv_max_avec_pm_m2, ConditionsGpm, GestionResolue, SaisonGpm, TemperaturesMaximales,
 };
 use super::surventilation::{
-    a_ouv_baie_m2, qm_aj_kg_s, qv_surv_m3_h, r_ouv_manuelle, r_ouv_theta_op_man, s_ors_m2,
-    traversant_conventionnel, ConditionsOuverture, OuvertureBaie, H_TTF_CAS_GENERAL_M,
+    a_ouv_baie_m2, qm_aj_kg_s, qv_surv_m3_h, r_ouv_manuelle, r_ouv_theta_op_man_selon, s_ors_m2,
+    traversant_conventionnel, ConditionsOuverture, LectureHysteresis, OuvertureBaie,
+    H_TTF_CAS_GENERAL_M, LECTURE_HYSTERESIS,
 };
 use super::{paroi_opaque, pont_thermique, ConditionsExterieures};
 
@@ -52,13 +70,38 @@ use super::{paroi_opaque, pont_thermique, ConditionsExterieures};
 /// valeur est retenue pour `θmq`, `θi,fin` et `θop,fin` (décision Q39 point 4).
 pub const THETA_INITIALE_C: f64 = 18.0;
 
-/// « Δθconf_adapt(h) » en calcul Th-B, en °C.
+/// « Δθcorr_syst(h) » : effet sur la température d'inconfort chaud des systèmes qui modifient
+/// la sensation thermique (brasseurs d'air, humidification), en °C.
 ///
-/// Th-BCE 2020 §13.5.3, éq. (2546) : l'écart entre la température d'inconfort chaud et la
-/// consigne de refroidissement n'est défini que « si Mode = Th-D », et il est « nul hors période
-/// de confort adaptatif ». En Th-B, les seuils d'ouverture des baies (§5.13.3.1.1, éq. 242 et
-/// 243) ne se déplacent donc pas (décision Q39 point 5).
-pub const DELTA_THETA_CONF_ADAPT_TH_B_C: f64 = 0.0;
+/// Th-BCE 2020 §13.5.3.5, éq. (2547). Ces systèmes sont hors de la première version : nul.
+pub const DELTA_THETA_CORR_SYST_C: f64 = 0.0;
+
+/// Lectures du texte employées par l'enchaînement horaire d'un groupe, quand elles peuvent
+/// être basculées pour mesurer leur effet. Ce ne sont pas des entrées du projet : la valeur par
+/// défaut est celle des lectures retenues (`docs/questions.md`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Lectures {
+    /// Hystérésis de l'ouverture des baies (Q32 point 1).
+    pub hysteresis: LectureHysteresis,
+    /// Autorisation propre de refroidir en Th-D (Q40).
+    pub saison_froid_th_d: LectureSaisonFroidThD,
+    /// Débits du système de ventilation conventionnel (Q36 point 1 ; Q40 pour le Th-D).
+    pub debits: LectureDebitsBbio,
+    /// Prise en compte des inerties séquentielle et annuelle en Th-D (§5.21.3.10). Vrai : c'est
+    /// le texte ; faux pour mesurer leur effet.
+    pub inerties_longues: bool,
+}
+
+impl Default for Lectures {
+    fn default() -> Self {
+        Self {
+            hysteresis: LECTURE_HYSTERESIS,
+            saison_froid_th_d: LectureSaisonFroidThD::default(),
+            debits: LectureDebitsBbio::default(),
+            inerties_longues: true,
+        }
+    }
+}
 
 /// Composants de l'enveloppe d'un groupe, prêts pour le calcul (§5.8, §5.15 et §5.18).
 #[derive(Debug, Clone, PartialEq)]
@@ -161,6 +204,9 @@ pub struct BilanEnergie {
     pub pertes_air_wh: f64,
     /// Variation de l'énergie stockée dans les parois lourdes (`Cmq·Δθmq`).
     pub stockage_wh: f64,
+    /// Variation de l'énergie stockée dans les masses séquentielle et annuelle
+    /// (`ΔCm,s−q·Δθms + ΔCm,a−s·Δθma`, §5.21.3.10) ; nulle hors calcul Th-D.
+    pub stockage_inerties_longues_wh: f64,
     /// Part des apports radiatifs et solaires qui ressort par les baies sans entrer dans le
     /// bilan (éq. 361), ou qui n'est injectée nulle part avec la lecture littérale de Q34.
     pub apports_non_recuperes_wh: f64,
@@ -182,6 +228,7 @@ impl BilanEnergie {
             + self.pertes_opaques_wh
             + self.pertes_air_wh
             + self.stockage_wh
+            + self.stockage_inerties_longues_wh
             + self.apports_non_recuperes_wh
     }
 
@@ -202,6 +249,8 @@ pub struct CumulsGroupe {
     pub c_ecl_kwh: [f64; 12],
     /// Indicateurs de confort (§4.5).
     pub confort: CumulsConfort,
+    /// Confort d'été (§13.5) ; alimenté en calcul Th-D seulement.
+    pub confort_ete: CumulsConfortEte,
     /// Bilan d'énergie du modèle thermique.
     pub bilan: BilanEnergie,
     /// Nombre de pas de temps où les baies sont ouvertes pour la surventilation.
@@ -230,7 +279,7 @@ pub struct ConditionsPas {
 
 /// État d'un groupe d'un pas de temps au suivant.
 #[derive(Debug, Clone, PartialEq)]
-pub struct EtatGroupeBbio {
+pub struct EtatGroupeHoraire {
     /// Températures à la fin du dernier pas de temps calculé (éq. 825).
     pub fin: Temperatures,
     /// « θop,fin(h−2) », en °C.
@@ -243,6 +292,8 @@ pub struct EtatGroupeBbio {
     pub r_ouv_theta_op: f64,
     /// Saisons propres du groupe (§4.6).
     pub saisons: Saisons,
+    /// Masses séquentielle et annuelle (§5.21.3.10) ; inertes hors calcul Th-D.
+    pub inerties: EtatInerties,
 }
 
 /// Sorties d'un groupe à un pas de temps.
@@ -264,13 +315,25 @@ pub struct SortiesPasGroupe {
     pub qv_surv_m3_h: f64,
     /// Saison propre du groupe pendant le pas de temps.
     pub saison: Saison,
+    /// Inerties séquentielle et annuelle (§5.21.3.10) ; flux nuls hors calcul Th-D.
+    pub inerties: FluxInerties,
+    /// Confort d'été du pas de temps (§13.5) ; `None` hors calcul Th-D.
+    pub confort_ete: Option<PasConfortEte>,
 }
 
-/// Groupe d'habitation prêt pour le calcul du Bbio.
+/// Groupe d'habitation prêt pour un calcul annuel au pas horaire, en mode Th-B ou Th-D.
 #[derive(Debug, Clone, PartialEq)]
-pub struct GroupeBbio {
+pub struct GroupeHoraire {
     /// Identifiant du groupe.
     pub id: String,
+    /// Mode de calcul : Th-B (Bbio) ou Th-D (confort d'été).
+    pub mode: ModeCalcul,
+    /// Vrai si l'usage de la zone est d'habitation (période de sommeil de l'éq. 2544).
+    pub habitation: bool,
+    /// Lectures du texte employées (celles retenues, sauf pour mesurer une sensibilité).
+    pub lectures: Lectures,
+    /// Inerties séquentielle et annuelle (§5.21.3.3 et 5.21.3.4).
+    pub inerties: InertiesLongues,
     /// « Agr » : surface utile, en m².
     pub a_gr_m2: f64,
     /// « V » : volume, en m³.
@@ -292,22 +355,47 @@ pub struct GroupeBbio {
     /// « Pocc » : part des baies sur lesquelles un occupant peut agir (figure 34).
     pub p_occ: f64,
     /// État du groupe.
-    pub etat: EtatGroupeBbio,
+    pub etat: EtatGroupeHoraire,
     /// Cumuls annuels.
     pub cumuls: CumulsGroupe,
     ouvertures: Vec<OuvertureBaie>,
 }
 
-impl GroupeBbio {
-    /// Prépare un groupe d'habitation.
+impl GroupeHoraire {
+    /// Prépare un groupe d'habitation avec les lectures retenues.
     ///
-    /// `q4pa_surf_m3_h_m2` est la perméabilité de la zone ; `nbh_occ_ref`, le nombre d'heures
-    /// d'occupation d'une semaine type de l'usage (éq. 66) ; `omega_initiale_kg_kg`, l'humidité
-    /// de l'air du groupe avant le premier pas de temps.
+    /// `mode` : Th-B ou Th-D ; `q4pa_surf_m3_h_m2` est la perméabilité de la zone ;
+    /// `nbh_occ_ref`, le nombre d'heures d'occupation d'une semaine type de l'usage (éq. 66) ;
+    /// `omega_initiale_kg_kg`, l'humidité de l'air du groupe avant le premier pas de temps.
     pub fn nouveau(
         groupe: &Groupe,
         catalogue: &Catalogue,
         usage: UsageZone,
+        mode: ModeCalcul,
+        q4pa_surf_m3_h_m2: f64,
+        nbh_occ_ref: f64,
+        omega_initiale_kg_kg: f64,
+    ) -> Self {
+        Self::nouveau_selon(
+            groupe,
+            catalogue,
+            usage,
+            mode,
+            Lectures::default(),
+            q4pa_surf_m3_h_m2,
+            nbh_occ_ref,
+            omega_initiale_kg_kg,
+        )
+    }
+
+    /// Prépare un groupe d'habitation pour des lectures données du texte.
+    #[allow(clippy::too_many_arguments)]
+    pub fn nouveau_selon(
+        groupe: &Groupe,
+        catalogue: &Catalogue,
+        usage: UsageZone,
+        mode: ModeCalcul,
+        lectures: Lectures,
         q4pa_surf_m3_h_m2: f64,
         nbh_occ_ref: f64,
         omega_initiale_kg_kg: f64,
@@ -319,7 +407,7 @@ impl GroupeBbio {
         let thermique =
             GroupeThermique::nouveau(a_gr_m2, ba.a_baies_m2, &groupe.inertie.quotidienne);
         let debits = debits_specifiques_bbio_groupe(&groupe.bouches_conduits)
-            .map(|d| debits_systeme_conventionnel(d, LectureDebitsBbio::default()))
+            .map(|d| debits_systeme_conventionnel(d, lectures.debits))
             .unwrap_or_default();
         let initiale = Temperatures {
             theta_i_c: THETA_INITIALE_C,
@@ -329,8 +417,19 @@ impl GroupeBbio {
             theta_op_c: THETA_INITIALE_C,
         };
         let nb_baies = enveloppe.baies.len();
+        // Th-BCE 2020 §5.21.3.2 : « En mode Th-B et Th-C, les inerties séquentielle et annuelle
+        // ne sont pas prises en compte. »
+        let inerties = if mode == ModeCalcul::ThD && lectures.inerties_longues {
+            InertiesLongues::nouvelles(a_gr_m2, &groupe.inertie)
+        } else {
+            InertiesLongues::default()
+        };
         Self {
             id: groupe.id.clone(),
+            mode,
+            habitation: usage.est_habitation(),
+            lectures,
+            inerties,
             a_gr_m2,
             v_m3: groupe.v_m3.unwrap_or(0.0),
             h_th_k_pt_w_k: enveloppe.h_th_k_pt_w_k(),
@@ -349,14 +448,24 @@ impl GroupeBbio {
                 .unwrap_or(false),
             h_ttf_m: groupe.h_ttf_m.unwrap_or(H_TTF_CAS_GENERAL_M),
             p_occ: parts_occupation(usage.numero()).map_or(0.0, |p| p.p_occ),
-            etat: EtatGroupeBbio {
+            etat: EtatGroupeHoraire {
                 fin: initiale,
                 theta_op_fin_h2_c: THETA_INITIALE_C,
                 omega_i_fin_kg_kg: omega_initiale_kg_kg,
                 t_max: TemperaturesMaximales::default(),
                 r_ouv_theta_op: 0.0,
-                // En Bbio, le refroidissement est possible sans système (décision Q35 point 7).
-                saisons: Saisons::nouveau(a_gr_m2, nbh_occ_ref, ModeCalcul::ThB, false),
+                // En Bbio, le refroidissement est possible sans système (décision Q35 point 7) ;
+                // en Th-D, tout groupe est « passé en non climatisé » (§13.5.3.1) et la saison
+                // de refroidissement suit la lecture de Q40. Le format d'entrée ne porte pas
+                // encore `iclim` (lot 6).
+                saisons: Saisons::nouveau_selon(
+                    a_gr_m2,
+                    nbh_occ_ref,
+                    mode,
+                    false,
+                    lectures.saison_froid_th_d,
+                ),
+                inerties: EtatInerties::default(),
             },
             cumuls: CumulsGroupe::default(),
             ouvertures: Vec::with_capacity(nb_baies),
@@ -384,8 +493,21 @@ impl GroupeBbio {
         let theta_e = c.ext.te_c;
         let theta_i_h1 = self.etat.fin.theta_i_c;
         let theta_op_h1 = self.etat.fin.theta_op_c;
+        let mode = self.mode;
+        // Th-BCE 2020 §13.5.3.3 et 13.5.3.4, éq. (2543) à (2547) : température d'inconfort
+        // chaud et écart à la consigne de refroidissement, nul hors calcul Th-D.
+        let conf_adapt_th_d = mode == ModeCalcul::ThD && c.ext.is_conf_adapt;
+        let theta_op_conf_ch =
+            theta_op_conf_ch_c(self.habitation, hleg(h), c.theta_ii_fr_plus_c, c.theta_rm_c);
+        let delta_theta_conf_adapt = delta_theta_conf_adapt_c(
+            mode,
+            c.ext.is_conf_adapt,
+            theta_op_conf_ch,
+            c.theta_ii_fr_plus_c,
+        );
         // Th-BCE 2020 §4.6.3.3, éq. (91) : en Bbio, autorisations effectives égales aux
-        // autorisations propres ; elles valent de 9 h légales à 9 h légales le lendemain.
+        // autorisations propres ; elles valent de 9 h légales à 9 h légales le lendemain. Le
+        // calcul Th-D emploie le même assemblage (Q40).
         let saison = self.etat.saisons.saison();
         let (aut_ch, aut_fr) = (self.etat.saisons.aut_ch, self.etat.saisons.aut_fr);
 
@@ -399,9 +521,10 @@ impl GroupeBbio {
         let pt = pont_thermique::flux_ensemble(&self.enveloppe.ponts, &c.ext);
         let phi_sh_w = op.phi_sh_s_w + op.phi_sh_vc_w + pt.phi_sh_s_w + pt.phi_sh_vc_w;
 
-        // §5.13.3.1 : gestion manuelle de l'ouverture des baies, règles du calcul Th-B.
+        // §5.13.3.1 : gestion manuelle de l'ouverture des baies ; règles du calcul Th-B
+        // (§5.13.3.1.2) ou règles générales avec `Δθconf_adapt` en Th-D (§5.13.3.1.1).
         let ouverture = ConditionsOuverture {
-            mode: ModeCalcul::ThB,
+            mode,
             i_occ_zone,
             hleg: hleg(h),
             saison_de_chauffage: saison == Saison::Chauffage,
@@ -410,9 +533,13 @@ impl GroupeBbio {
             theta_op_h1_c: theta_op_h1,
             theta_op_h2_c: self.etat.theta_op_fin_h2_c,
             theta_iifr_c: c.theta_ii_fr_plus_c,
-            delta_theta_conf_adapt_c: DELTA_THETA_CONF_ADAPT_TH_B_C,
+            delta_theta_conf_adapt_c: delta_theta_conf_adapt,
         };
-        let r_ouv_theta_op = r_ouv_theta_op_man(self.etat.r_ouv_theta_op, &ouverture);
+        let r_ouv_theta_op = r_ouv_theta_op_man_selon(
+            self.lectures.hysteresis,
+            self.etat.r_ouv_theta_op,
+            &ouverture,
+        );
 
         // §5.8 : baies. Protections mobiles (§5.9), flux (§5.10), ouverture (§5.13.3.2.3).
         let mut baies = FluxBaies::default();
@@ -429,7 +556,8 @@ impl GroupeBbio {
                     v_vent_c_m_s: c.v_vent_c_m_s,
                     saison: saison_gpm,
                     top_j1_max_c: self.etat.t_max.top_j1_max_c,
-                    confort_adaptatif_th_d: false,
+                    // §5.9.3.6, éq. (201) à (204) et tableau 34.
+                    confort_adaptatif_th_d: conf_adapt_th_d,
                 })
             });
             let f = baie.flux_depuis_incident(&incident, &c.ext, &protections);
@@ -512,7 +640,16 @@ impl GroupeBbio {
             phi_rad_w,
         };
         let theta_mq_precedent = self.etat.fin.theta_mq_c;
-        let matrice = self.thermique.matrice(&s, theta_mq_precedent, 0.0)?;
+        // §5.21.3.10 : inerties séquentielle et annuelle, en Th-D seulement (§5.21.3.2). Leurs
+        // flux ne dépendent que des pas de temps précédents (éq. 353 à 360).
+        let inerties = if mode == ModeCalcul::ThD {
+            self.etat.inerties.avancer(&self.inerties)
+        } else {
+            FluxInerties::default()
+        };
+        let matrice =
+            self.thermique
+                .matrice(&s, theta_mq_precedent, inerties.phi_mq_seq_ann_w())?;
         let theta_op_moy_00 = matrice[0].moy.theta_op_c;
 
         // §4.5 : indicateurs de confort, en évolution libre.
@@ -525,7 +662,9 @@ impl GroupeBbio {
         );
         self.cumuls.confort.ajouter(&confort);
 
-        // §8.1 : émission conventionnelle du Bbio.
+        // §8.1 : émission conventionnelle du Bbio. En Th-D, le chauffage n'est jamais autorisé
+        // en période de confort adaptatif (éq. 76, 77 et 80) et aucun groupe n'est refroidi
+        // (§13.5.3.1 ; éq. 807 avec `iclim` faux).
         let e = emission_bbio(
             &matrice,
             self.a_gr_m2,
@@ -534,7 +673,7 @@ impl GroupeBbio {
                 theta_ii_fr_c: sc.theta_ii_fr_c,
                 aut_ch,
                 aut_fr,
-                i_clim: refroidissement_possible(ModeCalcul::ThB, false),
+                i_clim: refroidissement_possible(mode, false),
             },
         );
 
@@ -557,6 +696,22 @@ impl GroupeBbio {
             theta_mq_precedent,
             e.fin.theta_mq_c,
         );
+        self.cumuls.bilan.stockage_inerties_longues_wh += inerties.stockage_wh;
+
+        // §13.5.3.5 à 13.5.3.8 : confort d'été, sur la température opérative à la fin du pas
+        // de temps (§13.5.2 : « θop(h), température opérative du groupe à la fin du pas de
+        // temps h »).
+        let confort_ete = (mode == ModeCalcul::ThD).then(|| {
+            PasConfortEte::nouveau(
+                c.ext.is_conf_adapt,
+                i_occ_zone,
+                e.fin.theta_op_c,
+                theta_op_conf_ch_corr_c(theta_op_conf_ch, DELTA_THETA_CORR_SYST_C),
+            )
+        });
+        if let Some(p) = &confort_ete {
+            self.cumuls.confort_ete.ajouter(p);
+        }
 
         // §13.1.3, éq. (2379) à (2381) : cumuls mensuels, mois au sens des scénarios.
         let mois = usize::from(sc.date.mois) - 1;
@@ -574,7 +729,7 @@ impl GroupeBbio {
             q_fr_wh: -e.q_sys_fr_wh,
         });
         if let Some(j) = jour_bascule_saisons(h) {
-            self.etat.saisons.nouveau_jour(j, false);
+            self.etat.saisons.nouveau_jour(j, conf_adapt_th_d);
         }
 
         // État pour le pas de temps suivant.
@@ -582,6 +737,9 @@ impl GroupeBbio {
         self.etat.fin = e.fin;
         self.etat.omega_i_fin_kg_kg = omega_fin;
         self.etat.r_ouv_theta_op = r_ouv_theta_op;
+        if mode == ModeCalcul::ThD {
+            self.etat.inerties.enregistrer(e.fin.theta_mq_c);
+        }
 
         Some(SortiesPasGroupe {
             q_sys_ch_wh: e.q_sys_ch_wh,
@@ -592,6 +750,8 @@ impl GroupeBbio {
             fin: e.fin,
             qv_surv_m3_h: qv_surv,
             saison,
+            inerties,
+            confort_ete,
         })
     }
 

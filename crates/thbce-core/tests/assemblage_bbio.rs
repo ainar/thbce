@@ -10,9 +10,10 @@
 )]
 
 use thbce_core::bati::assemblage_groupe::{nbh_occ_ref, BilanEnergie, THETA_INITIALE_C};
-use thbce_core::bati::assemblage_zone::ZoneBbio;
+use thbce_core::bati::assemblage_zone::ZoneHoraire;
 use thbce_core::climat::calendrier::hleg;
 use thbce_core::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
+use thbce_core::conventions::ModeCalcul;
 use thbce_core::entree::{Projet, UsageZone};
 use thbce_core::validation::Probleme;
 use thbce_core::{calculer, valider, Erreur, Options};
@@ -29,13 +30,14 @@ fn meteo() -> MeteoProjet {
 }
 
 /// Zone prête au calcul, avec le climat du jeu synthétique (10 °C à 0 m, sans soleil).
-fn zone_et_climat(p: &Projet) -> (ZoneBbio, ClimatExterieur, ConfortAdaptatif) {
+fn zone_et_climat(p: &Projet) -> (ZoneHoraire, ClimatExterieur, ConfortAdaptatif) {
     let loc = &p.localisation;
     let climat = ClimatExterieur::nouveau(&meteo().th_bc, loc.departement, loc.alt_m);
     let confort = ConfortAdaptatif::nouveau(&climat.te_c);
-    let zone = ZoneBbio::nouvelle(
+    let zone = ZoneHoraire::nouvelle(
         &p.batiments[0].zones[0],
         &p.catalogue,
+        ModeCalcul::ThB,
         loc.alt_m,
         climat.we_kg_kg[0],
     )
