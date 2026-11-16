@@ -1,0 +1,10 @@
+# Artefacts de build
+/target/
+/pkg/
+node_modules/
+
+# Données météo réglementaires RE2020 : diffusion interdite par leurs conditions d'utilisation.
+# Ne jamais committer (voir docs/reference/README.md).
+*scenarios_meteorologiques*
+meteo-re2020*
+docs/reference/meteo/reglementaire/
