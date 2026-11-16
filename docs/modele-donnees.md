@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # Proposition de modèle de données
 
-**Statut : proposition de phase 1, à valider avant tout code de calcul.**
+**Statut : proposition de phase 1, révisée le 16 novembre 2026 après les réponses du mainteneur (météo, scénarios, périmètre, Ic énergie, cas de validation). À valider avant tout code de calcul.**
 
 Ce document décrit les types Rust d'entrée et de sortie du moteur. Il ne fixe que la structure. Les champs cités viennent des nomenclatures de l'annexe III déjà lues (§3.1, 3.2, 4.1, 5.1, 5.10, 5.17, 5.19, 5.21, 13.1, 13.2, 13.4, 13.5) ; les autres fiches compléteront les types au moment où elles seront implémentées, chaque champ portant la référence de la nomenclature dont il sort. Aucun champ n'est ajouté s'il ne figure pas dans une nomenclature du texte.
 
@@ -49,7 +49,8 @@ pub struct Projet {
 
 /// A3 §3.1.2 et §5.1.2 — paramètres d'intégration du climat et du bâtiment.
 pub struct Localisation {
-    pub departement: Departement, // 01..95, 2A, 2B (question Q13)
+    pub departement: Departement,        // 01..95, 2A, 2B (question Q13) ; fixe la température de base (A3 p. 31)
+    pub zone_climatique: ZoneClimatique, // H1a … H3 ; saisie tant que la table département → zone manque (Q1a)
     pub alt_m: f64,
     pub dmer_km: f64,
     pub durb_km: f64,
@@ -211,36 +212,103 @@ pub enum ModeCalcul { ThB, ThC, ThD }
 /// A3 §5.17.2 « Incl ».
 pub enum SensFlux { Verticale /*1*/, HorizontaleFluxAscendant /*2*/, HorizontaleFluxDescendant /*3*/ }
 
-/// A3 p. 24–26 : 28 usages. Seuls 1 et 2 sont dans le premier lot (question Q4).
+/// A3 §4.1.3, tableau 4 (p. 57) : 28 usages, chacun avec les drapeaux i_hebergement et
+/// i_enseignement. Les 28 variants existent dès la phase 2 ; seuls 1 et 2 sont calculés
+/// en première version, les autres renvoient `Erreur::NonPrisEnCharge`.
 pub enum UsageZone { MaisonIndividuelle /*1*/, LogementCollectif /*2*/, Bureaux /*3*/, /* … 28 */ }
+
+pub enum ZoneClimatique { H1a, H1b, H1c, H2a, H2b, H2c, H2d, H3 }
 ```
 
-## Données conventionnelles (`thbce-data`)
+## Données conventionnelles
+
+### Météo : jamais embarquée
+
+Les fichiers météo réglementaires ne peuvent être ni versionnés ni diffusés (question Q1). Le moteur ne contient donc aucune donnée météo : l'appelant la fournit.
 
 ```rust
-/// A3 §3.1.2 — une année-type, 8 760 pas de temps, à l'altitude zéro.
-pub struct FichierMeteo {
-    pub zone: ZoneClimatique,          // H1a … H3
-    pub lat_deg: f64,
-    pub long_deg: f64,
-    pub heures: Box<[HeureMeteo; 8760]>,
-}
-pub struct HeureMeteo {
-    pub te0_c: f64, pub we0_g_kg: f64,
-    pub rdirn_w_m2: f64, pub rdiff_w_m2: f64,
-    pub dteciel_k: f64, pub vent_m_s: f64, pub dir_vent_deg: f64,
-    pub teau0_c: f64,
-    // repères calendaires (jsem, EHLO, IHJ, ISEM, IMOIS…) : lus du fichier ou recalculés,
-    // selon ce que contiennent les fichiers officiels (question Q1).
+// crates/thbce-core/src/climat/donnees.rs — structure interne unique, quelle que soit la source.
+
+/// Une année-type pour une zone et un mode : 8 760 pas, altitude zéro.
+/// Colonnes du fichier réglementaire ; correspondance avec A3 §3.1.2 dans la question Q1b.
+pub struct AnneeMeteo {
+    pub zone: ZoneClimatique,
+    pub jeu: JeuMeteo,
+    pub origine: OrigineMeteo,
+    pub te0_c: Box<[f64]>,        // te0
+    pub we0_g_kg: Box<[f64]>,     // we0
+    pub idn_w_m2: Box<[f64]>,     // dirN_W_m2
+    pub idi_w_m2: Box<[f64]>,     // diff_W_m2
+    pub teciel_c: Box<[f64]>,     // Teciel_C
+    pub vent_m_s: Box<[f64]>,     // Vent_m_s
+    pub teau0_c: Box<[f64]>,      // Teau_C
+    pub gamma_rad: Box<[f64]>,    // Gamma, converti des degrés
+    pub psi_rad: Box<[f64]>,      // Psi, converti des degrés
 }
 
-/// A3 §4.1.2 — scénarios d'une zone : indicateurs annuels (mois, semaine) et
-/// hebdomadaires (jour, heure) pour l'occupation, les consignes, la ventilation,
-/// l'éclairage, l'ECS et la mobilité ; taux par local.
-pub struct ScenariosUsage { /* structure fixée à réception du classeur officiel (question Q2) */ }
+pub enum JeuMeteo { ThBC, ThD }   // besoins et consommations ; confort d'été (séquence caniculaire)
+
+/// Reportée telle quelle dans les résultats : un calcul n'est « réglementaire »
+/// que si ses deux jeux météo le sont.
+pub enum OrigineMeteo { ReglementaireRe2020, AdemeProspectif { scenario: String }, Autre { description: String } }
+
+/// Ce dont un calcul a besoin : les deux jeux de la zone du projet.
+pub struct MeteoProjet { pub th_bc: AnneeMeteo, pub th_d: AnneeMeteo }
 ```
 
-Le contenu exact de ces deux structures dépend des fichiers officiels, qui ne sont pas dans les annexes (questions Q1 et Q2).
+Les lecteurs vivent dans `thbce-io`, derrière des fonctions qui prennent des octets et non un chemin, pour servir aussi le WASM :
+
+| Lecteur | Source | Usage |
+|---|---|---|
+| `meteo::lire_csv_re2020(&[u8])` | CSV long `zone, mode, h, te0, …, Psi` | usage courant, tests locaux (`THBCE_METEO`) |
+| `meteo::lire_classeur_re2020(&[u8])` | classeur officiel, 16 onglets `<zone>_<mode>` | même contenu, format d'origine |
+| `meteo::lire_csv_ademe(&[u8])` | fichiers ouverts ADEME / Météo-France | CI publique, jamais réglementaire (question Q16) |
+
+Conséquences sur les interfaces prévues au départ :
+
+- CLI : `thbce calcul <entree> --meteo <fichier>` ; sans `--meteo`, erreur explicite. `thbce version` n'annonce aucune donnée météo embarquée.
+- WASM : `calculer(entree, meteo: Uint8Array, options?)`. Le chargement à la demande d'une zone, prévu pour limiter la taille du binaire, n'a plus d'objet.
+- `thbce-data` ne garde une feature `embedded-data` que pour les scénarios et les tables de constantes.
+- Le calendrier (jour de semaine, semaine du mois, heure légale) n'est pas lu de la météo : il est calculé d'après A3 §4.1.3 (p. 56).
+
+### Scénarios : générés depuis le classeur officiel
+
+`tools/scenarios` (binaire Rust du workspace, hors publication) lit `docs/reference/scenarios/2026-04-29_scenarios_conventionnels.xlsx` et écrit un fichier de données versionné dans `crates/thbce-data/`. La CI relance le script et échoue si le fichier généré diffère.
+
+```rust
+// crates/thbce-data/src/scenarios.rs — structure d'après l'onglet MI et A3 §4.1.2.
+
+/// Un scénario = une grille hebdomadaire (jour, heure) combinée à une grille annuelle (mois, semaine).
+pub struct Grilles<T> {
+    pub hebdo: [[T; 24]; 7],      // p^s(j, h)
+    pub annuel: [[T; 5]; 12],     // p^a(m, s) ; 5e semaine absente selon le mois (A3 p. 56)
+}
+
+pub struct ScenariosZone {
+    pub usage: UsageZone,
+    pub consignes: Consignes,               // normal, arrêt < 48 h, arrêt > 48 h, en chaud et en froid
+    pub mobilite: Grilles<f64>,
+    pub occupation: Grilles<bool>,
+    pub chauffage: Grilles<NiveauConsigne>, // 1 normal, 0 réduit < 48 h, −1 réduit > 48 h
+    pub refroidissement: Grilles<NiveauConsigne>,
+    pub ventilation: Grilles<bool>,
+    pub eclairage: Grilles<bool>,
+    pub ecs: ScenarioEcs,                   // clé de répartition horaire, facteur correctif de la semaine
+    pub locaux: Vec<ScenariosLocal>,        // ratio de surface, occupants, apports de chaleur et d'humidité
+}
+```
+
+Les types exacts de chaque grille seront fixés par le script, après lecture des 28 onglets.
+
+### Constantes réglementaires
+
+| Donnée | Source | Forme |
+|---|---|---|
+| Coefficients d'énergie primaire | arrêté, article 9 ; A3 tableau 333 | table par `Energie` |
+| Facteurs d'émission des énergies | arrêté, article 10 ; fiches INIES « [RE2020] » en recoupement | table par énergie et par usage |
+| Réseaux de chaleur et de froid | annexe 7 de l'arrêté du 15 septembre 2006 (colonnes 5 et 6) | table générée par script, clé = identifiant du réseau |
+| Pondération dynamique `fCO2(a)` | arrêté, article 11 | **manquante** (question Q5) |
+| Température de base par département | A3 §3.1.3 (p. 31) | table par `Departement` |
 
 ## Résultats
 
@@ -248,6 +316,8 @@ Le contenu exact de ces deux structures dépend des fichiers officiels, qui ne s
 pub struct Resultats {
     pub version_moteur: String,
     pub version_methode: String,           // « Th-BCE 2020, arrêté du 4 août 2021 consolidé au 19 mars 2026 »
+    pub reglementaire: bool,               // faux dès qu'un jeu météo n'est pas `ReglementaireRe2020`
+    pub origine_meteo: OrigineMeteo,
     pub batiments: Vec<ResultatsBatiment>,
 }
 
@@ -297,9 +367,27 @@ Conforme à l'enchaînement du §5.1.3 de l'annexe III :
 
 Un calcul complet enchaîne plusieurs passes de cette boucle, une par mode (Th-B pour le Bbio, Th-C pour les consommations, Th-D pour DH). Le détail des passes et de leurs dépendances (les saisons, par exemple, sont déterminées par groupe puis harmonisées au niveau du bâtiment, §5.1.3) sera précisé à la lecture des fiches 4.6 et 8.4.
 
+## Cas de validation
+
+Aucun cas de référence n'existe encore (question Q6). Le format et le harnais sont livrés en phase 2 pour qu'ajouter un cas se limite à déposer un dossier :
+
+```
+tests/cas/<nom-du-cas>/
+├── entree.json        # projet au format JSON natif (ou entree.xml quand le lecteur RSEE existera)
+├── attendu.json       # résultats de référence, même schéma que `Resultats` ; champs absents = non comparés
+└── cas.toml           # source (COMETH x.y, logiciel évalué…), jeu météo requis, tolérances propres au cas
+```
+
+- Tolérance par défaut : écart relatif ≤ 0,5 % sur Bbio, Cep, Cep,nr et DH ; surchargeable par indicateur dans `cas.toml`.
+- Le harnais (`tests/cas.rs`) parcourt les dossiers, lance le calcul, compare et affiche un tableau des écarts par indicateur.
+- Un cas qui demande la météo réglementaire est ignoré si `THBCE_METEO` n'est pas défini ; la CI publique ne lance que les cas déclarés sur météo ADEME.
+- Le même harnais sert au test de parité natif / WASM (`wasm32-wasip1`), qui compare les sorties au bit près.
+
 ## Points à valider
 
 1. La séparation `entree` / `modele` / `resultats` et le catalogue de composants référencés par identifiant.
 2. Le niveau `Projet` au-dessus de `Batiment` dès la première version (nécessaire pour le PV de parcelle).
 3. Le choix d'énumérations fermées avec erreur « non pris en charge » pour les systèmes non encore implémentés.
 4. Les noms de champs : noms du texte suffixés par l'unité, en français.
+5. La météo passée en octets par l'appelant, avec l'origine reportée dans les résultats et le drapeau `reglementaire`.
+6. Le format de `tests/cas/`.
