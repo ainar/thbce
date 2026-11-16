@@ -21,6 +21,7 @@ pub mod assemblage_groupe;
 pub mod assemblage_zone;
 pub mod baie;
 pub mod comportement_thermique;
+pub mod espace_tampon;
 pub mod inerties_longues;
 pub mod paroi_opaque;
 pub mod pont_thermique;
