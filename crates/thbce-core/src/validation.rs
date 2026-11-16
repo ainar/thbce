@@ -27,6 +27,9 @@ use crate::ventilation::bouche_conduit::{
 };
 use crate::ventilation::debits_air_cep::{trav_zone_conventionnel, EntreeAir};
 
+#[path = "validation/systemes.rs"]
+mod systemes;
+
 /// Nombre maximal de masques protégeant une surface (Th-BCE 2020 §3.2.2, « Nmasque »).
 pub const NB_MASQUES_MAX: usize = 7;
 
@@ -209,6 +212,7 @@ pub fn valider(projet: &Projet) -> RapportValidation {
             valider_zone(&mut r, &format!("{cb}.zones[{iz}]"), zone, &refs);
         }
         valider_espaces_tampons(&mut r, &cb, bat, &refs);
+        systemes::valider_systemes_batiment(&mut r, &cb, bat);
     }
     // Contrôles de cohérence entre composants, une fois chaque élément valide : ils demandent
     // de résoudre l'enveloppe des groupes.

@@ -14,6 +14,7 @@
 //! circulation saisi). Les espaces tampons sont calculés au niveau du bâtiment, avant les zones
 //! ([`super::assemblage_batiment`]) ; la zone reçoit leurs coefficients.
 
+use crate::chauffage_refroidissement::relances::HORIZON_RELANCE;
 use crate::climat::calendrier::{jour, nouveau_jour_legal};
 use crate::climat::environnement_proche::{ventc_m_s, Soleil};
 use crate::climat::{ClimatExterieur, ConfortAdaptatif};
@@ -127,11 +128,6 @@ impl ZoneHoraire {
         omega_initiale_kg_kg: f64,
         ids_espaces_tampons: &[String],
     ) -> Result<Self, Erreur> {
-        if mode == ModeCalcul::ThC {
-            return Err(Erreur::Calcul(
-                "le calcul des consommations (Th-C) n'est pas encore pris en charge".to_owned(),
-            ));
-        }
         let a_gr: Vec<f64> = zone
             .groupes
             .iter()
@@ -244,7 +240,26 @@ impl ZoneHoraire {
             nouveau_jour: nouveau_jour_legal(h),
             scenarios,
             theta_ii_fr_plus_c: self.scenarios.usage().consignes.fr_normal_c,
+            theta_ii_ch_plus_c: self.scenarios.usage().consignes.ch_normal_c,
+            theta_ext_base_c: climat.base_ext_c,
+            p_ch_avenir: [0.0; HORIZON_RELANCE],
+            p_fr_avenir: [0.0; HORIZON_RELANCE],
+            i_occ_zone_h1: h > 0 && self.scenarios.evaluer(h - 1).i_occ_zone > 0.0,
         };
+        // §8.5 : indicateurs de consigne des pas de temps à venir, en calcul des consommations.
+        // Au-delà de la dernière heure de l'année, le calendrier reprend au début (lecture Q43).
+        let mut c = c;
+        if self.mode == ModeCalcul::ThC {
+            for t in 0..HORIZON_RELANCE {
+                let s = if t == 0 {
+                    scenarios
+                } else {
+                    self.scenarios.evaluer((h + t) % NB_HEURES_AN)
+                };
+                c.p_ch_avenir[t] = s.p_ch;
+                c.p_fr_avenir[t] = s.p_fr;
+            }
+        }
         let exterieur = Exterieur {
             theta_ext_c: ext.te_c,
             omega_e_kg_kg: c.omega_e_kg_kg,
@@ -260,7 +275,13 @@ impl ZoneHoraire {
             self.etats_ventilation
                 .extend(self.groupes.iter().map(|g| EtatGroupeVentilation {
                     theta_i_fin_c: g.etat.fin.theta_i_c,
-                    saison_de_chauffage: g.etat.saisons.aut_ch,
+                    // Q42 point 9 : saison effective de chauffage (fiche 8.4) en calcul des
+                    // consommations ; autorisation propre dans les autres modes.
+                    saison_de_chauffage: if self.mode == ModeCalcul::ThC {
+                        g.etat.aut_eff.0
+                    } else {
+                        g.etat.saisons.aut_ch
+                    },
                 }));
             self.sorties_ventilation = v.pas(
                 ext.te_c,

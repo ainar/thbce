@@ -18,7 +18,7 @@ use thbce_core::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
 use thbce_core::conventions::ModeCalcul;
 use thbce_core::entree::{InertieAnnuelle, InertieQuotidienne, InertieSequentielle, Projet};
 use thbce_core::scenarios::saisons::{LectureSaisonFroidThD, Saison};
-use thbce_core::{calculer, series_horaires, valider, Erreur, Options};
+use thbce_core::{calculer, series_horaires, valider, Options};
 use thbce_data::ZoneClimatique;
 
 const ENTREE: &str = include_str!("../../../tests/cas/squelette-maison/entree.json");
@@ -359,11 +359,11 @@ fn series_horaires_et_modes_pris_en_charge() {
     let th_b = series_horaires(&p, &m, ModeCalcul::ThB).unwrap();
     assert!(th_b[0].pas.iter().all(|x| x.confort_ete.is_none()));
     assert_eq!(th_b[0].te_c[JOURS_CHAUDS.start * 24], 9.5);
-    // Le calcul des consommations n'existe pas encore.
-    assert!(matches!(
-        series_horaires(&p, &m, ModeCalcul::ThC),
-        Err(Erreur::Calcul(_))
-    ));
+    // Calcul des consommations (lot 6b) : émetteurs du projet, saisons effectives et relances ;
+    // le jeu « Th-BC » froid demande du chauffage.
+    let th_c = series_horaires(&p, &m, ModeCalcul::ThC).unwrap();
+    assert!(th_c[0].pas.iter().map(|x| x.q_sys_ch_wh).sum::<f64>() > 0.0);
+    assert!(th_c[0].pas.iter().all(|x| x.confort_ete.is_none()));
 }
 
 #[test]

@@ -222,6 +222,34 @@ pub enum Generateur {
 }
 ```
 
+### Format d'entrée des systèmes de chauffage et de refroidissement (lot 6b)
+
+Implémenté au lot 6b (`crates/thbce-core/src/entree.rs`, lectures `docs/questions.md`, Q43). Les liens sont des identifiants, vérifiés par la validation :
+
+```
+Batiment
+├── generations[]                 { id, raccordement_reseaux: avec_isolement | permanent }      §8.4.2
+├── distributions_intergroupes[]  { id, fonction: chauffage | refroidissement, generation, reseau } §8.9, §8.10
+└── Zone[] → Groupe[]
+    ├── iclim                     groupe climatisé, requis en habitation                        §8.1.2
+    ├── programmation             { chauffage: horloge | horloge_controle_ambiance | optimiseur,
+    │                               refroidissement: horloge | horloge_controle_ambiance | sans_horloge }  §8.5
+    ├── distributions[]           { id, fonction, distribution_intergroupes, reseau }            §8.7, §8.8
+    └── emetteurs[]               { id, chauffage?, refroidissement?, pertes_au_dos?,
+                                    detection_presence?, ventilateurs? }                         §8.1
+        ├── chauffage             { type_emetteur (tableau 85), variation_spatiale (classe A…C et hsp_m,
+        │                           poêle ou insert, ou valeur), variation_temporelle (certifiée,
+        │                           justifiée, défaut du tableau 87, poêle ou insert), effet_joule,
+        │                           rats, ratt, distribution }
+        ├── refroidissement       { type_emetteur (tableau 86), variation_spatiale, variation_temporelle,
+        │                           rats, ratt, distribution }
+        ├── pertes_au_dos         { r_i_m2k_w, u_e_w_m2k } : Pper = Ri·Ue (éq. 795)
+        └── ventilateurs          { gestion, super_petite_vitesse, p_gv_w, p_mv_w, p_pv_w, p_spv_w?,
+                                    q_recirc_{gv,mv,pv}_m3_h, regulation_batterie? }             §8.1.3.8
+```
+
+Règles de saisie (validation) : au moins un émetteur de chauffage par groupe d'habitation ; `iclim` vrai si et seulement si un émetteur refroidit ; programmation du refroidissement requise si `iclim` ; somme des `Rats × Ratt` au plus 1 par fonction (§8.1.3.2) ; un émetteur est rattaché, pour chaque fonction, à un réseau du groupe de même fonction, lui-même rattaché à un réseau intergroupes de même fonction et de même type (éq. 850 et 851), lui-même relié à une génération ; variation temporelle saisie au moins égale à 0,2 K (effet Joule) ou 0,4 K en chaud, au plus −0,4 K en froid (§8.1.3.1.5) ; `Pper < 1`. Les réseaux sont `fictif` (effet Joule, poêles, détente directe) dans cette première partie du lot ; les réseaux hydrauliques viennent ensuite. Chaque génération est idéale jusqu'aux lots 6c et 6d.
+
 Les liens entre objets (un émetteur vers sa distribution, une distribution vers sa génération) sont des `Id` en entrée et des indices typés (`IdxGroupe`, `IdxGeneration`) dans `modele`, vérifiés une fois pour toutes à la résolution.
 
 ## Énumérations issues du texte
@@ -395,7 +423,7 @@ Conforme à l'enchaînement du §5.1.3 de l'annexe III :
 2. Boucle horaire unique sur 8 760 pas, dans l'ordre du texte : climat extérieur → espaces tampons → zones (scénarios, environnement proche) → groupes (baies, parois, ponts thermiques, débits d'air, comportement thermique, émission) → distribution → génération → production PV.
 3. Post-traitement : cumuls mensuels et annuels par groupe, zone, bâtiment ; indicateurs.
 
-Un calcul complet enchaîne plusieurs passes de cette boucle, une par mode (Th-B pour le Bbio, Th-C pour les consommations, Th-D pour DH). Depuis le lot 5, `calculer` enchaîne Th-B puis Th-D, par le même enchaînement horaire paramétré par `ModeCalcul` ; depuis le lot 4b (espaces tampons), chaque passe porte sur le bâtiment entier (`bati::assemblage_batiment::BatimentHoraire`) : à chaque pas de temps, les espaces tampons, à partir de l'état des groupes au pas précédent, puis les zones. Le détail des passes et de leurs dépendances (les saisons, par exemple, sont déterminées par groupe puis harmonisées au niveau du bâtiment, §5.1.3) sera précisé à la lecture des fiches 4.6 et 8.4.
+Un calcul complet enchaîne plusieurs passes de cette boucle, une par mode (Th-B pour le Bbio, Th-C pour les consommations, Th-D pour DH). Depuis le lot 6b, `calculer` enchaîne Th-B, Th-D puis Th-C (systèmes du projet, saisons effectives et relances, générations idéales) ; depuis le lot 5, Th-B puis Th-D, par le même enchaînement horaire paramétré par `ModeCalcul` ; depuis le lot 4b (espaces tampons), chaque passe porte sur le bâtiment entier (`bati::assemblage_batiment::BatimentHoraire`) : à chaque pas de temps, les espaces tampons, à partir de l'état des groupes au pas précédent, puis les zones. Le détail des passes et de leurs dépendances (les saisons, par exemple, sont déterminées par groupe puis harmonisées au niveau du bâtiment, §5.1.3) sera précisé à la lecture des fiches 4.6 et 8.4.
 
 ## Cas de validation
 

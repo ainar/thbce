@@ -24,8 +24,15 @@
 
 use thbce_data::protections_mobiles::parts_occupation;
 
-use crate::chauffage_refroidissement::bilan_hydrique::{omega_fin_bbio_kg_kg, EchangesHydriques};
-use crate::chauffage_refroidissement::emission::{emission_bbio, Consignes};
+use crate::chauffage_refroidissement::bilan_hydrique::{
+    bilan_th_c, omega_fin_bbio_kg_kg, BatterieFroide, EchangesHydriques,
+};
+use crate::chauffage_refroidissement::emetteurs::ConditionsVentilateurs;
+use crate::chauffage_refroidissement::emission::{
+    emission_avec_relance, Consignes, ConsignesRelance, EmetteurEquivalent,
+};
+use crate::chauffage_refroidissement::relances::{en_relance, ConditionsRelance, HORIZON_RELANCE};
+use crate::chauffage_refroidissement::systemes_groupe::SystemesGroupe;
 use crate::climat::calendrier::{hleg, jour_bascule_saisons};
 use crate::confort::confort_ete::{
     delta_theta_conf_adapt_c, theta_op_conf_ch_c, theta_op_conf_ch_corr_c, CumulsConfortEte,
@@ -34,7 +41,7 @@ use crate::confort::confort_ete::{
 use crate::confort::indicateurs_confort::{indicateurs, CumulsConfort, CAT_AMB};
 use crate::conventions::ModeCalcul;
 use crate::eclairage::{eclairage_habitation, einat_vn_lux};
-use crate::entree::{Catalogue, Groupe, UsageZone};
+use crate::entree::{Catalogue, Groupe, RegulationBatterie, UsageZone};
 use crate::scenarios::saisons::{
     refroidissement_possible, Journee, LectureSaisonFroidThD, Saison, Saisons,
 };
@@ -96,6 +103,19 @@ pub struct Lectures {
     pub fermeture_et: LectureFermetureEt,
     /// Ventilation du calcul Th-D (Q42 ; Q40 point 1 pour l'assemblage provisoire).
     pub ventilation_th_d: VentilationThD,
+    /// Émission du calcul Th-D (Q43 ; Q40 point 1 pour l'assemblage provisoire).
+    pub emission_th_d: EmissionThD,
+}
+
+/// Émission employée par le calcul Th-D (`docs/questions.md`, Q43 ; Q40 point 1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum EmissionThD {
+    /// Les émetteurs du projet (fiche 8.1), chauffage seul : lecture retenue au lot 6b.
+    #[default]
+    Projet,
+    /// L'émission équivalente conventionnelle du calcul du Bbio (§8.1.3.1) : assemblage
+    /// provisoire des lots 5 et 6a, conservé pour mesurer l'écart.
+    ConventionnelleBbio,
 }
 
 /// Système de ventilation employé par le calcul Th-D (`docs/questions.md`, Q42 ; Q40 point 1).
@@ -118,6 +138,7 @@ impl Default for Lectures {
             inerties_longues: true,
             fermeture_et: LECTURE_FERMETURE_ET,
             ventilation_th_d: VentilationThD::default(),
+            emission_th_d: EmissionThD::default(),
         }
     }
 }
@@ -340,6 +361,17 @@ pub struct ConditionsPas {
     pub scenarios: SortiesZone,
     /// « θiifr_+ » : consigne de refroidissement en occupation normale, en °C.
     pub theta_ii_fr_plus_c: f64,
+    /// « θiich_+ » : consigne de chauffage en occupation normale, en °C.
+    pub theta_ii_ch_plus_c: f64,
+    /// « θext_base » : température extérieure de base du site, en °C (§3.1.3).
+    pub theta_ext_base_c: f64,
+    /// `{pch(t)}` pour `t = h` à `h + 6` : indicateurs de consigne de chauffage du pas courant
+    /// et des pas à venir, pour les relances (§8.5).
+    pub p_ch_avenir: [f64; HORIZON_RELANCE],
+    /// `{pfr(t)}` pour `t = h` à `h + 6`.
+    pub p_fr_avenir: [f64; HORIZON_RELANCE],
+    /// « iocc_zone(h−1) » (éq. 812).
+    pub i_occ_zone_h1: bool,
 }
 
 /// État d'un groupe d'un pas de temps au suivant.
@@ -359,6 +391,10 @@ pub struct EtatGroupeHoraire {
     pub saisons: Saisons,
     /// Masses séquentielle et annuelle (§5.21.3.10) ; inertes hors calcul Th-D.
     pub inerties: EtatInerties,
+    /// « Autch,eff(j) » et « Autfr,eff(j) » : autorisations effectives du calcul des
+    /// consommations (§8.4), fixées par le bâtiment ; égales aux autorisations propres dans les
+    /// autres modes.
+    pub aut_eff: (bool, bool),
 }
 
 /// Sorties d'un groupe à un pas de temps.
@@ -428,6 +464,15 @@ pub struct GroupeHoraire {
     /// §5.5.2 et §5.7.2) ; 0 pour les autres baies. Voir
     /// [`GroupeHoraire::fixer_parts_ouverture_espaces_tampons`].
     pub parts_ouverture_et: Vec<f64>,
+    /// « iclim » saisi.
+    pub i_clim: bool,
+    /// Systèmes du projet (émetteurs, relances, distributions du groupe), en Th-C et en Th-D ;
+    /// `None` en Th-B ou si le groupe ne décrit pas d'émetteur.
+    pub systemes: Option<SystemesGroupe>,
+    /// « Φrecup_conv^gr » et « Φrecup_rad^gr » : pertes et consommations des systèmes
+    /// récupérées par le groupe au pas de temps, en W (§11.1, éq. 2364 et 2365, calculées au
+    /// pas précédent).
+    pub recup_w: (f64, f64),
     /// État du groupe.
     pub etat: EtatGroupeHoraire,
     /// Cumuls annuels.
@@ -564,11 +609,19 @@ impl GroupeHoraire {
                     a_gr_m2,
                     nbh_occ_ref,
                     mode,
-                    false,
+                    groupe.iclim.unwrap_or(false),
                     lectures.saison_froid_th_d,
                 ),
                 inerties: EtatInerties::default(),
+                aut_eff: (false, false),
             },
+            i_clim: groupe.iclim.unwrap_or(false),
+            // Les indices des réseaux intergroupes sont fixés par le bâtiment
+            // ([`GroupeHoraire::lier_systemes`]).
+            systemes: (mode != ModeCalcul::ThB)
+                .then(|| SystemesGroupe::nouveaux(groupe, |_| None))
+                .flatten(),
+            recup_w: (0.0, 0.0),
             cumuls: CumulsGroupe::default(),
             ouvertures: Vec::with_capacity(nb_baies),
             entree_air_espace_tampon: groupe
@@ -596,6 +649,14 @@ impl GroupeHoraire {
                 Some(&total) if total > 0.0 => b.a_ouv_max_m2 / total,
                 _ => 0.0,
             };
+        }
+    }
+
+    /// Résout à nouveau les systèmes du groupe, `intergroupes` donnant l'indice d'un réseau
+    /// intergroupes du bâtiment d'après son identifiant. Sans effet en Th-B.
+    pub fn lier_systemes(&mut self, groupe: &Groupe, intergroupes: impl Fn(&str) -> Option<usize>) {
+        if self.mode != ModeCalcul::ThB {
+            self.systemes = SystemesGroupe::nouveaux(groupe, intergroupes);
         }
     }
 
@@ -648,8 +709,15 @@ impl GroupeHoraire {
         // Th-BCE 2020 §4.6.3.3, éq. (91) : en Bbio, autorisations effectives égales aux
         // autorisations propres ; elles valent de 9 h légales à 9 h légales le lendemain. Le
         // calcul Th-D emploie le même assemblage (Q40).
+        // En calcul des consommations, autorisations effectives de la fiche 8.4, fixées par le
+        // bâtiment ; la saison propre reste celle des protections mobiles et de l'ouverture des
+        // baies (fiches 5.9 et 5.13).
         let saison = self.etat.saisons.saison();
-        let (aut_ch, aut_fr) = (self.etat.saisons.aut_ch, self.etat.saisons.aut_fr);
+        let (aut_ch, aut_fr) = if mode == ModeCalcul::ThC {
+            self.etat.aut_eff
+        } else {
+            (self.etat.saisons.aut_ch, self.etat.saisons.aut_fr)
+        };
 
         // §5.9.3.2, éq. (175) : température opérative maximale de la veille.
         self.etat.t_max.avancer(theta_op_h1, c.nouveau_jour);
@@ -792,8 +860,11 @@ impl GroupeHoraire {
         let air = AirEquivalent::melange(&flux_air);
 
         // §5.21 : sollicitations et matrice de comportement.
-        let phi_conv_w = apports.phi_int_conv_w + apports.phi_int_occ_conv_w + ecl.f_ecl_c_w;
-        let phi_rad_w = apports.phi_int_rad_w + apports.phi_int_occ_rad_w + ecl.f_ecl_r_w;
+        // §11.1.3 : pertes et consommations récupérées, calculées au pas précédent.
+        let phi_conv_w =
+            apports.phi_int_conv_w + apports.phi_int_occ_conv_w + ecl.f_ecl_c_w + self.recup_w.0;
+        let phi_rad_w =
+            apports.phi_int_rad_w + apports.phi_int_occ_rad_w + ecl.f_ecl_r_w + self.recup_w.1;
         let s = Sollicitations {
             air,
             theta_e_c: theta_e,
@@ -829,32 +900,125 @@ impl GroupeHoraire {
         );
         self.cumuls.confort.ajouter(&confort);
 
-        // §8.1 : émission conventionnelle du Bbio. En Th-D, le chauffage n'est jamais autorisé
-        // en période de confort adaptatif (éq. 76, 77 et 80) et aucun groupe n'est refroidi
-        // (§13.5.3.1 ; éq. 807 avec `iclim` faux).
-        let e = emission_bbio(
+        // §8.5 : relances, en calcul des consommations seulement.
+        let relance = match (&mut self.systemes, mode) {
+            (Some(sy), ModeCalcul::ThC) => sy.relance.pas(&ConditionsRelance {
+                aut_ch,
+                aut_fr,
+                p_ch: c.p_ch_avenir,
+                p_fr: c.p_fr_avenir,
+                theta_ext_c: theta_e,
+                theta_ext_base_c: c.theta_ext_base_c,
+                theta_ii_ch_plus_c: c.theta_ii_ch_plus_c,
+                theta_ii_fr_plus_c: c.theta_ii_fr_plus_c,
+            }),
+            _ => ConsignesRelance::SANS_RELANCE,
+        };
+        // §8.1 : émission. En Th-B, émission équivalente conventionnelle (§8.1.3.1). En Th-C et
+        // en Th-D, émetteurs équivalents du projet (éq. 797 à 799) ; en Th-D, le chauffage
+        // n'est jamais autorisé en période de confort adaptatif (éq. 76, 77 et 80) et aucun
+        // groupe n'est refroidi (§13.5.3.1 ; éq. 807 avec `iclim` faux).
+        let (chaud, froid) = match (&self.systemes, mode, self.lectures.emission_th_d) {
+            (None, ..)
+            | (_, ModeCalcul::ThB, _)
+            | (_, ModeCalcul::ThD, EmissionThD::ConventionnelleBbio) => {
+                (EmetteurEquivalent::BBIO, EmetteurEquivalent::BBIO)
+            }
+            (Some(sy), ..) => (sy.equivalente.chaud, sy.equivalente.froid),
+        };
+        let e = emission_avec_relance(
             &matrice,
             self.a_gr_m2,
+            &chaud,
+            &froid,
             &Consignes {
                 theta_ii_ch_c: sc.theta_ii_ch_c,
                 theta_ii_fr_c: sc.theta_ii_fr_c,
                 aut_ch,
                 aut_fr,
-                i_clim: refroidissement_possible(mode, false),
+                i_clim: refroidissement_possible(mode, self.i_clim),
             },
+            &relance,
         );
+        // §8.1.3.7, §8.1.3.8, §8.7 et §8.8 : énergies requises par émetteur, ventilateurs
+        // locaux et distributions du groupe.
+        let rho_i = rho_kg_m3(theta_i_h1, self.etat.omega_i_fin_kg_kg);
+        if let Some(sy) = &mut self.systemes {
+            sy.emettre(
+                e.phi_util_w,
+                mode == ModeCalcul::ThC,
+                &ConditionsVentilateurs {
+                    aut_ch,
+                    aut_fr,
+                    relance: en_relance(&relance),
+                    i_occ: i_occ_zone,
+                    i_occ_h1: c.i_occ_zone_h1,
+                    idb_ch: e.phi_util_w > 0.0,
+                    idb_fr: e.phi_util_w < 0.0,
+                    a_gr_m2: self.a_gr_m2,
+                },
+                en_relance(&relance),
+                e.moy.theta_i_c,
+                rho_i,
+            );
+        }
 
         // §8.3 : bilan hydrique, en aval de l'émission. Apports des scénarios en kg/h.
-        let omega_fin = omega_fin_bbio_kg_kg(
-            self.etat.omega_i_fin_kg_kg,
-            &EchangesHydriques {
-                somme_q_maj_kg_s: air.qm_eq_kg_s,
-                somme_q_omega_maj_kg_s: air.qm_eq_kg_s * air.omega_eq_kg_kg,
-                a_omega_int_kg_s: (apports.omega_int_kg_h + apports.omega_int_occ_kg_h) / 3600.0,
-                v_m3: self.v_m3,
-                rho_i_kg_m3: rho_kg_m3(theta_i_h1, self.etat.omega_i_fin_kg_kg),
-            },
-        );
+        let echanges = EchangesHydriques {
+            somme_q_maj_kg_s: air.qm_eq_kg_s,
+            somme_q_omega_maj_kg_s: air.qm_eq_kg_s * air.omega_eq_kg_kg,
+            a_omega_int_kg_s: (apports.omega_int_kg_h + apports.omega_int_occ_kg_h) / 3600.0,
+            v_m3: self.v_m3,
+            rho_i_kg_m3: rho_i,
+        };
+        let omega_fin = match (&mut self.systemes, mode) {
+            // §8.3.4 : déshumidification sur les batteries froides en calcul des
+            // consommations, puis énergie latente ajoutée aux besoins de froid (éq. 828).
+            (Some(sy), ModeCalcul::ThC) => {
+                let froid: Vec<_> = sy
+                    .emetteurs
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, em)| em.froid.is_some())
+                    .map(|(i, em)| {
+                        let batterie = em.ventilateurs.map(|v| {
+                            BatterieFroide::nouvelle(
+                                sy.equivalente.rat_eff_fr[i],
+                                sy.sorties.qm_recirc_kg_s[i],
+                                sy.sorties.q_em_wh[i].1,
+                                sy.theta_batt_dim_c(i),
+                                e.moy.theta_i_c,
+                                v.regulation_batterie == Some(RegulationBatterie::DebitRegule),
+                            )
+                        });
+                        (sy.equivalente.rat_eff_fr[i], batterie)
+                    })
+                    .collect();
+                let (fin, latent_froid) = bilan_th_c(
+                    self.etat.omega_i_fin_kg_kg,
+                    &froid,
+                    e.phi_util_w < 0.0,
+                    &echanges,
+                );
+                let mut latent = vec![0.0; sy.emetteurs.len()];
+                let indices = sy
+                    .emetteurs
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, em)| em.froid.is_some())
+                    .map(|(i, _)| i);
+                for (i, l) in indices.zip(latent_froid) {
+                    latent[i] = l;
+                }
+                sy.distribuer(&latent, usize::from(sc.date.mois) - 1);
+                fin
+            }
+            (Some(sy), _) => {
+                sy.distribuer(&[], usize::from(sc.date.mois) - 1);
+                omega_fin_bbio_kg_kg(self.etat.omega_i_fin_kg_kg, &echanges)
+            }
+            (None, _) => omega_fin_bbio_kg_kg(self.etat.omega_i_fin_kg_kg, &echanges),
+        };
 
         self.cumuler_bilan(
             &s,
