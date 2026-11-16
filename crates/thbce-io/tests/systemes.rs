@@ -72,7 +72,8 @@ fn climatisee() -> Projet {
     )
     .unwrap();
     b.generations = serde_json::from_str(
-        r#"[{"id": "pac-air-air", "raccordement_reseaux": "avec_isolement"}]"#,
+        r#"[{"id": "pac-air-air", "raccordement_reseaux": "avec_isolement"},
+            {"id": "ballon-ecs", "raccordement_reseaux": "avec_isolement"}]"#,
     )
     .unwrap();
     let g = &mut b.zones[0].groupes[0];
@@ -126,6 +127,28 @@ fn residu_th_c(projet: &Projet, meteo: &MeteoProjet) -> f64 {
 }
 
 fn dh_emission_conventionnelle(projet: &Projet, meteo: &MeteoProjet) -> f64 {
+    dh_selon(
+        projet,
+        meteo,
+        Lectures {
+            emission_th_d: EmissionThD::ConventionnelleBbio,
+            ..Lectures::default()
+        },
+    )
+}
+
+fn dh_sans_recuperation(projet: &Projet, meteo: &MeteoProjet) -> f64 {
+    dh_selon(
+        projet,
+        meteo,
+        Lectures {
+            recuperation_th_d: false,
+            ..Lectures::default()
+        },
+    )
+}
+
+fn dh_selon(projet: &Projet, meteo: &MeteoProjet, lectures: Lectures) -> f64 {
     let loc = &projet.localisation;
     let climat = ClimatExterieur::nouveau(&meteo.th_d, loc.departement, loc.alt_m);
     let confort = ConfortAdaptatif::nouveau(&climat.te_c);
@@ -133,10 +156,7 @@ fn dh_emission_conventionnelle(projet: &Projet, meteo: &MeteoProjet) -> f64 {
         &projet.batiments[0],
         &projet.catalogue,
         ModeCalcul::ThD,
-        Lectures {
-            emission_th_d: EmissionThD::ConventionnelleBbio,
-            ..Lectures::default()
-        },
+        lectures,
         loc.alt_m,
         climat.we_kg_kg[0],
     )
@@ -179,7 +199,30 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
         let r = residu_th_c(p, &m);
         assert!(r.abs() < 1e-6, "{titre} : résidu relatif {r}");
     }
+    // ECS (§9.6) : 392 L à 40 °C par adulte équivalent et par semaine (éq. 1686), 1,95 adulte
+    // équivalent pour 96,4 m² (éq. 1685), corrigés de 0,97 par les mitigeurs (éq. 1678) : 741 L
+    // par semaine, réchauffés d'environ 27 K depuis l'eau froide, soit de l'ordre de
+    // 1,163 × 741 × 52 × 27 ≈ 1 200 kWh par an.
+    let e = &sy.ecs[0];
+    assert!((900.0..1600.0).contains(&e.q_w_kwh), "{titre} : {e:?}");
+    assert!(e.q_w_kwh < e.q_w_bruts_kwh);
+    assert!((e.q_w_2nd_kwh - e.q_w_kwh - e.pertes_vc_kwh - e.pertes_hvc_kwh).abs() < 1e-6);
+    assert!((b.generations[1].q_ecs_kwh - e.q_w_2nd_kwh).abs() < 1e-6);
+    // Pertes récupérées (§11.1) : 60 % des pertes en volume chauffé de la distribution d'ECS ;
+    // la génération et les réseaux fictifs n'en ont pas.
+    assert!((sy.recup_kwh - 0.6 * e.pertes_vc_kwh).abs() < 1e-6);
     let dh_conv = dh_emission_conventionnelle(&maison, &m);
+    let dh_sans_recup = dh_sans_recuperation(&maison, &m);
+    println!(
+        "{titre} : ECS {:.1} kWh (bruts {:.1}), distribution {:.1} kWh dont {:.1} kWh de pertes en \
+         volume chauffé, {:.1} kWh récupérés ; DH sans récupération en Th-D : {dh_sans_recup:.1} \
+         °C.h",
+        e.q_w_kwh,
+        e.q_w_bruts_kwh,
+        e.q_w_2nd_kwh,
+        e.pertes_vc_kwh,
+        sy.recup_kwh,
+    );
     println!(
         "{titre} : Bbio = {:.2} points, DH = {:.1} °C.h (émission conventionnelle : {:.1}) ; \
          Th-C : chauffage {:.1} kWh ({:.1} kWh en Bbio), {} h de relance ; climatisée : \
@@ -207,6 +250,11 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
     assert!(d.pertes_vc_kwh > 0.0 && d.w_aux_kwh > 0.0);
     assert!((bp.generations[0].q_ch_kwh - syp.q_sys_ch_kwh - d.pertes_vc_kwh).abs() < 1e-6);
     assert_eq!(bp.distributions_intergroupes[0].pertes_vc_kwh, 0.0);
+    // Récupération : pertes du réseau du groupe (100 %), 60 % de la part du circulateur
+    // transmise au volume chauffé (50 %), 60 % des pertes de l'ECS en volume chauffé.
+    let ep = &syp.ecs[0];
+    let attendu = d.pertes_vc_kwh + 0.6 * 0.5 * d.w_aux_kwh + 0.6 * ep.pertes_vc_kwh;
+    assert!((syp.recup_kwh - attendu).abs() < 1e-6, "{titre}");
     println!(
         "{titre} : plancher chauffant, demande {:.1} kWh, émetteurs {:.1} kWh, pertes en volume \
          chauffé {:.1} kWh, circulateur {:.1} kWh, DH = {:.1} °C.h",
@@ -220,11 +268,15 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
     let rv = brut(&veranda, &m);
     let dh_v = rv.batiments[0].dh_c_h.unwrap();
     let dh_v_conv = dh_emission_conventionnelle(&veranda, &m);
-    // L'émission du projet ne chauffe pas en période de confort adaptatif : effet négligeable.
+    // Écart dû aux seules pertes récupérées de l'ECS en été (l'émission ne chauffe pas en
+    // période de confort adaptatif).
     assert!((dh_v - dh_v_conv).abs() < 1.0);
+    let dh_v_sans = dh_sans_recuperation(&veranda, &m);
+    assert!(dh_v > dh_v_sans);
     println!(
         "{titre} : variante véranda, Bbio = {:.2} points, DH = {dh_v:.1} °C.h (émission \
-         conventionnelle : {dh_v_conv:.1}), chauffage Th-C {:.1} kWh",
+         conventionnelle : {dh_v_conv:.1} ; sans récupération : \
+         {dh_v_sans:.1}), chauffage Th-C {:.1} kWh",
         rv.batiments[0].bbio_pts.unwrap(),
         rv.batiments[0].generations[0].q_ch_kwh,
     );

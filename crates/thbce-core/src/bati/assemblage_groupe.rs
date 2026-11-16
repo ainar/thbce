@@ -32,7 +32,7 @@ use crate::chauffage_refroidissement::emission::{
     emission_avec_relance, Consignes, ConsignesRelance, EmetteurEquivalent,
 };
 use crate::chauffage_refroidissement::relances::{en_relance, ConditionsRelance, HORIZON_RELANCE};
-use crate::chauffage_refroidissement::systemes_groupe::SystemesGroupe;
+use crate::chauffage_refroidissement::systemes_groupe::{Liens, SystemesGroupe};
 use crate::climat::calendrier::{hleg, jour_bascule_saisons};
 use crate::confort::confort_ete::{
     delta_theta_conf_adapt_c, theta_op_conf_ch_c, theta_op_conf_ch_corr_c, CumulsConfortEte,
@@ -105,6 +105,9 @@ pub struct Lectures {
     pub ventilation_th_d: VentilationThD,
     /// Émission du calcul Th-D (Q43 ; Q40 point 1 pour l'assemblage provisoire).
     pub emission_th_d: EmissionThD,
+    /// Récupération des pertes et consommations des systèmes (fiche 11.1) en Th-D (Q45). Vrai :
+    /// lecture retenue ; faux pour mesurer son effet.
+    pub recuperation_th_d: bool,
 }
 
 /// Émission employée par le calcul Th-D (`docs/questions.md`, Q43 ; Q40 point 1).
@@ -139,6 +142,7 @@ impl Default for Lectures {
             fermeture_et: LECTURE_FERMETURE_ET,
             ventilation_th_d: VentilationThD::default(),
             emission_th_d: EmissionThD::default(),
+            recuperation_th_d: true,
         }
     }
 }
@@ -372,6 +376,8 @@ pub struct ConditionsPas {
     pub p_fr_avenir: [f64; HORIZON_RELANCE],
     /// « iocc_zone(h−1) » (éq. 812).
     pub i_occ_zone_h1: bool,
+    /// « θcw(h) » : température de l'eau froide, en °C (§9.6, fichier météo).
+    pub theta_cw_c: f64,
 }
 
 /// État d'un groupe d'un pas de temps au suivant.
@@ -619,7 +625,7 @@ impl GroupeHoraire {
             // Les indices des réseaux intergroupes sont fixés par le bâtiment
             // ([`GroupeHoraire::lier_systemes`]).
             systemes: (mode != ModeCalcul::ThB)
-                .then(|| SystemesGroupe::nouveaux(groupe, |_| None, |_| None))
+                .then(|| SystemesGroupe::nouveaux(groupe, usage, a_gr_m2, &Liens::default()))
                 .flatten(),
             recup_w: (0.0, 0.0),
             cumuls: CumulsGroupe::default(),
@@ -654,14 +660,9 @@ impl GroupeHoraire {
 
     /// Résout à nouveau les systèmes du groupe, `intergroupes` donnant l'indice d'un réseau
     /// intergroupes du bâtiment d'après son identifiant. Sans effet en Th-B.
-    pub fn lier_systemes(
-        &mut self,
-        groupe: &Groupe,
-        intergroupes: impl Fn(&str) -> Option<usize>,
-        espaces_tampons: impl Fn(&str) -> Option<usize>,
-    ) {
+    pub fn lier_systemes(&mut self, groupe: &Groupe, usage: UsageZone, liens: &Liens<'_>) {
         if self.mode != ModeCalcul::ThB {
-            self.systemes = SystemesGroupe::nouveaux(groupe, intergroupes, espaces_tampons);
+            self.systemes = SystemesGroupe::nouveaux(groupe, usage, self.a_gr_m2, liens);
         }
     }
 
@@ -1036,6 +1037,16 @@ impl GroupeHoraire {
             }
             (None, _) => omega_fin_bbio_kg_kg(self.etat.omega_i_fin_kg_kg, &echanges),
         };
+        // §9.5 à 9.7 : besoins d'ECS et distributions d'ECS du groupe (figure 24).
+        if let Some(sy) = &mut self.systemes {
+            sy.pas_ecs(
+                sc.ah,
+                c.theta_cw_c,
+                e.moy.theta_i_c,
+                theta_e,
+                espaces_tampons,
+            );
+        }
 
         self.cumuler_bilan(
             &s,

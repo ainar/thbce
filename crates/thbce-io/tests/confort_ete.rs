@@ -23,10 +23,10 @@
 
 use std::path::Path;
 
+use thbce_core::bati::assemblage_batiment::BatimentHoraire;
 use thbce_core::bati::assemblage_groupe::{Lectures, VentilationThD};
 use thbce_core::bati::assemblage_zone::ZoneHoraire;
 use thbce_core::bati::surventilation::LectureHysteresis;
-use thbce_core::calcul::AVERTISSEMENT_DH;
 use thbce_core::climat::{AnneeMeteo, ClimatExterieur, ConfortAdaptatif, MeteoProjet};
 use thbce_core::conventions::ModeCalcul;
 use thbce_core::entree::{
@@ -143,8 +143,8 @@ fn verifier_le_scenario(projet: &Projet, meteo: &MeteoProjet, titre: &str) -> Re
     assert_eq!(r.batiments[0].zones[0].dh_c_h, Some(c.dh_c_h));
     // Le Bbio n'est pas affecté par le second calcul annuel.
     assert!(r.batiments[0].bbio_pts.unwrap() > 0.0);
-    // Le résultat dit avec quels systèmes le DH est calculé, et ne l'annonce plus manquant.
-    assert!(r.avertissements.iter().any(|a| a == AVERTISSEMENT_DH));
+    // Depuis le lot 6b, le DH est calculé avec les systèmes du projet : plus d'avertissement.
+    assert!(!r.avertissements.iter().any(|a| a.starts_with("DH calculé")));
     assert!(!r
         .avertissements
         .iter()
@@ -179,8 +179,9 @@ fn verifier_l_enchainement(projet: &Projet, meteo: &MeteoProjet) {
     let loc = &projet.localisation;
     let climat = ClimatExterieur::nouveau(&meteo.th_d, loc.departement, loc.alt_m);
     let confort = ConfortAdaptatif::nouveau(&climat.te_c);
-    let mut zone = ZoneHoraire::nouvelle(
-        &projet.batiments[0].zones[0],
+    // Le bâtiment entier : les pertes récupérables des systèmes y sont calculées (lot 6b).
+    let mut bat = BatimentHoraire::nouveau(
+        &projet.batiments[0],
         &projet.catalogue,
         ModeCalcul::ThD,
         loc.alt_m,
@@ -189,8 +190,8 @@ fn verifier_l_enchainement(projet: &Projet, meteo: &MeteoProjet) {
     .unwrap();
     let mut dh = 0.0;
     let mut heures_ete = 0_u32;
-    zone.simuler_avec(&climat, &confort, |h, z| {
-        let s = z.sorties[0].unwrap();
+    bat.simuler_avec(&climat, &confort, |h, b| {
+        let s = b.zones[0].sorties[0].unwrap();
         // La série horaire de l'API est celle du calcul.
         assert_eq!(serie.pas[h], s);
         // Aucun refroidissement en Th-D (§13.5.3.1).
@@ -210,7 +211,7 @@ fn verifier_l_enchainement(projet: &Projet, meteo: &MeteoProjet) {
         heures_ete += u32::from(s.saison == Saison::Refroidissement);
     })
     .unwrap();
-    let g = &zone.groupes[0];
+    let g = &bat.zones[0].groupes[0];
     // Le DH est la somme des contributions horaires (éq. 2551).
     assert_eq!(dh, g.cumuls.confort_ete.dh_c_h);
     let par_calculer = brut(projet, meteo);

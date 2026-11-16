@@ -237,3 +237,119 @@ fn reseau_intergroupes_collectif_eq_904_a_928() {
     );
     assert_eq!((s.w_aux_wh, s.phi_aux_vc_wh), (60.0, 0.0));
 }
+
+mod ecs {
+    use thbce_core::ecs::besoins_ecs::{corr_e, BesoinsHebdomadaires};
+    use thbce_core::ecs::distribution_ecs::{pas_intergroupe, DistributionEcsGroupeResolue};
+    use thbce_core::entree::{EmetteurEcs, ReseauEcsIntergroupe, UsageZone};
+    use thbce_core::pertes::pertes_recuperables::{recuperation_wh, FluxVolumeChauffe};
+
+    fn emetteur() -> EmetteurEcs {
+        serde_json::from_str(
+            r#"{"id": "e", "rat_em": 1, "nb_logements": 1, "part_melangeur": 0.4,
+                "part_mitigeur": 0.6, "part_temporisateur": 0, "appareils": "douche_seule",
+                "distribution": {"d_int_m": 0.016, "l_hvc_m": 2, "nb_dist": 1},
+                "distribution_intergroupe": "dp"}"#,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn besoins_hebdomadaires_eq_1676_a_1692() {
+        let e = emetteur();
+        // corr = (1 − 0,6 × 0,05) × (1 − 0,8 × 0,05) = 0,97 × 0,96.
+        assert_proche!(corr_e(&e), 0.97 * 0.96);
+        // Maison de 100 m² : Nmax = 2,5 ; Nadeq = 1,75 + 0,3 × 0,75 = 1,975 ;
+        // a = min(392 ; 40 × 100/1,975) = 392 L.
+        let b = BesoinsHebdomadaires::nouveaux(&e, UsageZone::MaisonIndividuelle, 100.0).unwrap();
+        assert_proche!(b.nadeq, 1.975);
+        assert_proche!(b.a_l, 392.0);
+        assert_proche!(b.v_uw_hebdo_corr_l, 392.0 * 1.975 * 0.97 * 0.96);
+        // Logement de 30 m² en collectif : Nmax = 1,75 − 0,01875 × 20 = 1,375 ;
+        // a = min(392 ; 40 × 30/1,375) = 392 ; 60 m² sur 4 logements : 15 m² chacun,
+        // Nmax = 1,75 − 0,01875 × 35 = 1,09375 ; a = 40 × 60/(4 × 1,09375) = 548,6 → 392.
+        let b = BesoinsHebdomadaires::nouveaux(&e, UsageZone::LogementCollectif, 30.0).unwrap();
+        assert_proche!(b.nadeq, 1.375);
+        // Qw = 1,163 × Vcorr × ah × (40 − θcw).
+        assert_proche!(
+            b.q_w_wh(0.01, 10.0),
+            1.163 * b.v_uw_hebdo_corr_l * 0.01 * 30.0
+        );
+    }
+
+    #[test]
+    fn distribution_du_groupe_eq_1729_a_1734() {
+        let e = emetteur();
+        let mut d = DistributionEcsGroupeResolue::nouvelle(
+            &e.distribution,
+            UsageZone::MaisonIndividuelle,
+            80.0,
+            None,
+        );
+        // Longueur par défaut 6 × 80/80 = 6 m ; V = 6 × π × 0,016²/4 × 1000 = 1,2064 L.
+        let v_vc = 6.0 * core::f64::consts::PI * 0.016 * 0.016 / 4.0 * 1000.0;
+        assert_proche!(d.v_vc_l, v_vc);
+        // Premier puisage : Is = 1, 3 bouchons ; 53 °C, groupe à 20 °C, hors volume chauffé à
+        // l'extérieur à 0 °C.
+        let s = d.pas(1000.0, 20.0, 0.0, 1.0);
+        assert_proche!(s.phi_pertes_vc_wh, 1.163 * v_vc * 33.0 * 3.0);
+        let v_hvc = 2.0 * core::f64::consts::PI * 0.016 * 0.016 / 4.0 * 1000.0;
+        assert_proche!(s.phi_pertes_hvc_wh, 1.163 * v_hvc * 53.0 * 3.0);
+        assert_proche!(
+            s.q_w_2nd_wh,
+            1000.0 + s.phi_pertes_vc_wh + s.phi_pertes_hvc_wh
+        );
+        // Puisage suivant : Is = 2/3 ; sans puisage : pas de pertes.
+        let s = d.pas(500.0, 20.0, 0.0, 1.0);
+        assert_proche!(s.phi_pertes_vc_wh, 1.163 * v_vc * 33.0 * 2.0);
+        assert_eq!(d.pas(0.0, 20.0, 0.0, 1.0).q_w_2nd_wh, 0.0);
+    }
+
+    #[test]
+    fn distribution_intergroupe_eq_1740_a_1764() {
+        let boucle: ReseauEcsIntergroupe = serde_json::from_str(
+            r#"{"boucle": {"l_vc_m": 20, "l_hvc_m": 10, "u_w_mk": 0.3, "rechauffeur": false,
+                "p_circ_w": 40}}"#,
+        )
+        .unwrap();
+        // Départ 55 °C, retour 50 °C, moyenne 52,5 °C : vc 0,3 × 20 × 32,5 = 195 Wh ;
+        // hvc à l'extérieur (0 °C) : 0,3 × 10 × 52,5 = 157,5 Wh.
+        let s = pas_intergroupe(
+            &boucle,
+            &[(1000.0, 55.0), (500.0, 53.0)],
+            true,
+            10.0,
+            0.0,
+            1.0,
+        );
+        assert_eq!((s.theta_depart_c, s.theta_retour_c), (55.0, 50.0));
+        assert_proche!(s.phi_pertes_vc_wh, 195.0);
+        assert_proche!(s.phi_pertes_hvc_wh, 157.5);
+        assert_proche!(s.q_w_prim_wh, 1500.0 + 195.0 + 157.5);
+        assert_eq!((s.w_aux_wh, s.phi_aux_vc_wh), (40.0, 0.0));
+        // Réseau tracé : pertes compensées par le traceur, non ajoutées aux besoins.
+        let trace: ReseauEcsIntergroupe =
+            serde_json::from_str(r#"{"trace": {"l_vc_m": 10, "l_hvc_m": 0, "u_w_mk": 0.2}}"#)
+                .unwrap();
+        let s = pas_intergroupe(&trace, &[(1000.0, 55.0)], true, 10.0, 0.0, 1.0);
+        assert_proche!(s.w_aux_wh, 0.2 * 10.0 * 35.0);
+        assert_eq!((s.q_w_prim_wh, s.theta_retour_c), (1000.0, 10.0));
+    }
+
+    #[test]
+    fn recuperation_eq_2355_a_2365() {
+        let f = FluxVolumeChauffe {
+            vent_loc_wh: 10.0,
+            aux_dgr_wh: 5.0,
+            pertes_dgr_wh: 100.0,
+            pertes_dgr_ecs_wh: 50.0,
+            pertes_dintgr_wh: 20.0,
+            ..FluxVolumeChauffe::default()
+        };
+        // Récupéré : 10 + 0,6 × 5 + 100 + 0,6 × 50 + 0,6 × 20 = 155 Wh ;
+        // convectif : 10 + 0,5 × 145 = 82,5 Wh.
+        let (conv, rad) = recuperation_wh(&f);
+        assert_proche!(conv, 82.5);
+        assert_proche!(rad, 72.5);
+    }
+}

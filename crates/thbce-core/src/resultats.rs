@@ -95,6 +95,9 @@ pub struct ResultatsBatiment {
     /// transmises aux générations (§8.9 et §8.10) ; absent sans réseau.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub distributions_intergroupes: Vec<ResultatsIntergroupes>,
+    /// Distributions d'ECS intergroupes, calcul Th-C (§9.8) ; absent sans réseau.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub distributions_ecs_intergroupes: Vec<ResultatsEcsIntergroupe>,
     /// Générations, issues du calcul Th-C : énergie à fournir, sommée sur leurs réseaux. En
     /// attendant les générateurs (lots 6c et 6d), chaque génération est idéale : elle fournit
     /// exactement la demande. Absent sans génération.
@@ -139,6 +142,8 @@ pub struct ResultatsGeneration {
     pub q_ch_kwh: f64,
     /// Énergie de refroidissement à fournir (valeur absolue), en kWh.
     pub q_fr_kwh: f64,
+    /// Énergie d'ECS à fournir, en kWh.
+    pub q_ecs_kwh: f64,
 }
 
 /// Systèmes d'émission d'un groupe, calcul Th-C (§8.1).
@@ -162,6 +167,10 @@ pub struct ResultatsSystemesGroupe {
     pub nbh_relance: u32,
     /// Réseaux de distribution du groupe (§8.7 et §8.8).
     pub distributions: Vec<ResultatsDistributionGroupe>,
+    /// Pertes et consommations des systèmes récupérées par le groupe (§11.1), en kWh.
+    pub recup_kwh: f64,
+    /// Émetteurs d'ECS équivalents du groupe et leurs distributions (§9.5 à 9.7).
+    pub ecs: Vec<ResultatsEcsEmetteur>,
     /// Saisons propres du groupe en calcul Th-C (§4.6), dont les générations tirent les
     /// saisons effectives (§8.4).
     pub saisons_th_c: Option<ResultatsSaisons>,
@@ -180,6 +189,58 @@ pub struct ResultatsDistributionGroupe {
     pub pertes_hvc_kwh: f64,
     /// Consommation du circulateur, en kWh d'énergie finale électrique.
     pub w_aux_kwh: f64,
+}
+
+/// Émetteur d'ECS équivalent, calcul Th-C (§9.5 à 9.7).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsEcsEmetteur {
+    /// Identifiant.
+    pub id: Id,
+    /// « Agr,em-e » : surface desservie, en m² (éq. 1674).
+    pub a_m2: f64,
+    /// « Nadeq-e » : adultes équivalents (éq. 1685 et 1689).
+    pub nadeq: f64,
+    /// « a » : besoins unitaires, en litres à 40 °C par adulte équivalent et par semaine.
+    pub a_l: f64,
+    /// « corr-e » : coefficient correctif des émetteurs et des appareils (éq. 1678).
+    pub corr: f64,
+    /// « Vuw_hebdo_corr » : volume hebdomadaire corrigé, en litres à 40 °C (éq. 1692).
+    pub v_uw_hebdo_corr_l: f64,
+    /// « Qw » : besoins annuels, en kWh (éq. 1693).
+    pub q_w_kwh: f64,
+    /// « Qw_bruts » : besoins annuels sans correction des émetteurs, en kWh (éq. 1694).
+    pub q_w_bruts_kwh: f64,
+    /// « Qw_2nd-e » : besoins augmentés des pertes de la distribution du groupe, en kWh.
+    pub q_w_2nd_kwh: f64,
+    /// Pertes de la distribution du groupe en volume chauffé, en kWh (récupérables à 60 %).
+    pub pertes_vc_kwh: f64,
+    /// Pertes de la distribution du groupe hors volume chauffé, en kWh.
+    pub pertes_hvc_kwh: f64,
+    /// Valeurs par défaut de la méthode appliquées.
+    pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+}
+
+/// Distribution d'ECS intergroupe, calcul Th-C (§9.8).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsEcsIntergroupe {
+    /// Identifiant.
+    pub id: Id,
+    /// Génération qui produit l'ECS.
+    pub generation: Id,
+    /// « Qw_prim-e » : besoins transmis à la génération, en kWh.
+    pub q_w_prim_kwh: f64,
+    /// Valeurs mensuelles de `q_w_prim_kwh`, en kWh.
+    pub q_w_prim_mensuel_kwh: Vec<f64>,
+    /// Pertes en volume chauffé, en kWh.
+    pub pertes_vc_kwh: f64,
+    /// Pertes hors volume chauffé, en kWh.
+    pub pertes_hvc_kwh: f64,
+    /// Circulateurs ou traceurs, en kWh d'énergie finale électrique.
+    pub w_aux_kwh: f64,
+    /// Réchauffeur de boucle, en kWh d'énergie finale électrique.
+    pub w_rechauf_kwh: f64,
+    /// Température de départ demandée à la génération, en °C.
+    pub theta_depart_c: Option<f64>,
 }
 
 /// Émetteur, calcul Th-C.
@@ -209,6 +270,23 @@ impl ResultatsSystemesGroupe {
         for e in &mut self.emetteurs {
             e.q_ch_kwh = a(e.q_ch_kwh);
             e.q_fr_kwh = a(e.q_fr_kwh);
+        }
+        self.recup_kwh = a(self.recup_kwh);
+        for e in &mut self.ecs {
+            for x in [
+                &mut e.a_m2,
+                &mut e.nadeq,
+                &mut e.a_l,
+                &mut e.v_uw_hebdo_corr_l,
+                &mut e.q_w_kwh,
+                &mut e.q_w_bruts_kwh,
+                &mut e.q_w_2nd_kwh,
+                &mut e.pertes_vc_kwh,
+                &mut e.pertes_hvc_kwh,
+            ] {
+                *x = a(*x);
+            }
+            e.corr = (e.corr * 1e4).round() / 1e4;
         }
         for d in &mut self.distributions {
             d.q_kwh = a(d.q_kwh);
@@ -577,6 +655,22 @@ impl Resultats {
             for g in &mut b.generations {
                 g.q_ch_kwh = a(g.q_ch_kwh);
                 g.q_fr_kwh = a(g.q_fr_kwh);
+                g.q_ecs_kwh = a(g.q_ecs_kwh);
+            }
+            for d in &mut b.distributions_ecs_intergroupes {
+                for x in [
+                    &mut d.q_w_prim_kwh,
+                    &mut d.pertes_vc_kwh,
+                    &mut d.pertes_hvc_kwh,
+                    &mut d.w_aux_kwh,
+                    &mut d.w_rechauf_kwh,
+                ] {
+                    *x = a(*x);
+                }
+                for x in &mut d.q_w_prim_mensuel_kwh {
+                    *x = a(*x);
+                }
+                d.theta_depart_c = d.theta_depart_c.map(a);
             }
             for et in &mut b.espaces_tampons {
                 for m in [&mut et.th_b, &mut et.th_d].into_iter().flatten() {

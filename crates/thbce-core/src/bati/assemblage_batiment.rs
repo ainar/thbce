@@ -14,13 +14,16 @@ use crate::chauffage_refroidissement::distribution::{
 use crate::chauffage_refroidissement::saisons_fonctionnement::{
     autorisations_effectives, DesserteGroupe,
 };
+use crate::chauffage_refroidissement::systemes_groupe::Liens;
 use crate::climat::calendrier::{date_scenario, jour_bascule_saisons};
 use crate::climat::environnement_proche::ventc_m_s;
 use crate::climat::{ClimatExterieur, ConfortAdaptatif};
 use crate::conventions::{ModeCalcul, NB_HEURES_AN};
+use crate::ecs::distribution_ecs::{pas_intergroupe, SortiesDistributionEcsIntergroupe};
 use crate::entree::{Batiment, Catalogue};
-use crate::entree::{FonctionReseau, RaccordementReseaux};
+use crate::entree::{FonctionReseau, RaccordementReseaux, ReseauEcsIntergroupe};
 use crate::erreur::Erreur;
+use crate::pertes::pertes_recuperables::{recuperation_wh, FluxVolumeChauffe};
 
 use super::assemblage_groupe::Lectures;
 use super::assemblage_zone::{conditions_exterieures, ZoneHoraire};
@@ -65,6 +68,48 @@ pub struct SystemesBatiment {
     pub aut_gen: Vec<(bool, bool)>,
     /// Cumuls de chaque réseau intergroupes.
     pub cumuls: Vec<CumulsIntergroupes>,
+    /// Distributions d'ECS intergroupes (§9.8).
+    pub ecs: Vec<EcsIntergroupeResolu>,
+    /// « Ratsurfaces_prim_e » : pour chaque distribution d'ECS intergroupe, part de chaque
+    /// groupe (éq. 1737).
+    pub rat_surf_ecs: Vec<Vec<f64>>,
+    /// Sorties de chaque distribution d'ECS intergroupe au dernier pas de temps.
+    pub sorties_ecs: Vec<SortiesDistributionEcsIntergroupe>,
+    /// Cumuls de chaque distribution d'ECS intergroupe.
+    pub cumuls_ecs: Vec<CumulsEcsIntergroupe>,
+    /// Récupération des pertes et consommations des systèmes par les groupes (fiche 11.1) ;
+    /// vrai sauf pour mesurer son effet (lecture Q45).
+    pub recuperation: bool,
+}
+
+/// Distribution d'ECS intergroupe, prête pour le calcul.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EcsIntergroupeResolu {
+    /// Identifiant.
+    pub id: String,
+    /// Indice de la génération.
+    pub generation: usize,
+    /// Nature du réseau.
+    pub reseau: ReseauEcsIntergroupe,
+    /// Indice de l'espace tampon traversé.
+    pub espace_tampon: Option<usize>,
+}
+
+/// Cumuls annuels d'une distribution d'ECS intergroupe, en Wh.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct CumulsEcsIntergroupe {
+    /// « Qw_prim-e » par mois des scénarios : besoins transmis à la génération.
+    pub q_w_prim_mensuel_wh: [f64; 12],
+    /// Pertes en volume chauffé.
+    pub phi_pertes_vc_wh: f64,
+    /// Pertes hors volume chauffé.
+    pub phi_pertes_hvc_wh: f64,
+    /// Circulateurs ou traceurs.
+    pub w_aux_wh: f64,
+    /// Réchauffeur de boucle.
+    pub w_rechauf_wh: f64,
+    /// Plus haute température de départ demandée, en °C.
+    pub theta_depart_max_c: Option<f64>,
 }
 
 /// Cumuls annuels d'un réseau intergroupes : demande transmise à la génération.
@@ -178,7 +223,9 @@ impl BatimentHoraire {
         let systemes = if mode == ModeCalcul::ThB {
             SystemesBatiment::default()
         } else {
-            SystemesBatiment::nouveaux(bat, &mut zones)
+            let mut s = SystemesBatiment::nouveaux(bat, &mut zones);
+            s.recuperation = mode != ModeCalcul::ThD || lectures.recuperation_th_d;
+            s
         };
         Ok(Self {
             systemes,
@@ -222,8 +269,13 @@ impl BatimentHoraire {
             z.pas_avec_espaces_tampons(h, climat, confort, &self.coefficients)?;
         }
         if self.mode != ModeCalcul::ThB {
-            self.systemes
-                .pas(h, &mut self.zones, climat.te_c[h], &self.coefficients);
+            self.systemes.pas(
+                h,
+                &mut self.zones,
+                climat.te_c[h],
+                climat.teau_c[h],
+                &self.coefficients,
+            );
         }
         Ok(())
     }
@@ -276,15 +328,37 @@ impl SystemesBatiment {
             })
             .collect();
         let ids_dp: Vec<String> = intergroupes.iter().map(|d| d.id.clone()).collect();
+        let ids_ecs: Vec<String> = bat
+            .distributions_ecs_intergroupes
+            .iter()
+            .map(|d| d.id.clone())
+            .collect();
+        let mut a_ecs = vec![Vec::new(); ids_ecs.len()];
         let mut dessertes = Vec::new();
         let mut a_desservie = vec![Vec::new(); intergroupes.len()];
         for (z, zone) in zones.iter_mut().zip(&bat.zones) {
             for (g, groupe) in z.groupes.iter_mut().zip(&zone.groupes) {
                 g.lier_systemes(
                     groupe,
-                    |id| ids_dp.iter().position(|d| d == id),
-                    |id| ids_et.iter().position(|e| e == id),
+                    zone.usage,
+                    &Liens {
+                        intergroupes: &ids_dp,
+                        intergroupes_ecs: &ids_ecs,
+                        espaces_tampons: &ids_et,
+                    },
                 );
+                let mut surf_ecs = vec![0.0; ids_ecs.len()];
+                if let Some(sy) = &g.systemes {
+                    for e in &sy.ecs {
+                        if let Some(s) = surf_ecs.get_mut(e.intergroupe) {
+                            // Éq. (1737) et (1738).
+                            *s += e.besoins.a_m2;
+                        }
+                    }
+                }
+                for (a, s) in a_ecs.iter_mut().zip(surf_ecs) {
+                    a.push(s);
+                }
                 if let Some(sy) = &g.systemes {
                     for d in &sy.distributions {
                         if let Some(dp) = intergroupes.get_mut(d.intergroupes) {
@@ -324,6 +398,36 @@ impl SystemesBatiment {
                 dessertes.push(d);
             }
         }
+        let ratios = |a: &[Vec<f64>]| -> Vec<Vec<f64>> {
+            a.iter()
+                .map(|a| {
+                    let total: f64 = a.iter().sum();
+                    a.iter()
+                        .map(|x| if total > 0.0 { x / total } else { 0.0 })
+                        .collect()
+                })
+                .collect()
+        };
+        let ecs = bat
+            .distributions_ecs_intergroupes
+            .iter()
+            .map(|d| EcsIntergroupeResolu {
+                id: d.id.clone(),
+                generation: generations
+                    .iter()
+                    .position(|g| *g == d.generation)
+                    .unwrap_or(0),
+                espace_tampon: match &d.reseau {
+                    ReseauEcsIntergroupe::Boucle(b) => b.espace_tampon.as_deref(),
+                    ReseauEcsIntergroupe::Trace(t) => t.espace_tampon.as_deref(),
+                    ReseauEcsIntergroupe::Aucun => None,
+                }
+                .and_then(|id| ids_et.iter().position(|e| e == id)),
+                reseau: d.reseau.clone(),
+            })
+            .collect::<Vec<_>>();
+        let n_ecs = ecs.len();
+        let rat_surf_ecs = ratios(&a_ecs);
         // Éq. (891) et (892).
         let rat_surf = a_desservie
             .iter()
@@ -344,6 +448,11 @@ impl SystemesBatiment {
             rat_surf,
             sorties: vec![SortiesDistributionIntergroupes::default(); n],
             cumuls: vec![CumulsIntergroupes::default(); n],
+            ecs,
+            rat_surf_ecs,
+            sorties_ecs: vec![SortiesDistributionEcsIntergroupe::default(); n_ecs],
+            cumuls_ecs: vec![CumulsEcsIntergroupe::default(); n_ecs],
+            recuperation: true,
         };
         s.fixer_autorisations(zones);
         s
@@ -371,6 +480,7 @@ impl SystemesBatiment {
         h: usize,
         zones: &mut [ZoneHoraire],
         theta_ext_c: f64,
+        theta_cw_c: f64,
         espaces_tampons: &[CoefficientsEt],
     ) {
         let mois = usize::from(date_scenario(h).mois) - 1;
@@ -413,6 +523,92 @@ impl SystemesBatiment {
                 });
             }
             self.sorties[k] = s;
+        }
+        // §9.8 : distributions d'ECS intergroupes ; génération idéale, en fonctionnement toute
+        // l'année (« idencl-e(j) = 1 », éq. 1736 ; lecture Q45).
+        for (k, d) in self.ecs.iter().enumerate() {
+            let aval: Vec<(f64, f64)> = groupes
+                .iter()
+                .filter_map(|g| g.systemes.as_ref())
+                .flat_map(|sy| sy.ecs.iter())
+                .filter(|e| e.intergroupe == k)
+                .map(|e| (e.sorties.q_w_2nd_wh, e.distribution.theta_2nd_e_c))
+                .collect();
+            let b_therm = d
+                .espace_tampon
+                .and_then(|i| espaces_tampons.get(i))
+                .map_or(1.0, |e| e.b_therm);
+            let s = pas_intergroupe(&d.reseau, &aval, true, theta_cw_c, theta_ext_c, b_therm);
+            let c = &mut self.cumuls_ecs[k];
+            c.q_w_prim_mensuel_wh[mois] += s.q_w_prim_wh;
+            c.phi_pertes_vc_wh += s.phi_pertes_vc_wh;
+            c.phi_pertes_hvc_wh += s.phi_pertes_hvc_wh;
+            c.w_aux_wh += s.w_aux_wh;
+            c.w_rechauf_wh += s.w_rechauf_wh;
+            if !aval.is_empty() {
+                c.theta_depart_max_c = Some(
+                    c.theta_depart_max_c
+                        .map_or(s.theta_depart_c, |t| t.max(s.theta_depart_c)),
+                );
+            }
+            self.sorties_ecs[k] = s;
+        }
+        // §11.1 : pertes et consommations récupérables, injectées au pas suivant.
+        let recup: Vec<(f64, f64)> = groupes
+            .iter()
+            .enumerate()
+            .map(|(ig, g)| {
+                let Some(sy) = &g.systemes else {
+                    return (0.0, 0.0);
+                };
+                let s = &sy.sorties;
+                let par_surface = |ratios: &[Vec<f64>], flux: &mut dyn Iterator<Item = f64>| {
+                    ratios
+                        .iter()
+                        .zip(flux)
+                        .map(|(r, x)| r.get(ig).copied().unwrap_or(0.0) * x)
+                        .sum::<f64>()
+                };
+                let f = FluxVolumeChauffe {
+                    vent_loc_wh: s.phi_vent_loc_vc_wh,
+                    aux_dgr_wh: s.distributions.iter().map(|d| d.phi_aux_vc_wh).sum(),
+                    pertes_dgr_wh: s.distributions.iter().map(|d| d.phi_pertes_vc_wh).sum(),
+                    pertes_dgr_ecs_wh: sy.ecs.iter().map(|e| e.sorties.phi_pertes_vc_wh).sum(),
+                    aux_dintgr_wh: par_surface(
+                        &self.rat_surf,
+                        &mut self.sorties.iter().map(|x| x.phi_aux_vc_wh),
+                    ),
+                    pertes_dintgr_wh: par_surface(
+                        &self.rat_surf,
+                        &mut self.sorties.iter().map(|x| x.phi_pertes_vc_wh),
+                    ),
+                    aux_dintgr_ecs_wh: par_surface(
+                        &self.rat_surf_ecs,
+                        &mut self.sorties_ecs.iter().map(|x| x.phi_aux_vc_wh),
+                    ),
+                    pertes_dintgr_ecs_wh: par_surface(
+                        &self.rat_surf_ecs,
+                        &mut self.sorties_ecs.iter().map(|x| x.phi_pertes_vc_wh),
+                    ),
+                    // Génération idéale : ni pertes ni auxiliaires.
+                    generation_wh: 0.0,
+                };
+                recuperation_wh(&f)
+            })
+            .collect();
+        drop(groupes);
+        if self.recuperation {
+            // Énergies du pas d'une heure, en Wh, restituées comme des puissances, en W.
+            for (g, r) in zones
+                .iter_mut()
+                .flat_map(|z| z.groupes.iter_mut())
+                .zip(recup)
+            {
+                g.recup_w = r;
+                if let Some(sy) = &mut g.systemes {
+                    sy.cumuls.recup_wh += r.0 + r.1;
+                }
+            }
         }
         if jour_bascule_saisons(h).is_some() {
             self.fixer_autorisations(zones);
