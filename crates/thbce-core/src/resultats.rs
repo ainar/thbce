@@ -104,6 +104,9 @@ pub struct ResultatsGroupe {
     pub enveloppe: ResultatsEnveloppe,
     /// Résultats par baie.
     pub baies: Vec<ResultatsBaie>,
+    /// Valeurs par défaut de la méthode appliquées aux paramètres non saisis du groupe ; liste
+    /// vide si aucune.
+    pub valeurs_par_defaut: Vec<ValeurParDefaut>,
 }
 
 /// Résultats d'une baie.

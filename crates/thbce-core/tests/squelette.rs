@@ -228,6 +228,56 @@ fn les_protections_mobiles_hors_perimetre_sont_refusees() {
 }
 
 #[test]
+fn regles_de_saisie_de_la_surventilation_naturelle() {
+    use thbce_core::entree::TypeOuvrant;
+    // Th-BCE 2020 §5.13 : une baie ouvrable demande sa classe d'exposition au bruit.
+    let mut p = projet();
+    p.batiments[0].zones[0].groupes[0].baies[0].expo_br = None;
+    assert_eq!(
+        chemins(&valider(&p).erreurs),
+        ["batiments[0].zones[0].groupes[0].baies[0].expo_br"]
+    );
+    // Rouvmax saisi ou déduit du type d'ouvrant, pas les deux ni aucun.
+    let mut p = projet();
+    p.catalogue.baies[0].ouvrant.as_mut().unwrap().type_ouvrant = Some(TypeOuvrant::Coulissant);
+    assert_eq!(
+        chemins(&valider(&p).erreurs),
+        ["catalogue.baies[0].ouvrant"]
+    );
+    p.catalogue.baies[0].ouvrant.as_mut().unwrap().r_ouv_max = None;
+    assert!(valider(&p).est_valide());
+    // Maison individuelle : traversante par convention (tableau 43).
+    let mut p = projet();
+    p.batiments[0].zones[0].groupes[0].traversant = Some(false);
+    assert_eq!(
+        chemins(&valider(&p).erreurs),
+        ["batiments[0].zones[0].groupes[0].traversant"]
+    );
+    // Hauteur de tirage thermique : saisie seulement au-delà de 4 m, jusqu'à 15 m.
+    let mut p = projet();
+    for (h, valide) in [
+        (3.0, false),
+        (4.0, false),
+        (6.0, true),
+        (15.0, true),
+        (15.5, false),
+    ] {
+        p.batiments[0].zones[0].groupes[0].h_ttf_m = Some(h);
+        assert_eq!(valider(&p).est_valide(), valide, "Httf = {h}");
+    }
+    // Logement collectif : le caractère traversant se saisit.
+    let mut p = projet();
+    p.batiments[0].zones[0].usage = UsageZone::LogementCollectif;
+    p.batiments[0].zones[0].nb_lgt = Some(2);
+    assert_eq!(
+        chemins(&valider(&p).erreurs),
+        ["batiments[0].zones[0].groupes[0].traversant"]
+    );
+    p.batiments[0].zones[0].groupes[0].traversant = Some(false);
+    assert!(valider(&p).est_valide(), "{:?}", valider(&p).erreurs);
+}
+
+#[test]
 fn un_projet_vide_est_refuse_sans_panique() {
     let mut p = projet();
     p.batiments.clear();
@@ -280,6 +330,8 @@ fn la_surface_utile_et_le_nombre_de_logements_sont_exiges() {
     );
     let mut p = projet();
     p.batiments[0].zones[0].usage = UsageZone::LogementCollectif;
+    // Le caractère traversant se saisit en collectif (§5.13.3.2.1) : hors du sujet de ce test.
+    p.batiments[0].zones[0].groupes[0].traversant = Some(true);
     assert_eq!(
         chemins(&valider(&p).erreurs),
         ["batiments[0].zones[0].nb_lgt"]

@@ -71,6 +71,7 @@ export interface ResultatsGroupe {
   sref_m2: number;
   enveloppe: ResultatsEnveloppe;
   baies: ResultatsBaie[];
+  valeurs_par_defaut: ValeurParDefaut[];
 }
 export interface ResultatsZone { id: string; sref_m2: number; nadeq: number | null; groupes: ResultatsGroupe[]; }
 export interface ResultatsBatiment {

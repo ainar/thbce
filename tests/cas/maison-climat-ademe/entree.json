@@ -52,6 +52,9 @@
           "gestion": "manuelle_motorisee",
           "exterieure": true,
           "seconde_protection": false
+        },
+        "ouvrant": {
+          "type_ouvrant": "francaise_ou_anglaise"
         }
       }
     ],
@@ -249,7 +252,8 @@
                     "masques": [
                       "casquette-sud"
                     ]
-                  }
+                  },
+                  "expo_br": "br1"
                 },
                 {
                   "id": "baie-nord",
@@ -261,7 +265,8 @@
                     "masques": [
                       "relief-nord"
                     ]
-                  }
+                  },
+                  "expo_br": "br1"
                 }
               ],
               "ponts_thermiques": [

@@ -214,6 +214,19 @@ pub struct Groupe {
     /// Ponts thermiques (§5.18 à 5.20).
     #[serde(default)]
     pub ponts_thermiques: Vec<PontThermique>,
+    /// « δtrav_surv » : caractère traversant du groupe au sens de la surventilation par
+    /// ouverture des baies, c'est-à-dire la possibilité d'ouvrir les portes intérieures entre
+    /// deux façades d'orientations différentes (§5.13.3.2.1, tableau 43). Conventionnel en
+    /// maison individuelle (traversant) : ne pas le saisir. Requis en logement collectif si le
+    /// groupe a des baies ouvrables.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub traversant: Option<bool>,
+    /// « Httf » : hauteur pour le tirage thermique, en m (§5.13.3.2.2). Absent : 1,5 m, valeur
+    /// du cas général, signalée dans les résultats. À saisir seulement en maison individuelle
+    /// quand la différence d'altitude entre le bas de l'ouvrant le plus bas et le haut de
+    /// l'ouvrant le plus haut dépasse 4 m, dans la limite de 15 m.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub h_ttf_m: Option<f64>,
 }
 
 /// Catégorie de contrainte extérieure du groupe (§13.1.2 : « 1 = CE1 / 2 = CE2 »).
@@ -476,6 +489,52 @@ pub struct BaieType {
     /// protection mobile (`Type-PM = 0`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub protection_mobile: Option<ProtectionMobile>,
+    /// Ouvrant de la baie (§5.13.2, « Est_Ouvrable »). Absent : baie non ouvrable, qui ne
+    /// contribue pas à la surventilation naturelle. La gestion de l'ouverture est manuelle ; la
+    /// gestion automatique n'est pas prise en charge dans cette version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ouvrant: Option<Ouvrant>,
+}
+
+/// Th-BCE 2020 §5.13.3.2.3 — ouvrant d'une baie. Renseigner soit `r_ouv_max`, soit
+/// `type_ouvrant`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Ouvrant {
+    /// « Rouvmax,b » : rapport de la surface maximale d'ouverture à la surface en tableau de la
+    /// baie, parties fixes comprises, entre 0 et 1.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub r_ouv_max: Option<f64>,
+    /// Type d'ouvrant. Sans `r_ouv_max`, le moteur applique la valeur par défaut du tableau 44
+    /// et la signale dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub type_ouvrant: Option<TypeOuvrant>,
+}
+
+/// Type d'ouvrant (§5.13.3.2.3, tableau 44).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TypeOuvrant {
+    /// Ouvrant à la française ou à l'anglaise, angle d'ouverture de 90° : 80 %.
+    FrancaiseOuAnglaise,
+    /// Ouvrant à l'italienne ou à soufflet, angle d'ouverture de 15° : 40 %.
+    ItalienneOuSoufflet,
+    /// Soufflet d'oscillo-battant, angle d'ouverture de 7° : 20 %.
+    SouffletOscilloBattant,
+    /// Coulissant : 40 %.
+    Coulissant,
+}
+
+/// « expo_BR » (§5.13.2 ; fiche d'application §5.11) : classe d'exposition au bruit d'une baie.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ExpoBr {
+    /// BR1.
+    Br1,
+    /// BR2.
+    Br2,
+    /// BR3.
+    Br3,
 }
 
 /// Th-BCE 2020 §5.9.2 et §5.12.2 — protection mobile d'une baie et sa gestion.
@@ -596,6 +655,10 @@ pub struct Baie {
     pub a_b_m2: f64,
     /// Orientation, inclinaison et masques.
     pub exposition: Exposition,
+    /// « expo_BR » : classe d'exposition au bruit de la baie (§5.13.2). Requise si le type de
+    /// baie a un ouvrant.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expo_br: Option<ExpoBr>,
 }
 
 /// Th-BCE 2020 §5.19.2 — pont thermique.

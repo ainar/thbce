@@ -18,8 +18,9 @@
 //! - figure 38 (stores enroulables), page 359 du JO, 780 × 509 pixels :
 //!   `docs/reference/arrete/figures/a3_figure38_stores_enroulables_habitation_jo.png`.
 //!
-//! Le mainteneur a comparé la transcription à ces images, cellule par cellule, pour les lignes
-//! de gestion manuelle (16 novembre 2026, `docs/questions.md`, décision Q31). Les tests de ce
+//! La transcription a été vérifiée par deux lectures indépendantes de ces images, cellule par
+//! cellule, pour les lignes de gestion manuelle (16 novembre 2026, `docs/questions.md`,
+//! décision Q31). Les tests de ce
 //! module vérifient en outre la cohérence interne des matrices.
 //!
 //! Seule la famille « habitation, hôtellerie et hébergement » (usages 1 et 2 de la première

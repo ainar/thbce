@@ -14,11 +14,12 @@ use crate::climat::environnement_proche::{
     flux_atteignant_la_paroi, qer_w_m2, FluxParoi, MasqueResolu, SurfaceExposee,
 };
 use crate::conventions::ModeCalcul;
-use crate::entree::{Baie, BaieType, Catalogue, FacteursBaie, TypoPm};
+use crate::entree::{Baie, BaieType, Catalogue, ExpoBr, FacteursBaie, TypoPm};
 use crate::resultats::ValeurParDefaut;
 
 use super::paroi_opaque::resoudre_masques;
 use super::protection_mobile::taux_passage_air;
+use super::surventilation::r_ouv_max_par_defaut;
 use super::{ConditionsExterieures, HE_W_M2K};
 
 /// « β1 » : inclinaison en dessous de laquelle la baie est considérée horizontale, en degrés
@@ -341,6 +342,11 @@ pub struct BaieResolue {
     pub avec_protection: FacteursResolus,
     /// Valeurs par défaut du texte appliquées aux paramètres non saisis.
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+    /// « Aouvmax,b » : surface d'ouverture maximale, en m² (§5.10.3.9, éq. 238 :
+    /// `Aouvmax,b = Ab·Rouvmax,b`) ; nulle pour une baie non ouvrable.
+    pub a_ouv_max_m2: f64,
+    /// « expo_BR » : classe d'exposition au bruit, pour une baie ouvrable.
+    pub expo_br: Option<ExpoBr>,
     /// « Tauxpassage_air_PM » : taux de passage de l'air à travers la protection mobile en place
     /// (§5.12.3.1, tableau 40) ; 1 sans protection mobile.
     pub taux_passage_air: f64,
@@ -415,6 +421,25 @@ impl BaieResolue {
                 TypoPm::Etanche
             })),
         };
+        // Th-BCE 2020 §5.13.3.2.3, tableau 44 : Rouvmax par défaut selon le type d'ouvrant.
+        let r_ouv_max = match &type_baie.ouvrant {
+            None => 0.0,
+            Some(o) => match (o.r_ouv_max, o.type_ouvrant) {
+                (Some(r), _) => r,
+                (None, Some(t)) => {
+                    let r = r_ouv_max_par_defaut(t);
+                    valeurs_par_defaut.push(ValeurParDefaut {
+                        champ: "ouvrant.r_ouv_max".to_owned(),
+                        valeur: r,
+                        regle: "Th-BCE 2020 §5.13.3.2.3, tableau 44 : ratio d'ouverture maximal \
+                                par défaut du type d'ouvrant"
+                            .to_owned(),
+                    });
+                    r
+                }
+                (None, None) => return None,
+            },
+        };
         Some(Self {
             a_b_m2: baie.a_b_m2,
             alpha_deg: baie.exposition.azimut_deg,
@@ -424,6 +449,8 @@ impl BaieResolue {
             sans_protection,
             avec_protection,
             valeurs_par_defaut,
+            a_ouv_max_m2: baie.a_b_m2 * r_ouv_max,
+            expo_br: baie.expo_br,
             taux_passage_air,
             // §5.10.3.2 : les grands volumes n'existent que dans des usages hors du périmètre
             // actuel (industrie, établissements sportifs, commerces).
