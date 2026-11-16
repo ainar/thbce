@@ -70,7 +70,9 @@ pub struct DateScenario {
 ///
 /// Lectures retenues (`docs/questions.md`) :
 /// - l'heure est la case de scénario du tableau du §4.1.3, et le jour change quand cette case
-///   revient à 1, c'est-à-dire à minuit en heure légale (question Q28) ;
+///   revient à 1, c'est-à-dire à minuit en heure légale (décision Q28). Ce choix est isolé dans
+///   cette fonction : c'est le deuxième paramètre à tester, après la lecture du fichier météo
+///   (décision Q25), si un cas de référence diverge ;
 /// - l'année conventionnelle compte 52 semaines, soit 364 jours ; au-delà, le pas de temps est
 ///   rattaché à un lundi ajouté à la dernière semaine de décembre (décision Q17).
 pub fn date_scenario(h: usize) -> DateScenario {

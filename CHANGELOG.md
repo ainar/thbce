@@ -13,6 +13,9 @@ Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consol
 
 - **Format d'entrée, changement incompatible** : `su_m2` (surface utile du groupe, « Agr ») est obligatoire pour tous les usages, y compris en habitation où `shab_m2` reste la surface de référence. `nb_lgt` est obligatoire en logement collectif.
 
+- **Format d'entrée, changement incompatible** : un type de paroi opaque porte un champ obligatoire `incl_k`, position dans laquelle son coefficient `u_k_w_m2k` a été déterminé (`verticale`, `horizontale_flux_ascendant` ou `horizontale_flux_descendant`, annexe III §5.17.3).
+- Un pont thermique accepte un champ facultatif `exposition` (description détaillée). Sans lui, la description simplifiée du §5.18.3 s'applique.
+
 ### Ajouté
 
 - Workspace Cargo : `thbce-core`, `thbce-data`, `thbce-io`, `thbce-cli`, `thbce-wasm`, `xtask`.
@@ -36,3 +39,4 @@ Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consol
 - Résultats : `nadeq` par zone.
 - Harnais des cas de validation (`tests/cas/`) avec tolérances par indicateur.
 - Intégration continue : format, clippy, licences, tests sur Linux, macOS et Windows, build et tests WebAssembly, parité natif / `wasm32-wasip1`.
+- Parois opaques et ponts thermiques (§5.15 à §5.20) : coefficient U selon l'inclinaison, flux solaire et flux vers la voûte céleste, cumuls par groupe. Les résultats donnent par groupe les grandeurs d'enveloppe (`enveloppe` : surfaces, longueurs, coefficients HTh).

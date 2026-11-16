@@ -6,12 +6,14 @@
 //! réglementaires restent à `None` jusqu'à l'implémentation des lots 4 à 7
 //! (`docs/couverture.md`).
 
+use crate::bati::paroi_opaque::{EnsembleParois, ParoiResolue};
+use crate::bati::pont_thermique::{EnsemblePonts, PontResolu};
 use crate::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
-use crate::entree::{Groupe, Projet, UsageZone};
+use crate::entree::{Catalogue, Groupe, Projet, UsageZone};
 use crate::erreur::Erreur;
 use crate::resultats::{
-    PeriodeConfortAdaptatif, Resultats, ResultatsBatiment, ResultatsClimat, ResultatsGroupe,
-    ResultatsZone,
+    PeriodeConfortAdaptatif, Resultats, ResultatsBatiment, ResultatsClimat, ResultatsEnveloppe,
+    ResultatsGroupe, ResultatsZone,
 };
 use crate::scenarios::ScenariosZone;
 use crate::validation::valider;
@@ -104,6 +106,7 @@ pub fn calculer(
                         .map(|g| ResultatsGroupe {
                             id: g.id.clone(),
                             sref_m2: sref_groupe(g, zone.usage),
+                            enveloppe: enveloppe_groupe(g, &projet.catalogue),
                         })
                         .collect();
                     // Th-BCE 2020 §13.1.3, éq. (2377) : SREF_zn = somme des SREF_gr de la zone.
@@ -160,6 +163,34 @@ pub fn calculer(
 ///
 /// Th-BCE 2020 §13.1.3, éq. (2375) et (2376) : `SREF_gr = SHAB_gr` si l'usage vaut 1 ou 2,
 /// `SREF_gr = SU_gr` sinon. La validation garantit la présence de la surface requise.
+/// Grandeurs d'enveloppe d'un groupe (Th-BCE 2020 §5.16.3, éq. 283, 286 et 287 ; §5.20.3,
+/// éq. 307 et 310). Les références au catalogue ont été vérifiées par la validation.
+fn enveloppe_groupe(groupe: &Groupe, catalogue: &Catalogue) -> ResultatsEnveloppe {
+    let parois: Vec<ParoiResolue> = groupe
+        .parois_opaques
+        .iter()
+        .filter_map(|p| {
+            let type_paroi = catalogue.parois.iter().find(|t| t.id == p.type_paroi)?;
+            Some(ParoiResolue::nouvelle(p, type_paroi, catalogue))
+        })
+        .collect();
+    let mut ponts = Vec::new();
+    for pont in &groupe.ponts_thermiques {
+        PontResolu::resoudre(pont, catalogue, &mut ponts);
+    }
+    let op = EnsembleParois::de(&parois);
+    let pt = EnsemblePonts::de(&ponts);
+    ResultatsEnveloppe {
+        a_op_m2: op.a_op_m2,
+        a_opv_m2: op.a_opv_m2,
+        a_ophh_m2: op.a_ophh_m2,
+        a_ophb_m2: op.a_ophb_m2,
+        h_th_op_w_k: op.h_th_w_k,
+        l_pt_m: pt.l_m,
+        h_th_pt_w_k: pt.h_th_w_k,
+    }
+}
+
 fn sref_groupe(groupe: &Groupe, usage: UsageZone) -> f64 {
     let surface = if usage.est_habitation() {
         groupe.shab_m2

@@ -289,7 +289,7 @@ fn valider_groupe(
         g.ponts_thermiques.iter().map(|p| &p.id),
     );
     for (i, p) in g.ponts_thermiques.iter().enumerate() {
-        valider_pont_thermique(r, &format!("{c}.ponts_thermiques[{i}]"), p);
+        valider_pont_thermique(r, &format!("{c}.ponts_thermiques[{i}]"), p, refs);
     }
 }
 
@@ -402,11 +402,24 @@ fn valider_baie(r: &mut RapportValidation, c: &str, b: &Baie, refs: &References<
 }
 
 /// Th-BCE 2020 §5.19.2.
-fn valider_pont_thermique(r: &mut RapportValidation, c: &str, p: &PontThermique) {
+fn valider_pont_thermique(
+    r: &mut RapportValidation,
+    c: &str,
+    p: &PontThermique,
+    refs: &References<'_>,
+) {
     r.positif(format!("{c}.psi_l_w_mk"), p.psi_l_w_mk);
     r.positif(format!("{c}.l_l_m"), p.l_l_m);
     r.plage(format!("{c}.sf_c_l"), p.sf_c_l, 0.0, 1.0);
     r.plage(format!("{c}.sf_e_l"), p.sf_e_l, 0.0, 1.0);
+    if let Some(e) = &p.exposition {
+        // Pour les masques proches, la largeur du pont thermique est conventionnelle (§3.2.3).
+        let e = Exposition {
+            lpb_m: Some(crate::bati::pont_thermique::LARGEUR_MASQUES_PROCHES_M),
+            ..e.clone()
+        };
+        valider_exposition(r, &format!("{c}.exposition"), &e, refs);
+    }
 }
 
 /// Th-BCE 2020 §5.17.2.

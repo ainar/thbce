@@ -100,6 +100,28 @@ pub struct ResultatsGroupe {
     pub id: Id,
     /// « SREF_gr », en m² (§13.1.3, éq. 2375 et 2376).
     pub sref_m2: f64,
+    /// Grandeurs d'enveloppe du groupe.
+    pub enveloppe: ResultatsEnveloppe,
+}
+
+/// Grandeurs d'enveloppe d'un groupe (Th-BCE 2020 §5.16.3 et §5.20.3). Les coefficients de
+/// transmission sont ceux des éléments à leur inclinaison réelle (§5.17.3, éq. 294).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsEnveloppe {
+    /// « Aop » : surface des parois opaques, en m² (éq. 286).
+    pub a_op_m2: f64,
+    /// « Aopv » : surface des parois opaques verticales, en m² (éq. 287).
+    pub a_opv_m2: f64,
+    /// « Aophh » : surface des parois opaques horizontales tournées vers le haut, en m² (éq. 287).
+    pub a_ophh_m2: f64,
+    /// « Aophb » : surface des parois opaques horizontales tournées vers le bas, en m² (éq. 287).
+    pub a_ophb_m2: f64,
+    /// « HTh » des parois opaques, en W/K (éq. 283).
+    pub h_th_op_w_k: f64,
+    /// « Ll » : longueur des ponts thermiques, en m (éq. 310).
+    pub l_pt_m: f64,
+    /// « HTh » des ponts thermiques, en W/K (éq. 307).
+    pub h_th_pt_w_k: f64,
 }
 
 impl Resultats {
@@ -118,6 +140,18 @@ impl Resultats {
                 z.nadeq = z.nadeq.map(a);
                 for g in &mut z.groupes {
                     g.sref_m2 = a(g.sref_m2);
+                    let e = &mut g.enveloppe;
+                    for v in [
+                        &mut e.a_op_m2,
+                        &mut e.a_opv_m2,
+                        &mut e.a_ophh_m2,
+                        &mut e.a_ophb_m2,
+                        &mut e.h_th_op_w_k,
+                        &mut e.l_pt_m,
+                        &mut e.h_th_pt_w_k,
+                    ] {
+                        *v = a(*v);
+                    }
                 }
             }
         }

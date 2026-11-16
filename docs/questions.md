@@ -32,11 +32,12 @@ Chaque entrée indique la section du texte, la nature du manque ou de l'ambiguï
 | Q21 | `dhg` non défini dans l'éq. (20) | tranchée, hypothèse du mainteneur : `dhp` |
 | Q22 | Dernière ligne du tableau du calendrier | tranchée, hypothèse du mainteneur |
 | Q23 | Détails de la fiche 3.2 : `Tsimul`, égalité dans l'éq. (22), repli de Φ, paramètre `Az` | tranchée, hypothèse du mainteneur |
-| Q24 | Masques proches des ponts thermiques | reportée au lot 4 |
+| Q24 | Masques proches des ponts thermiques | tranchée par le texte, implémentée au lot 4c |
 | Q25 | **Décalage d'une heure entre le fichier météo et le calendrier du texte** | tranchée : lecture ligne à ligne, **premier paramètre à tester si un cas de référence diverge** |
 | Q26 | Trois cellules du classeur des scénarios saisies « 0;5 » | tranchée, hypothèse du mainteneur, à confirmer avant de calculer ces usages ; sans effet sur la v1 |
 | Q27 | Valeurs fractionnaires dans des indicateurs booléens, ratios d'aérogare | tranchée : conversion telle quelle, rien n'est normalisé ; évaluation à trancher fiche par fiche |
-| Q28 | Fiche 4.1 : surface utile `Agr`, changement de jour des scénarios, nombre de logements d'une maison | **ouverte** |
+| Q28 | Fiche 4.1 : surface utile `Agr`, changement de jour des scénarios, nombre de logements d'une maison | tranchée, à confirmer par un cas de référence ; le changement de jour est le **deuxième paramètre à tester si un cas de référence diverge** |
+| Q29 | Parois opaques et ponts thermiques : sens de `fce`, branche 120–150° de l'éq. (294), position de référence de `Uk`, description simplifiée des ponts thermiques | **ouverte** |
 
 « Hypothèse du mainteneur » signifie : lecture retenue le 16 novembre 2026, **à confirmer par un cas de validation**. Ce sont les premiers points à revoir si un cas de référence diverge.
 
@@ -229,9 +230,10 @@ Le fichier réglementaire ne contient pas toutes les grandeurs que la fiche `C_E
 4. **Paramètre `Az`** (p. 36, « angle des différentes tranches azimutales ») : la description mathématique fixe 36 tranches de 10° repérées par rapport à la normale au composant (figure 10). `Az` n'apporte donc rien ; l'entrée est la liste des 36 hauteurs `γi`.
 5. **Indice des tranches** : déduit de la figure 10, où le soleil à 20–30° de la normale, côté des Φ positifs, est « dans la tranche 21 » : `i = ⌊(Φ° + 180)/10⌋ + 1`.
 
-### Q24 — Masques proches des ponts thermiques (A3 §3.2.3, p. 39) — reportée au lot 4
+### Q24 — Masques proches des ponts thermiques (A3 §3.2.3, p. 39) — tranchée par le texte, implémentée au lot 4c
 
-- Le texte modélise un pont thermique vertical, pour les masques proches, comme une paroi verticale de 30 cm de large. Ce cas sera traité avec la fiche des ponts thermiques ; le calcul des masques est prêt à le recevoir.
+- Le texte modélise un pont thermique vertical, pour les masques proches, comme une paroi verticale de 30 cm de large.
+- **Code** : `bati/pont_thermique.rs`, constante `LARGEUR_MASQUES_PROCHES_M`. La largeur de 30 cm est appliquée à tout pont thermique décrit avec une exposition ; la hauteur de la paroi équivalente, que le texte ne donne pas, est à saisir (`hpb_m`) si un masque proche horizontal est déclaré, et la validation la réclame dans ce cas.
 
 ### Q19 — Rayonnement direct non nul alors que `Gamma` vaut zéro — tranchée par le texte, lecture confirmée par le mainteneur
 
@@ -264,7 +266,13 @@ Le fichier réglementaire ne contient pas toutes les grandeurs que la fiche `C_E
 - **Usages 1 et 2** : aucune anomalie ; les indicateurs sont bien booléens et les ratios somment exactement à 1 (tests de `thbce-data`).
 - **Proposition** : lire la description mathématique de la fiche 4.1 pour ces cas au moment d'ouvrir les usages concernés. Les grilles sont converties telles quelles.
 
-### Q28 — Lectures de la fiche 4.1 (A3 §4.1.2 et §4.1.3, p. 53 à 62) — ouverte
+### Q28 — Lectures de la fiche 4.1 (A3 §4.1.2 et §4.1.3, p. 53 à 62) — tranchée le 16 novembre 2026, à confirmer par un cas de référence
+
+- **Décision** : les lectures ci-dessous sont retenues.
+  - `Agr` est la surface utile, et `su_m2` reste **obligatoire** pour tous les usages : une saisie explicite est préférée à une valeur par défaut implicite. En maison individuelle, on saisit en pratique `su_m2 = shab_m2`. En logement collectif, la surface habitable interne au calcul (`Rat_hab · Az`, éq. 33) est distincte de la SHAB saisie. Ces deux précisions figurent dans la description du champ (JSON Schema) et dans `docs/modele-donnees.md`.
+  - Le jour des scénarios change à minuit en heure légale. Le choix est isolé dans `climat/calendrier.rs` (`date_scenario`), comme celui de Q25 : **c'est le deuxième paramètre à tester si un cas de référence diverge**, après la lecture du fichier météo.
+  - Le 365e jour est inoccupé (conséquence de Q17).
+  - `nb_lgt` vaut 1 par défaut en maison individuelle.
 
 1. **Surface utile du groupe, `Agr`.** La fiche répartit les apports internes d'après `Agr`, « surface utile du groupe », y compris en habitation, où la surface de référence est la surface habitable (§13.1.3). En logement collectif, l'éq. (33) calcule même une « surface habitable » `Rat_hab·Az`, soit 90 % de la surface utile de la zone, distincte de la SHAB saisie. Retenu : `su_m2` est `Agr` et devient obligatoire pour tous les usages ; hors habitation, la même valeur sert de surface de référence « SU » (éq. 2376). À confirmer : que `Agr` et `SU` sont bien la même grandeur, et qu'en maison individuelle on saisit en pratique `Agr = SHAB`.
 2. **Changement de jour des scénarios.** Le texte dit que le mois, la semaine, le jour et l'heure « se déduisent de l'heure de la simulation par incrémentations successives », les scénarios étant « en heure légale ». Retenu : le jour change quand la case de scénario revient à 1, c'est-à-dire à minuit en heure légale ; l'itération 0 est la case 2 du lundi de la première semaine, et la case 1 de ce lundi n'est jamais jouée. L'autre lecture (jour changeant à minuit UTC) décalerait d'un jour une ou deux cases chaque nuit.
@@ -272,6 +280,14 @@ Le fichier réglementaire ne contient pas toutes les grandeurs que la fiche `C_E
 4. **Nombre de logements d'une maison.** `Nb_lgt` est défini « en logement collectif et pour les maisons accolées ». Retenu : 1 par défaut en maison individuelle, obligatoire en logement collectif.
 5. **Locaux.** Les ratios de surface des locaux sont ceux par défaut du classeur (`Rat_l`) ; la saisie de ratios propres au projet viendra si elle s'avère nécessaire.
 6. **Produit « × » du tableau 6.** Codé comme le produit arithmétique, qui coïncide avec le ET pour des valeurs 0 et 1 (seul cas des usages 1 et 2). Sans effet tant que Q27 ne se pose pas.
+
+### Q29 — Lectures des fiches 5.15 à 5.20, parois opaques et ponts thermiques (A3 p. 281 à 305) — ouverte
+
+1. **Sens du coefficient `fce`.** La nomenclature des fiches 5.17 et 5.19 annonce `fce = 1` « en période de confort d'été ». Les éq. (290) à (292) et (301) à (303) écrivent `Sf = fce·Sf-c + (1 − fce)·Sf-e`, où `Sf-c` est le facteur solaire « en conditions de chauffage » et `Sf-e` le facteur « en conditions d'été » : pour que le facteur d'été serve en été, `fce` doit alors valoir 0. Retenu : les équations ; `fce = 1` en Th-B et Th-C, et en Th-D `fce = 0` pendant la période de confort adaptatif (§3.1.3), 1 en dehors. Isolé dans `bati::fce`. Sans effet sur le Bbio (Th-B) ; à confirmer avant le DH (phase 5), où il agit sur les apports solaires par les parois opaques.
+2. **Branche 120–150° de l'éq. (294).** Entre β3 = 120° et β4 = 150°, la formule imprimée (vérifiée sur l'image de la p. 292) pondère `Uvert` par `(β − β3)/(β4 − β3)` et `Uhoriz,desc` par `(β4 − β)/(β4 − β3)` : elle donnerait `Uhoriz,desc` à 120° et `Uvert` à 150°, avec un saut aux deux bornes, à l'inverse de la branche 30–60°, qui est continue. Retenu : l'interpolation continue (`Uvert` à 120°, `Uhoriz,desc` à 150°). Écart maximal entre les deux lectures : 0,04 m².K/W de résistance superficielle (0,21 − 0,17), soit moins de 1 % de U pour une paroi à 0,2 W/(m².K), et seulement pour des parois inclinées entre 120 et 150°.
+3. **Position de référence de `Uk`.** L'éq. (294) recalcule U selon l'inclinaison réelle à partir de `Uk` et de `Incl_k`, position dans laquelle `Uk` a été déterminé (verticale, horizontale à flux ascendant ou descendant). Retenu : `incl_k` est une entrée **obligatoire** du type de paroi, sans valeur par défaut, par cohérence avec la décision prise pour `su_m2`. Résistances superficielles cumulées du texte : 0,17 (verticale), 0,14 (flux ascendant), 0,21 (flux descendant) m².K/W.
+4. **Description simplifiée des ponts thermiques** (§5.18.3, éq. 298). Sans orientation saisie, le texte répartit la longueur en quatre ponts verticaux de `l/4` orientés au sud, à l'ouest, au nord et à l'est, sans masque. Retenu : un pont thermique sans champ `exposition` suit cette règle ; avec `exposition`, il est décrit en détail (orientation, inclinaison, masques).
+5. **Rayonnement vers la voûte céleste des ponts thermiques** (éq. 306). Le flux est `l · Qer* · ψ / he` avec `he = 25 W/(m².K)`, par analogie avec l'éq. (297) des parois ; il est nul pour un pont vertical, puisque `Qer*` porte un facteur `cos β` (éq. 17).
 
 ## Remarque de méthode : fiabilité de l'extraction du PDF
 
