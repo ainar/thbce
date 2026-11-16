@@ -148,7 +148,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
-| 7.1 | C_ECL_éclairage | 470–501 | 4 | `core/src/eclairage/eclairage.rs` | non commencé |
+| 7.1 | C_ECL_éclairage | 470–501 | 4 | `core/src/eclairage/mod.rs` | partiel : habitation (§7.1.3.6.2), éclairement naturel des volumes normaux (§7.1.3.4), autonomie (éq. 785), consommation (éq. 786 à 790), apports récupérables ; tableaux 78 et 79, grands volumes et fractionnement non transcrits (autres usages) ; branchement horaire au lot 4d |
 | 7.2 | C_ECL_calcul des consommations d’éclairage des parties communes en logement collectif | 502–503 | 6e | `core/src/eclairage/parties_communes.rs` | non commencé |
 
 ### 8. Chauffage, refroidissement (p. 504–1018)
