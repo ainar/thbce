@@ -1,0 +1,82 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>thbce — exemple WebAssembly</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; max-width: 46rem; margin: 2rem auto; padding: 0 1rem; }
+    label { display: block; margin: 1rem 0 .25rem; font-weight: 600; }
+    table { border-collapse: collapse; margin-top: 1rem; }
+    td, th { border: 1px solid #999; padding: .3rem .7rem; text-align: left; }
+    .avertissement { background: #fff3cd; padding: .6rem .9rem; border-left: 4px solid #b58900; }
+    pre { background: #f4f4f4; padding: .8rem; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>thbce dans le navigateur</h1>
+  <p class="avertissement">Ce moteur n'est pas le moteur réglementaire officiel. À ce stade il ne calcule
+    que la surface de référence ; les indicateurs s'affichent « non calculé ».</p>
+  <p id="version">Chargement du module…</p>
+
+  <label for="projet">Projet (JSON natif)</label>
+  <input type="file" id="projet" accept=".json,application/json">
+  <label for="meteo">Fichier météo (CSV ; reste sur votre machine)</label>
+  <input type="file" id="meteo" accept=".csv,text/csv">
+  <p><button id="calculer" disabled>Calculer</button></p>
+
+  <div id="sortie"></div>
+
+  <script type="module">
+    // Construire d'abord le module : wasm-pack build crates/thbce-wasm --target web --release
+    // puis servir la racine du dépôt (par exemple : python3 -m http.server) et ouvrir /examples/web/.
+    import init, { calculer, versionMoteur } from "../../crates/thbce-wasm/pkg/thbce_wasm.js";
+
+    const $ = (id) => document.getElementById(id);
+    await init();
+    $("version").textContent = versionMoteur();
+    $("calculer").disabled = false;
+
+    const nombre = (v, unite) => (v === null ? "non calculé" : `${v} ${unite}`);
+
+    $("calculer").addEventListener("click", async () => {
+      const sortie = $("sortie");
+      sortie.textContent = "";
+      const [projet] = $("projet").files;
+      const [meteo] = $("meteo").files;
+      if (!projet || !meteo) {
+        sortie.textContent = "Choisir un projet et un fichier météo.";
+        return;
+      }
+      try {
+        const r = calculer(await projet.text(), new Uint8Array(await meteo.arrayBuffer()));
+        const table = document.createElement("table");
+        table.innerHTML = "<tr><th>Bâtiment</th><th>SREF</th><th>Bbio</th><th>Cep</th><th>Cep,nr</th><th>DH</th><th>Ic énergie</th></tr>";
+        for (const b of r.batiments) {
+          const ligne = table.insertRow();
+          for (const cellule of [b.id, nombre(b.sref_m2, "m²"), nombre(b.bbio_pts, "pts"),
+            nombre(b.cep_kwhep_m2, "kWhep/m²"), nombre(b.cep_nr_kwhep_m2, "kWhep/m²"),
+            nombre(b.dh_c_h, "°C.h"), nombre(b.ic_energie_kgco2_m2, "kg éq. CO2/m²")]) {
+            ligne.insertCell().textContent = cellule;
+          }
+        }
+        const statut = document.createElement("p");
+        statut.textContent = r.reglementaire
+          ? "Données météo réglementaires."
+          : "Données météo non réglementaires : résultat non réglementaire.";
+        sortie.append(statut, table);
+        for (const a of r.avertissements) {
+          const p = document.createElement("p");
+          p.textContent = `Avertissement : ${a}`;
+          sortie.append(p);
+        }
+      } catch (e) {
+        const pre = document.createElement("pre");
+        pre.textContent = e.cause ? JSON.stringify(e.cause, null, 2) : String(e);
+        sortie.append(pre);
+      }
+    });
+  </script>
+</body>
+</html>

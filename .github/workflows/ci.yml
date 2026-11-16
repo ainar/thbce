@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  qualite:
+    name: Format, clippy, données générées
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo fmt
+        run: cargo fmt --all --check
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Données générées à jour
+        run: cargo run -p xtask -- zones-climatiques --verifier
+      - name: Aucun fichier météo réglementaire dans le dépôt
+        run: |
+          if git ls-files | grep -E -i 'scenarios_meteorologiques|meteo-re2020|meteo/reglementaire/'; then
+            echo "::error::un fichier météo réglementaire est versionné ; sa diffusion est interdite"
+            exit 1
+          fi
+
+  licences:
+    name: Licences et vulnérabilités (cargo deny)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
+  tests:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo test
+        run: cargo test --workspace
+
+  wasm:
+    name: WebAssembly (build, tests, taille, parité)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown, wasm32-wasip1
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack,wasmtime
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build du module navigateur (wasm-pack, wasm-opt -O3)
+        run: wasm-pack build crates/thbce-wasm --target web --release
+      - name: Tests du module sous Node
+        run: wasm-pack test --node crates/thbce-wasm
+      - name: Taille du module
+        run: |
+          octets=$(stat -c %s crates/thbce-wasm/pkg/thbce_wasm_bg.wasm)
+          gz=$(gzip -9 -c crates/thbce-wasm/pkg/thbce_wasm_bg.wasm | wc -c)
+          {
+            echo "### Taille du module WebAssembly"
+            echo ""
+            echo "| Fichier | Octets | Compressé (gzip) |"
+            echo "|---|---|---|"
+            echo "| \`thbce_wasm_bg.wasm\` | $octets | $gz |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "thbce_wasm_bg.wasm : $octets octets ($gz compressé)"
+      - name: Fichier de définitions TypeScript
+        run: grep -q "export function calculer" crates/thbce-wasm/pkg/thbce_wasm.d.ts
+      - name: Parité natif / wasm32-wasip1 (résultats identiques à l'octet près)
+        run: |
+          cargo build --release -p thbce-cli
+          cargo build --release -p thbce-cli --target wasm32-wasip1
+          cargo run -p xtask -- meteo-synthetique target/meteo-synthetique.csv
+          n=0
+          for cas in tests/cas/*/; do
+            grep -q 'meteo = "synthetique"' "$cas/cas.toml" || continue
+            ./target/release/thbce calcul "$cas/entree.json" --meteo target/meteo-synthetique.csv --sans-arrondi -o target/natif.json
+            wasmtime run --dir . target/wasm32-wasip1/release/thbce.wasm calcul "$cas/entree.json" --meteo target/meteo-synthetique.csv --sans-arrondi -o target/wasi.json
+            cmp target/natif.json target/wasi.json
+            n=$((n + 1))
+          done
+          echo "$n cas identiques entre natif et wasm32-wasip1"
+          test "$n" -gt 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: thbce-wasm-pkg
+          path: crates/thbce-wasm/pkg

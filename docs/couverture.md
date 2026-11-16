@@ -45,7 +45,7 @@ Tant qu'aucun cas de référence n'est disponible, aucune fiche ne peut dépasse
 | après v1 | Systèmes non retenus dans l'ordre validé | 26 | 359 |
 | hors lot 1 | Titres V | 24 | 445 |
 
-Les lots 6a à 6d, 7a et 7b suivent l'ordre fixé par le mainteneur. Deux points restent à confirmer (question Q18) : le lot 6e, que j'ai ajouté parce que ces postes entrent dans le Cep du logement collectif, et le rattachement fiche par fiche, fait d'après les titres pour les fiches de systèmes non encore lues.
+Les lots 6a à 6e, 7a et 7b suivent l'ordre fixé par le mainteneur ; le lot 6e vient en dernier dans le lot 6, avant la production photovoltaïque, et fait partie de la première version (décision Q18). Le rattachement fiche par fiche a été fait d'après les titres pour les fiches de systèmes non encore lues ; il sera ajusté à leur lecture.
 
 Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la saisie et ne contiennent pas d'algorithme horaire. Elles se traduisent par des règles de validation dans `thbce-io`.
 
@@ -55,13 +55,14 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 |---|---|---|---|
 | Arrêté, article 9 | Coefficients de conversion en énergie primaire et en énergie primaire non renouvelable | `thbce-data` ; recoupe le tableau 333 de l'annexe III | non commencé |
 | Arrêté, article 10 | Facteurs d'émission des énergies (kg éq. CO2/kWh EF PCI) | `thbce-data` ; valeurs identiques aux fiches INIES « [RE2020] » | non commencé |
-| Arrêté, article 11 | Coefficients de pondération dynamique | tableau absent de l'extraction (question Q5) | bloqué |
+| Arrêté, article 11 | Coefficients de pondération dynamique (Journal officiel du 15 août 2021, p. 59) | `data/src/ponderation_dynamique.rs` | implémenté |
+| Arrêté du 26 octobre 2010, annexe I | Zone climatique de chaque département | `data/src/zones_climatiques/`, table générée par `xtask` | implémenté |
 | Annexe II §2.2.1 | Données conventionnelles du calcul énergétique | `thbce-data` | non commencé |
 | Annexe II §4.3 | Ic énergie, éq. (72) à (75) | `core/src/indicateurs/ic_energie.rs` (lot 7) | non commencé |
 | Annexe II §5.1, 5.2 | Indicateurs DH, Bbio, Cep, Cep,nr | `core/src/indicateurs/` | non commencé |
 | Annexe 7 de l'arrêté du 15 septembre 2006 | Facteur d'émission (5e colonne) et ratio EnR&R (6e colonne) par réseau de chaleur | `thbce-data`, par script | non commencé |
 | Scénarios conventionnels (classeur du 29 avril 2026) | 28 onglets, un par usage | `thbce-data`, par script (`tools/`) | non commencé |
-| Annexe VI | Contenu du RSEE, au niveau des chapitres seulement | insuffisant pour écrire un lecteur XML (question Q3) | en attente d'exemples |
+| Annexe VI | Contenu du RSEE, au niveau des chapitres seulement | insuffisant pour écrire un lecteur XML (décision Q3) | en attente de fichiers d'exemple |
 | Règles Th-Bat 2020 | Détermination des données d'entrée (U, Ψ, inertie, facteurs solaires) | hors moteur : ces grandeurs sont des entrées | — |
 
 ## Annexe III, fiche par fiche
@@ -72,7 +73,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 |---|---|---|---|---|---|
 | 1.1 | Introduction | 15–15 | — | `(principes, pas de code)` | non commencé |
 | 1.2 | Architecture des fiches algorithmes | 16–16 | — | `(principes, pas de code)` | non commencé |
-| 1.3 | Divers | 16–16 | 2 | `core/src/conventions.rs` | non commencé |
+| 1.3 | Divers | 16–16 | 2 | `core/src/conventions.rs`, `core/src/calcul.rs` | implémenté (arrondi de restitution, surfaces de référence) |
 
 ### 2. Les principales donnees conventionnelles (p. 17–26)
 
@@ -244,7 +245,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
-| 13.1 | C_CALC_Sorties du mode Th-B | 1355–1364 | 4 | `core/src/indicateurs/sorties_th_b.rs` | non commencé |
+| 13.1 | C_CALC_Sorties du mode Th-B | 1355–1364 | 4 | `core/src/indicateurs/sorties_th_b.rs` | partiel : surfaces de référence, éq. (2375) à (2378), dans `core/src/calcul.rs` |
 | 13.2 | C_CALC_Sorties du mode Th-C | 1365–1378 | 7 | `core/src/indicateurs/sorties_th_c.rs` | non commencé |
 | 13.3 | C_Sn_Methode_Th_C_Forfait de consommations de refroidissement | 1379–1385 | 7 | `core/src/indicateurs/forfait_refroidissement.rs` | non commencé |
 | 13.4 | C_Calc_Bilans_Energies_Consommees_et_importées | 1386–1395 | 7 | `core/src/indicateurs/bilans_energies.rs` | non commencé |

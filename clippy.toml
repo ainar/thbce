@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Reproductibilité natif / WebAssembly : les fonctions transcendantes de la bibliothèque
+# standard dépendent de la plateforme. Le calcul doit passer par la crate `libm`.
+disallowed-methods = [
+    { path = "f64::sin", reason = "utiliser libm::sin (résultats identiques au bit près entre plateformes)" },
+    { path = "f64::cos", reason = "utiliser libm::cos" },
+    { path = "f64::tan", reason = "utiliser libm::tan" },
+    { path = "f64::asin", reason = "utiliser libm::asin" },
+    { path = "f64::acos", reason = "utiliser libm::acos" },
+    { path = "f64::atan", reason = "utiliser libm::atan" },
+    { path = "f64::atan2", reason = "utiliser libm::atan2" },
+    { path = "f64::sinh", reason = "utiliser libm::sinh" },
+    { path = "f64::cosh", reason = "utiliser libm::cosh" },
+    { path = "f64::tanh", reason = "utiliser libm::tanh" },
+    { path = "f64::exp", reason = "utiliser libm::exp" },
+    { path = "f64::exp2", reason = "utiliser libm::exp2" },
+    { path = "f64::ln", reason = "utiliser libm::log" },
+    { path = "f64::log", reason = "utiliser libm::log" },
+    { path = "f64::log2", reason = "utiliser libm::log2" },
+    { path = "f64::log10", reason = "utiliser libm::log10" },
+    { path = "f64::powf", reason = "utiliser libm::pow" },
+    { path = "f64::powi", reason = "utiliser libm::pow ou des produits explicites" },
+    { path = "f64::cbrt", reason = "utiliser libm::cbrt" },
+    { path = "f64::hypot", reason = "utiliser libm::hypot" },
+]
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true

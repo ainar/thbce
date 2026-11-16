@@ -1,7 +1,18 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # Proposition de modèle de données
 
-**Statut : proposition de phase 1, révisée le 16 novembre 2026 après les réponses du mainteneur (météo, scénarios, périmètre, Ic énergie, cas de validation). À valider avant tout code de calcul.**
+**Statut : validé par le mainteneur le 16 novembre 2026.** Les types sont implémentés dans `crates/thbce-core/src/entree.rs` ; le JSON Schema (`thbce schema`) fait foi pour le format exact. Ce document garde la vue d'ensemble et les intentions.
+
+## Écarts de la phase 2 par rapport à la proposition
+
+- **Seuls les champs vérifiés dans une nomenclature sont implémentés.** Sont reportés à la lecture de leur fiche : les locaux, l'éclairage, la ventilation, l'émission, les systèmes, le photovoltaïque, les stores vénitiens, le masque d'arbres à feuilles caduques, le contact d'une paroi (extérieur, espace tampon), l'ouverture et le classement au bruit des baies, le ratio EnR des réseaux.
+- **`thbce-core` dépend de `thbce-data`**, et non l'inverse : `Departement` et `ZoneClimatique` sont définis avec leurs tables dans `thbce-data`, qui reste sans entrée-sortie.
+- **La validation est dans `thbce-core`** (`validation.rs`), pour servir aussi le module WebAssembly ; `thbce-io` n'en fait que la mise en forme.
+- **La zone climatique est déduite du département** ; `zone_climatique` devient un champ facultatif, et une valeur contradictoire déclenche un avertissement.
+- **Un seul lecteur météo** pour l'instant (`meteo::lire_csv_re2020`) ; le classeur et les fichiers ADEME viendront au lot 3. La provenance non réglementaire d'un fichier se déclare par une ligne `# thbce-origine:`.
+- **Résultats** : `origine_meteo_th_bc` et `origine_meteo_th_d` remplacent `origine_meteo` ; `valeurs_arrondies` indique si l'arrondi de restitution est appliqué.
+- **Surface de la baie** : `a_b_m2` (« Ab », §5.10.2). **Pont thermique** : sans exposition propre, la nomenclature du §5.19.2 n'en prévoyant pas.
+- **Inertie** : les classes des tableaux 53 et 54 (§5.21.3) sont des variantes d'énumération ; `Ams_surf` et `Ama_surf` sont toujours saisies, comme le dit le texte.
 
 Ce document décrit les types Rust d'entrée et de sortie du moteur. Il ne fixe que la structure. Les champs cités viennent des nomenclatures de l'annexe III déjà lues (§3.1, 3.2, 4.1, 5.1, 5.10, 5.17, 5.19, 5.21, 13.1, 13.2, 13.4, 13.5) ; les autres fiches compléteront les types au moment où elles seront implémentées, chaque champ portant la référence de la nomenclature dont il sort. Aucun champ n'est ajouté s'il ne figure pas dans une nomenclature du texte.
 
