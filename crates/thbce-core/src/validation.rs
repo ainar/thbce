@@ -12,8 +12,9 @@ use thbce_data::ZoneClimatique;
 
 use crate::bati::baie::{u_baie, EtatBaie, REDUCTION_SW_SP_C};
 use crate::entree::{
-    Baie, BaieType, Exposition, FacteursBaie, Groupe, Inertie, InertieAnnuelle, InertieQuotidienne,
-    InertieSequentielle, Masque, ParoiOpaque, ParoiType, PontThermique, Projet, Zone,
+    Baie, BaieType, Exposition, FacteursBaie, GestionPm, Groupe, Inertie, InertieAnnuelle,
+    InertieQuotidienne, InertieSequentielle, Masque, ParoiOpaque, ParoiType, PontThermique, Projet,
+    TypePm, Zone,
 };
 
 /// Nombre maximal de masques protégeant une surface (Th-BCE 2020 §3.2.2, « Nmasque »).
@@ -419,6 +420,23 @@ fn valider_baie(r: &mut RapportValidation, c: &str, b: &Baie, refs: &References<
                     ),
                 );
             }
+            // Éq. (208) : de même pour le coefficient avec la protection mobile en place.
+            let un_u_ap_saisi = t.u_ap_vert_w_m2k.is_some() || t.u_ap_horiz_w_m2k.is_some();
+            if t.protection_mobile.is_some()
+                && un_u_ap_saisi
+                && (0.0..=90.0).contains(&beta)
+                && u_baie(t.u_ap_vert_w_m2k, t.u_ap_horiz_w_m2k, beta).is_none()
+            {
+                r.erreur(
+                    format!("{c}.type_baie"),
+                    Some(b.type_baie.clone()),
+                    format!(
+                        "le type de baie ne donne pas le coefficient U avec protection mobile \
+                         nécessaire à une inclinaison de {beta}° : u_ap_horiz_w_m2k en dessous \
+                         de 60°, u_ap_vert_w_m2k à partir de 30°"
+                    ),
+                );
+            }
         }
     }
     // Th-BCE 2020 §5.10.2 : inclinaison d'une baie entre 0° (horizontale) et 90° (verticale).
@@ -482,6 +500,40 @@ fn valider_baie_type(r: &mut RapportValidation, c: &str, b: &BaieType) {
     ] {
         if let Some(u) = u {
             r.positif(format!("{c}.{champ}"), u);
+        }
+    }
+    if let Some(pm) = &b.protection_mobile {
+        // Décision Q30, point 7 : pas de calcul approché pour ce que la version ne couvre pas.
+        if pm.type_pm == TypePm::StoreVenitien {
+            r.erreur(
+                format!("{c}.protection_mobile.type_pm"),
+                Some("store_venitien".to_owned()),
+                "store vénitien non pris en charge dans cette version",
+            );
+        }
+        if pm.gestion == GestionPm::AutomatiqueAvecDerogation {
+            r.erreur(
+                format!("{c}.protection_mobile.gestion"),
+                Some("automatique_avec_derogation".to_owned()),
+                "gestion automatique des protections mobiles non prise en charge dans cette \
+                 version",
+            );
+        }
+        // Th-BCE 2020 §5.10.2 : facteurs et coefficient U de la baie avec la protection en place.
+        if b.avec_protection.is_none() {
+            r.erreur(
+                format!("{c}.avec_protection"),
+                None,
+                "requis quand une protection mobile est déclarée",
+            );
+        }
+        if b.u_ap_vert_w_m2k.is_none() && b.u_ap_horiz_w_m2k.is_none() {
+            r.erreur(
+                c.to_owned(),
+                None,
+                "au moins un des coefficients u_ap_vert_w_m2k et u_ap_horiz_w_m2k est requis \
+                 quand une protection mobile est déclarée",
+            );
         }
     }
     valider_facteurs_baie(

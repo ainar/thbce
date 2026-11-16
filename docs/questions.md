@@ -39,6 +39,7 @@ Chaque entrée indique la section du texte, la nature du manque ou de l'ambiguï
 | Q28 | Fiche 4.1 : surface utile `Agr`, changement de jour des scénarios, nombre de logements d'une maison | tranchée, à confirmer par un cas de référence ; le changement de jour est le **deuxième paramètre à tester si un cas de référence diverge** |
 | Q29 | Parois opaques et ponts thermiques : sens de `fce` (coquille de la nomenclature), branche 120–150° de l'éq. (294), `incl_k` obligatoire, description simplifiée des ponts thermiques | tranchée, à confirmer par un cas de référence |
 | Q30 | Baies vitrées (fiches 5.8, 5.10 et 5.14) : numérotation des types de baie, `Rprot,b`, surfaces par orientation, stores vénitiens après v1, valeurs par défaut des facteurs solaires | tranchée, à confirmer par un cas de référence ; décomposition du facteur solaire par défaut en Sw1, Sw2, Sw3 : hypothèse du mainteneur (point 8) |
+| Q31 | Protections mobiles (fiches 5.9 et 5.12) : **matrices conventionnelles transcrites d'images peu nettes, à vérifier** ; gestion automatique non prise en charge ; lectures du tableau 34 et de l'éq. (175) | **ouverte** |
 
 « Hypothèse du mainteneur » signifie : lecture retenue le 16 novembre 2026, **à confirmer par un cas de validation**. Ce sont les premiers points à revoir si un cas de référence diverge.
 
@@ -304,6 +305,46 @@ Le fichier réglementaire ne contient pas toutes les grandeurs que la fiche `C_E
    - Les trois composantes « -c » se saisissent ensemble ou pas du tout. Si `Swsp-e ≤ 0,1`, la valeur par défaut ne serait pas positive : la validation demande alors la saisie.
 9. **U d'une baie inclinée.** **Décision** : la validation refuse une baie dont le type ne donne pas le coefficient nécessaire à son inclinaison (éq. 207 et 208), sans substitution. Une baie est inclinée de 0 à 90°.
 10. **Type de baie en habitation.** **Décision** : toutes les baies sont de type 2 dans la première version ; `Type_baie` et `Type_volume` viendront avec les usages à grands volumes.
+
+### Q31 — Fiches 5.9 et 5.12, protections mobiles (A3 p. 179 à 218 et 251 à 254) — ouverte
+
+**Périmètre livré** : volets et stores enroulables en gestion manuelle (motorisée ou non), usages 1 et 2, seconde protection mobile, règles du calcul Th-D, perméabilité à l'air. Les stores vénitiens (décision Q30) et la gestion automatique (point 2) sont refusés par la validation.
+
+1. **Matrices conventionnelles transcrites d'images — à vérifier par le mainteneur.** Les matrices de la gestion manuelle (figures 35 et 38, p. 197 et 200) sont, dans le PDF, des images JPEG de 623 × 413 pixels (96 ppi). Les chiffres y sont lisibles sur un agrandissement, mais peu nets : un 3 et un 8, ou un 5 et un 6, se distinguent mal. La transcription ci-dessous (`thbce-data/src/protections_mobiles.rs`) est donc **à contrôler sur une source de meilleure définition** (PDF non compressé de l'annexe, ou classeur d'origine s'il existe). Seules les lignes de gestion manuelle de la famille « habitation, hôtellerie et hébergement » sont transcrites. Les tests ne vérifient que la cohérence interne (ratios entre 0 et 1, fermeture croissante et seuils décroissants de l'hiver à l'été).
+
+   Figure 35, **volets** (Rprot0 / Ecl1 en lux / Rprot avec PM2 / Ecl2 en lux / nuit) :
+
+   | Occupation | hiver | mi-saison | été, veille < 26,5 °C | été, veille ≥ 26,5 °C |
+   |---|---|---|---|---|
+   | non motorisée | 15 % / 100 000 / 15 % / 100 000 / 80 % | 15 % / 100 000 / 15 % / 80 000 / 80 % | 20 % / 80 000 / 20 % / 30 000 / 80 % | 25 % / 60 000 / 40 % / 30 000 / 80 % |
+   | motorisée | 10 % / 100 000 / 10 % / 100 000 / 90 % | 10 % / 100 000 / 10 % / 60 000 / 90 % | 20 % / 60 000 / 20 % / 20 000 / 90 % | 30 % / 40 000 / 40 % / 20 000 / 90 % |
+
+   | Inoccupation (jour / nuit) | hiver | mi-saison | été, veille < 26,5 °C | été, veille ≥ 26,5 °C |
+   |---|---|---|---|---|
+   | non motorisée | 20 % / 70 % | 20 % / 70 % | 20 % / 70 % | 40 % / 70 % |
+   | motorisée | 10 % / 80 % | 10 % / 80 % | 20 % / 80 % | 50 % / 80 % |
+
+   Figure 38, **stores enroulables** :
+
+   | Occupation | hiver | mi-saison | été, veille < 26,5 °C | été, veille ≥ 26,5 °C |
+   |---|---|---|---|---|
+   | non motorisée | 10 % / 100 000 / 10 % / 100 000 / 10 % | 10 % / 80 000 / 10 % / 80 000 / 10 % | 15 % / 60 000 / 15 % / 30 000 / 10 % | 20 % / 40 000 / 40 % / 30 000 / 10 % |
+   | motorisée | 10 % / 100 000 / 10 % / 100 000 / 10 % | 10 % / 60 000 / 10 % / 60 000 / 10 % | 20 % / 50 000 / 20 % / 20 000 / 10 % | 30 % / 30 000 / 50 % / 20 000 / 10 % |
+
+   | Inoccupation (jour / nuit) | hiver | mi-saison | été, veille < 26,5 °C | été, veille ≥ 26,5 °C |
+   |---|---|---|---|---|
+   | non motorisée | 10 % / 20 % | 20 % / 20 % | 30 % / 20 % | 40 % / 20 % |
+   | motorisée | 10 % / 10 % | 20 % / 10 % | 30 % / 10 % | 60 % / 10 % |
+
+   Cellules les moins sûres à la lecture : les seuils Ecl2 d'été en gestion motorisée (20 000, lu aussi possible 30 000) et les seuils à 80 000 (lu aussi possible 60 000). Tant que cette vérification n'est pas faite, ces valeurs ne sont pas à tenir pour réglementaires.
+2. **Gestion automatique (`Type-GPM = 1`) : non prise en charge, à trancher.** Le texte se contredit sur ses matrices : la nomenclature (p. 181) et le §5.9.3.1 (p. 185) en font des données d'entrée propres à la baie (« les tableaux relatifs aux automatismes seront, au moins initialement, des données d'entrée »), le §5.9.3.3.2 (p. 205, figures 44 à 47) en donne des versions « conventionnelles ». Dans les deux cas, les seuils `Eclim_auto`, `Toph-1limh_auto`, `Toph-1limb_auto` et `Vventlim_auto` n'ont pas de valeur conventionnelle (colonne « Conv. » vide), l'hystérésis de la figure 31 n'est décrite que par un schéma, et la dérogation ajoute le détecteur de présence et l'horloge. Proposition : hors de la première version, sauf avis contraire ; la validation renvoie « gestion automatique des protections mobiles non prise en charge dans cette version ».
+3. **Éq. (181).** Le texte écrit « si Saison = 2 et Saison = 4 » pour la mi-saison : lu « ou ». Saison effective 3 : hiver ; 2 et 4 : mi-saison ; 1 : été.
+4. **Éq. (175), changement de jour.** `Topj-1max` est reporté « si incrémentation de `Jour_année` ». Le calcul (`TemperaturesMaximales::avancer`) reçoit cette information de l'appelant ; le choix entre minuit UTC et minuit légal sera fait avec le modèle thermique (lot 4d) et consigné alors. La remise à zéro de `Topjmax` (et non à −∞) et la valeur nulle du premier jour sont celles du texte.
+5. **Tableau 34 (Th-D), colonne « Résidentiel ».** Lectures retenues : (a) les lignes « (jour = nuit) » désignent les valeurs de nuit, en occupation comme en inoccupation ; (b) pour les volets, de jour, `max(80 % ; valeur Th-BC)` en gestion motorisée et `max(70 % ; valeur Th-BC)` sinon, appliqué à `Rprot0` en occupation et au ratio de jour en inoccupation ; de nuit, `min(70 % ; valeur Th-BC)` ; (c) pour les stores enroulables, « idem volets » de jour et 50 % de nuit (valeur fixe ; l'extraction du texte décale cette cellule, relue sur l'image de la p. 218) ; (d) la règle joue dès que `Topj-1max ≥ Topj-1lim_manu` en période de confort adaptatif, quelle que soit la saison de la ligne ; (e) la seconde protection est alors désactivée (éq. 201) et la première suit la colonne « sans 2nde protection ».
+6. **Vent et stores enroulables.** L'éq. (192) remonte le store extérieur en occupation quand `Vvent_c ≥ 10 m/s` ; l'éq. (193), en inoccupation, ne teste pas le vent. Retenu : le texte tel quel. La seconde protection, intérieure, n'est pas concernée.
+7. **`Typo_PM`** (§5.12.3.1, tableau 40). Le tableau qualifie la typologie 0 (0 %) de « valeur par défaut » : appliquée si `typo_pm` est absent, et signalée dans `valeurs_par_defaut`. La nomenclature borne `Typo_PM` à 4 alors que le tableau va jusqu'à 5 (« pas de protection mobile », 100 %) : la typologie 5 n'est pas une saisie, elle découle de l'absence de protection.
+8. **Format d'entrée.** La protection mobile et sa gestion sont décrites sur le type de baie (`protection_mobile`). `seconde_protection` et `exterieure` sont obligatoires, le texte ne leur donnant pas de valeur par défaut. `Pocc` vient de la figure 34 (tableau en texte) : 0,5 en maison, 0,7 en logement collectif.
+9. **`Aouvmax`** (éq. 238 et 239). `Aouvmax = Ab·Rouvmax` demande `Rouvmax`, entrée de la surventilation naturelle (fiche 5.13) : la fonction de l'éq. (239) est livrée, son branchement viendra avec cette fiche.
 
 ## Remarque de méthode : fiabilité de l'extraction du PDF
 

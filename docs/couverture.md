@@ -113,10 +113,10 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 5.6 | C_VEN_Débits_d’air_Cep | 136–160 | 6a | `core/src/ventilation/debits_air_cep.rs` | non commencé |
 | 5.7 | S2_BAT_assemblage_groupe | 161–172 | 4 | `core/src/bati/assemblage_groupe.rs` | non commencé |
 | 5.8 | S1_BAT_assemblage_baies | 173–178 | 4 | `core/src/bati/baie.rs` | partiel : étapes 3 et 4 de l'assemblage (baie, ensemble) ; protections mobiles et ouverture des baies à venir |
-| 5.9 | C_BAT_Gestion_protections_mobiles | 179–218 | 4 | `core/src/bati/baie/gestion_protections_mobiles.rs` | non commencé |
+| 5.9 | C_BAT_Gestion_protections_mobiles | 179–218 | 4 | `core/src/bati/protection_mobile.rs`, `data/src/protections_mobiles.rs` | partiel : gestion manuelle des volets et stores enroulables pour les usages 1 et 2, seconde protection, règles Th-D (éq. 175 à 178, 181, 183, 188, 189, 192, 193, 198 à 204) ; matrices transcrites d'images, à vérifier (Q31) ; gestion automatique non prise en charge (Q31) ; stores vénitiens après v1 (Q30) |
 | 5.10 | C_BAT_Baie vitrée | 219–244 | 4 | `core/src/bati/baie.rs` | partiel : éq. (206) à (211), (214), (219) à (238) hors `Aouvmax` ; stores vénitiens (§5.10.3.6.2) classés **après v1** (décision Q30) ; valeurs par défaut des éq. (215), (216) et (218) appliquées et signalées dans les résultats ; espaces tampons non pris en charge |
 | 5.11 | FA_Classement_au_bruit_d’une_baie | 245–250 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
-| 5.12 | C_BAT_Perméabilité_des_PM | 251–254 | 4 | `core/src/bati/baie/permeabilite_pm.rs` | non commencé |
+| 5.12 | C_BAT_Perméabilité_des_PM | 251–254 | 4 | `core/src/bati/protection_mobile.rs` | implémenté : tableau 40 et éq. (239) ; branchement avec la fiche 5.13 |
 | 5.13 | C_BAT_Surventilation naturelle par ouverture des baies pour le confort thermique | 255–271 | 4 | `core/src/bati/baie/surventilation_naturelle.rs` | non commencé |
 | 5.14 | C_BAT_ensemble_baies | 272–280 | 4 | `core/src/bati/baie.rs` | implémenté : éq. (257) à (282) |
 | 5.15 | S1_BAT_assemblage_parois opaques | 281–283 | 4 | `core/src/bati/paroi_opaque.rs` | implémenté : résolution des parois d'un groupe (`ParoiResolue::nouvelle`) ; branché sur les résultats d'enveloppe, pas encore sur le modèle thermique (lot 4d) |

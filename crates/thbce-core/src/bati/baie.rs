@@ -14,10 +14,11 @@ use crate::climat::environnement_proche::{
     flux_atteignant_la_paroi, qer_w_m2, FluxParoi, MasqueResolu, SurfaceExposee,
 };
 use crate::conventions::ModeCalcul;
-use crate::entree::{Baie, BaieType, Catalogue, FacteursBaie};
+use crate::entree::{Baie, BaieType, Catalogue, FacteursBaie, TypoPm};
 use crate::resultats::ValeurParDefaut;
 
 use super::paroi_opaque::resoudre_masques;
+use super::protection_mobile::taux_passage_air;
 use super::{ConditionsExterieures, HE_W_M2K};
 
 /// « β1 » : inclinaison en dessous de laquelle la baie est considérée horizontale, en degrés
@@ -338,8 +339,11 @@ pub struct BaieResolue {
     pub sans_protection: FacteursResolus,
     /// Facteurs avec la première protection mobile ; ceux de la baie nue s'il n'y en a pas.
     pub avec_protection: FacteursResolus,
-    /// Valeurs par défaut du texte appliquées aux facteurs non saisis.
+    /// Valeurs par défaut du texte appliquées aux paramètres non saisis.
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+    /// « Tauxpassage_air_PM » : taux de passage de l'air à travers la protection mobile en place
+    /// (§5.12.3.1, tableau 40) ; 1 sans protection mobile.
+    pub taux_passage_air: f64,
     /// Type de la baie pour l'éclairement naturel.
     pub type_eclairage: TypeBaieEclairage,
     /// Orientation et dimensions.
@@ -397,6 +401,20 @@ impl BaieResolue {
             Some(f) => FacteursResolus::de(f, EtatBaie::AvecProtection, &mut valeurs_par_defaut)?,
             None => sans_protection,
         };
+        // Th-BCE 2020 §5.12.3.1, tableau 40 : typologie 0 par défaut ; 100 % sans protection.
+        let taux_passage_air = match &type_baie.protection_mobile {
+            None => 1.0,
+            Some(pm) => taux_passage_air(pm.typo_pm.unwrap_or_else(|| {
+                valeurs_par_defaut.push(ValeurParDefaut {
+                    champ: "protection_mobile.typo_pm".to_owned(),
+                    valeur: 0.0,
+                    regle: "Th-BCE 2020 §5.12.3.1, tableau 40 : typologie 0, « valeur par \
+                            défaut », taux de passage de l'air de 0 %"
+                        .to_owned(),
+                });
+                TypoPm::Etanche
+            })),
+        };
         Some(Self {
             a_b_m2: baie.a_b_m2,
             alpha_deg: baie.exposition.azimut_deg,
@@ -406,6 +424,7 @@ impl BaieResolue {
             sans_protection,
             avec_protection,
             valeurs_par_defaut,
+            taux_passage_air,
             // §5.10.3.2 : les grands volumes n'existent que dans des usages hors du périmètre
             // actuel (industrie, établissements sportifs, commerces).
             type_eclairage: TypeBaieEclairage::VolumeNormal,

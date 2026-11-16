@@ -70,6 +70,10 @@
                     {
                       "champ": "avec_protection.tlid",
                       "valeur": 0.0
+                    },
+                    {
+                      "champ": "protection_mobile.typo_pm",
+                      "valeur": 0.0
                     }
                   ]
                 },
@@ -106,6 +110,10 @@
                     },
                     {
                       "champ": "avec_protection.tlid",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "protection_mobile.typo_pm",
                       "valeur": 0.0
                     }
                   ]
