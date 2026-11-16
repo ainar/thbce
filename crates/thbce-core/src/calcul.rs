@@ -24,16 +24,17 @@ use crate::bati::surventilation::H_TTF_CAS_GENERAL_M;
 use crate::climat::calendrier::date_scenario;
 use crate::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
 use crate::conventions::{ModeCalcul, NB_HEURES_AN};
+use crate::ecs::distribution_ecs::{l_vc_2nd_e_defaut_m, EmetteurEcsResolu};
 use crate::entree::{Batiment, Catalogue, Groupe, Projet, UsageZone, Zone};
 use crate::erreur::Erreur;
 use crate::indicateurs::sorties_th_b::{sorties, EnergiesMensuelles};
 use crate::resultats::{
     PeriodeConfortAdaptatif, Resultats, ResultatsBaie, ResultatsBatiment, ResultatsClimat,
     ResultatsConfort, ResultatsConfortEte, ResultatsDebitsBbio, ResultatsDistributionGroupe,
-    ResultatsEmetteur, ResultatsEnveloppe, ResultatsEspaceTampon, ResultatsEspaceTamponMode,
-    ResultatsGeneration, ResultatsGroupe, ResultatsIntergroupes, ResultatsSaisons,
-    ResultatsSystemesGroupe, ResultatsVentilationGroupe, ResultatsVentilationMode,
-    ResultatsVentilationZone, ResultatsZone, ValeurParDefaut,
+    ResultatsEcsEmetteur, ResultatsEcsIntergroupe, ResultatsEmetteur, ResultatsEnveloppe,
+    ResultatsEspaceTampon, ResultatsEspaceTamponMode, ResultatsGeneration, ResultatsGroupe,
+    ResultatsIntergroupes, ResultatsSaisons, ResultatsSystemesGroupe, ResultatsVentilationGroupe,
+    ResultatsVentilationMode, ResultatsVentilationZone, ResultatsZone, ValeurParDefaut,
 };
 use crate::validation::valider;
 use crate::ventilation::bouche_conduit::debits_specifiques_bbio_groupe;
@@ -54,13 +55,6 @@ impl Default for Options {
         Self { arrondir: true }
     }
 }
-
-/// Avertissement porté par tout résultat tant que les émetteurs du projet ne sont pas décrits
-/// (lot 6b) : le calcul Th-D emploie la ventilation du projet (lot 6a) mais l'émission
-/// conventionnelle du calcul du Bbio (`docs/questions.md`, Q40 et Q42).
-pub const AVERTISSEMENT_DH: &str =
-    "DH calculé avec la ventilation et les émetteurs du projet, sans les pertes récupérables des \
-     distributions et de l'eau chaude sanitaire, que le moteur ne calcule pas encore";
 
 /// Avertissement porté par tout résultat tant que les générateurs ne sont pas décrits (lots 6c
 /// et 6d) : chaque génération est traitée comme idéale.
@@ -140,7 +134,6 @@ pub fn calculer(
         .collect();
     avertissements
         .push("Cep, Cep,nr et Ic énergie ne sont pas encore calculés par le moteur".to_owned());
-    avertissements.push(AVERTISSEMENT_DH.to_owned());
     avertissements.push(AVERTISSEMENT_GENERATION.to_owned());
 
     let mut batiments = Vec::with_capacity(projet.batiments.len());
@@ -183,6 +176,7 @@ pub fn calculer(
             c_aux_vent_kwh: (!c_aux_vent.is_empty()).then(|| c_aux_vent.iter().sum()),
             zones,
             distributions_intergroupes: resultats_intergroupes(&th_c),
+            distributions_ecs_intergroupes: resultats_ecs_intergroupes(&th_c),
             generations: resultats_generations(&th_c),
             espaces_tampons: th_b
                 .espaces_tampons
@@ -604,6 +598,8 @@ fn resultats_systemes(g: &GroupeHoraire) -> Option<ResultatsSystemesGroupe> {
             .collect(),
         w_vent_loc_kwh: c.w_vent_loc_wh / 1000.0,
         nbh_relance: c.nbh_relance,
+        recup_kwh: c.recup_wh / 1000.0,
+        ecs: sy.ecs.iter().map(resultats_ecs).collect(),
         distributions: sy
             .distributions
             .iter()
@@ -656,11 +652,77 @@ fn resultats_generations(b: &BatimentHoraire) -> Vec<ResultatsGeneration> {
                     fr += c.q_fr_mensuel_wh.iter().sum::<f64>() / 1000.0;
                 }
             }
+            let ecs: f64 = s
+                .ecs
+                .iter()
+                .zip(&s.cumuls_ecs)
+                .filter(|(d, _)| d.generation == ig)
+                .map(|(_, c)| c.q_w_prim_mensuel_wh.iter().sum::<f64>() / 1000.0)
+                .sum();
             ResultatsGeneration {
                 id: id.clone(),
                 q_ch_kwh: ch,
                 q_fr_kwh: fr,
+                q_ecs_kwh: ecs,
             }
+        })
+        .collect()
+}
+
+/// Émetteur d'ECS et sa distribution à l'issue du calcul Th-C (§9.5 à 9.7).
+fn resultats_ecs(e: &EmetteurEcsResolu) -> ResultatsEcsEmetteur {
+    let b = &e.besoins;
+    let c = &e.cumuls;
+    let mut valeurs_par_defaut = Vec::new();
+    if e.theta_2nd_defaut {
+        valeurs_par_defaut.push(ValeurParDefaut {
+            champ: "distribution.theta_2nd_e_c".to_owned(),
+            valeur: e.distribution.theta_2nd_e_c,
+            regle: "Th-BCE 2020 §9.7.2, tableau 278 : température conventionnelle de la \
+                    distribution d'ECS du groupe (lecture Q45)"
+                .to_owned(),
+        });
+    }
+    if e.l_vc_defaut {
+        valeurs_par_defaut.push(ValeurParDefaut {
+            champ: "distribution.l_vc_m".to_owned(),
+            valeur: l_vc_2nd_e_defaut_m(UsageZone::MaisonIndividuelle, b.a_m2),
+            regle: "Th-BCE 2020 §9.7.3, éq. (1729) : en habitation, Lvc_2nd-e = 6 × A/80"
+                .to_owned(),
+        });
+    }
+    ResultatsEcsEmetteur {
+        id: e.id.clone(),
+        a_m2: b.a_m2,
+        nadeq: b.nadeq,
+        a_l: b.a_l,
+        corr: b.corr,
+        v_uw_hebdo_corr_l: b.v_uw_hebdo_corr_l,
+        q_w_kwh: c.q_w_wh / 1000.0,
+        q_w_bruts_kwh: c.q_w_bruts_wh / 1000.0,
+        q_w_2nd_kwh: c.q_w_2nd_wh / 1000.0,
+        pertes_vc_kwh: c.phi_pertes_vc_wh / 1000.0,
+        pertes_hvc_kwh: c.phi_pertes_hvc_wh / 1000.0,
+        valeurs_par_defaut,
+    }
+}
+
+/// Distributions d'ECS intergroupes d'un bâtiment à l'issue du calcul Th-C (§9.8).
+fn resultats_ecs_intergroupes(b: &BatimentHoraire) -> Vec<ResultatsEcsIntergroupe> {
+    let s = &b.systemes;
+    s.ecs
+        .iter()
+        .zip(&s.cumuls_ecs)
+        .map(|(d, c)| ResultatsEcsIntergroupe {
+            id: d.id.clone(),
+            generation: s.generations.get(d.generation).cloned().unwrap_or_default(),
+            q_w_prim_kwh: c.q_w_prim_mensuel_wh.iter().sum::<f64>() / 1000.0,
+            q_w_prim_mensuel_kwh: c.q_w_prim_mensuel_wh.iter().map(|x| x / 1000.0).collect(),
+            pertes_vc_kwh: c.phi_pertes_vc_wh / 1000.0,
+            pertes_hvc_kwh: c.phi_pertes_hvc_wh / 1000.0,
+            w_aux_kwh: c.w_aux_wh / 1000.0,
+            w_rechauf_kwh: c.w_rechauf_wh / 1000.0,
+            theta_depart_c: c.theta_depart_max_c,
         })
         .collect()
 }

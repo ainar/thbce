@@ -4,7 +4,8 @@
 //! §8.1.3.7, §8.1.3.8, §8.6 à 8.8), et leurs cumuls annuels.
 
 use crate::bati::espace_tampon::espace_tampon::CoefficientsEt;
-use crate::entree::{FonctionReseau, Groupe, RegulationTemperature, ReseauGroupe};
+use crate::ecs::distribution_ecs::EmetteurEcsResolu;
+use crate::entree::{FonctionReseau, Groupe, RegulationTemperature, ReseauGroupe, UsageZone};
 
 use super::distribution::{DistributionGroupeResolue, SortiesDistributionGroupe};
 use super::emetteurs::{
@@ -32,6 +33,19 @@ pub struct SystemesGroupe {
     pub sorties: SortiesSystemesGroupe,
     /// Cumuls annuels.
     pub cumuls: CumulsSystemesGroupe,
+    /// Émetteurs d'ECS équivalents et leurs distributions (§9.5 à 9.7).
+    pub ecs: Vec<EmetteurEcsResolu>,
+}
+
+/// Identifiants des réseaux et des espaces tampons d'un bâtiment, dans l'ordre de leurs indices.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Liens<'a> {
+    /// Réseaux intergroupes de chaud et de froid.
+    pub intergroupes: &'a [String],
+    /// Distributions d'ECS intergroupes.
+    pub intergroupes_ecs: &'a [String],
+    /// Espaces tampons.
+    pub espaces_tampons: &'a [String],
 }
 
 /// Sorties des systèmes d'un groupe à un pas de temps.
@@ -72,6 +86,8 @@ pub struct CumulsSystemesGroupe {
     pub w_vent_loc_wh: f64,
     /// Nombre de pas de temps en relance.
     pub nbh_relance: u32,
+    /// Pertes et consommations des systèmes récupérées par le groupe (§11.1), en Wh.
+    pub recup_wh: f64,
     /// Cumuls de chaque réseau de distribution du groupe.
     pub distributions: Vec<CumulsDistributionGroupe>,
 }
@@ -92,20 +108,35 @@ pub struct CumulsDistributionGroupe {
 }
 
 impl SystemesGroupe {
-    /// Résout les systèmes d'un groupe ; `intergroupes` donne l'indice d'un réseau intergroupes
-    /// du bâtiment. `None` si le groupe ne décrit pas d'émetteur.
-    pub fn nouveaux(
-        g: &Groupe,
-        intergroupes: impl Fn(&str) -> Option<usize>,
-        espaces_tampons: impl Fn(&str) -> Option<usize>,
-    ) -> Option<Self> {
+    /// Résout les systèmes d'un groupe d'après les identifiants des réseaux et des espaces
+    /// tampons du bâtiment (`liens`). `None` si le groupe ne décrit pas d'émetteur.
+    pub fn nouveaux(g: &Groupe, usage: UsageZone, a_gr_m2: f64, liens: &Liens<'_>) -> Option<Self> {
         if g.emetteurs.is_empty() {
             return None;
         }
+        let position = |ids: &[String], id: &str| ids.iter().position(|x| x == id);
+        let intergroupes = |id: &str| position(liens.intergroupes, id);
+        let espaces_tampons = |id: &str| position(liens.espaces_tampons, id);
+        let ecs = g
+            .emetteurs_ecs
+            .iter()
+            .filter_map(|e| {
+                EmetteurEcsResolu::nouveau(
+                    e,
+                    usage,
+                    a_gr_m2,
+                    position(liens.intergroupes_ecs, &e.distribution_intergroupe).unwrap_or(0),
+                    e.distribution
+                        .espace_tampon
+                        .as_deref()
+                        .and_then(espaces_tampons),
+                )
+            })
+            .collect();
         let distributions: Vec<DistributionGroupeResolue> = g
             .distributions
             .iter()
-            .map(|d| DistributionGroupeResolue::nouvelle(d, &intergroupes, &espaces_tampons))
+            .map(|d| DistributionGroupeResolue::nouvelle(d, intergroupes, espaces_tampons))
             .collect();
         let indice = |id: &str| distributions.iter().position(|d| d.id == id);
         let emetteurs: Vec<EmetteurResolu> = g
@@ -118,6 +149,7 @@ impl SystemesGroupe {
         let n = emetteurs.len();
         let nd = distributions.len();
         Some(Self {
+            ecs,
             equivalente,
             i_clim: g.iclim.unwrap_or(false),
             relance: Relance::nouvelle(
@@ -185,6 +217,27 @@ impl SystemesGroupe {
         // Éq. (813) et (816) : toute la consommation des ventilateurs est transmise à
         // l'ambiance.
         s.phi_vent_loc_vc_wh = s.w_vent_loc_wh;
+    }
+
+    /// Pas de temps de l'ECS du groupe (§9.6 et §9.7) : `ah` est la clé de répartition horaire
+    /// de la zone, `theta_cw_c` la température de l'eau froide, `theta_i_c` la température
+    /// moyenne de l'air du groupe.
+    pub fn pas_ecs(
+        &mut self,
+        ah: f64,
+        theta_cw_c: f64,
+        theta_i_c: f64,
+        theta_ext_c: f64,
+        espaces_tampons: &[CoefficientsEt],
+    ) {
+        for e in &mut self.ecs {
+            let b_therm = e
+                .distribution
+                .espace_tampon
+                .and_then(|i| espaces_tampons.get(i))
+                .map_or(1.0, |c| c.b_therm);
+            e.pas(ah, theta_cw_c, theta_i_c, theta_ext_c, b_therm);
+        }
     }
 
     /// « θbatt_dim^em » de l'émetteur d'indice `i`, en °C (éq. 817 et 818) : 9 °C sur un réseau

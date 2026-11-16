@@ -245,6 +245,7 @@ impl ZoneHoraire {
             p_ch_avenir: [0.0; HORIZON_RELANCE],
             p_fr_avenir: [0.0; HORIZON_RELANCE],
             i_occ_zone_h1: h > 0 && self.scenarios.evaluer(h - 1).i_occ_zone > 0.0,
+            theta_cw_c: climat.teau_c[h],
         };
         // §8.5 : indicateurs de consigne des pas de temps à venir, en calcul des consommations.
         // Au-delà de la dernière heure de l'année, le calendrier reprend au début (lecture Q43).

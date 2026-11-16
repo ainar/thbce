@@ -248,6 +248,17 @@ Batiment
                                     q_recirc_{gv,mv,pv}_m3_h, regulation_batterie? }             §8.1.3.8
 ```
 
+Eau chaude sanitaire (§9.5 à 9.8) :
+
+```
+Batiment.distributions_ecs_intergroupes[]  { id, generation, reseau: aucun | boucle { l_vc_m, l_hvc_m,
+                                             u_w_mk, rechauffeur, p_circ_w, espace_tampon? } | trace { … } }
+Groupe.emetteurs_ecs[]                     { id, rat_em, nb_logements, part_melangeur, part_mitigeur,
+                                             part_temporisateur, appareils, recuperateur_eaux_grises?,
+                                             distribution { theta_2nd_e_c?, d_int_m, l_vc_m?, l_hvc_m,
+                                             nb_dist, espace_tampon? }, distribution_intergroupe }
+```
+
 Règles de saisie (validation) : au moins un émetteur de chauffage par groupe d'habitation ; `iclim` vrai si et seulement si un émetteur refroidit ; programmation du refroidissement requise si `iclim` ; somme des `Rats × Ratt` au plus 1 par fonction (§8.1.3.2) ; un émetteur est rattaché, pour chaque fonction, à un réseau du groupe de même fonction, lui-même rattaché à un réseau intergroupes de même fonction et de même type (éq. 850 et 851), lui-même relié à une génération ; variation temporelle saisie au moins égale à 0,2 K (effet Joule) ou 0,4 K en chaud, au plus −0,4 K en froid (§8.1.3.1.5) ; `Pper < 1`. Les réseaux sont `fictif` (effet Joule, poêles, détente directe) ou hydrauliques : dans le groupe, `hydraulique { regulation_debit, regulation_temperature, theta_dep_dim_c?, theta_ret_dim_c?, delta_theta_em_dim_k, q_nom_m3_h, q_resid_m3_h?, circulateur, p_aux_w, l_vc_m, l_hvc_m, u_vc_w_mk, u_hvc_w_mk, espace_tampon? }` (§8.7.2, §8.8.2) ; entre groupes, `hydraulique_collectif` ou `hydraulique_individuels { l_vc_m, l_hvc_m, u_vc_w_mk, u_hvc_w_mk, p_aux_w, circulateur, espace_tampon? }` (§8.9.2, §8.10.2). Chaque génération est idéale jusqu'aux lots 6c et 6d.
 
 Les liens entre objets (un émetteur vers sa distribution, une distribution vers sa génération) sont des `Id` en entrée et des indices typés (`IdxGroupe`, `IdxGeneration`) dans `modele`, vérifiés une fois pour toutes à la résolution.

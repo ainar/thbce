@@ -359,6 +359,23 @@
                     "u_e_w_m2k": 0.15
                   }
                 }
+              ],
+              "emetteurs_ecs": [
+                {
+                  "id": "sanitaires",
+                  "rat_em": 1.0,
+                  "nb_logements": 1,
+                  "part_melangeur": 0.4,
+                  "part_mitigeur": 0.6,
+                  "part_temporisateur": 0.0,
+                  "appareils": "baignoire_standard",
+                  "distribution": {
+                    "d_int_m": 0.016,
+                    "l_hvc_m": 0.0,
+                    "nb_dist": 1
+                  },
+                  "distribution_intergroupe": "ecs-individuelle"
+                }
               ]
             }
           ]
@@ -367,6 +384,10 @@
       "generations": [
         {
           "id": "generation-eau-chaude",
+          "raccordement_reseaux": "avec_isolement"
+        },
+        {
+          "id": "ballon-ecs",
           "raccordement_reseaux": "avec_isolement"
         }
       ],
@@ -385,6 +406,13 @@
               "circulateur": "aucun"
             }
           }
+        }
+      ],
+      "distributions_ecs_intergroupes": [
+        {
+          "id": "ecs-individuelle",
+          "generation": "ballon-ecs",
+          "reseau": "aucun"
         }
       ]
     }

@@ -10,9 +10,8 @@
     clippy::float_cmp
 )]
 
+use thbce_core::bati::assemblage_batiment::BatimentHoraire;
 use thbce_core::bati::assemblage_groupe::{GroupeHoraire, Lectures, SortiesPasGroupe};
-use thbce_core::bati::assemblage_zone::ZoneHoraire;
-use thbce_core::calcul::AVERTISSEMENT_DH;
 use thbce_core::climat::calendrier::{hleg, jour};
 use thbce_core::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
 use thbce_core::conventions::ModeCalcul;
@@ -59,8 +58,10 @@ fn simuler(
     lectures: Lectures,
 ) -> (GroupeHoraire, Vec<SortiesPasGroupe>) {
     let (climat, confort) = climat_th_d(p);
-    let mut zone = ZoneHoraire::nouvelle_selon(
-        &p.batiments[0].zones[0],
+    // Le bâtiment entier : ses systèmes (réseaux intergroupes, pertes récupérables) sont
+    // calculés au niveau du bâtiment (lot 6b).
+    let mut bat = BatimentHoraire::nouveau_selon(
+        &p.batiments[0],
         &p.catalogue,
         mode,
         lectures,
@@ -69,9 +70,11 @@ fn simuler(
     )
     .unwrap();
     let mut serie = Vec::with_capacity(8760);
-    zone.simuler_avec(&climat, &confort, |_, z| serie.push(z.sorties[0].unwrap()))
-        .unwrap();
-    (zone.groupes.remove(0), serie)
+    bat.simuler_avec(&climat, &confort, |_, b| {
+        serie.push(b.zones[0].sorties[0].unwrap());
+    })
+    .unwrap();
+    (bat.zones[0].groupes.remove(0), serie)
 }
 
 /// Même maison, avec des masses séquentielle et annuelle qui échangent avec la masse
@@ -304,7 +307,10 @@ fn dh_restitue_aux_trois_niveaux() {
     assert_eq!(g.saisons_th_d.as_ref().unwrap().j_debut_fr, Some(153));
     let c = g.confort_ete.as_ref().unwrap();
     assert!(c.theta_op_max_occ_c.is_some_and(|t| t <= c.theta_op_max_c));
-    assert!(brut.avertissements.iter().any(|a| a == AVERTISSEMENT_DH));
+    assert!(!brut
+        .avertissements
+        .iter()
+        .any(|a| a.starts_with("DH calculé")));
     assert!(brut
         .avertissements
         .iter()

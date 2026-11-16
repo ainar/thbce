@@ -100,8 +100,9 @@ fn simuler_th_d(
     let loc = &projet.localisation;
     let climat = ClimatExterieur::nouveau(&meteo.th_d, loc.departement, loc.alt_m);
     let confort = ConfortAdaptatif::nouveau(&climat.te_c);
-    let mut zone = ZoneHoraire::nouvelle_selon(
-        &projet.batiments[0].zones[0],
+    // Le bâtiment entier : les pertes récupérables des systèmes y sont calculées (lot 6b).
+    let mut bat = BatimentHoraire::nouveau_selon(
+        &projet.batiments[0],
         &projet.catalogue,
         ModeCalcul::ThD,
         lectures,
@@ -109,9 +110,11 @@ fn simuler_th_d(
         climat.we_kg_kg[0],
     )
     .unwrap();
-    zone.simuler_avec(&climat, &confort, |h, z| controle(h, climat.te_c[h], z))
-        .unwrap();
-    zone
+    bat.simuler_avec(&climat, &confort, |h, b| {
+        controle(h, climat.te_c[h], &b.zones[0]);
+    })
+    .unwrap();
+    bat.zones.remove(0)
 }
 
 /// Propriétés communes aux deux systèmes, sur une météo.
