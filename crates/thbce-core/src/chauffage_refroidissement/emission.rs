@@ -29,6 +29,9 @@ pub struct EmetteurEquivalent {
     pub delta_theta_vs_k: f64,
     /// « δθvt_eq » : variation temporelle, en K.
     pub delta_theta_vt_k: f64,
+    /// « δθpresence_eq_ch » : effet de la détection de présence pièce par pièce sur la
+    /// consigne de chauffage, en K (éq. 799) ; nul pour l'émetteur de froid.
+    pub delta_theta_presence_k: f64,
 }
 
 impl EmetteurEquivalent {
@@ -43,6 +46,7 @@ impl EmetteurEquivalent {
         p_em_conv: 0.5,
         delta_theta_vs_k: 0.0,
         delta_theta_vt_k: 0.0,
+        delta_theta_presence_k: 0.0,
     };
 
     /// Dérive de la température de consigne, `δθvs_eq + δθvt_eq`, en K (éq. 800).
@@ -175,10 +179,52 @@ pub fn emission(
     froid: &EmetteurEquivalent,
     c: &Consignes,
 ) -> Emission {
+    emission_avec_relance(
+        matrice,
+        a_gr_m2,
+        chaud,
+        froid,
+        c,
+        &ConsignesRelance::SANS_RELANCE,
+    )
+}
+
+/// Consignes de relance d'un pas de temps (§8.5, éq. 845 à 847).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ConsignesRelance {
+    /// « θiich_relance(h) », en °C ; 0 °C hors relance.
+    pub theta_ii_ch_relance_c: f64,
+    /// « θiifr_relance(h) », en °C ; 100 °C hors relance.
+    pub theta_ii_fr_relance_c: f64,
+}
+
+impl ConsignesRelance {
+    /// Hors relance (valeurs du §8.5.3, éq. 845) : sans effet sur les consignes de l'éq. (800).
+    pub const SANS_RELANCE: Self = Self {
+        theta_ii_ch_relance_c: 0.0,
+        theta_ii_fr_relance_c: 100.0,
+    };
+}
+
+/// Comme [`emission`], avec les consignes de relance du calcul des consommations.
+///
+/// Th-BCE 2020 §8.1.3.3.1, éq. (800) : `θi_eq_ch = MAX(θiich ; θiich_relance) + δθvs_eq_ch +
+/// δθvt_eq_ch + δθpresence_eq_ch` et `θi_eq_fr = MIN(θiifr ; θiifr_relance) + δθvs_eq_fr +
+/// δθvt_eq_fr` (brasseurs d'air hors de la première version : `δθconsfr_BA = 0`).
+pub fn emission_avec_relance(
+    matrice: &[Reponse; 3],
+    a_gr_m2: f64,
+    chaud: &EmetteurEquivalent,
+    froid: &EmetteurEquivalent,
+    c: &Consignes,
+    relance: &ConsignesRelance,
+) -> Emission {
     let [libre, conv, rad] = matrice;
     // Éq. (800) et (801).
-    let theta_i_eq_ch = c.theta_ii_ch_c + chaud.derive_k();
-    let theta_i_eq_fr = c.theta_ii_fr_c + froid.derive_k();
+    let theta_i_eq_ch = c.theta_ii_ch_c.max(relance.theta_ii_ch_relance_c)
+        + chaud.derive_k()
+        + chaud.delta_theta_presence_k;
+    let theta_i_eq_fr = c.theta_ii_fr_c.min(relance.theta_ii_fr_relance_c) + froid.derive_k();
     let theta_sd_eq_ch = chaud.theta_sd_c(&libre.moy);
     let theta_sd_eq_fr = froid.theta_sd_c(&libre.moy);
     let besoin_ch = theta_sd_eq_ch < theta_i_eq_ch;
