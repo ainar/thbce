@@ -97,6 +97,28 @@ pub struct Zone {
     /// accolées. Requis en logement collectif ; 1 par défaut en maison individuelle.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nb_lgt: Option<u32>,
+    /// « hzone » : hauteur entre le point le plus bas et le point le plus haut de la zone, en m
+    /// (§5.6.2). Requise : elle fixe l'altitude des défauts d'étanchéité et des entrées d'air.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub h_zone_m: Option<f64>,
+    /// « hplancher » : hauteur du point le plus bas de la zone par rapport au sol extérieur, en
+    /// m (§5.6.2) ; négative si la zone descend sous le niveau du sol. Requise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub h_plancher_m: Option<f64>,
+    /// « Q4Pa_surf » : perméabilité à l'air de l'enveloppe sous 4 Pa, en m³/(h.m²) de parois
+    /// déperditives hors plancher bas (§5.6.2), la même pour tous les groupes de la zone.
+    /// Requise. Une valeur mesurée par échantillonnage se saisit multipliée par 1,2 ; si des
+    /// travaux pouvant affecter la perméabilité restent à réaliser après la livraison, on ajoute
+    /// 0,3 m³/(h.m²) (§5.6.3.3.2).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub q4pa_surf_m3_h_m2: Option<f64>,
+    /// « δtrav_zone » : caractère traversant de la zone au sens des conditions d'hiver, baies et
+    /// portes intérieures fermées (§5.6.3.1.3, tableau 22). Conventionnel pour tous les usages
+    /// sauf le logement collectif : ne pas le saisir. En logement collectif, requis : vrai si
+    /// les logements sont traversants au sens du confort d'été et si les portes intérieures
+    /// d'une façade à l'autre sont détalonnées.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trav_zone: Option<bool>,
     /// Groupes de la zone.
     pub groupes: Vec<Groupe>,
 }
@@ -232,6 +254,43 @@ pub struct Groupe {
     /// de ventilation conventionnel (§6.1 et §6.2.3.1.3).
     #[serde(default)]
     pub bouches_conduits: Vec<BoucheConduit>,
+    /// Entrées d'air du groupe (§5.6.3.2), décrites par leur module total. Absent : le groupe
+    /// n'a pas d'entrée d'air.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entrees_air: Option<EntreesAir>,
+}
+
+/// Th-BCE 2020 §5.6.2 et §5.6.3.2 — entrées d'air d'un groupe.
+///
+/// La méthode forme une entrée d'air équivalente pour la zone, somme de celles des groupes, puis
+/// la répartit entre les groupes au prorata de leurs modules (éq. 147 à 149) et, dans chaque
+/// groupe, par quarts entre le haut et le bas des façades au vent et sous le vent (tableau 26).
+/// Le groupe se décrit donc par la somme des modules de ses entrées d'air.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EntreesAir {
+    /// « M » : somme des modules des entrées d'air du groupe, en m³/h (débit sous 20 Pa).
+    pub m_m3_h: f64,
+    /// Comportement autoréglable ; absent pour des entrées d'air fixes. Les pressions `ΔP1` et
+    /// `ΔP2` sont les mêmes pour tous les groupes d'une zone (§5.6.3.2.2).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub autoreglable: Option<AutoreglageEntreesAir>,
+    /// « r » : atténuation du débit par un dispositif anti-retour, de 0 à 1 (éq. 146). Absent :
+    /// pas de dispositif anti-retour (`r = 1`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub r: Option<f64>,
+}
+
+/// Th-BCE 2020 §5.6.3.2.1, figure 21 — comportement autoréglable d'une entrée d'air.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AutoreglageEntreesAir {
+    /// « ΔP1 » : pression du premier changement de comportement, en Pa.
+    pub delta_p1_pa: f64,
+    /// « ΔP2 » : pression du second changement de comportement, en Pa.
+    pub delta_p2_pa: f64,
+    /// « M′ » : somme des modules du défaut d'autorégulabilité, en m³/h.
+    pub m_prime_m3_h: f64,
 }
 
 /// Th-BCE 2020 §6.2.2 — ensemble « bouche et conduit » d'un groupe, en maison individuelle ou

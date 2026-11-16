@@ -260,6 +260,9 @@ fn enveloppe_groupe(groupe: &Groupe, catalogue: &Catalogue) -> ResultatsEnvelopp
         a_ophb_m2: op.a_ophb_m2,
         h_th_op_w_k: op.h_th_w_k,
         a_baies_m2: ba.a_baies_m2,
+        // Th-BCE 2020 §5.6.3.1.5 et §5.7.2 : façades et toits au sens de la perméabilité.
+        a_f_perm_m2: op.a_opv_m2 + ba.a_baies_v_m2,
+        a_toit_perm_m2: op.a_ophh_m2 + ba.a_baies_h_m2,
         a_baies_v_m2: ba.a_baies_v_m2,
         a_baies_h_m2: ba.a_baies_h_m2,
         h_ges_sp_w_k: baies

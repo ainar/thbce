@@ -86,6 +86,9 @@
         {
           "id": "logement",
           "usage": "maison_individuelle",
+          "h_zone_m": 2.5,
+          "h_plancher_m": 0,
+          "q4pa_surf_m3_h_m2": 0.6,
           "groupes": [
             {
               "id": "volume-chauffe",
@@ -191,6 +194,9 @@
                   "sf_e_l": 0
                 }
               ],
+              "entrees_air": {
+                "m_m3_h": 120
+              },
               "bouches_conduits": [
                 {
                   "id": "extraction",
