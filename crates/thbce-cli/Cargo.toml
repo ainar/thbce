@@ -15,7 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 thbce-core.workspace = true
-thbce-io.workspace = true
+thbce-io = { workspace = true, features = ["classeur"] }
 clap.workspace = true
 serde_json.workspace = true
 

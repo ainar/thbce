@@ -42,6 +42,15 @@ export type OrigineMeteo =
   | { type: "reglementaire_re2020" }
   | { type: "ademe_prospectif"; scenario: string }
   | { type: "autre"; description: string };
+/** Période de confort adaptatif : jours de 1 à 365, `null` si le seuil n'est jamais atteint. */
+export interface PeriodeConfortAdaptatif { premier_jour: number | null; dernier_jour: number | null; }
+export interface ResultatsClimat {
+  zone_climatique: "H1a" | "H1b" | "H1c" | "H2a" | "H2b" | "H2c" | "H2d" | "H3";
+  altcorr_m: number;
+  base_ext_c: number;
+  confort_adaptatif_th_bc: PeriodeConfortAdaptatif;
+  confort_adaptatif_th_d: PeriodeConfortAdaptatif;
+}
 export interface ResultatsGroupe { id: string; sref_m2: number; }
 export interface ResultatsZone { id: string; sref_m2: number; groupes: ResultatsGroupe[]; }
 export interface ResultatsBatiment {
@@ -63,6 +72,7 @@ export interface Resultats {
   origine_meteo_th_d: OrigineMeteo;
   valeurs_arrondies: boolean;
   avertissements: string[];
+  climat: ResultatsClimat;
   batiments: ResultatsBatiment[];
 }
 /** Erreur levée par `calculer` (propriété `cause` de l'exception). */
@@ -149,8 +159,9 @@ fn lire_entree(entree: JsValue) -> Result<Projet, JsValue> {
 
 /// Calcule les indicateurs d'un projet.
 ///
-/// `entree` : description du projet (objet ou texte JSON). `meteo` : contenu du fichier météo
-/// (CSV long au format du classeur réglementaire). Lève une `Error` dont la propriété `cause`
+/// `entree` : description du projet (objet ou texte JSON). `meteo` : contenu du fichier météo,
+/// soit le CSV dérivé du classeur réglementaire, soit un fichier ouvert ADEME / Météo-France
+/// (non réglementaire). Le classeur `.xlsx` lui-même n'est pas lu par le module WebAssembly. Lève une `Error` dont la propriété `cause`
 /// est un `ErreurCalcul`.
 #[wasm_bindgen(unchecked_return_type = "Resultats")]
 pub fn calculer(
@@ -166,8 +177,7 @@ pub fn calculer(
             .map_err(|e| erreur("lecture", format!("options : {e}"), None))?
     };
     let zone = projet.localisation.zone_climatique_retenue();
-    let donnees =
-        meteo::lire_csv_re2020(meteo, zone).map_err(|e| erreur("meteo", e.to_string(), None))?;
+    let donnees = meteo::lire(meteo, zone).map_err(|e| erreur("meteo", e.to_string(), None))?;
     let options = Options {
         arrondir: options.arrondir.unwrap_or(true),
     };

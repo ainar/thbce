@@ -9,6 +9,7 @@
 
 pub mod departement;
 pub mod ponderation_dynamique;
+pub mod temperature_base;
 pub mod zones_climatiques;
 
 pub use departement::{Departement, ErreurDepartement};

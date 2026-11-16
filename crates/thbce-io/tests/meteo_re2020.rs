@@ -95,3 +95,58 @@ fn psi_est_negatif_le_matin_et_croit_dans_la_journee() {
         );
     }
 }
+
+/// Heure moyenne pondérée d'une série positive, moyennée sur les jours de l'année.
+fn centroide(serie: &[f64]) -> f64 {
+    let jours: Vec<f64> = serie
+        .chunks(24)
+        .filter(|jour| jour.iter().sum::<f64>() > 0.0)
+        .map(|jour| {
+            jour.iter()
+                .enumerate()
+                .map(|(h, v)| h as f64 * v)
+                .sum::<f64>()
+                / jour.iter().sum::<f64>()
+        })
+        .collect();
+    jours.iter().sum::<f64>() / jours.len() as f64
+}
+
+/// Décision Q16 : le lecteur ADEME s'aligne sur la convention horaire du fichier réglementaire.
+/// Pour chaque zone, le midi solaire (centroïde de la hauteur du soleil) tombe à la même heure
+/// dans les deux fichiers, à trois minutes près.
+#[test]
+#[ignore = "nécessite le fichier météo réglementaire (THBCE_METEO)"]
+fn le_lecteur_ademe_est_cale_sur_le_fichier_reglementaire() {
+    let ademe = std::fs::read(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../docs/reference/meteo/ademe/tracc_france_2-7C_vague_de_chaleur.csv"),
+    )
+    .unwrap();
+    for (reglementaire, zone) in charger().iter().zip(ZoneClimatique::TOUTES) {
+        let a = thbce_io::meteo::lire(&ademe, zone).unwrap();
+        let (c_reg, c_ademe) = (
+            centroide(&reglementaire.th_bc.gamma_rad),
+            centroide(&a.th_bc.gamma_rad),
+        );
+        assert!(
+            (c_reg - c_ademe).abs() < 0.05,
+            "{zone} : réglementaire {c_reg:.3} h, ADEME {c_ademe:.3} h"
+        );
+    }
+}
+
+/// Le classeur réglementaire d'origine donne exactement les mêmes données que le CSV dérivé.
+/// `THBCE_METEO_CLASSEUR` pointe vers `4_scenarios_meteorologiques_th-bc_th-d_re2020.xlsx`.
+#[test]
+#[ignore = "nécessite le classeur météo réglementaire (THBCE_METEO et THBCE_METEO_CLASSEUR)"]
+fn classeur_reglementaire() {
+    let chemin = std::env::var_os("THBCE_METEO_CLASSEUR")
+        .expect("définir THBCE_METEO_CLASSEUR pour lancer ce test");
+    let octets = std::fs::read(chemin).expect("lecture du classeur");
+    for (csv, zone) in charger().iter().zip(ZoneClimatique::TOUTES) {
+        let classeur =
+            thbce_io::meteo::lire(&octets, zone).unwrap_or_else(|e| panic!("{zone} : {e}"));
+        assert_eq!(&classeur, csv, "{zone}");
+    }
+}

@@ -29,8 +29,8 @@ enum Commande {
     Calcul {
         /// Description du projet, au format JSON natif.
         entree: PathBuf,
-        /// Fichier météo (CSV long au format du classeur réglementaire). Le moteur n'embarque
-        /// aucune donnée météo.
+        /// Fichier météo : classeur réglementaire (.xlsx), CSV dérivé, ou fichier ouvert ADEME /
+        /// Météo-France (non réglementaire). Le moteur n'embarque aucune donnée météo.
         #[arg(long, value_name = "FICHIER")]
         meteo: PathBuf,
         /// Fichier de sortie JSON ; sortie standard par défaut.
@@ -104,7 +104,7 @@ fn executer(commande: Commande) -> Result<(), Echec> {
                 ));
             }
             let zone = projet.localisation.zone_climatique_retenue();
-            let donnees = meteo::lire_csv_re2020(&lire(&chemin_meteo)?, zone).map_err(|e| {
+            let donnees = meteo::lire(&lire(&chemin_meteo)?, zone).map_err(|e| {
                 Echec(
                     format!("{} : {e}", chemin_meteo.display()),
                     CODE_ENTREE_INVALIDE,

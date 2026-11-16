@@ -1,29 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Lecture des données météo fournies par l'utilisateur.
-//!
-//! Format pris en charge en phase 2 : le CSV long dérivé du classeur réglementaire
-//! `4_scenarios_meteorologiques_th-bc_th-d_re2020.xlsx`, de colonnes
+//! CSV long dérivé du classeur réglementaire : colonnes
 //! `zone, mode, h, te0, we0, dirN_W_m2, diff_W_m2, Teciel_C, Vent_m_s, Teau_C, Gamma, Psi`
 //! (8 zones × 2 modes × 8 760 heures). Les lignes commençant par `#` sont des commentaires.
-//!
-//! Le classeur d'origine et les fichiers ouverts ADEME / Météo-France seront lus au lot 3.
-//!
-//! **Les fichiers réglementaires ne doivent jamais être versionnés ni diffusés** : leurs
-//! conditions d'utilisation l'interdisent (`docs/reference/README.md`).
-//!
-//! ## Provenance
-//!
-//! Un fichier à ce format est tenu pour le fichier réglementaire, sauf s'il porte une ligne de
-//! commentaire `# thbce-origine: <description>`. Cette ligne marque les jeux d'essai et toute
-//! donnée retravaillée : les résultats portent alors `reglementaire = false`. Le moteur ne peut
-//! pas vérifier l'authenticité d'un fichier ; la sincérité de la provenance relève de
-//! l'utilisateur.
 
 use std::fmt::Write as _;
 
 use thbce_core::climat::{AnneeMeteo, JeuMeteo, MeteoProjet, OrigineMeteo};
 use thbce_core::conventions::NB_HEURES_AN;
 use thbce_data::ZoneClimatique;
+
+use super::ErreurMeteo;
 
 /// En-tête attendu du CSV long.
 pub const COLONNES: [&str; 12] = [
@@ -44,47 +30,24 @@ pub const COLONNES: [&str; 12] = [
 /// Préfixe de la ligne de commentaire qui déclare une provenance non réglementaire.
 pub const MARQUE_ORIGINE: &str = "# thbce-origine:";
 
-/// Erreur de lecture d'un fichier météo.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum ErreurMeteo {
-    /// Le fichier n'est pas du texte UTF-8.
-    #[error("le fichier météo n'est pas un texte UTF-8")]
-    Encodage,
-    /// L'en-tête ne correspond pas au format attendu.
-    #[error("en-tête inattendu « {0} » : colonnes attendues {COLONNES:?}")]
-    EnTete(String),
-    /// Une ligne est mal formée.
-    #[error("ligne {ligne} : {message}")]
-    Ligne {
-        /// Numéro de ligne dans le fichier, à partir de 1.
-        ligne: usize,
-        /// Nature du défaut.
-        message: String,
-    },
-    /// Le fichier ne contient pas l'année complète demandée.
-    #[error("zone {zone}, jeu {jeu} : {lues} heures lues, {NB_HEURES_AN} attendues")]
-    Incomplet {
-        /// Zone demandée.
-        zone: ZoneClimatique,
-        /// Jeu concerné.
-        jeu: &'static str,
-        /// Nombre d'heures trouvées.
-        lues: usize,
-    },
-}
-
-struct Series {
-    colonnes: [Vec<f64>; 9],
+/// Les neuf séries d'une année, dans l'ordre des colonnes du format réglementaire.
+pub(super) struct Series {
+    pub(super) colonnes: [Vec<f64>; 9],
 }
 
 impl Series {
-    fn nouvelles() -> Self {
+    pub(super) fn nouvelles() -> Self {
         Self {
             colonnes: std::array::from_fn(|_| Vec::with_capacity(NB_HEURES_AN)),
         }
     }
 
-    fn en_annee(self, zone: ZoneClimatique, jeu: JeuMeteo, origine: OrigineMeteo) -> AnneeMeteo {
+    pub(super) fn en_annee(
+        self,
+        zone: ZoneClimatique,
+        jeu: JeuMeteo,
+        origine: OrigineMeteo,
+    ) -> AnneeMeteo {
         let [te0_c, we0_g_kg, idn_w_m2, idi_w_m2, teciel_c, vent_m_s, teau0_c, gamma_deg, psi_deg] =
             self.colonnes;
         // Décision Q1b : Gamma et Psi sont fournis en degrés ; le calcul travaille en radians

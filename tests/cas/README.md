@@ -21,7 +21,7 @@ Même structure que les résultats du moteur (`thbce schema --resultats`), mais 
 ```toml
 description = "Maison individuelle, PAC air/eau, H2b"
 source = "COMETH 1.x, export du jj/mm/aaaa"   # provenance des résultats de référence
-meteo = "re2020"                                # "re2020" ou "synthetique"
+meteo = "re2020"                                # "re2020", "ademe" ou "synthetique"
 
 [tolerances]
 defaut = 0.005          # écart relatif maximal, 0,5 % par défaut
@@ -30,6 +30,7 @@ dh_c_h = 0.01
 ```
 
 - `meteo = "re2020"` : le cas a besoin des fichiers météo réglementaires, qui ne sont pas dans le dépôt. Il est **ignoré** si la variable `THBCE_METEO` ne pointe pas vers le fichier CSV ; la CI publique ne l'exécute donc pas.
+- `meteo = "ademe"` : fichier ouvert ADEME / Météo-France de `docs/reference/meteo/ademe/`. Non réglementaire ; sert aux cas exécutés par la CI publique sur une météo réaliste.
 - `meteo = "synthetique"` : jeu constant sans signification physique, réservé aux cas de plomberie.
 - L'écart est relatif à la valeur attendue ; pour une valeur attendue nulle, il est absolu.
 

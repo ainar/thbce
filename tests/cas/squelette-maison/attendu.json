@@ -1,5 +1,11 @@
 {
   "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b",
+    "altcorr_m": 100,
+    "base_ext_c": -6.5,
+    "confort_adaptatif_th_d": { "premier_jour": null, "dernier_jour": null }
+  },
   "batiments": [
     {
       "id": "maison",

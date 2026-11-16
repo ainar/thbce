@@ -20,14 +20,20 @@ Chaque entrée indique la section du texte, la nature du manque ou de l'ambiguï
 | Q9 | Codes du mode de calcul | tranchée, hypothèse du mainteneur |
 | Q10 | Bbio mensuel, éq. (2385) | tranchée, hypothèse du mainteneur |
 | Q11 | Moyenne glissante, éq. (1) | tranchée, hypothèse du mainteneur |
-| Q12 | Nombre de types de masques | tranchée, **à vérifier à la lecture de la fiche 3.2** |
+| Q12 | Nombre de types de masques | tranchée, confirmée par le texte |
 | Q13 | Numéro de département | tranchée, hypothèse du mainteneur |
 | Q14 | Résidus « Tic » | tranchée, hypothèse du mainteneur |
 | Q15 | Intitulé de l'éq. (2388) | tranchée, hypothèse du mainteneur |
 | Q16 | Fichiers ADEME | tranchée : règles de lecture fixées, lecteur au lot 3 |
 | Q17 | 365e jour de l'année | tranchée, **à vérifier à la lecture de la fiche 4.1** |
 | Q18 | Lots de systèmes | tranchée |
-| Q19 | Rayonnement direct non nul quand `Gamma` vaut zéro | **ouverte**, à traiter au lot 3 |
+| Q19 | Rayonnement direct non nul quand `Gamma` vaut zéro | tranchée par le texte |
+| Q20 | Unité de γ dans le polynôme de l'éclairement direct | **ouverte**, hypothèse : degrés |
+| Q21 | `dhg` non défini dans l'éq. (20) | **ouverte**, hypothèse : `dhp` |
+| Q22 | Dernière ligne du tableau du calendrier | **ouverte**, mineure |
+| Q23 | Détails de la fiche 3.2 : `Tsimul`, égalité dans l'éq. (22), repli de Φ, paramètre `Az` | **ouverte**, mineure |
+| Q24 | Masques proches des ponts thermiques | reportée au lot 4 |
+| Q25 | **Décalage d'une heure entre le fichier météo et le calendrier du texte** | **ouverte, pèse sur les résultats** |
 
 « Hypothèse du mainteneur » signifie : lecture retenue le 16 novembre 2026, **à confirmer par un cas de validation**. Ce sont les premiers points à revoir si un cas de référence diverge.
 
@@ -144,7 +150,7 @@ Le fichier réglementaire ne contient pas toutes les grandeurs que la fiche `C_E
 
 ### Q12 — Nombre de types de masques (A3 §3.2.1, p. 34) — tranchée le 16 novembre 2026, à vérifier à la lecture détaillée de la fiche 3.2
 
-- **Décision** : les masques verticaux droit et gauche comptent pour deux types.
+- **Décision** : les masques verticaux droit et gauche comptent pour deux types. **Confirmé à la lecture de la fiche** : la p. 50 liste six identifiants de masque (`E_Az_cad`, `E_AZ`, `E_LV`, `h`, `vg`, `vd`), tous implémentés.
 - **Texte** : « Six types de masques sont considérés », suivi de cinq puces.
 - **Hypothèse proposée** : les masques verticaux droit et gauche comptent pour deux types. À confirmer à la lecture détaillée de la fiche.
 
@@ -182,11 +188,48 @@ Le fichier réglementaire ne contient pas toutes les grandeurs que la fiche `C_E
 
 ## Questions ouvertes
 
-### Q19 — Rayonnement direct non nul alors que `Gamma` vaut zéro — ouverte, à traiter au lot 3
+### Q25 — Décalage d'une heure entre le fichier météo et le calendrier du texte — ouverte, pèse sur les résultats
 
-- **Constat** fait sur le fichier météo réglementaire : 111 heures sur les 16 jeux (58 en `Th-BC`, 53 en `Th-D`) ont `Gamma = 0` et un rayonnement direct normal strictement positif, jusqu'à 100 W/m². Elles tombent toutes aux heures de lever et de coucher (5 h à 7 h et 17 h à 20 h UTC).
-- **Enjeu** : la fiche 3.2 projette le rayonnement direct sur les parois à partir de la hauteur du soleil. Il faut établir ce que le texte prévoit quand la hauteur est nulle et le direct non nul (flux ignoré, ou formule qui reste définie).
-- **Proposition** : lire la description mathématique de la fiche 3.2 sur ce point avant de coder, et écrire un test sur ces heures. Aucune hypothèse n'est prise d'ici là.
+- **Texte** : A3 §4.1.3 (p. 56). Le tableau fait correspondre l'itération 0 à l'intervalle 0 h – 1 h UTC, soit 1 h – 2 h en heure légale d'hiver. La décision Q1b retient que la ligne `h = 0` du fichier météo est l'itération 0.
+- **Constat sur le fichier réglementaire** : pour les huit zones, le midi solaire (passage de `Psi` par zéro, et centre de la courbe de `Gamma`) tombe à la ligne d'indice `12,5 − longitude/15`, soit 12,37 pour Trappes et 12,46 pour Agen, alors qu'il a lieu à `12 − longitude/15` en heure UTC (11,87 et 11,96). Les rayonnements sont centrés sur le même instant. La ligne `h` décrit donc l'intervalle de `h − 1` à `h` en heure UTC, et non de `h` à `h + 1` : autrement dit, le fichier est indexé en UTC+1. La nomenclature du §3.1.2 dit d'ailleurs « Htsm : heure pour le calcul annuel (UTC+1) ».
+- **Contrôle croisé** : dans les fichiers ADEME, où l'heure UTC est explicite, le midi solaire tombe bien à `12 − longitude/15` (11,86 pour Trappes).
+- **Enjeu** : si l'on donne la ligne `h` à l'itération `h` et que l'on applique le tableau du §4.1.3 à la lettre, les scénarios d'occupation (en heure légale) sont décalés d'une heure par rapport au soleil et à la température. Deux lectures sont possibles :
+  1. le tableau du §4.1.3 dit « UTC » pour « UTC+1 » : l'itération 0 est 0 h – 1 h en UTC+1, soit 0 h – 1 h légale en hiver, et les cases de scénario sont à décaler d'une heure ;
+  2. le tableau est juste et le moteur réglementaire lit le fichier ligne à ligne : le décalage existe dans le calcul de référence.
+- **État du code** : lecture 2, c'est-à-dire la décision Q1b appliquée telle quelle. Le choix est isolé dans `climat/calendrier.rs`. **C'est le deuxième point à revoir, avec Q11, si un cas de validation diverge** ; il touche le Bbio comme le DH. À trancher par le mainteneur, ou par le premier cas de référence.
+
+### Q20 — Unité de γ dans le polynôme de l'éclairement direct (A3 §3.1.3, p. 32) — ouverte
+
+- **Texte** : `EDn = IDn × (−1,03753210E-08·γ⁶ + … + 1,24650445E+01·γ + 2,38954889E+00)`, sans unité pour γ, alors que la fiche donne γ en radians.
+- **Hypothèse retenue dans le code** : γ en degrés. Le polynôme vaut alors 77 lm/W à 10°, 104 à 30° et 108 à 60°, ordre de grandeur attendu pour l'efficacité lumineuse du rayonnement direct. En radians, il ne dépasserait pas 17 lm/W. Implémenté dans `climat_exterieur::edn_lux`.
+
+### Q21 — `dhg` non défini dans l'éq. (20) (A3 §3.2.3, p. 44) — ouverte
+
+- **Texte** : `Fh,dir = min[max(0 ; 1 − (dh − dhg)/hp) ; 1]`. `dhg` n'apparaît ni dans la nomenclature ni sur la figure 8, qui montrent `dhp`, « distance entre la paroi et le masque proche horizontal ».
+- **Hypothèse retenue dans le code** : coquille, lire `dhp`, par symétrie avec `dpg` et `dpd` dans l'éq. (19).
+
+### Q22 — Dernière ligne du tableau du calendrier (A3 §4.1.3, p. 56) — ouverte, mineure
+
+- **Texte** : l'itération 8759 (23 h – 0 h UTC, en hiver) est donnée avec « Hleg 1H – 2H, case 2 », comme l'itération 7031 qui est en été. La règle d'hiver appliquée aux autres lignes donne 0 h – 1 h et la case 1.
+- **Hypothèse retenue dans le code** : coquille de recopie ; la règle `Hleg = IHJ + EHLO` est appliquée partout.
+
+### Q23 — Détails de lecture de la fiche 3.2 — ouverte, mineure
+
+1. **`Tsimul`** (arbres à feuilles caduques, p. 50) : le texte ne dit pas si l'heure de simulation part de 0 ou de 1. Retenu : l'itération `h`, à partir de 0. L'enjeu est d'une heure aux deux bornes de la saison végétative (2161 et 6553).
+2. **Égalité dans l'éq. (22)** (p. 47) : le texte donne `dhE > hpE ⇒ 1` et `dhE < hpE ⇒ 0`, sans le cas d'égalité. Retenu : composant éclairé.
+3. **Repli de Φ** (éq. 3 et 4, p. 39–40) : le test `|Φ| ≥ π/2` suppose Φ dans [−π ; π], ce que la différence de deux angles eux-mêmes dans [−π ; π] ne garantit pas. Retenu : Φ est ramené dans [−π ; π[.
+4. **Paramètre `Az`** (p. 36, « angle des différentes tranches azimutales ») : la description mathématique fixe 36 tranches de 10° repérées par rapport à la normale au composant (figure 10). `Az` n'apporte donc rien ; l'entrée est la liste des 36 hauteurs `γi`.
+5. **Indice des tranches** : déduit de la figure 10, où le soleil à 20–30° de la normale, côté des Φ positifs, est « dans la tranche 21 » : `i = ⌊(Φ° + 180)/10⌋ + 1`.
+
+### Q24 — Masques proches des ponts thermiques (A3 §3.2.3, p. 39) — reportée au lot 4
+
+- Le texte modélise un pont thermique vertical, pour les masques proches, comme une paroi verticale de 30 cm de large. Ce cas sera traité avec la fiche des ponts thermiques ; le calcul des masques est prêt à le recevoir.
+
+### Q19 — Rayonnement direct non nul alors que `Gamma` vaut zéro — tranchée par le texte
+
+- **Constat** : 111 heures sur les 16 jeux du fichier réglementaire ont `Gamma = 0` et un rayonnement direct strictement positif (jusqu'à 100 W/m²), aux heures de lever et de coucher. Explication probable : les rayonnements sont des moyennes horaires, la position du soleil une valeur ponctuelle (voir Q25).
+- **Ce que dit le texte** (A3 §3.2.3, éq. 7 à 11) : aucun traitement particulier. `Drp = cos(θ)·IDn` reste défini : nul sur une paroi horizontale, puisque `cos(θ) = sin(γ) = 0`, et non nul sur une paroi verticale tournée vers le soleil. Seul `Jour_astro` (éq. 18) teste la hauteur du soleil.
+- **Code** : formules appliquées telles quelles ; un test couvre ce cas.
 
 ## Remarque de méthode : fiabilité de l'extraction du PDF
 

@@ -61,6 +61,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | Annexe II §4.3 | Ic énergie, éq. (72) à (75) | `core/src/indicateurs/ic_energie.rs` (lot 7) | non commencé |
 | Annexe II §5.1, 5.2 | Indicateurs DH, Bbio, Cep, Cep,nr | `core/src/indicateurs/` | non commencé |
 | Annexe 7 de l'arrêté du 15 septembre 2006 | Facteur d'émission (5e colonne) et ratio EnR&R (6e colonne) par réseau de chaleur | `thbce-data`, par script | non commencé |
+| A3 §3.1.3, tableau des températures de base | Température de base par département | `data/src/temperature_base/`, table générée par `xtask` | implémenté |
 | Scénarios conventionnels (classeur du 29 avril 2026) | 28 onglets, un par usage | `thbce-data`, par script (`tools/`) | non commencé |
 | Annexe VI | Contenu du RSEE, au niveau des chapitres seulement | insuffisant pour écrire un lecteur XML (décision Q3) | en attente de fichiers d'exemple |
 | Règles Th-Bat 2020 | Détermination des données d'entrée (U, Ψ, inertie, facteurs solaires) | hors moteur : ces grandeurs sont des entrées | — |
@@ -85,8 +86,8 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
-| 3.1 | C_EEX_Climat exterieur | 27–33 | 3 | `core/src/climat/climat_exterieur.rs` | non commencé |
-| 3.2 | C_EEX_environnement_proche | 34–51 | 3 | `core/src/climat/environnement_proche.rs` | non commencé |
+| 3.1 | C_EEX_Climat exterieur | 27–33 | 3 | `core/src/climat/climat_exterieur.rs` | implémenté : corrections d'altitude, température de base, EDn et Edi, heure légale, période de confort adaptatif (`climat_exterieur.rs`, `confort_adaptatif.rs`, `calendrier.rs`) |
+| 3.2 | C_EEX_environnement_proche | 34–51 | 3 | `core/src/climat/environnement_proche.rs` | implémenté : éq. (3) à (26), six types de masques ; masques proches des ponts thermiques au lot 4 |
 
 ### 4. Scenarios et environnement interieur (p. 52–96)
 

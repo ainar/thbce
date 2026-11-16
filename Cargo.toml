@@ -13,7 +13,11 @@ authors = ["Contributeurs du projet thbce"]
 [workspace.dependencies]
 thbce-core = { path = "crates/thbce-core" }
 thbce-data = { path = "crates/thbce-data" }
-thbce-io = { path = "crates/thbce-io" }
+thbce-io = { path = "crates/thbce-io", default-features = false }
+libm = "0.2"
+proptest = "1"
+calamine = "0.38"
+rust_xlsxwriter = "0.102"
 clap = { version = "4", features = ["derive"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }

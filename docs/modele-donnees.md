@@ -12,6 +12,9 @@
 - **Un seul lecteur météo** pour l'instant (`meteo::lire_csv_re2020`) ; le classeur et les fichiers ADEME viendront au lot 3. La provenance non réglementaire d'un fichier se déclare par une ligne `# thbce-origine:`.
 - **Résultats** : `origine_meteo_th_bc` et `origine_meteo_th_d` remplacent `origine_meteo` ; `valeurs_arrondies` indique si l'arrondi de restitution est appliqué.
 - **Surface de la baie** : `a_b_m2` (« Ab », §5.10.2). **Pont thermique** : sans exposition propre, la nomenclature du §5.19.2 n'en prévoyant pas.
+- **Masques (phase 3)** : un masque lointain azimutal se saisit par ses 36 hauteurs `gamma_i_deg`, une par tranche de 10° repérée par rapport à la normale au composant ; le masque d'arbres à feuilles caduques a la même forme. Un masque proche exige la largeur (`lpb_m`) ou la hauteur (`hpb_m`) du composant.
+- **Résultats (phase 3)** : bloc `climat` avec la zone, `altcorr_m`, `base_ext_c` et la période de confort adaptatif de chaque jeu météo.
+- **Lecteurs météo (phase 3)** : `meteo::lire` reconnaît le classeur `.xlsx`, le CSV dérivé et les fichiers ADEME. Le module WebAssembly ne lit pas le classeur.
 - **Inertie** : les classes des tableaux 53 et 54 (§5.21.3) sont des variantes d'énumération ; `Ams_surf` et `Ama_surf` sont toujours saisies, comme le dit le texte.
 
 Ce document décrit les types Rust d'entrée et de sortie du moteur. Il ne fixe que la structure. Les champs cités viennent des nomenclatures de l'annexe III déjà lues (§3.1, 3.2, 4.1, 5.1, 5.10, 5.17, 5.19, 5.21, 13.1, 13.2, 13.4, 13.5) ; les autres fiches compléteront les types au moment où elles seront implémentées, chaque champ portant la référence de la nomenclature dont il sort. Aucun champ n'est ajouté s'il ne figure pas dans une nomenclature du texte.

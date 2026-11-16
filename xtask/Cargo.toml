@@ -12,7 +12,7 @@ publish = false
 [dependencies]
 thbce-core.workspace = true
 thbce-data.workspace = true
-thbce-io.workspace = true
+thbce-io = { workspace = true, features = ["classeur"] }
 
 [lints]
 workspace = true
