@@ -1,0 +1,186 @@
+                                              ANNEXE I.
+                                            DÉFINITIONS
+
+                                                 Altitude
+L’altitude d’un bâtiment correspond à l’altitude du seuil de la porte d’entrée principale du bâtiment.
+
+
+                                                    Baie
+Au sens du présent arrêté, une baie est une ouverture ménagée dans une paroi extérieure servant à
+l'éclairage, au passage ou à l'aération, y inclus les protections solaires associées le cas échéant. Une paroi
+transparente ou translucide est considérée comme une baie.
+
+
+                                                 Bâtiment
+Bien immeuble couvert et destiné à accueillir une occupation, une activité ou tout autre usage humain.
+
+
+                 Bâtiment d'habitation collectif, aussi appelé « logement collectif »
+Bâtiment à usage principal d'habitation regroupant strictement plus de deux logements partiellement ou
+totalement superposés.
+
+
+                                            Bâtiments accolés
+Deux bâtiments sont dits accolés s'ils sont juxtaposés et liés par des parois mitoyennes, dont la surface
+de contact est d'au moins 15 m² pour les maisons et 50 m² pour les autres bâtiments. Au sens du présent
+règlement, les bâtiments accolés sont considérés comme un bâtiment unique, sans que cela ne puisse
+modifier l’usage à considérer pour chaque partie de bâtiment.
+
+
+                                                Composant
+Le terme « composant » s’entend au sens du chapitre VI de l’annexe à l’article R. 172-4 du code de la
+construction et de l’habitation.
+
+
+                                  Écart majeur à la méthode de calcul
+Écart obtenu, pour au moins un des indicateurs réglementaires calculés à partir de la méthode de calcul
+mentionnée à l’article 8 donnant une valeur plus favorable d’au moins 2 % par rapport à la valeur
+obtenue à partir des mêmes données descriptives, à l’issue de l’application correcte de cette méthode de
+calcul.
+
+
+                                                   Local
+Un local est un volume totalement séparé de l'extérieur ou d'autres volumes par des parois horizontales
+et verticales, fixes ou mobiles.
+                                             Local traversant
+Un local est dit traversant, au sens du confort d'été de la méthode de calcul mentionnée à l’article 8, si,
+pour chaque orientation (verticale nord, verticale est, verticale sud, verticale ouest, horizontale) la
+surface des baies est inférieure à 75 % de la surface totale des baies du local. Un logement est considéré
+comme un unique local pour l'application de la présente définition.
+
+
+                                           Maison individuelle
+Une maison individuelle est un bâtiment à usage d’habitation qui n’est pas un bâtiment d’habitation
+collectif.
+
+
+                             Occupation discontinue, occupation continue
+Une partie de bâtiment est dite à occupation discontinue si elle réunit les deux conditions suivantes :
+-elle n'est pas destinée à l'hébergement des personnes ;
+-chaque jour, la température normale d'occupation peut ne pas être maintenue pendant une période
+continue d'au moins cinq heures.
+Dans le cas contraire, elle est dite à occupation continue.
+
+
+                                    Occupation passagère d'un local
+Un local à occupation passagère est un local qui par destination n'implique pas une durée de séjour pour
+un occupant supérieure à une demi-heure.
+C'est le cas par exemple des circulations, des salles de bains et de douches, et des cabinets d'aisance. En
+revanche, une cuisine ou un hall comportant un poste de travail ne sont pas considérés comme un local
+à occupation passagère.
+
+
+                                               Orientations
+L'orientation nord est toute orientation comprise entre le nord-est et le nord-ouest en passant par le nord,
+y compris les orientations nord-est et nord-ouest.
+L'orientation est toute orientation comprise entre le nord-est et le sud-est en passant par l'est, non compris
+les orientations nord-est et sud-est.
+L'orientation sud est toute orientation comprise entre le sud-est et le sud-ouest en passant par le sud, y
+compris les orientations sud-est et sud-ouest.
+L'orientation ouest est toute orientation comprise entre le sud-ouest et le nord-ouest en passant par
+l'ouest, non compris les orientations sud-ouest et nord-ouest.
+
+
+                                      Paroi verticale ou horizontale
+Une paroi est dite verticale lorsque l'angle de cette paroi avec le plan horizontal est égal ou supérieur à
+60 degrés, elle est dite horizontale lorsque cet angle est inférieur à 60 degrés.
+                            Partie de bâtiment thermiquement homogène
+Ensemble de locaux présentant une évolution de la température intérieure similaire. En particulier, des
+locaux raccordés à des systèmes de refroidissement différents ne sont pas considérés thermiquement
+homogènes. Des locaux traversants et des locaux non traversants ne sont pas considérés thermiquement
+homogènes.
+
+
+                               Partie de bâtiment à usage d’habitation
+Au sens du présent arrêté, on entend par partie de bâtiment à usage d'habitation une partie de bâtiment
+comportant des logements avec un emplacement prévu pour cuisiner, ainsi éventuellement que des
+parties communes. Les résidences de tourisme, au sens de l'article R. 172-1 du code de la construction
+et de l'habitation, sont les bâtiments d'hébergement à vocation touristique. Elles sont soumises aux règles
+applicables aux bâtiments à usage d'habitation pour leurs parties à usage privatif, dès lors que celles-ci
+disposent d'un local de sommeil, d'un espace de cuisine, et de sanitaires.
+Les parties de résidences de tourisme comportant des ensembles de locaux à usage privatif composées
+d’au moins un local de sommeil, une cuisine et un sanitaire sont considérées comme étant à usage
+d’habitation au sens du présent arrêté.
+
+
+                                              Plancher bas
+Un plancher bas est une paroi horizontale dont seule la face supérieure donne sur un local chauffé.
+
+
+                                        Plancher intermédiaire
+Un plancher intermédiaire est une paroi horizontale dont les faces inférieure et supérieure donnent sur
+un local chauffé.
+
+
+                                Réseau de chaleur ou de froid urbain
+Au sens du présent arrêté, un réseau de chaleur ou de froid est un réseau technique constitué :
+- a minima d’un réseau de canalisations qui distribue l’énergie thermique à une pluralité de clients et de
+bâtiments ;
+- et le cas échéant, d'une ou plusieurs installations de production de chaleur ou de froid, ou de
+récupération de chaleur ou de froid.
+Pour l’application du Titre V du présent arrêté, un réseau de chaleur n’est considéré comme un réseau
+de chaleur urbain, que si le ou les maîtres d’ouvrage des bâtiments construits et alimentés par le réseau
+ne peuvent pas avoir accès aux caractéristiques techniques des bâtiments et du réseau construits. Lorsque
+le maître d’ouvrage de la construction de bâtiments appartient à la même entité que le maître d’ouvrage
+du réseau de chaleur les alimentant, il est supposé avoir accès aux caractéristiques techniques des
+bâtiments et du réseau construits.
+
+
+                  Surface de référence d'un bâtiment ou d'une partie de bâtiment
+    -   Pour un bâtiment ou une partie de bâtiment à usage d’habitation, surface habitable du bâtiment
+        ou de la partie de bâtiment ;
+    -   Pour les autres cas : surface utile du bâtiment ou de la partie de bâtiment
+
+
+                   Surface habitable d'un bâtiment ou d'une partie de bâtiment
+Cette surface est définie pour tout bâtiment ou partie de bâtiment à usage d'habitation.
+La surface habitable d'un logement au sens du présent arrêté est celle définie par l'article R.* 156-1 du
+code de la construction et de l'habitation, en incluant la superficie de vérandas chauffées écartée par le
+3e alinéa de ce même article. La surface habitable d'un bâtiment ou d'une partie de bâtiment est la somme
+des surfaces habitables des logements le constituant.
+
+
+                      Surface utile d'un bâtiment ou d'une partie de bâtiment
+Cette surface est définie pour tout bâtiment ou partie de bâtiment à usage autre que d'habitation.
+La surface utile d'un bâtiment ou d'une partie de bâtiment au sens du présent arrêté, est la surface de
+plancher construite des locaux soumis à la réglementation environnementale qui, en utilisation normale,
+sont chauffés à une température supérieure à 12°C ou refroidis à une température inférieure à 30°C,
+après déduction des :
+    -   surfaces occupées par les murs, y compris l'isolation ;
+    -   cloisons fixes prévues aux plans ;
+    -   poteaux ;
+    -   marches et cages d'escaliers ;
+    -   gaines ;
+    -   ébrasements de portes et de fenêtres ;
+    -   parties des locaux d'une hauteur inférieure à 1,80 m ;
+    -   parties du niveau inférieur servant d'emprise à un escalier, à une rampe d'accès ou les parties du
+        niveau inférieur auquel s'arrêtent les trémies des ascenseurs, des monte-charges, des gaines et
+        des conduits de fumée ou de ventilation ;
+    -   locaux techniques exclusivement affectés au fonctionnement général du bâtiment et à
+        occupation passagère.
+
+
+                                                Système
+Composant ou ensemble de composants permettant de remplir une ou plusieurs fonctions du bâtiment.
+Ces fonctions peuvent notamment être la production de chaleur, d’eau chaude sanitaire ou de froid, une
+régulation de telles production, ou l’isolation du bâtiment vis-à-vis des conditions climatiques
+extérieures.
+
+
+                                       Système de climatisation
+Un système de climatisation est un équipement de production de froid associé à des émetteurs de froid
+destiné au confort des personnes, permettant de maintenir une température de consigne de 26°C en
+conditions estivales.
+                                   Usage d’une partie de bâtiment
+Il s’agit de la fonction de la partie de bâtiment, ou des locaux spécifiques qui la composent. Dans le cas
+d’une extension, en l’absence de locaux spécifiques, l’usage de cette extension est celui du bâtiment
+existant.
+
+
+                                    Usage principal d’un bâtiment
+L'usage auquel est affectée la plus grande surface de plancher du bâtiment.
+
+
+                                           Zone de bâtiment
+Une zone de bâtiment, parfois désignée « zone », est une partie de bâtiment comportant un unique usage.
+
