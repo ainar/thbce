@@ -4,7 +4,8 @@
 //! d'`iclim`, et règles de saisie des fiches d'application (§8.2, §8.13).
 
 use crate::entree::{
-    Batiment, Emetteur, FonctionReseau, Groupe, ReseauGroupe, ReseauIntergroupes,
+    Batiment, Circulateur, Emetteur, FonctionReseau, Groupe, RegulationDebit,
+    RegulationTemperature, ReseauGroupe, ReseauHydrauliqueGroupe, ReseauIntergroupes,
     VariationSpatiale, VariationSpatialeFroid, VariationTemporelle,
 };
 
@@ -22,6 +23,21 @@ pub(super) fn valider_systemes_batiment(r: &mut RapportValidation, cb: &str, bat
         bat.distributions_intergroupes.iter().map(|d| &d.id),
     );
     for (i, d) in bat.distributions_intergroupes.iter().enumerate() {
+        if let ReseauIntergroupes::HydrauliqueCollectif(h)
+        | ReseauIntergroupes::HydrauliqueIndividuels(h) = &d.reseau
+        {
+            let ch = format!("{cb}.distributions_intergroupes[{i}].reseau");
+            for (nom, x) in [
+                ("l_vc_m", h.l_vc_m),
+                ("l_hvc_m", h.l_hvc_m),
+                ("u_vc_w_mk", h.u_vc_w_mk),
+                ("u_hvc_w_mk", h.u_hvc_w_mk),
+                ("p_aux_w", h.p_aux_w),
+            ] {
+                r.positif(format!("{ch}.{nom}"), x);
+            }
+            espace_tampon_connu(r, &ch, h.espace_tampon.as_deref(), bat);
+        }
         if !gens.contains(d.generation.as_str()) {
             r.erreur(
                 format!("{cb}.distributions_intergroupes[{i}].generation"),
@@ -114,6 +130,11 @@ fn valider_systemes_groupe(r: &mut RapportValidation, c: &str, g: &Groupe, bat: 
                 let types_compatibles = matches!(
                     (&d.reseau, &dp.reseau),
                     (ReseauGroupe::Fictif, ReseauIntergroupes::Fictif)
+                        | (
+                            ReseauGroupe::Hydraulique(_),
+                            ReseauIntergroupes::HydrauliqueCollectif(_)
+                                | ReseauIntergroupes::HydrauliqueIndividuels(_)
+                        )
                 );
                 if !types_compatibles {
                     r.erreur(
@@ -124,6 +145,17 @@ fn valider_systemes_groupe(r: &mut RapportValidation, c: &str, g: &Groupe, bat: 
                     );
                 }
             }
+        }
+    }
+    for (i, d) in g.distributions.iter().enumerate() {
+        if let ReseauGroupe::Hydraulique(h) = &d.reseau {
+            valider_hydraulique_groupe(
+                r,
+                &format!("{c}.distributions[{i}].reseau.hydraulique"),
+                h,
+                d.fonction,
+                bat,
+            );
         }
     }
     let (mut somme_ch, mut somme_fr) = (0.0, 0.0);
@@ -303,5 +335,107 @@ fn valider_emetteur(r: &mut RapportValidation, ce: &str, e: &Emetteur, g: &Group
                  ventilateurs (« idregul_batt », Th-BCE 2020 §8.1.2)",
             );
         }
+    }
+}
+
+fn espace_tampon_connu(r: &mut RapportValidation, c: &str, et: Option<&str>, bat: &Batiment) {
+    if let Some(id) = et {
+        if !bat.espaces_tampons.iter().any(|e| e.id == id) {
+            r.erreur(
+                format!("{c}.espace_tampon"),
+                Some(id.to_owned()),
+                "espace tampon inconnu du bâtiment",
+            );
+        }
+    }
+}
+
+/// Paramètres d'un réseau hydraulique du groupe (§8.7.2 et §8.8.2).
+fn valider_hydraulique_groupe(
+    r: &mut RapportValidation,
+    c: &str,
+    h: &ReseauHydrauliqueGroupe,
+    fonction: FonctionReseau,
+    bat: &Batiment,
+) {
+    for (nom, x) in [
+        ("l_vc_m", h.l_vc_m),
+        ("l_hvc_m", h.l_hvc_m),
+        ("u_vc_w_mk", h.u_vc_w_mk),
+        ("u_hvc_w_mk", h.u_hvc_w_mk),
+        ("p_aux_w", h.p_aux_w),
+        ("q_nom_m3_h", h.q_nom_m3_h),
+    ] {
+        r.positif(format!("{c}.{nom}"), x);
+    }
+    espace_tampon_connu(r, c, h.espace_tampon.as_deref(), bat);
+    // L'écart nominal est positif en chauffage, négatif en refroidissement (note du §8.9.3.5.3).
+    let signe_ok = match fonction {
+        FonctionReseau::Chauffage => h.delta_theta_em_dim_k > 0.0,
+        FonctionReseau::Refroidissement => h.delta_theta_em_dim_k < 0.0,
+    };
+    if !signe_ok {
+        r.erreur(
+            format!("{c}.delta_theta_em_dim_k"),
+            Some(h.delta_theta_em_dim_k.to_string()),
+            "écart nominal départ-retour strictement positif en chauffage, strictement négatif \
+             en refroidissement (Th-BCE 2020 §8.7.2 et §8.9.3.5.3)",
+        );
+    }
+    match h.regulation_temperature {
+        RegulationTemperature::LoiDEau if fonction == FonctionReseau::Refroidissement => r.erreur(
+            format!("{c}.regulation_temperature"),
+            None,
+            "la loi d'eau n'existe qu'en chauffage (Th-BCE 2020 §8.7.1)",
+        ),
+        RegulationTemperature::DepartConstant | RegulationTemperature::LoiDEau
+            if h.theta_dep_dim_c.is_none() =>
+        {
+            r.erreur(
+                format!("{c}.theta_dep_dim_c"),
+                None,
+                "température de départ de dimensionnement requise (Th-BCE 2020 §8.7.2)",
+            );
+        }
+        RegulationTemperature::RetourConstant if h.theta_ret_dim_c.is_none() => r.erreur(
+            format!("{c}.theta_ret_dim_c"),
+            None,
+            "température de retour de dimensionnement requise (Th-BCE 2020 §8.7.2)",
+        ),
+        _ => {}
+    }
+    let variable = h.regulation_debit == RegulationDebit::DebitVariable;
+    if variable && h.q_resid_m3_h.is_none() {
+        r.erreur(
+            format!("{c}.q_resid_m3_h"),
+            None,
+            "débit résiduel requis pour un réseau à débit variable (Th-BCE 2020 §8.7.2)",
+        );
+    }
+    if let Some(q) = h.q_resid_m3_h {
+        r.positif(format!("{c}.q_resid_m3_h"), q);
+    }
+    if !variable && h.q_nom_m3_h <= 0.0 {
+        r.erreur(
+            format!("{c}.q_nom_m3_h"),
+            Some(h.q_nom_m3_h.to_string()),
+            "débit nominal strictement positif requis pour un réseau à débit constant (éq. 856 \
+             et 857)",
+        );
+    }
+    // §8.7.3.3.2.7 : « Les circulateurs à vitesse variable ne sont pris en compte que dans le
+    // cadre d'un réseau à débit variable. »
+    if !variable
+        && matches!(
+            h.circulateur,
+            Circulateur::PressionConstante | Circulateur::PressionVariable
+        )
+    {
+        r.erreur(
+            format!("{c}.circulateur"),
+            None,
+            "circulateur à vitesse variable réservé aux réseaux à débit variable (Th-BCE 2020 \
+             §8.7.3.3.2.7)",
+        );
     }
 }
