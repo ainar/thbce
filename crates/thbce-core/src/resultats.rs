@@ -102,6 +102,32 @@ pub struct ResultatsGroupe {
     pub sref_m2: f64,
     /// Grandeurs d'enveloppe du groupe.
     pub enveloppe: ResultatsEnveloppe,
+    /// Résultats par baie.
+    pub baies: Vec<ResultatsBaie>,
+}
+
+/// Résultats d'une baie.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsBaie {
+    /// Identifiant de la baie.
+    pub id: Id,
+    /// Valeurs par défaut de la méthode appliquées aux paramètres non saisis de la baie ; liste
+    /// vide si tout a été saisi.
+    pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+}
+
+/// Valeur par défaut donnée par le texte de la méthode et appliquée à un paramètre non saisi.
+/// Le moteur n'applique de valeur par défaut que lorsque le texte la donne, et la signale ici.
+/// Ces valeurs sont des paramètres du calcul : l'arrondi de restitution ne leur est pas appliqué.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ValeurParDefaut {
+    /// Champ de l'entrée auquel la valeur s'applique, relatif à l'élément (par exemple
+    /// `sans_protection.sw1_c` pour le type d'une baie).
+    pub champ: String,
+    /// Valeur appliquée.
+    pub valeur: f64,
+    /// Règle du texte dont elle provient.
+    pub regle: String,
 }
 
 /// Grandeurs d'enveloppe d'un groupe (Th-BCE 2020 §5.16.3 et §5.20.3). Les coefficients de
@@ -118,6 +144,17 @@ pub struct ResultatsEnveloppe {
     pub a_ophb_m2: f64,
     /// « HTh » des parois opaques, en W/K (éq. 283).
     pub h_th_op_w_k: f64,
+    /// « Abaies » : surface des baies, en m² (§5.14.3, éq. 282).
+    pub a_baies_m2: f64,
+    /// « Abaies-v » : surface des baies verticales, d'inclinaison au moins égale à 60°, en m²
+    /// (éq. 279).
+    pub a_baies_v_m2: f64,
+    /// « Abaies-h » : surface des baies horizontales, d'inclinaison inférieure à 60°, en m²
+    /// (éq. 281).
+    pub a_baies_h_m2: f64,
+    /// « Hges » des baies sans protection mobile en place, en W/K (§5.10.3.5, éq. 210 avec
+    /// `Rprot = 0`). La valeur horaire dépend de la position des protections mobiles.
+    pub h_ges_sp_w_k: f64,
     /// « Ll » : longueur des ponts thermiques, en m (éq. 310).
     pub l_pt_m: f64,
     /// « HTh » des ponts thermiques, en W/K (éq. 307).
@@ -147,6 +184,10 @@ impl Resultats {
                         &mut e.a_ophh_m2,
                         &mut e.a_ophb_m2,
                         &mut e.h_th_op_w_k,
+                        &mut e.a_baies_m2,
+                        &mut e.a_baies_v_m2,
+                        &mut e.a_baies_h_m2,
+                        &mut e.h_ges_sp_w_k,
                         &mut e.l_pt_m,
                         &mut e.h_th_pt_w_k,
                     ] {

@@ -107,6 +107,9 @@ impl PontResolu {
         let qer = qer_w_m2(&self.surface, c.teciel_c, c.te_c);
         FluxOpaques {
             phi_sh_s_w: self.l_l_m * sf * incident.isr_w_m2(),
+            // Éq. (306) : Φsh_vc,l = ll · bvoute,l · (Qer*l · Ψl / he), avec he = 25 W/(m².K),
+            // constante de la fiche (§5.19.2, p. 300), la même que pour les parois opaques
+            // (§5.17.2, éq. 297).
             phi_sh_vc_w: self.l_l_m * qer * self.psi_l_w_mk / HE_W_M2K,
         }
     }

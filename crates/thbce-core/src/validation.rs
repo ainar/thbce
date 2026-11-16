@@ -10,6 +10,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thbce_data::ZoneClimatique;
 
+use crate::bati::baie::{u_baie, EtatBaie, REDUCTION_SW_SP_C};
 use crate::entree::{
     Baie, BaieType, Exposition, FacteursBaie, Groupe, Inertie, InertieAnnuelle, InertieQuotidienne,
     InertieSequentielle, Masque, ParoiOpaque, ParoiType, PontThermique, Projet, Zone,
@@ -150,7 +151,9 @@ pub fn valider(projet: &Projet) -> RapportValidation {
     // Catalogue.
     let cat = &projet.catalogue;
     let types_parois = r.ids_uniques("catalogue.parois", cat.parois.iter().map(|p| &p.id));
-    let types_baies = r.ids_uniques("catalogue.baies", cat.baies.iter().map(|b| &b.id));
+    r.ids_uniques("catalogue.baies", cat.baies.iter().map(|b| &b.id));
+    let types_baies: BTreeMap<&str, &BaieType> =
+        cat.baies.iter().map(|b| (b.id.as_str(), b)).collect();
     r.ids_uniques("catalogue.masques", cat.masques.iter().map(|m| &m.id));
     let masques: BTreeMap<&str, &Masque> = cat
         .masques
@@ -200,7 +203,7 @@ pub fn valider(projet: &Projet) -> RapportValidation {
 
 struct References<'a> {
     types_parois: &'a BTreeSet<&'a str>,
-    types_baies: &'a BTreeSet<&'a str>,
+    types_baies: &'a BTreeMap<&'a str, &'a BaieType>,
     masques: &'a BTreeMap<&'a str, &'a Masque>,
 }
 
@@ -390,11 +393,40 @@ fn valider_paroi(r: &mut RapportValidation, c: &str, p: &ParoiOpaque, refs: &Ref
 }
 
 fn valider_baie(r: &mut RapportValidation, c: &str, b: &Baie, refs: &References<'_>) {
-    if !refs.types_baies.contains(b.type_baie.as_str()) {
-        r.erreur(
+    let beta = b.exposition.inclinaison_deg;
+    match refs.types_baies.get(b.type_baie.as_str()) {
+        None => r.erreur(
             format!("{c}.type_baie"),
             Some(b.type_baie.clone()),
             "type de baie absent du catalogue",
+        ),
+        // Th-BCE 2020 §5.10.3.5, éq. (207) : le coefficient U sans protection mobile doit être
+        // connu à l'inclinaison de la baie.
+        Some(t) => {
+            // Un type sans aucun coefficient est déjà signalé dans le catalogue.
+            let un_u_saisi = t.u_sp_vert_w_m2k.is_some() || t.u_sp_horiz_w_m2k.is_some();
+            if un_u_saisi
+                && (0.0..=90.0).contains(&beta)
+                && u_baie(t.u_sp_vert_w_m2k, t.u_sp_horiz_w_m2k, beta).is_none()
+            {
+                r.erreur(
+                    format!("{c}.type_baie"),
+                    Some(b.type_baie.clone()),
+                    format!(
+                        "le type de baie ne donne pas le coefficient U nécessaire à une \
+                         inclinaison de {beta}° : u_sp_horiz_w_m2k en dessous de 60°, \
+                         u_sp_vert_w_m2k à partir de 30° (les deux entre 30 et 60°)"
+                    ),
+                );
+            }
+        }
+    }
+    // Th-BCE 2020 §5.10.2 : inclinaison d'une baie entre 0° (horizontale) et 90° (verticale).
+    if beta > 90.0 {
+        r.erreur(
+            format!("{c}.exposition.inclinaison_deg"),
+            Some(beta.to_string()),
+            "l'inclinaison d'une baie est comprise entre 0 et 90°",
         );
     }
     r.positif(format!("{c}.a_b_m2"), b.a_b_m2);
@@ -452,22 +484,56 @@ fn valider_baie_type(r: &mut RapportValidation, c: &str, b: &BaieType) {
             r.positif(format!("{c}.{champ}"), u);
         }
     }
-    valider_facteurs_baie(r, &format!("{c}.sans_protection"), &b.sans_protection);
+    valider_facteurs_baie(
+        r,
+        &format!("{c}.sans_protection"),
+        &b.sans_protection,
+        EtatBaie::SansProtection,
+    );
     if let Some(f) = &b.avec_protection {
-        valider_facteurs_baie(r, &format!("{c}.avec_protection"), f);
+        valider_facteurs_baie(
+            r,
+            &format!("{c}.avec_protection"),
+            f,
+            EtatBaie::AvecProtection,
+        );
     }
 }
 
-fn valider_facteurs_baie(r: &mut RapportValidation, c: &str, f: &FacteursBaie) {
+fn valider_facteurs_baie(r: &mut RapportValidation, c: &str, f: &FacteursBaie, etat: EtatBaie) {
+    let composantes_c = [("sw1_c", f.sw1_c), ("sw2_c", f.sw2_c), ("sw3_c", f.sw3_c)];
+    let saisies = composantes_c.iter().filter(|(_, v)| v.is_some()).count();
+    if saisies != 0 && saisies != composantes_c.len() {
+        r.erreur(
+            c.to_owned(),
+            None,
+            "sw1_c, sw2_c et sw3_c se saisissent ensemble ou pas du tout (absents, la valeur par \
+             défaut du §5.10.3.6.3 s'applique au facteur solaire global)",
+        );
+    }
+    // Th-BCE 2020 §5.10.3.6.3, éq. (215) : la valeur par défaut `Swsp-c = Swsp-e − 0,1` n'a de
+    // sens que si elle reste positive.
+    if saisies == 0
+        && etat == EtatBaie::SansProtection
+        && f.sw1_e + f.sw2_e + f.sw3_e <= REDUCTION_SW_SP_C
+    {
+        r.erreur(
+            c.to_owned(),
+            None,
+            "la valeur par défaut Swsp-c = Swsp-e − 0,1 (éq. 215) n'est pas positive : saisir \
+             sw1_c, sw2_c et sw3_c",
+        );
+    }
+    for (champ, v) in composantes_c.into_iter().chain([("tlid", f.tlid)]) {
+        if let Some(v) = v {
+            r.plage(format!("{c}.{champ}"), v, 0.0, 1.0);
+        }
+    }
     for (champ, v) in [
-        ("sw1_c", f.sw1_c),
-        ("sw2_c", f.sw2_c),
-        ("sw3_c", f.sw3_c),
         ("sw1_e", f.sw1_e),
         ("sw2_e", f.sw2_e),
         ("sw3_e", f.sw3_e),
         ("tli", f.tli),
-        ("tlid", f.tlid),
     ] {
         r.plage(format!("{c}.{champ}"), v, 0.0, 1.0);
     }

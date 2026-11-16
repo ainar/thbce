@@ -67,6 +67,8 @@ fn conditions(mode: ModeCalcul, is_conf_adapt: bool, h: usize) -> ConditionsExte
         },
         idn_w_m2: 800.0,
         idi_w_m2: 100.0,
+        edn_lux: 0.0,
+        edi_lux: 0.0,
         te_c: 10.0,
         teciel_c: -5.0,
         h,
@@ -118,6 +120,77 @@ fn le_coefficient_u_est_continu_et_monotone() {
         precedent = u;
         beta += 0.25;
     }
+}
+
+#[test]
+fn le_coefficient_u_est_continu_aux_quatre_bornes() {
+    // Éq. (294) : aux bornes β1 = 30°, β2 = 60°, β3 = 120° et β4 = 150°, les valeurs prises juste
+    // avant, à la borne et juste après doivent se raccorder (décision Q29 pour β3 et β4).
+    let (u_asc, u_des) = (1.0 / 4.97, 1.0 / 5.04);
+    let eps = 1e-9;
+    for (borne, attendu) in [(30.0, u_asc), (60.0, 0.2), (120.0, 0.2), (150.0, u_des)] {
+        for beta in [borne - eps, borne, borne + eps] {
+            let u = u_k_beta(0.2, VERT, beta);
+            assert!(
+                (u - attendu).abs() < 1e-10,
+                "β = {beta} : {u} obtenu, {attendu} attendu"
+            );
+        }
+    }
+}
+
+#[test]
+fn en_th_d_le_facteur_solaire_bascule_avec_le_confort_adaptatif() {
+    // Éq. (291) et (292) : en Th-D, fce = 1 − isconfort_adaptatif. Pendant la période de confort
+    // adaptatif, Sf = Sf-e ; en dehors, Sf = Sf-c (décision Q29 : les équations, pas la
+    // nomenclature). Toiture de 100 m², rayonnement horizontal de 500 W/m², Sf-c = 0,01 et
+    // Sf-e = 0,04 : 500 W avec Sf-c, 2 000 W avec Sf-e.
+    let toiture = paroi(
+        100.0,
+        &type_paroi(0.12, ASC, 0.01, 0.04),
+        exposition(0.0, 0.0),
+    );
+    assert_proche!(
+        toiture
+            .flux(&conditions(ModeCalcul::ThD, true, 0))
+            .phi_sh_s_w,
+        2000.0
+    );
+    assert_proche!(
+        toiture
+            .flux(&conditions(ModeCalcul::ThD, false, 0))
+            .phi_sh_s_w,
+        500.0
+    );
+    // En Th-B et Th-C, Sf-c quelle que soit la période.
+    assert_proche!(toiture.flux(&conditions(TH_B, true, 0)).phi_sh_s_w, 500.0);
+    assert_proche!(
+        toiture
+            .flux(&conditions(ModeCalcul::ThC, true, 0))
+            .phi_sh_s_w,
+        500.0
+    );
+
+    // Même règle pour un pont thermique (éq. 302 et 303) : 40 m en toiture, Sf-c = 0,02 et
+    // Sf-e = 0,05 m⁻¹, soit 40 × 0,05 × 500 = 1 000 W pendant la période et 400 W en dehors.
+    let mut ponts = Vec::new();
+    PontResolu::resoudre(
+        &pont(Some(exposition(0.0, 0.0))),
+        &Catalogue::default(),
+        &mut ponts,
+    );
+    assert_proche!(
+        ponts[0]
+            .flux(&conditions(ModeCalcul::ThD, true, 0))
+            .phi_sh_s_w,
+        1000.0
+    );
+    assert_proche!(
+        ponts[0]
+            .flux(&conditions(ModeCalcul::ThD, false, 0))
+            .phi_sh_s_w,
+        400.0
+    );
 }
 
 #[test]

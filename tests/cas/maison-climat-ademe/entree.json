@@ -36,24 +36,16 @@
         "u_sp_vert_w_m2k": 1.3,
         "u_ap_vert_w_m2k": 1.1,
         "sans_protection": {
-          "sw1_c": 0.4,
-          "sw2_c": 0.05,
-          "sw3_c": 0,
           "sw1_e": 0.4,
           "sw2_e": 0.05,
           "sw3_e": 0,
-          "tli": 0.6,
-          "tlid": 0
+          "tli": 0.6
         },
         "avec_protection": {
-          "sw1_c": 0.02,
-          "sw2_c": 0.03,
-          "sw3_c": 0,
           "sw1_e": 0.02,
           "sw2_e": 0.03,
           "sw3_e": 0,
-          "tli": 0,
-          "tlid": 0
+          "tli": 0
         }
       }
     ],

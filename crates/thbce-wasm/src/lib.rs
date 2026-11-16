@@ -57,10 +57,21 @@ export interface ResultatsEnveloppe {
   a_ophh_m2: number;
   a_ophb_m2: number;
   h_th_op_w_k: number;
+  a_baies_m2: number;
+  a_baies_v_m2: number;
+  a_baies_h_m2: number;
+  h_ges_sp_w_k: number;
   l_pt_m: number;
   h_th_pt_w_k: number;
 }
-export interface ResultatsGroupe { id: string; sref_m2: number; enveloppe: ResultatsEnveloppe; }
+export interface ValeurParDefaut { champ: string; valeur: number; regle: string; }
+export interface ResultatsBaie { id: string; valeurs_par_defaut: ValeurParDefaut[]; }
+export interface ResultatsGroupe {
+  id: string;
+  sref_m2: number;
+  enveloppe: ResultatsEnveloppe;
+  baies: ResultatsBaie[];
+}
 export interface ResultatsZone { id: string; sref_m2: number; nadeq: number | null; groupes: ResultatsGroupe[]; }
 export interface ResultatsBatiment {
   id: string;

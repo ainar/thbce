@@ -392,8 +392,13 @@ pub struct ParoiType {
     pub id: Id,
     /// « Uk » : coefficient de transmission thermique, en W/(m².K), dans la position `incl_k`.
     pub u_k_w_m2k: f64,
-    /// « Inclk » : position pour laquelle `Uk` est donné. Le moteur en déduit le coefficient de la
-    /// paroi dans son inclinaison réelle (§5.17.3, éq. 294).
+    /// « Inclk » : position pour laquelle `Uk` est donné. Obligatoire, sans valeur par défaut :
+    /// une position supposée changerait U en silence. Le moteur en déduit le coefficient de la
+    /// paroi dans son inclinaison réelle (§5.17.3, éq. 294). Correspondance avec les règles
+    /// Th-Bat, d'après les résistances superficielles cumulées que le texte retire de `1/Uk` :
+    /// `verticale` pour un U de paroi verticale (0,17 m².K/W) ; `horizontale_flux_ascendant` pour
+    /// un U de plancher haut (0,14) ; `horizontale_flux_descendant` pour un U de plancher bas
+    /// (0,21).
     pub incl_k: PositionParoi,
     /// « Sf-c,k » : facteur solaire pour le calcul du Cep (paroi non végétalisée).
     pub sf_c_k: f64,
@@ -408,11 +413,11 @@ pub struct ParoiType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PositionParoi {
-    /// 1 : paroi verticale.
+    /// 1 : paroi verticale (Th-Bat : paroi verticale, flux horizontal).
     Verticale,
-    /// 2 : paroi horizontale, flux ascendant.
+    /// 2 : paroi horizontale, flux ascendant (Th-Bat : plancher haut).
     HorizontaleFluxAscendant,
-    /// 3 : paroi horizontale, flux descendant.
+    /// 3 : paroi horizontale, flux descendant (Th-Bat : plancher bas).
     HorizontaleFluxDescendant,
 }
 
@@ -470,15 +475,30 @@ pub struct BaieType {
 }
 
 /// Facteurs solaires et lumineux d'une baie dans un état de protection (§5.10.2).
+///
+/// Trois grandeurs ont une valeur par défaut donnée par la méthode (§5.10.3.6.3) et sont
+/// facultatives : les facteurs solaires « -c » (éq. 215 et 216) et `tlid` (éq. 218). Toute
+/// valeur par défaut appliquée est listée dans les résultats (`valeurs_par_defaut`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FacteursBaie {
     /// « Sw1-c » : composante courte longueur d'onde (directe), calcul du Cep.
-    pub sw1_c: f64,
-    /// « Sw2-c » : composante grande longueur d'onde et convective, calcul du Cep.
-    pub sw2_c: f64,
-    /// « Sw3-c » : composante liée à la lame d'air intérieure ventilée, calcul du Cep.
-    pub sw3_c: f64,
+    ///
+    /// Les trois composantes « -c » se saisissent ensemble ou pas du tout. Absentes, la valeur
+    /// par défaut du texte s'applique au facteur solaire global `Sw-c = Sw1-c + Sw2-c + Sw3-c` :
+    /// sans protection mobile, `Swsp-c = Swsp-e − 0,1` (éq. 215) ; avec protection mobile,
+    /// `Swap-c = Swap-e` (éq. 216). Le texte renvoie aux règles Th-S pour la décomposition en
+    /// trois composantes : le moteur garde les proportions des composantes « -e » (question
+    /// Q30).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sw1_c: Option<f64>,
+    /// « Sw2-c » : composante grande longueur d'onde et convective, calcul du Cep. Voir `sw1_c`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sw2_c: Option<f64>,
+    /// « Sw3-c » : composante liée à la lame d'air intérieure ventilée, calcul du Cep. Voir
+    /// `sw1_c`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sw3_c: Option<f64>,
     /// « Sw1-e » : composante courte longueur d'onde (directe), calcul de DH.
     pub sw1_e: f64,
     /// « Sw2-e » : composante grande longueur d'onde et convective, calcul de DH.
@@ -487,8 +507,10 @@ pub struct FacteursBaie {
     pub sw3_e: f64,
     /// « Tli » : facteur de transmission lumineuse global.
     pub tli: f64,
-    /// « Tlid » : transmission lumineuse du flux direct transmis sous forme diffuse.
-    pub tlid: f64,
+    /// « Tlid » : transmission lumineuse du flux direct transmis sous forme diffuse. Absente :
+    /// 0, valeur par défaut du texte (éq. 218).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tlid: Option<f64>,
 }
 
 /// Baie vitrée d'un groupe : paramètres d'intégration (§5.10.2).
@@ -520,10 +542,10 @@ pub struct PontThermique {
     /// « Sf-e,l » : facteur solaire pour le calcul de DH, en m⁻¹ (le texte dit « Tic » :
     /// décision Q14).
     pub sf_e_l: f64,
-    /// Orientation, inclinaison et masques du pont thermique (§5.18.3). Présente : description
-    /// détaillée. Absente : description simplifiée, où le pont thermique est réparti en quatre
-    /// ponts verticaux orientés au sud, à l'ouest, au nord et à l'est, d'un quart de la longueur
-    /// chacun, sans masque (éq. 298).
+    /// Orientation, inclinaison et masques du pont thermique (§5.18.3). Champ facultatif.
+    /// Présent : description détaillée. **Absent : la description simplifiée s'applique**, où le
+    /// pont thermique est réparti en quatre ponts verticaux orientés au sud, à l'ouest, au nord
+    /// et à l'est, d'un quart de la longueur chacun, sans masque (éq. 298).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exposition: Option<Exposition>,
 }
