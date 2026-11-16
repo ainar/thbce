@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "thbce-io"
+description = "Lecture des entrées et des données météo, écriture des résultats du moteur Th-BCE 2020"
+version.workspace = true
+edition.workspace = true
+license = "GPL-3.0-or-later"
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+thbce-core.workspace = true
+thbce-data.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_path_to_error.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+toml.workspace = true
+
+[lints]
+workspace = true
