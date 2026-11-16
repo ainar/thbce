@@ -126,11 +126,17 @@ fn le_type_de_baie_doit_donner_u_a_l_inclinaison_de_la_baie() {
     p.batiments[0].zones[0].groupes[0].baies[1]
         .exposition
         .inclinaison_deg = 45.0;
+    // Deux erreurs : U sans protection (éq. 207) et U avec protection mobile (éq. 208).
     assert_eq!(
         chemins(&valider(&p).erreurs),
-        ["batiments[0].zones[0].groupes[0].baies[1].type_baie"]
+        [
+            "batiments[0].zones[0].groupes[0].baies[1].type_baie",
+            "batiments[0].zones[0].groupes[0].baies[1].type_baie"
+        ]
     );
     p.catalogue.baies[0].u_sp_horiz_w_m2k = Some(1.5);
+    assert_eq!(valider(&p).erreurs.len(), 1);
+    p.catalogue.baies[0].u_ap_horiz_w_m2k = Some(1.2);
     assert!(valider(&p).est_valide());
     p.batiments[0].zones[0].groupes[0].baies[1]
         .exposition
@@ -181,6 +187,43 @@ fn les_facteurs_solaires_c_se_saisissent_ensemble_et_leur_defaut_doit_etre_posit
     assert_eq!(
         chemins(&valider(&p).erreurs),
         ["catalogue.baies[0].sans_protection"]
+    );
+}
+
+#[test]
+fn les_protections_mobiles_hors_perimetre_sont_refusees() {
+    use thbce_core::entree::{GestionPm, TypePm};
+    // Décision Q30, point 7 : erreur explicite, sans calcul approché.
+    let mut p = projet();
+    assert!(valider(&p).est_valide());
+    p.catalogue.baies[0]
+        .protection_mobile
+        .as_mut()
+        .unwrap()
+        .type_pm = TypePm::StoreVenitien;
+    let r = valider(&p);
+    assert_eq!(
+        chemins(&r.erreurs),
+        ["catalogue.baies[0].protection_mobile.type_pm"]
+    );
+    assert_eq!(
+        r.erreurs[0].message,
+        "store vénitien non pris en charge dans cette version"
+    );
+    let pm = p.catalogue.baies[0].protection_mobile.as_mut().unwrap();
+    pm.type_pm = TypePm::Volet;
+    pm.gestion = GestionPm::AutomatiqueAvecDerogation;
+    assert_eq!(
+        chemins(&valider(&p).erreurs),
+        ["catalogue.baies[0].protection_mobile.gestion"]
+    );
+    // Une protection mobile déclarée demande les facteurs et le U de la baie protégée.
+    let mut p = projet();
+    p.catalogue.baies[0].avec_protection = None;
+    p.catalogue.baies[0].u_ap_vert_w_m2k = None;
+    assert_eq!(
+        chemins(&valider(&p).erreurs),
+        ["catalogue.baies[0].avec_protection", "catalogue.baies[0]"]
     );
 }
 

@@ -14,10 +14,11 @@ use crate::climat::environnement_proche::{
     flux_atteignant_la_paroi, qer_w_m2, FluxParoi, MasqueResolu, SurfaceExposee,
 };
 use crate::conventions::ModeCalcul;
-use crate::entree::{Baie, BaieType, Catalogue, FacteursBaie};
+use crate::entree::{Baie, BaieType, Catalogue, FacteursBaie, TypoPm};
 use crate::resultats::ValeurParDefaut;
 
 use super::paroi_opaque::resoudre_masques;
+use super::protection_mobile::taux_passage_air;
 use super::{ConditionsExterieures, HE_W_M2K};
 
 /// « β1 » : inclinaison en dessous de laquelle la baie est considérée horizontale, en degrés
@@ -148,6 +149,24 @@ pub const REDUCTION_SW_SP_C: f64 = 0.1;
 /// Valeur par défaut de `Tlid` (§5.10.3.6.3, éq. 218).
 pub const TLID_DEFAUT: f64 = 0.0;
 
+/// Répartit un facteur solaire global par défaut entre `Sw1`, `Sw2` et `Sw3`.
+///
+/// Hypothèse du mainteneur, faute de règle dans le texte, à confirmer par un cas de référence
+/// (décision Q30, point 8). Les éq. (215) et (216) du §5.10.3.6.3 donnent le facteur **global**
+/// par défaut et renvoient aux règles Th-S pour sa décomposition. Lecture retenue : les
+/// composantes « -c » gardent les proportions des composantes « -e »,
+/// `Swi-c = Swi-e × (Sw-c / Sw-e)`. Elle conserve le total imposé par le texte et ne produit
+/// jamais de composante négative. Ce choix est isolé ici.
+///
+/// `rapport` est `Sw-c / Sw-e`.
+fn repartir_facteur_global(sw_e: &FacteursSolaires, rapport: f64) -> FacteursSolaires {
+    FacteursSolaires {
+        sw1: sw_e.sw1 * rapport,
+        sw2: sw_e.sw2 * rapport,
+        sw3: sw_e.sw3 * rapport,
+    }
+}
+
 /// Facteurs d'un état de la baie, valeurs par défaut du texte appliquées.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FacteursResolus {
@@ -171,9 +190,9 @@ impl FacteursResolus {
     /// - éq. (218) : `Tlid = 0`.
     ///
     /// Le texte donne la valeur par défaut du facteur global et renvoie aux règles Th-S pour sa
-    /// décomposition en `Sw1`, `Sw2` et `Sw3`. Lecture retenue (question Q30) : les composantes
-    /// « -c » gardent les proportions des composantes « -e », soit
-    /// `Swi-c = Swi-e × Sw-c/Sw-e` ; avec protection mobile, elles leur sont donc égales.
+    /// décomposition en `Sw1`, `Sw2` et `Sw3` : voir [`repartir_facteur_global`] (hypothèse du
+    /// mainteneur, décision Q30). Avec protection mobile, les composantes « -c » sont donc
+    /// égales aux composantes « -e ».
     ///
     /// Renvoie `None` si les composantes « -c » ne sont saisies qu'en partie, ou si la valeur
     /// par défaut de l'éq. (215) n'est pas positive (cas écartés par la validation).
@@ -212,11 +231,7 @@ impl FacteursResolus {
                          égales à celles de Swap-e (question Q30)",
                     ),
                 };
-                let c = FacteursSolaires {
-                    sw1: sw_e.sw1 * rapport,
-                    sw2: sw_e.sw2 * rapport,
-                    sw3: sw_e.sw3 * rapport,
-                };
+                let c = repartir_facteur_global(&sw_e, rapport);
                 for (champ, valeur) in [("sw1_c", c.sw1), ("sw2_c", c.sw2), ("sw3_c", c.sw3)] {
                     defauts.push(ValeurParDefaut {
                         champ: format!("{prefixe}.{champ}"),
@@ -324,8 +339,11 @@ pub struct BaieResolue {
     pub sans_protection: FacteursResolus,
     /// Facteurs avec la première protection mobile ; ceux de la baie nue s'il n'y en a pas.
     pub avec_protection: FacteursResolus,
-    /// Valeurs par défaut du texte appliquées aux facteurs non saisis.
+    /// Valeurs par défaut du texte appliquées aux paramètres non saisis.
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+    /// « Tauxpassage_air_PM » : taux de passage de l'air à travers la protection mobile en place
+    /// (§5.12.3.1, tableau 40) ; 1 sans protection mobile.
+    pub taux_passage_air: f64,
     /// Type de la baie pour l'éclairement naturel.
     pub type_eclairage: TypeBaieEclairage,
     /// Orientation et dimensions.
@@ -383,6 +401,20 @@ impl BaieResolue {
             Some(f) => FacteursResolus::de(f, EtatBaie::AvecProtection, &mut valeurs_par_defaut)?,
             None => sans_protection,
         };
+        // Th-BCE 2020 §5.12.3.1, tableau 40 : typologie 0 par défaut ; 100 % sans protection.
+        let taux_passage_air = match &type_baie.protection_mobile {
+            None => 1.0,
+            Some(pm) => taux_passage_air(pm.typo_pm.unwrap_or_else(|| {
+                valeurs_par_defaut.push(ValeurParDefaut {
+                    champ: "protection_mobile.typo_pm".to_owned(),
+                    valeur: 0.0,
+                    regle: "Th-BCE 2020 §5.12.3.1, tableau 40 : typologie 0, « valeur par \
+                            défaut », taux de passage de l'air de 0 %"
+                        .to_owned(),
+                });
+                TypoPm::Etanche
+            })),
+        };
         Some(Self {
             a_b_m2: baie.a_b_m2,
             alpha_deg: baie.exposition.azimut_deg,
@@ -392,6 +424,7 @@ impl BaieResolue {
             sans_protection,
             avec_protection,
             valeurs_par_defaut,
+            taux_passage_air,
             // §5.10.3.2 : les grands volumes n'existent que dans des usages hors du périmètre
             // actuel (industrie, établissements sportifs, commerces).
             type_eclairage: TypeBaieEclairage::VolumeNormal,

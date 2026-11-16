@@ -469,9 +469,80 @@ pub struct BaieType {
     /// Facteurs de la baie sans protection mobile en place (indice « sp »).
     pub sans_protection: FacteursBaie,
     /// Facteurs de la baie avec protection mobile de type volet ou store enroulable en place
-    /// (indice « ap »).
+    /// (indice « ap »). Requis si `protection_mobile` est renseignée.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub avec_protection: Option<FacteursBaie>,
+    /// Première protection mobile de la baie et sa gestion (§5.9.2). Absente : baie sans
+    /// protection mobile (`Type-PM = 0`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub protection_mobile: Option<ProtectionMobile>,
+}
+
+/// Th-BCE 2020 §5.9.2 et §5.12.2 — protection mobile d'une baie et sa gestion.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProtectionMobile {
+    /// « Type-PM » : type de la première protection mobile. Le store vénitien n'est pas pris en
+    /// charge dans cette version : la validation le refuse.
+    pub type_pm: TypePm,
+    /// « Type-GPM » : gestion de la première protection mobile. La gestion automatique n'est pas
+    /// prise en charge dans cette version : la validation la refuse.
+    pub gestion: GestionPm,
+    /// « Protext » : vrai si la protection est extérieure, faux si elle est intérieure.
+    pub exterieure: bool,
+    /// « PM2 » : présence d'une seconde protection mobile, intérieure, gérée manuellement, dont
+    /// la seule fonction est d'éviter l'éblouissement.
+    pub seconde_protection: bool,
+    /// « Typo_PM » : typologie de la protection pour le passage de l'air quand elle est fermée
+    /// (§5.12.3.1, tableau 40). Absente : typologie 0, « valeur par défaut » du texte (taux de
+    /// passage de 0 %), signalée dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub typo_pm: Option<TypoPm>,
+}
+
+/// « Type-PM » (§5.9.2) : type de la première protection mobile.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TypePm {
+    /// 1 : volet.
+    Volet,
+    /// 2 : store enroulable.
+    StoreEnroulable,
+    /// 3 : store vénitien (à lames orientables). Non pris en charge dans cette version.
+    StoreVenitien,
+}
+
+/// « Type-GPM » (§5.9.2) : gestion d'un volet ou d'un store enroulable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GestionPm {
+    /// 1 : automatique avec dérogation. Non prise en charge dans cette version.
+    AutomatiqueAvecDerogation,
+    /// 2 : manuelle non motorisée.
+    ManuelleNonMotorisee,
+    /// 3 : manuelle motorisée (y compris avec commande générale dérogeable, §5.9.3.1).
+    ManuelleMotorisee,
+}
+
+/// « Typo_PM » (§5.12.3.1, tableau 40) : typologie d'une protection mobile selon son taux de
+/// passage d'air en position fermée.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TypoPm {
+    /// 0 : valeur par défaut, volets isolants ; 0 %.
+    Etanche,
+    /// 1 : tablier non ou faiblement ajouré (moins de 10 % de sa surface) ; 10 %. Exemples du
+    /// texte : volets roulants, battants ou coulissants sans projection, stores enroulables
+    /// opaques.
+    FaiblementAjouree,
+    /// 2 : tablier ajouré (10 à 30 %) ; 25 %. Exemples : volets roulants à agrafes ou à
+    /// micro-lames ajourées.
+    Ajouree,
+    /// 3 : tablier fortement ajouré (30 à 50 %) ; 50 %. Exemples : volets battants persiennés
+    /// sans projection, moustiquaires.
+    FortementAjouree,
+    /// 4 : tablier très fortement ajouré (plus de 50 %) ou protection à projection ; 75 %.
+    TresFortementAjouree,
 }
 
 /// Facteurs solaires et lumineux d'une baie dans un état de protection (§5.10.2).

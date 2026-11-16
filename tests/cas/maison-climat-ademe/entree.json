@@ -46,6 +46,12 @@
           "sw2_e": 0.03,
           "sw3_e": 0,
           "tli": 0
+        },
+        "protection_mobile": {
+          "type_pm": "volet",
+          "gestion": "manuelle_motorisee",
+          "exterieure": true,
+          "seconde_protection": false
         }
       }
     ],

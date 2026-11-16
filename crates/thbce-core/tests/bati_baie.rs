@@ -63,6 +63,7 @@ fn fenetre() -> BaieType {
             tli: 0.1,
             tlid: Some(0.04),
         }),
+        protection_mobile: None,
     }
 }
 
