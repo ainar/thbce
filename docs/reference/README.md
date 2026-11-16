@@ -16,6 +16,8 @@ Les fichiers `texte/` et les `.txt` sont des extractions automatiques (`pdftotex
 | `annexevi_arrete_4_aout_2021.pdf` | Annexe VI — Contenu du RSEE (tient lieu de spécification en l'absence du XSD, non public) | `texte/annexe-vi-rsee.txt` (police du PDF mal encodée, corrigée automatiquement : quelques accents peuvent être faux) |
 | `arrete_4_aout_2021_articles.pdf` | Articles de l'arrêté (Légifrance) | `texte/arrete-4-aout-2021-articles.txt` |
 | `annexe7_arrete_15_septembre_2006_reseaux_chaleur.pdf` | Facteurs d'émission et taux EnR&R des réseaux de chaleur et de froid (annexe 7 de l'arrêté du 15/09/2006, version en vigueur au 25/05/2026, Légifrance) | `texte/annexe-7-arrete-15-sept-2006-reseaux-chaleur.txt` |
+| `jo_15-08-2021_articles_10-11.pdf` | Extrait du Journal officiel du 15 août 2021 (JORF n° 0189, texte n° 23, p. 58-59) : article 10 (coefficients d'énergie primaire et facteurs d'émission des énergies) et **article 11 (coefficients de pondération dynamique, années 0 à 50, cas général et fluides frigorigènes)**. Le tableau de l'article 11 est une image (p. 59), absente des extractions Légifrance : à transcrire depuis l'image (`pdfimages` en extrait une version à 396 ppi). | — |
+| `arrete_26_octobre_2010_rt2012.pdf` | Arrêté du 26 octobre 2010 (RT2012, Légifrance). Son **annexe I** donne la correspondance département → zone climatique (96 départements, 2A et 2B inclus) ; la RE2020 reprend ce découpage à l'identique (page « Documents complémentaires » du site RT-RE bâtiment). | `texte/arrete-26-octobre-2010-rt2012.txt` |
 
 ## `scenarios/` — Scénarios conventionnels (chapitre 15 de l'annexe III)
 
@@ -54,6 +56,4 @@ Non réglementaires (climat +2,7 °C avec vague de chaleur) et de format différ
 
 - Schéma XSD du RSEE (non public) : partir de l'annexe VI, et du format JSON natif en attendant.
 - Cas de validation avec résultats de référence.
-- Table de correspondance département → zone climatique (Q1a).
-- Tableau des coefficients de pondération dynamique de l'article 11 de l'arrêté, absent de l'extraction Légifrance (Q5).
 - Note technique des fichiers climatiques ADEME / Météo-France : définition des colonnes (Q16).
