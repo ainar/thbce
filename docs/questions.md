@@ -1,84 +1,141 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-# Questions ouvertes
+# Questions ouvertes et décisions
 
-Chaque entrée indique la section du texte, la nature du manque ou de l'ambiguïté, et l'hypothèse proposée. Rien n'est tranché sans réponse du mainteneur. Les références « A3 » et « A2 » désignent les annexes III et II ; les pages sont celles des PDF de `docs/reference/`.
+Chaque entrée indique la section du texte, la nature du manque ou de l'ambiguïté, et l'hypothèse proposée. Rien n'est tranché sans réponse du mainteneur. « A3 » et « A2 » désignent les annexes III et II de l'arrêté du 4 août 2021 ; les pages sont celles des PDF de `docs/reference/arrete/`.
 
-Statuts : **ouverte**, **tranchée** (avec la décision et sa date).
+## Tableau de bord
 
-## Données manquantes (bloquantes)
+| N° | Sujet | Statut | Bloque |
+|---|---|---|---|
+| Q1 | Fichiers météo réglementaires | tranchée ; restent Q1a, Q1b | — |
+| Q1a | Correspondance département → zone climatique | **ouverte** | lot 3 (choix automatique de la zone) |
+| Q1b | Contenu du fichier météo par rapport à la nomenclature | **ouverte** | lot 3 |
+| Q2 | Scénarios conventionnels | tranchée | — |
+| Q3 | Format RSEE | tranchée (JSON d'abord) | lecteur RSEE |
+| Q4 | Périmètre de la première version | tranchée | — |
+| Q5 | Ic énergie | facteurs trouvés ; **pondération dynamique manquante** | fin du lot 7 |
+| Q6 | Cas de validation | tranchée (harnais prêt, cas à venir) | statut « validé » |
+| Q7 | Règles Th-Bat | tranchée | — |
+| Q8 | Règle d'arrondi | **ouverte** | lot 2 (restitution) |
+| Q9 | Codes du mode de calcul | **ouverte** | — |
+| Q10 | Bbio mensuel, éq. (2385) | **ouverte** | lot 4 |
+| Q11 | Moyenne glissante, éq. (1) | **ouverte** | lot 3 |
+| Q12 | Nombre de types de masques | **ouverte** | lot 3 |
+| Q13 | Numéro de département | **ouverte** | lot 2 |
+| Q14 | Résidus « Tic » | **ouverte**, mineure | — |
+| Q15 | Intitulé de l'éq. (2388) | **ouverte**, mineure | — |
+| Q16 | Fichiers ADEME : définition des colonnes | **ouverte** | lecteur ADEME (CI) |
+| Q17 | 365e jour de l'année | **ouverte** | lot 4 |
+| Q18 | Rattachement des fiches aux lots de systèmes | **ouverte** | lot 6 |
 
-### Q1 — Fichiers météorologiques horaires : absents des annexes — ouverte, bloque la phase 3
+## Décisions
 
-- **Texte** : A3 §3.1 (p. 27–33), A2 §2.2.1.1 (p. 18).
-- **Constat** : la fiche `C_EEX_Climat extérieur` prend en entrée, pour chaque heure, `Te0`, `we0`, `RdirnDn`, `Rdiff`, `Teciel`, `Vent`, `dirVent`, `Teau0`, la position du soleil, la latitude et la longitude, ainsi que les repères calendaires (`jsem`, `EHLO`, `ISEM`…). Le texte dit seulement que ces valeurs sont « issues du fichier météo ». Les huit années-types (H1a à H3) ne figurent ni dans l'annexe II ni dans l'annexe III. L'annexe III ne tabule que la température de base par département (p. 31) et les corrections d'altitude (p. 31–32).
-- **Conséquence** : les tableaux du PDF ne suffisent pas pour le climat.
-- **Proposition** : le mainteneur fournit les huit fichiers météo conventionnels RE2020 (format d'origine du moteur ou CSV) ; ils sont versionnés dans `crates/thbce-data/` avec leur provenance. Aucune donnée de substitution n'est utilisée.
-- **Sous-question** : la table de correspondance département → zone climatique n'a pas été trouvée dans l'annexe III (la carte est une figure de l'annexe II, p. 19). À fournir avec les fichiers météo, ou à confirmer depuis l'arrêté.
+### Q1 — Fichiers météorologiques réglementaires — tranchée le 16 novembre 2026
 
-### Q2 — Scénarios conventionnels horaires : fichier externe — ouverte, bloque la phase 4
+- Les fichiers réglementaires **n'entrent jamais dans le dépôt** : leurs conditions d'utilisation limitent leur usage au calcul réglementaire RE2020 et interdisent toute diffusion, même partielle. Le `.gitignore` les exclut. C'est une exception à la règle « tout dans le dépôt ».
+- Le moteur charge la météo depuis un chemin fourni par l'utilisateur, sous deux formats : le classeur d'origine (16 onglets `<zone>_<mode>`) et le CSV long dérivé (`zone, mode, h, te0, we0, dirN_W_m2, diff_W_m2, Teciel_C, Vent_m_s, Teau_C, Gamma, Psi`).
+- Rien n'est embarqué dans le binaire ni dans le module WASM ; pas de feature `embedded-data` pour la météo. En WASM, l'appelant passe le contenu du fichier.
+- Deux jeux par zone : `Th-BC` (besoins et consommations) et `Th-D` (confort d'été, avec séquence caniculaire).
+- Tests dépendant de la météo réglementaire : ignorés par défaut, lancés en local avec `THBCE_METEO=/chemin/vers/meteo-re2020-conventionnelle.csv`.
+- CI publique : fichiers ouverts ADEME / Météo-France de `docs/reference/meteo/ademe/`, lus par un lecteur dédié vers la même structure interne. Tout résultat obtenu avec eux est marqué non réglementaire dans la sortie.
+- Stations : découpage de la RT2012, sauf H2b (Tours) et H3 (Marignane).
+- **Contrôle fait sur le CSV reçu** : 8 zones × 2 modes × 8 760 lignes, `h` de 0 à 8759, aucune valeur non numérique.
+- **Classes d'altitude** : trouvées dans A3 §3.1.3 (p. 31–32). Altitude ≤ 400 m : site considéré à 100 m ; de 400 à 800 m inclus : 500 m ; au-delà de 800 m : 900 m. La correction s'applique à la température de base, à `Te`, à `we` et à `Teau`.
 
-- **Texte** : A3 §15 (p. 1409), §2.1.1 (p. 18–26), §4.1 (p. 52–63).
-- **Constat** : le chapitre 15 tient en une ligne et renvoie à un classeur publié par la DHUP : `https://rt-re-batiment.developpement-durable.gouv.fr/IMG/xlsx/2026-04-29_scenarios_conventionnels.xlsx`. Le tableau de synthèse des pages 24 à 26 donne des plages horaires et des ratios par usage, mais pas les profils horaires par semaine et par mois (`p_occ`, `p_ch`, `t_occ`, `t_ch`…) dont la fiche 4.1 a besoin. Ce classeur n'est pas téléchargeable depuis l'environnement de développement (accès réseau refusé).
-- **Proposition** : le mainteneur dépose le classeur dans `docs/reference/` ; un script versionné le convertit en données embarquées, avec un test qui recoupe le résultat avec le tableau de synthèse des pages 24 à 26.
+### Q2 — Scénarios conventionnels — tranchée le 16 novembre 2026
 
-### Q3 — Format RSEE XML : schéma non fourni — ouverte, bloque la lecture RSEE (phase 2)
+- Source : `docs/reference/scenarios/2026-04-29_scenarios_conventionnels.xlsx`, 28 onglets (un par usage).
+- Conversion en données versionnées dans `thbce-data` par un script reproductible (`tools/`), jamais à la main. Un test recoupe le résultat avec le tableau de synthèse de A3 p. 24–26.
+- **Structure constatée** (onglet MI) : pour chaque scénario de zone (mobilité, occupation, chauffage, refroidissement, ventilation, éclairage, ECS), une grille hebdomadaire 7 jours × 24 heures et une grille annuelle 5 semaines × 12 mois ; puis, par local, taux d'occupation, apports de chaleur et d'humidité avec les mêmes deux grilles. Cela correspond aux indicateurs `p(m,s)` et `p(j,h)` de A3 §4.1.2.
+- **Calendrier** : il est fixé par A3 §4.1.3 (p. 56). L'année commence un lundi ; les mois comptent 4, 4, 5, 4, 5, 4, 4, 5, 4, 4, 5, 4 semaines ; les scénarios sont en heure légale ; le passage à l'heure d'été a lieu à l'itération 1896 et le retour à l'heure d'hiver à l'itération 7032. Aucune donnée de calendrier n'est donc attendue du fichier météo.
 
-- **Texte** : aucun ; le format RSEE n'est décrit dans aucune des deux annexes.
-- **Proposition** : le mainteneur fournit le schéma XSD du RSEE (et sa version) ainsi qu'un ou deux fichiers d'exemple. En attendant, la phase 2 livre le format JSON natif, dont les noms de champs suivent les nomenclatures de l'annexe III, et la lecture RSEE est ajoutée dès réception du schéma.
+### Q3 — Format RSEE — tranchée le 16 novembre 2026
 
-### Q4 — Périmètre de la première version — ouverte
+- Le XSD n'est pas public. La phase 2 livre le format JSON natif.
+- **Constat après lecture de l'annexe VI** : elle décrit le contenu du RSEE en cinq chapitres (données administratives, exigences et indicateurs, autres indicateurs, détail des entrées et sorties, sensibilités) sans nommer aucun élément ni attribut XML. Elle ne permet pas d'écrire un lecteur. Le lecteur RSEE XML attend donc des fichiers d'exemple ; rien n'est écrit d'ici là, pour ne pas inventer de noms de balises.
+- Le JSON natif reprend les noms des nomenclatures de l'annexe III, ce que l'annexe VI désigne par « l'intégralité des caractéristiques telles que définies dans la méthode ».
 
-- **Constat** : la méthode couvre 28 usages de zone (A3 p. 24–26) et 144 fiches, dont 65 fiches de systèmes (909 pages) et 24 Titres V propres à des produits commerciaux (chapitre 16, 445 pages).
-- **Proposition** :
-  1. Usages : maison individuelle et logement collectif d'abord (usages 1 et 2), les 26 autres ensuite, dans l'ordre que fixeront les cas de référence disponibles.
-  2. Bbio et DH (phases 3 à 5) : toutes les fiches du bâti, les espaces tampons (§5.2 à 5.4) formant un lot 4b livré après le premier Bbio validé.
-  3. Systèmes (phase 6) : ordre à fixer par le mainteneur. Suggestion : effet Joule, chaudières, PAC électriques, ventilation simple et double flux, ECS à accumulation et thermodynamique, puis le reste.
-  4. Titres V (chapitre 16) : hors première version.
-- Tout système non implémenté produit une erreur explicite « non pris en charge », jamais un résultat silencieusement faux.
+### Q4 — Périmètre de la première version — tranchée le 16 novembre 2026
 
-### Q5 — Ic énergie : données environnementales absentes — ouverte, bloque la fin de la phase 7
+- Première version : maison individuelle ou accolée, logement collectif.
+- Second lot : espaces tampons. Hors première version : Titres V du chapitre 16.
+- Ordre des systèmes : (1) ventilation simple flux puis double flux ; (2) émission et distribution ; (3) effet Joule et pompes à chaleur air/eau, chauffe-eau thermodynamique ; (4) chaudières gaz et bois, puis réseaux de chaleur ; (5) photovoltaïque ; (6) solaire thermique.
+- Traduction en lots dans `docs/couverture.md` ; voir Q18 pour le rattachement des fiches.
 
-- **Texte** : A2 §4.3, éq. (74) et (75) (p. 71–72).
-- **Constat** : le calcul demande `DE(i,k)`, émissions de gaz à effet de serre par kWh d'énergie `i` pour l'usage `k`, et la fonction de pondération dynamique `fCO2(a)`. Aucune des deux n'a été trouvée sous forme de tableau dans l'annexe II.
-- **Proposition** : le mainteneur indique la source officielle de ces valeurs (données environnementales de service de la base INIES, tableau de `fCO2`) ; elles sont versionnées dans `thbce-data`.
+### Q6 — Cas de validation — tranchée le 16 novembre 2026
 
-### Q6 — Cas de validation — ouverte
+- Pas de cas pour l'instant ; ils viendront de COMETH (CSTB) ou d'un logiciel évalué.
+- D'ici là : tests unitaires calculés à la main d'après les formules, et tests de propriétés.
+- Le format de `tests/cas/` et le harnais de comparaison avec tolérances sont livrés en phase 2 (voir `docs/modele-donnees.md`, « Cas de validation »), de sorte qu'ajouter un cas se limite à déposer un dossier.
 
-- Les cas de référence (entrées et résultats du moteur réglementaire ou d'un logiciel évalué) restent à fournir. Sans eux, les phases 3 à 7 ne peuvent être que « implémentées », pas « validées ».
+### Q7 — Règles Th-Bat — tranchée le 16 novembre 2026
 
-### Q7 — Annexe IV (Th-Bat 2020) — ouverte, non bloquante
+- Les règles Th-Bat 2020 du 29 avril 2026 sont dans `docs/reference/arrete/`. Elles servent à déterminer des données d'entrée (U, Ψ, classes d'inertie, facteurs solaires) ; le moteur prend ces grandeurs en entrée et ne les recalcule pas.
 
-- **Constat** : l'annexe III renvoie aux règles Th-Bat pour des données d'entrée, par exemple les classes d'inertie « au sens des règles Th-I » (§5.21, p. 308).
-- **Proposition** : le moteur prend ces grandeurs en entrée telles que la nomenclature de l'annexe III les définit ; l'annexe IV n'est nécessaire que si l'on veut calculer ces entrées à partir d'une description plus fine. À confirmer.
+## Questions ouvertes : données
 
-## Ambiguïtés et incohérences du texte
+### Q1a — Correspondance département → zone climatique : introuvable — ouverte
+
+- **Recherche faite** dans `docs/reference/texte/` : articles de l'arrêté, annexes I, II, III, règles Th-Bat, annexe 7. Les zones H1a à H3 y sont citées (exigences de facteur solaire dans les articles, tableau 336 de A3, tableau 73 de Th-Bat avec les villes de référence), mais aucune table ne rattache les départements aux zones. La carte de A2 (figure 9, p. 19) est une image.
+- **Conséquence** : sans cette table, le moteur ne peut pas déduire la zone du département ; la zone climatique doit être saisie.
+- **Proposition** : le mainteneur ajoute à `docs/reference/` le texte officiel qui porte cette table. En attendant, `zone_climatique` est un champ d'entrée obligatoire, et `departement` ne sert qu'à la température de base (A3 p. 31).
+
+### Q1b — Écarts entre le fichier météo et la nomenclature de A3 §3.1.2 — ouverte
+
+Le fichier réglementaire ne contient pas toutes les grandeurs que la fiche `C_EEX_Climat extérieur` déclare en paramètres :
+
+1. **Direction du vent (`dirVent`)** : absente du fichier. Dans l'annexe III, le terme n'apparaît que dix fois, toujours dans une nomenclature ou une figure d'assemblage (§3.1, §3.2, §5.1, §5.5, §5.7, §5.8) ; aucune équation ne l'utilise. Hypothèse : grandeur transmise mais non consommée, que le moteur n'exige pas.
+2. **Humidité relative (`Hr0`)** : absente ; seul le poids d'eau `we0` est fourni. `Hr0` n'apparaît qu'une fois dans l'annexe III, dans la nomenclature du §3.1. Hypothèse : non nécessaire.
+3. **Température du ciel** : le fichier donne `Teciel_C` en °C ; la nomenclature liste `Teciel` et `dTeciel`, avec une sortie en K. Hypothèse : utiliser `Teciel_C` tel quel et convertir là où une équation demande des kelvins.
+4. **Position du soleil** : `Gamma` (0 à 70,02) et `Psi` (−179,99 à 179,99) sont en degrés, alors que la nomenclature les donne en radians. Hypothèse : `Gamma` est la hauteur du soleil, `Psi` son azimut par rapport au sud, négatif au lever ; conversion en radians au chargement. La latitude et la longitude ne sont alors plus nécessaires.
+5. **Température d'eau froide** : la colonne s'appelle `Teau_C` ; la nomenclature attend `Teau0` « à l'altitude zéro », corrigée ensuite de l'altitude. Hypothèse : `Teau_C` est `Teau0`.
+6. **Indice horaire** : hypothèse, `h = 0` est l'itération 0 du tableau de A3 p. 56 (0 h à 1 h UTC).
+
+### Q5 — Ic énergie — facteurs trouvés, pondération dynamique manquante — ouverte
+
+- **Méthode** : A2 §4.3.2, éq. (74) et (75).
+- **Variante INIES applicable** : l'annexe II (§2.2.2.3, p. 23) impose des données conventionnelles « fixées par le ministère en charge de l'énergie », sans nommer de variante. Les valeurs sont en réalité fixées par l'**article 10 de l'arrêté**. Les fiches INIES « [RE2020] » se présentent comme « donnée conventionnelle à utiliser dans le cadre […] de la réglementation environnementale (RE2020) », et leur indicateur « Changement climatique – total » reprend exactement les valeurs de l'article 10 pour les douze énergies comparées (par exemple électricité chauffage 0,079 ; gaz naturel 0,227 ; bois bûches 0,03). **La variante à retenir est donc « RE2020 »** ; les fiches « EC » (référentiel Énergie-Carbone) et « DES » ne s'appliquent pas aux énergies de l'article 10.
+- **Source retenue dans `thbce-data`** : l'article 10, avec en commentaire la fiche INIES « [RE2020] » correspondante. Un test vérifie l'égalité des deux.
+- **Réseaux de chaleur** : facteur d'émission à la cinquième colonne et ratio EnR&R à la sixième colonne du tableau de l'annexe 7 de l'arrêté du 15 septembre 2006 (articles 9 et 10). Extraction par script.
+- **Manque** : les coefficients de pondération dynamique. A2 §4.2.1.2 (p. 63) renvoie à l'article 11 de l'arrêté, dont le tableau est une image absente de l'extraction Légifrance (« Vous pouvez consulter l'intégralité du texte avec ses images à partir de l'extrait du Journal officiel », JORF n° 0189 du 15 août 2021). **À fournir** : l'extrait du Journal officiel contenant ce tableau.
+- **Sous-question** : l'article 10 est daté « en vigueur depuis le 15 avril 2022 ». À confirmer qu'aucun arrêté postérieur n'a modifié ces valeurs (les fiches INIES sont datées du 11 août 2026 et concordent).
+
+### Q16 — Fichiers ADEME : définition des colonnes — ouverte
+
+- **Constat** : `tracc_france_2-7C_vague_de_chaleur.csv` contient 8 stations × 8 760 heures et 24 colonnes (`T2m`, `T-1m`, `Hur`, `Hus`, `RR`, `FF`, `DD`, `Tc`, `Tr`, `Hs`, `Os`, `Os_2`, `Rgh`, `Rdn`, `Rdi`, `Ne`, `Ps`…). Leur définition, leurs unités et la convention horaire ne sont ni dans le dépôt ni sur la page data.gouv.fr, qui renvoie à une note technique détaillée ADEME / Météo-France.
+- **Points à établir avant d'écrire le lecteur** : la correspondance de `Tc` avec la température du ciel, celle de `Hs` et `Os` / `Os_2` avec `Gamma` et `Psi`, l'unité de `Hus`, et surtout l'absence apparente de température d'eau froide (`Teau`), nécessaire à l'ECS.
+- **Proposition** : le mainteneur ajoute la note technique détaillée à `docs/reference/meteo/ademe/`. Le lecteur ADEME est écrit à partir d'elle. Si `Teau` n'existe pas dans ces fichiers, il faudra décider d'une règle de substitution, documentée comme non réglementaire.
+
+## Questions ouvertes : ambiguïtés et incohérences du texte
+
+Les questions Q8 à Q15 attendent encore une réponse explicite.
 
 ### Q8 — Règle d'arrondi (A3 §1.3.1, p. 16) — ouverte
 
 - **Texte** : « Les résultats de calculs, intermédiaires ou finaux, doivent être fournis arrondis avec un chiffre après la virgule. »
 - **Ambiguïté** : arrondir les grandeurs intermédiaires à chaque pas de temps dégraderait le calcul ; le verbe « fournis » suggère que seule la restitution est visée.
-- **Hypothèse proposée** : calcul interne en pleine précision `f64`, arrondi à une décimale à la seule restitution des résultats (valeurs non arrondies disponibles en option pour les tests).
+- **Hypothèse proposée** : calcul interne en pleine précision `f64`, arrondi à une décimale à la seule restitution (valeurs non arrondies disponibles en option pour les tests).
 
 ### Q9 — Codes du mode de calcul incohérents d'une fiche à l'autre — ouverte
 
 - **Texte** : §3.1 (p. 28) : « 0-Th-B / 4-Th-D / 5-Th-BCD » ; §5.21 (p. 308) : « 0-Th-B calcul du Bbio / 1-Th-C calcul du Cep », plage 0 à 2 ; §13.5 (p. 1400) : « Mode = 4 ou 5 ».
-- **Hypothèse proposée** : une énumération Rust `ModeCalcul { ThB, ThC, ThD }` sans valeur numérique publique ; chaque condition du texte portant sur un code est traduite au cas par cas, avec la référence en commentaire. Le sens exact des codes 2, 3 et 5 reste à confirmer au fil de la lecture des fiches.
+- **Hypothèse proposée** : une énumération `ModeCalcul { ThB, ThC, ThD }` sans valeur numérique publique ; chaque condition du texte portant sur un code est traduite au cas par cas, avec la référence en commentaire.
 
 ### Q10 — Bbio « mensuel », éq. (2385) (A3 §13.1.3, p. 1359) — ouverte
 
-- **Texte** : le membre de gauche est `Bbio_pts_mois` mais le membre de droite combine les besoins **annuels** (`B_Ch_annuel`, `B_Fr_annuel`, `B_Ecl_annuel`) ; l'éq. (2386) somme ensuite ce terme sur 12 mois, ce qui multiplierait le Bbio par 12.
+- **Texte** : le membre de gauche est `Bbio_pts_mois` mais le membre de droite combine les besoins **annuels** ; l'éq. (2386) somme ensuite ce terme sur 12 mois, ce qui multiplierait le Bbio par 12.
 - **Hypothèse proposée** : coquille ; lire `Bbio_pts_mois = α1·B_Ch_mois + α2·B_Fr_mois + β·B_Ecl_mois`, avec α1 = 2, α2 = 2, β = 5 (tableau 331, p. 1358).
 
 ### Q11 — Moyenne glissante de température, éq. (1) (A3 §3.1.3, p. 32) — ouverte
 
-- **Texte** : « Si IHJ = 1, θrm(j) = 0 ; sinon θei,moy(j) = … ; θrm(j) = 0,8·θrm(j−1) + 0,2·θei,moy(j) », alors que la phrase précédente dit que la moyenne est « calculée au premier pas de temps du jour j (h tel que IHJ = 1) et reprise pour l'ensemble des autres pas de temps ». Prise à la lettre, la condition annulerait θrm chaque jour.
-- **Hypothèse proposée** : la branche « = 0 » est l'initialisation au premier jour de simulation ; les autres jours, la récurrence est évaluée à IHJ = 1 et conservée sur la journée. La valeur d'initialisation (0 °C) pèse sur les premiers jours de janvier seulement.
-- **Sous-question** : la recherche du premier et du dernier jour de confort adaptatif (p. 32–33) est écrite sans boucle explicite et avec `j` de 0 à 365 ; lecture proposée : premier et dernier jour de l'année où θrm(j) ≥ 16 °C. Le texte de la p. 32 dit « supérieure à 16 °C » et l'algorithme « ≥ » ; l'algorithme est retenu.
+- **Texte** : « Si IHJ = 1, θrm(j) = 0 ; sinon θei,moy(j) = … ; θrm(j) = 0,8·θrm(j−1) + 0,2·θei,moy(j) », alors que la phrase précédente dit que la moyenne est calculée au premier pas de temps du jour et reprise sur la journée. Prise à la lettre, la condition annulerait θrm chaque jour.
+- **Hypothèse proposée** : la branche « = 0 » est l'initialisation au premier jour de simulation ; les autres jours, la récurrence est évaluée à IHJ = 1 et conservée sur la journée.
+- **Sous-question** : la recherche du premier et du dernier jour de confort adaptatif (p. 32–33) est écrite sans boucle explicite ; lecture proposée : premier et dernier jour de l'année où θrm(j) ≥ 16 °C.
 
 ### Q12 — Nombre de types de masques (A3 §3.2.1, p. 34) — ouverte
 
-- **Texte** : « Six types de masques sont considérés », suivi de cinq puces (lointain par tranches azimutales, arbres à feuilles caduques, plan vertical éloigné, proches verticaux droite et/ou gauche, proche horizontal).
-- **Hypothèse proposée** : les masques verticaux droit et gauche comptent pour deux types. À confirmer à la lecture détaillée de la fiche en phase 3.
+- **Texte** : « Six types de masques sont considérés », suivi de cinq puces.
+- **Hypothèse proposée** : les masques verticaux droit et gauche comptent pour deux types. À confirmer à la lecture détaillée de la fiche.
 
 ### Q13 — Numéro de département (A3 §3.1.2 et §5.1.2, p. 28 et 99) — ouverte
 
@@ -87,19 +144,31 @@ Statuts : **ouverte**, **tranchée** (avec la décision et sa date).
 
 ### Q14 — Résidus de la RT2012 — ouverte, mineure
 
-- **Texte** : plusieurs nomenclatures parlent encore de « calcul de Tic » (par exemple §5.17, p. 289, et §5.19, p. 299 : `Type_calcul` « 0 : calcul de Cep, 1 : calcul de Tic »).
-- **Hypothèse proposée** : lire « calcul de DH (mode Th-D) » partout où le texte dit « Tic », en cohérence avec les paramètres `Sf-e` définis « pour le calcul de DH » dans les mêmes tableaux.
+- **Texte** : plusieurs nomenclatures parlent encore de « calcul de Tic » (§5.17, p. 289 ; §5.19, p. 299).
+- **Hypothèse proposée** : lire « calcul de DH (mode Th-D) », en cohérence avec les paramètres `Sf-e` définis « pour le calcul de DH » dans les mêmes tableaux.
 
-### Q15 — Intitulés dupliqués dans les sorties de zone, éq. (2388) (A3 p. 1360) — ouverte, mineure
+### Q15 — Intitulé de l'éq. (2388) (A3 p. 1360) — ouverte, mineure
 
 - **Texte** : le ratio de la surface totale des parois opaques est nommé `Aopv_surf` et calculé à partir de `Aopv`, comme dans l'éq. (2389).
 - **Hypothèse proposée** : coquille ; lire `Aop_surf = Aop / SREF`.
 
+### Q17 — 365e jour de l'année (A3 §4.1.3, p. 56) — ouverte
+
+- **Texte** : le calendrier conventionnel compte 52 semaines (4+4+5+4+5+4+4+5+4+4+5+4), soit 364 jours, pour 8 760 heures, soit 365 jours.
+- **Hypothèse proposée** : le 365e jour est traité comme un lundi supplémentaire de la dernière semaine de décembre. À confirmer, ou à lire dans la suite de la fiche 4.1 si elle le précise.
+
+### Q18 — Rattachement des fiches aux lots de systèmes — ouverte
+
+- **Constat** : l'ordre validé (Q4) nomme des familles de systèmes ; je l'ai traduit en lots 6a à 6d, 7a et 7b d'après les titres des fiches, sans les avoir lues en détail.
+- **Deux points à confirmer** :
+  1. Le lot **6e** (éclairage des parties communes §7.2, ascenseurs §10.1, parkings §10.3 et §10.4) n'était pas dans votre liste ; je l'ai ajouté parce que ces postes entrent dans le Cep du logement collectif. Sa place dans l'ordre est à fixer.
+  2. Vingt-six fiches sont classées « après v1 » (ventilation naturelle et hybride, puits climatiques, CTA, DRV, cogénération, PAC gaz, géocooling, brasseurs d'air, production ECS mixte, récupération sur eaux grises, escalators…). La liste est dans `docs/couverture.md`.
+
 ## Remarque de méthode : fiabilité de l'extraction du PDF
 
-L'annexe III contient une couche texte exploitable, mais avec deux limites constatées :
+L'annexe III contient une couche texte exploitable, avec deux limites constatées :
 
 1. Dans les nomenclatures, les lettres grecques d'une police de symboles disparaissent à l'extraction (`θaj(h)` devient `aj(h)`, `Φs1(h)` devient `s1(h)`).
-2. Les équations sont du texte mis en page en deux dimensions : fractions, indices et exposants sont aplatis, ce qui rend certaines formules ambiguës une fois extraites.
+2. Les équations sont du texte mis en page en deux dimensions : fractions, indices et exposants sont aplatis.
 
-En conséquence, **chaque équation est relue sur l'image de la page avant d'être codée**, et non sur le texte extrait. Si le mainteneur dispose du document source (Word) de la méthode, il réduirait ce risque.
+En conséquence, **chaque équation est relue sur l'image de la page du PDF avant d'être codée**. Le PDF fait foi ; les extractions de `docs/reference/texte/` ne servent qu'à la recherche.

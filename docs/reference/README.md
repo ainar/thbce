@@ -30,7 +30,7 @@ Fiches de documentation INIES : électricité par usage (chauffage, ECS, climati
 - `inies-energies-des.txt` : extraction des fiches « DES ».
 - Les fiches « EC » ne sont disponibles qu'en PDF.
 
-À vérifier dans l'annexe II : quelle variante la méthode impose pour Ic énergie.
+Variante applicable à Ic énergie : « RE2020 ». Les valeurs réglementaires sont fixées par l'article 10 de l'arrêté ; les fiches « [RE2020] » les reprennent à l'identique (voir `docs/questions.md`, Q5).
 
 ## `meteo/` — Données météorologiques
 
@@ -54,3 +54,6 @@ Non réglementaires (climat +2,7 °C avec vague de chaleur) et de format différ
 
 - Schéma XSD du RSEE (non public) : partir de l'annexe VI, et du format JSON natif en attendant.
 - Cas de validation avec résultats de référence.
+- Table de correspondance département → zone climatique (Q1a).
+- Tableau des coefficients de pondération dynamique de l'article 11 de l'arrêté, absent de l'extraction Légifrance (Q5).
+- Note technique des fichiers climatiques ADEME / Météo-France : définition des colonnes (Q16).
