@@ -228,7 +228,11 @@ Implémenté au lot 6b (`crates/thbce-core/src/entree.rs`, lectures `docs/questi
 
 ```
 Batiment
-├── generations[]                 { id, raccordement_reseaux: avec_isolement | permanent }      §8.4.2
+├── generations[]                 { id, raccordement_reseaux: avec_isolement | permanent,       §8.4.2
+│                                   position, priorite?, gestion_temperature_chauffage?,        §8.17.2
+│                                   gestion_temperature_refroidissement?, generateurs[] }
+│   └── generateurs[]             { id, rdim, priorite_chauffage?, priorite_refroidissement?,
+│                                   priorite_ecs?, nature: effet_joule { fonction, pn_gen_w } } §8.18
 ├── distributions_intergroupes[]  { id, fonction: chauffage | refroidissement, generation, reseau } §8.9, §8.10
 └── Zone[] → Groupe[]
     ├── iclim                     groupe climatisé, requis en habitation                        §8.1.2
@@ -259,7 +263,20 @@ Groupe.emetteurs_ecs[]                     { id, rat_em, nb_logements, part_mela
                                              nb_dist, espace_tampon? }, distribution_intergroupe }
 ```
 
-Règles de saisie (validation) : au moins un émetteur de chauffage par groupe d'habitation ; `iclim` vrai si et seulement si un émetteur refroidit ; programmation du refroidissement requise si `iclim` ; somme des `Rats × Ratt` au plus 1 par fonction (§8.1.3.2) ; un émetteur est rattaché, pour chaque fonction, à un réseau du groupe de même fonction, lui-même rattaché à un réseau intergroupes de même fonction et de même type (éq. 850 et 851), lui-même relié à une génération ; variation temporelle saisie au moins égale à 0,2 K (effet Joule) ou 0,4 K en chaud, au plus −0,4 K en froid (§8.1.3.1.5) ; `Pper < 1`. Les réseaux sont `fictif` (effet Joule, poêles, détente directe) ou hydrauliques : dans le groupe, `hydraulique { regulation_debit, regulation_temperature, theta_dep_dim_c?, theta_ret_dim_c?, delta_theta_em_dim_k, q_nom_m3_h, q_resid_m3_h?, circulateur, p_aux_w, l_vc_m, l_hvc_m, u_vc_w_mk, u_hvc_w_mk, espace_tampon? }` (§8.7.2, §8.8.2) ; entre groupes, `hydraulique_collectif` ou `hydraulique_individuels { l_vc_m, l_hvc_m, u_vc_w_mk, u_hvc_w_mk, p_aux_w, circulateur, espace_tampon? }` (§8.9.2, §8.10.2). Chaque génération est idéale jusqu'aux lots 6c et 6d.
+Règles de saisie (validation) : au moins un émetteur de chauffage par groupe d'habitation ; `iclim` vrai si et seulement si un émetteur refroidit ; programmation du refroidissement requise si `iclim` ; somme des `Rats × Ratt` au plus 1 par fonction (§8.1.3.2) ; un émetteur est rattaché, pour chaque fonction, à un réseau du groupe de même fonction, lui-même rattaché à un réseau intergroupes de même fonction et de même type (éq. 850 et 851), lui-même relié à une génération ; variation temporelle saisie au moins égale à 0,2 K (effet Joule) ou 0,4 K en chaud, au plus −0,4 K en froid (§8.1.3.1.5) ; `Pper < 1`. Les réseaux sont `fictif` (effet Joule, poêles, détente directe) ou hydrauliques : dans le groupe, `hydraulique { regulation_debit, regulation_temperature, theta_dep_dim_c?, theta_ret_dim_c?, delta_theta_em_dim_k, q_nom_m3_h, q_resid_m3_h?, circulateur, p_aux_w, l_vc_m, l_hvc_m, u_vc_w_mk, u_hvc_w_mk, espace_tampon? }` (§8.7.2, §8.8.2) ; entre groupes, `hydraulique_collectif` ou `hydraulique_individuels { l_vc_m, l_hvc_m, u_vc_w_mk, u_hvc_w_mk, p_aux_w, circulateur, espace_tampon? }` (§8.9.2, §8.10.2). 
+
+### Format d'entrée des générations (lot 6c)
+
+Changement incompatible : une génération décrit ses générateurs (`docs/questions.md`, Q46).
+
+- `position` (« idpos », §8.17.2), obligatoire : `en_volume_chauffe` ou `hors_volume_chauffe { espace_tampon? }` (sans espace tampon : à l'extérieur).
+- `priorite` (« idtype_priorite ») : `sans_priorite` ou `cascade`, requis dès que deux générateurs assurent le même poste ; `alternance` est reconnu et refusé. En cascade, chaque générateur du poste porte un rang (`priorite_chauffage`, `priorite_refroidissement`, `priorite_ecs`, à partir de 1, tous distincts).
+- `gestion_temperature_chauffage` et `gestion_temperature_refroidissement` (« idgestion », « θwm ») : `constante { theta_wm_c }` ou `reseaux`, requis si la génération alimente des réseaux hydrauliques du poste.
+- `generateurs`, au moins un : `id`, `rdim` (nombre de générateurs identiques, au moins 1) et `nature`. Nature prise en charge : `effet_joule { fonction: chauffage | ecs, pn_gen_w }` (type 500, §8.18 ; production instantanée d'ECS, §9.1). Les natures `chaudiere`, `poele_ou_insert`, `reseau_de_chaleur_ou_de_froid` (lot 6d), `autre_generateur_a_combustion`, `thermodynamique_gaz`, `boucle_d_eau_ou_drv`, `cogeneration` et `pac_hybride` (après v1) sont reconnues et refusées avec un message explicite.
+- Cohérence du montage (§8.17.3.1) : la génération assure chaque poste de ses réseaux ; ses réseaux intergroupes d'un même poste sont tous fictifs ou tous hydrauliques.
+- Double flux à sécurité antigel : `echangeur.generation_antigel` désigne la génération qui fournit l'énergie de l'antigel (requis avec `antigel`).
+
+Résultats : `generations[]` porte les demandes (`q_ch_kwh`, `q_fr_kwh`, `q_ecs_kwh`), les énergies fournies (`q_fou_*_kwh`), `q_rep_fin_kwh`, `consommations`, `pertes_vc_kwh`, les compteurs de sous-dimensionnement et `generateurs[]` (énergies fournies, `consommations`, efficacités annuelles `eta_eff_*_an`, `w_aux_kwh`). `consommations` (`annuel` et `mensuel`, douze mois des scénarios) donne, par poste (`chauffage`, `refroidissement`, `ecs`) et par type d'énergie (`gaz_kwh`, `fioul_kwh`, `charbon_kwh`, `bois_kwh`, `electricite_kwh`, `reseau_kwh` ; les énergies sans consommation ne sont pas écrites), les kWh d'énergie finale ; il figure sur chaque génération et, réparti au prorata des demandes (éq. 1484 à 1486), sur chaque groupe, chaque zone et le bâtiment : c'est la matrice « Qcef[poste ; énergie] » des sorties du mode Th-C (§13.2), auxiliaires de génération compris. La ventilation d'une zone porte `th_c` (heures de bypass et énergie d'antigel du calcul Th-C).
 
 Les liens entre objets (un émetteur vers sa distribution, une distribution vers sa génération) sont des `Id` en entrée et des indices typés (`IdxGroupe`, `IdxGeneration`) dans `modele`, vérifiés une fois pour toutes à la résolution.
 
