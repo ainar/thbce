@@ -51,7 +51,16 @@ export interface ResultatsClimat {
   confort_adaptatif_th_bc: PeriodeConfortAdaptatif;
   confort_adaptatif_th_d: PeriodeConfortAdaptatif;
 }
-export interface ResultatsGroupe { id: string; sref_m2: number; }
+export interface ResultatsEnveloppe {
+  a_op_m2: number;
+  a_opv_m2: number;
+  a_ophh_m2: number;
+  a_ophb_m2: number;
+  h_th_op_w_k: number;
+  l_pt_m: number;
+  h_th_pt_w_k: number;
+}
+export interface ResultatsGroupe { id: string; sref_m2: number; enveloppe: ResultatsEnveloppe; }
 export interface ResultatsZone { id: string; sref_m2: number; nadeq: number | null; groupes: ResultatsGroupe[]; }
 export interface ResultatsBatiment {
   id: string;

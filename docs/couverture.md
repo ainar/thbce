@@ -119,12 +119,12 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 5.12 | C_BAT_Perméabilité_des_PM | 251–254 | 4 | `core/src/bati/baie/permeabilite_pm.rs` | non commencé |
 | 5.13 | C_BAT_Surventilation naturelle par ouverture des baies pour le confort thermique | 255–271 | 4 | `core/src/bati/baie/surventilation_naturelle.rs` | non commencé |
 | 5.14 | C_BAT_ensemble_baies | 272–280 | 4 | `core/src/bati/baie/ensemble_baies.rs` | non commencé |
-| 5.15 | S1_BAT_assemblage_parois opaques | 281–283 | 4 | `core/src/bati/paroi_opaque/assemblage.rs` | non commencé |
-| 5.16 | C_BAT_ensemble_parois opaques | 284–287 | 4 | `core/src/bati/paroi_opaque/ensemble.rs` | non commencé |
-| 5.17 | C_BAT_paroi opaque | 288–293 | 4 | `core/src/bati/paroi_opaque/paroi_opaque.rs` | non commencé |
-| 5.18 | S1_BAT_assemblage_ponts_thermiques | 294–297 | 4 | `core/src/bati/pont_thermique/assemblage.rs` | non commencé |
-| 5.19 | C_BAT_pont thermique | 298–302 | 4 | `core/src/bati/pont_thermique/pont_thermique.rs` | non commencé |
-| 5.20 | C_BAT_ensemble_ponts_thermiques | 303–305 | 4 | `core/src/bati/pont_thermique/ensemble.rs` | non commencé |
+| 5.15 | S1_BAT_assemblage_parois opaques | 281–283 | 4 | `core/src/bati/paroi_opaque.rs` | implémenté : résolution des parois d'un groupe (`ParoiResolue::nouvelle`) ; branché sur les résultats d'enveloppe, pas encore sur le modèle thermique (lot 4d) |
+| 5.16 | C_BAT_ensemble_parois opaques | 284–287 | 4 | `core/src/bati/paroi_opaque.rs` | implémenté : éq. (283) à (287) |
+| 5.17 | C_BAT_paroi opaque | 288–293 | 4 | `core/src/bati/paroi_opaque.rs` | implémenté : éq. (288) à (297) ; lectures Q29 |
+| 5.18 | S1_BAT_assemblage_ponts_thermiques | 294–297 | 4 | `core/src/bati/pont_thermique.rs` | implémenté : descriptions simplifiée (éq. 298) et détaillée |
+| 5.19 | C_BAT_pont thermique | 298–302 | 4 | `core/src/bati/pont_thermique.rs` | implémenté : éq. (299) à (306) ; masques proches sur 30 cm (Q24) |
+| 5.20 | C_BAT_ensemble_ponts_thermiques | 303–305 | 4 | `core/src/bati/pont_thermique.rs` | implémenté : éq. (307) à (310) |
 | 5.21 | C_BAT_comportement thermique d’un groupe | 306–320 | 4 | `core/src/bati/comportement_thermique_groupe.rs` | non commencé |
 
 ### 6. Ventilation (p. 321–469)

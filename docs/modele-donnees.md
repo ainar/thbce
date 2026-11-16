@@ -11,11 +11,12 @@
 - **La zone climatique est déduite du département** ; `zone_climatique` devient un champ facultatif, et une valeur contradictoire déclenche un avertissement.
 - **Un seul lecteur météo** pour l'instant (`meteo::lire_csv_re2020`) ; le classeur et les fichiers ADEME viendront au lot 3. La provenance non réglementaire d'un fichier se déclare par une ligne `# thbce-origine:`.
 - **Résultats** : `origine_meteo_th_bc` et `origine_meteo_th_d` remplacent `origine_meteo` ; `valeurs_arrondies` indique si l'arrondi de restitution est appliqué.
-- **Surface de la baie** : `a_b_m2` (« Ab », §5.10.2). **Pont thermique** : sans exposition propre, la nomenclature du §5.19.2 n'en prévoyant pas.
+- **Surface de la baie** : `a_b_m2` (« Ab », §5.10.2). **Pont thermique** : `exposition` facultative depuis le lot 4c (voir plus bas).
 - **Masques (phase 3)** : un masque lointain azimutal se saisit par ses 36 hauteurs `gamma_i_deg`, une par tranche de 10° repérée par rapport à la normale au composant ; le masque d'arbres à feuilles caduques a la même forme. Un masque proche exige la largeur (`lpb_m`) ou la hauteur (`hpb_m`) du composant.
 - **Résultats (phase 3)** : bloc `climat` avec la zone, `altcorr_m`, `base_ext_c` et la période de confort adaptatif de chaque jeu météo.
 - **Lecteurs météo (phase 3)** : `meteo::lire` reconnaît le classeur `.xlsx`, le CSV dérivé et les fichiers ADEME. Le module WebAssembly ne lit pas le classeur.
-- **Surfaces (lot 4b)** : `su_m2` est la surface utile du groupe (« Agr », §4.1.2), obligatoire pour tous les usages ; `shab_m2` reste la surface de référence en habitation. `nb_lgt` est obligatoire en logement collectif. Les résultats de zone portent `nadeq`.
+- **Surfaces (lot 4b)** : `su_m2` est la surface utile du groupe (« Agr », §4.1.2), obligatoire pour tous les usages ; `shab_m2` reste la surface de référence en habitation. En maison individuelle, on saisit en pratique `su_m2 = shab_m2` ; en logement collectif, la surface habitable interne au calcul (`Rat_hab · Az`, éq. 33) est distincte de la SHAB saisie (décision Q28). `nb_lgt` est obligatoire en logement collectif. Les résultats de zone portent `nadeq`.
+- **Parois opaques et ponts thermiques (lot 4c)** : un type de paroi porte `incl_k`, obligatoire, position dans laquelle `u_k_w_m2k` a été déterminé (`verticale`, `horizontale_flux_ascendant`, `horizontale_flux_descendant`, §5.17.3) ; le moteur en déduit U à l'inclinaison réelle. Un pont thermique accepte une `exposition` facultative : sans elle, la description simplifiée du §5.18.3 s'applique (quatre ponts verticaux de `l/4` aux quatre orientations, sans masque). Les résultats de groupe portent un bloc `enveloppe` (surfaces de parois, longueur de ponts thermiques, coefficients HTh).
 - **Inertie** : les classes des tableaux 53 et 54 (§5.21.3) sont des variantes d'énumération ; `Ams_surf` et `Ama_surf` sont toujours saisies, comme le dit le texte.
 
 Ce document décrit les types Rust d'entrée et de sortie du moteur. Il ne fixe que la structure. Les champs cités viennent des nomenclatures de l'annexe III déjà lues (§3.1, 3.2, 4.1, 5.1, 5.10, 5.17, 5.19, 5.21, 13.1, 13.2, 13.4, 13.5) ; les autres fiches compléteront les types au moment où elles seront implémentées, chaque champ portant la référence de la nomenclature dont il sort. Aucun champ n'est ajouté s'il ne figure pas dans une nomenclature du texte.
@@ -114,6 +115,7 @@ pub struct Local {
 pub struct ParoiType {
     pub id: Id,
     pub u_k_w_m2k: f64,
+    pub incl_k: PositionParoi,     // position dans laquelle Uk a été déterminé (§5.17.3)
     pub sf_c_k: f64,               // facteur solaire, calcul du Cep
     pub sf_e_k: f64,               // facteur solaire, calcul de DH
     pub vegetalisation: Option<Vegetalisation>, // sf_c_v_k, sf_e_v_k, saison végétative

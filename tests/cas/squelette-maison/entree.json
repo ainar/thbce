@@ -8,9 +8,9 @@
   },
   "catalogue": {
     "parois": [
-      { "id": "mur", "u_k_w_m2k": 0.2, "sf_c_k": 0.01, "sf_e_k": 0.01 },
-      { "id": "toiture", "u_k_w_m2k": 0.12, "sf_c_k": 0.01, "sf_e_k": 0.01 },
-      { "id": "plancher", "u_k_w_m2k": 0.15, "sf_c_k": 0, "sf_e_k": 0 }
+      { "id": "mur", "incl_k": "verticale", "u_k_w_m2k": 0.2, "sf_c_k": 0.01, "sf_e_k": 0.01 },
+      { "id": "toiture", "incl_k": "horizontale_flux_ascendant", "u_k_w_m2k": 0.12, "sf_c_k": 0.01, "sf_e_k": 0.01 },
+      { "id": "plancher", "incl_k": "horizontale_flux_descendant", "u_k_w_m2k": 0.15, "sf_c_k": 0, "sf_e_k": 0 }
     ],
     "baies": [
       {

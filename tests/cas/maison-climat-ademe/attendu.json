@@ -18,7 +18,21 @@
       "zones": [
         {
           "id": "logement",
-          "nadeq": 1.9
+          "nadeq": 1.9,
+          "groupes": [
+            {
+              "id": "volume-chauffe",
+              "enveloppe": {
+                "a_op_m2": 290.0,
+                "a_opv_m2": 90.0,
+                "a_ophh_m2": 100.0,
+                "a_ophb_m2": 100.0,
+                "h_th_op_w_k": 45.0,
+                "l_pt_m": 40.0,
+                "h_th_pt_w_k": 4.0
+              }
+            }
+          ]
         }
       ]
     }

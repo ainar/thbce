@@ -196,8 +196,9 @@ pub struct Groupe {
     pub shab_m2: Option<f64>,
     /// « Agr » : surface utile du groupe, en m² (§4.1.2). Requise pour tous les usages : elle
     /// répartit les apports internes entre groupes. Hors habitation, c'est aussi la surface de
-    /// référence « SU » (§13.1.3, éq. 2376) ; l'identité de ces deux grandeurs est une lecture
-    /// (question Q28).
+    /// référence « SU » (§13.1.3, éq. 2376 ; décision Q28). En maison individuelle, on saisit en
+    /// pratique `su_m2 = shab_m2`. En logement collectif, le calcul en déduit sa propre surface
+    /// habitable, `Rat_hab · Az` (éq. 33), distincte de la SHAB saisie comme surface de référence.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub su_m2: Option<f64>,
     /// « Categorie_CE1_CE2 » (§13.1.2).
@@ -389,8 +390,11 @@ pub enum Masque {
 pub struct ParoiType {
     /// Identifiant du type de paroi.
     pub id: Id,
-    /// « Uk » : coefficient de transmission thermique, en W/(m².K).
+    /// « Uk » : coefficient de transmission thermique, en W/(m².K), dans la position `incl_k`.
     pub u_k_w_m2k: f64,
+    /// « Inclk » : position pour laquelle `Uk` est donné. Le moteur en déduit le coefficient de la
+    /// paroi dans son inclinaison réelle (§5.17.3, éq. 294).
+    pub incl_k: PositionParoi,
     /// « Sf-c,k » : facteur solaire pour le calcul du Cep (paroi non végétalisée).
     pub sf_c_k: f64,
     /// « Sf-e,k » : facteur solaire pour le calcul de DH (paroi non végétalisée).
@@ -398,6 +402,18 @@ pub struct ParoiType {
     /// Toiture végétalisée (« Typevegetal » = 1) et ses facteurs solaires.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vegetalisation: Option<Vegetalisation>,
+}
+
+/// « Inclk » (§5.17.2) : position de référence du coefficient `Uk` d'une paroi opaque.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PositionParoi {
+    /// 1 : paroi verticale.
+    Verticale,
+    /// 2 : paroi horizontale, flux ascendant.
+    HorizontaleFluxAscendant,
+    /// 3 : paroi horizontale, flux descendant.
+    HorizontaleFluxDescendant,
 }
 
 /// Facteurs solaires d'une toiture végétalisée (§5.17.2).
@@ -504,4 +520,10 @@ pub struct PontThermique {
     /// « Sf-e,l » : facteur solaire pour le calcul de DH, en m⁻¹ (le texte dit « Tic » :
     /// décision Q14).
     pub sf_e_l: f64,
+    /// Orientation, inclinaison et masques du pont thermique (§5.18.3). Présente : description
+    /// détaillée. Absente : description simplifiée, où le pont thermique est réparti en quatre
+    /// ponts verticaux orientés au sud, à l'ouest, au nord et à l'est, d'un quart de la longueur
+    /// chacun, sans masque (éq. 298).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exposition: Option<Exposition>,
 }
