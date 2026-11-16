@@ -318,6 +318,67 @@ fn fermeture_du_bilan_d_energie_selon_la_lecture() {
 }
 
 #[test]
+fn les_parts_radiatives_somment_a_un_dans_chaque_usage() {
+    // Décision Q34. Trois répartitions, chacune complète.
+    for (a_baies, inertie) in [
+        (10.0, InertieQuotidienne::Moyenne),
+        (0.0, InertieQuotidienne::TresLourde),
+        (35.0, InertieQuotidienne::TresLegere),
+    ] {
+        let g = GroupeThermique::nouveau(100.0, a_baies, &inertie);
+        let (at, amq, ab) = (g.a_tparois_m2, g.a_mq_m2, g.a_baies_m2);
+        // 1. Flux solaire de courte longueur d'onde : fsa à l'air ; le reste entre les parois
+        //    lourdes (frmd, éq. 352) et les parois légères (frld, éq. 351), rien sur les baies.
+        let (fr_md, fr_ld) = (amq / (at - ab), (at - amq - ab) / (at - ab));
+        assert_proche!(fr_md + fr_ld, 1.0);
+        assert_proche!(F_SA + (1.0 - F_SA) * (fr_md + fr_ld), 1.0);
+        // 2. Apports radiatifs internes : parois lourdes (frm, éq. 350), baies (frl,baies,
+        //    éq. 349) et parois légères (frs).
+        let (fr_m, fr_l_baies, fr_s) = (amq / at, ab / at, (at - amq - ab) / at);
+        assert_proche!(fr_m + fr_l_baies + fr_s, 1.0);
+        // 3. Puissance radiative du système d'émission (éq. 372) : θs et θmq seulement.
+        assert_proche!(GroupeThermique::part_emission_noeud_s(fr_m) + fr_m, 1.0);
+        // Les parts employées par le calcul : sans déperdition par les baies (Hges = 0), la part
+        // reçue à θs est le complément de celle des parois lourdes, pour le solaire comme pour
+        // les apports radiatifs.
+        let (s_rad, s_sol) = g.parts_noeud_s(0.0, LectureFluxRadiatifs::Complete);
+        assert_proche!(s_rad + fr_m, 1.0);
+        assert_proche!(s_sol + fr_md, 1.0);
+        // Avec des baies déperditives, l'éq. (361) retire Hges/(his·Atparois) de la part des baies.
+        if ab > 0.0 {
+            let (s_rad_13, _) = g.parts_noeud_s(13.0, LectureFluxRadiatifs::Complete);
+            assert_proche!(s_rad - s_rad_13, 13.0 / (H_IS_W_M2K * at));
+        }
+    }
+}
+
+#[test]
+fn la_puissance_radiative_emise_entre_entierement_dans_le_bilan() {
+    // Éq. (372), frs = 1 − frm : groupe refroidi par l'air seul, 1 000 W émis sous forme
+    // radiative ; en régime permanent, l'air emporte 1 000 W.
+    let g = groupe();
+    let s = Sollicitations {
+        h_th_k_pt_w_k: 0.0,
+        hg_es_w_k: 0.0,
+        phi_sl_w: 0.0,
+        phi_sh_w: 0.0,
+        fs1_w: 0.0,
+        fs3_w: 0.0,
+        phi_conv_w: 0.0,
+        phi_rad_w: 0.0,
+        ..sollicitations()
+    };
+    let mut theta_mq = 15.0;
+    let mut t = Temperatures::default();
+    for _ in 0..20_000 {
+        t = g.resoudre(&s, theta_mq, 0.0, 0.0, 1_000.0).unwrap().fin;
+        theta_mq = t.theta_mq_c;
+    }
+    let emporte = s.air.hg_ei_w_k * (t.theta_i_c - s.air.theta_ei_eq_c);
+    assert!((emporte - 1_000.0).abs() < 1e-6, "{emporte} W");
+}
+
+#[test]
 fn matrice_de_comportement() {
     // §5.21.3.14 : évolution libre, 10 W/m² convectifs, 10 W/m² radiatifs (1 000 W pour 100 m²).
     let (g, s) = (groupe(), sollicitations());
