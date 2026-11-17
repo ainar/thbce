@@ -2,7 +2,7 @@
 //! Poêles et inserts à bois : fiche `C_GEN_poêles et inserts` (Th-BCE 2020 §8.22), types 403
 //! et 404 du tableau 111. Générateur de chauffage seul, fonctionnant à puissance nominale
 //! pendant une fraction du pas de temps égale au taux de charge (éq. 1225 à 1237). Lectures :
-//! `docs/questions.md`, Q49.
+//! `docs/questions/Q049.md`.
 
 use super::calculs_generation::Energie;
 use super::generation::{EntreesAppel, SortiesAppel};

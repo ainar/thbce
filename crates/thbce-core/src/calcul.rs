@@ -331,7 +331,7 @@ pub fn calculer(
 /// Th-BCE 2020 §13.5.1 : l'indicateur « est exprimé par groupe » ; §13.3.1 : les seuils
 /// s'apprécient sur un DH « calculé au niveau groupe ». Le texte ne définit pas de DH de zone
 /// ou de bâtiment ; le plus élevé des groupes est restitué à ces niveaux, puisque c'est lui qui
-/// décide du respect d'un seuil (`docs/questions.md`, Q40). `None` sans groupe.
+/// décide du respect d'un seuil (`docs/questions/Q040.md`). `None` sans groupe.
 fn dh_le_plus_defavorable(dh: impl Iterator<Item = f64>) -> Option<f64> {
     dh.reduce(f64::max)
 }

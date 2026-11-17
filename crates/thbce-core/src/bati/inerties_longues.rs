@@ -11,7 +11,7 @@
 //! « En mode Th-B et Th-C, les inerties séquentielle et annuelle ne sont pas prises en compte »
 //! (§5.21.3.2) : ce module ne sert qu'au calcul Th-D.
 //!
-//! Lectures (`docs/questions.md`, Q40) :
+//! Lectures (`docs/questions/Q040.md`) :
 //! - la figure 66 attache `θmq,NBj,seq` à la branche séquentielle et `θmq,24h` à la branche
 //!   annuelle, à l'inverse des éq. (354) et (358) : les équations sont retenues ;
 //! - les sommes des éq. (353) et (357) vont de `h−1−24` à `h−1`, soit 25 termes pour un

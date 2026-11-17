@@ -10,7 +10,7 @@
 //! (éq. 850 et 851) ; chaque réseau intergroupes à une génération. Les réseaux transmettent la
 //! demande des émetteurs, augmentée de leurs pertes, à la génération (éq. 880, 887, 928, 936).
 //!
-//! Lectures : `docs/questions.md`, Q43.
+//! Lectures : `docs/questions/Q043.md`.
 
 use crate::entree::{
     Circulateur, DistributionGroupe, DistributionIntergroupes, FonctionReseau, RegulationDebit,

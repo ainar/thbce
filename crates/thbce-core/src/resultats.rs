@@ -155,8 +155,7 @@ impl PosteElectrique {
 /// Postes d'électricité propres au logement collectif et aux parkings, distincts pour que le
 /// calcul des indicateurs les intègre selon le texte : éclairage (éq. 2510 : parties communes
 /// et parkings), auxiliaires de ventilation (éq. 2511 : parkings), déplacements (éq. 2513 :
-/// ascenseurs). Aucun ne produit d'apport interne dans le modèle thermique (`docs/questions.md`,
-/// Q50).
+/// ascenseurs). Aucun ne produit d'apport interne dans le modèle thermique (`docs/questions/Q050.md`).
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
 pub struct ConsommationsCollectif {
     /// Éclairage des circulations, hall et escalier (§7.2, éq. 792 à 794).

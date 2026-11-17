@@ -14,7 +14,7 @@
 //! Elle ne dit pas comment répartir la consommation « de la zone » (`Cvent`) entre ses groupes :
 //! la répartition au prorata des débits repris de la fiche 6.5 (éq. 642) est retenue, et la
 //! différence de pression des fuites est celle des systèmes « basse pression » du tableau 60
-//! (`docs/questions.md`, Q42).
+//! (`docs/questions/Q042.md`).
 
 use super::bouche_conduit::PressionReseau;
 

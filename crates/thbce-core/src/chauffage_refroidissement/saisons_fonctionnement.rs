@@ -8,7 +8,7 @@
 //! réseaux en suit la saison (éq. 840), un groupe indépendant garde ses autorisations propres
 //! (éq. 841).
 //!
-//! Lectures : `docs/questions.md`, Q43.
+//! Lectures : `docs/questions/Q043.md`.
 
 /// Desserte d'un groupe : générations qui le desservent en chaud et en froid
 /// (« iddesservi_ch^gen,gr » et « iddesservi_fr^gen,gr »), par indice de génération.
