@@ -1,0 +1,547 @@
+                   RE2020
+            Fiche d’application
+      Comment identifier l’usage d’un
+      bâtiment et l’exigence associée ?
+       Date                          Modification                       Version
+
+    07/02/2023                          Création                           1
+
+    23/02/2024        Modification (concernant la prise en compte         1.1
+                             des parcs de stationnement)
+
+    09/10/2025          Suppression de la phrase concernant les           1.2
+                        locaux collectifs résidentiels des EHPAD
+
+    01/10/2026         Modification (Extension de périmètre de la          2
+                       RE2020 aux bâtiments d'activités tertiaires
+                         spécifiques et aux bâtiments à usage
+                                 industriel et artisanal)
+
+
+
+Préambule
+Cette fiche d’application précise le champ d’application de la RE2020 et la méthode
+de détermination de l’usage d’un bâtiment. Cette fiche concerne les projets de
+construction et d’extension de bâtiments et précise quelles sont les modalités
+d’application de la RE2020 en fonction de l’usage.
+
+Pour mémoire, une fiche d’application constitue un outil de documentation et n’a
+aucune portée juridique. Les textes officiels faisant foi sont ceux parus au Journal
+Officiel.
+
+
+
+
+                                                                                1/12
+Que disent les textes réglementaires?
+Article R 172-1 du Code de la Construction et de l’Habitation
+
+« I. - Les dispositions de la présente section s'appliquent à la construction, au sens de
+l'article L. 122-2, de bâtiments ou parties de bâtiments d'habitation qui font l'objet d'une
+demande de permis de construire ou d'une déclaration préalable déposée à compter du
+1er janvier 2022, à l'exclusion des cas où la construction a donné lieu à la signature, avant
+le 1er octobre 2021, d'un contrat de louage d'ouvrage, au sens de l' article 1787 du code
+civil et dont la demande de permis de construire ou la déclaration préalable est déposée
+avant le 1er septembre 2022, ou d'un contrat de construction de maison individuelle régi
+par les articles L. 231-1 et L. 232-1 du présent code. Les dispositions de la présente section
+s'appliquent à la construction de bâtiments ou parties de bâtiments de bureaux ou
+d'enseignement primaire ou secondaire qui font l'objet d'une demande de permis de
+construire ou d'une déclaration préalable déposée à compter du 1er juillet 2022. Elles
+s'appliquent également à la construction de parcs de stationnement associés à ces
+bâtiments.
+
+Les résidences de tourisme disposant d'un local de sommeil, d'une cuisine et de
+sanitaires sont soumises aux règles applicables aux bâtiments à usage d'habitation fixées
+par la présente section.
+
+II. - Les dispositions de la présente section s'appliquent, à compter du 1er juillet 2023, à
+la construction temporaire de bâtiments d'habitation, de bureaux, ou d'enseignement
+primaire ou secondaire mentionnés à l'article R. * 421-5 du code de l'urbanisme et à celle
+de ces mêmes bâtiments implantés pour une durée n'excédant pas deux ans, ainsi qu'aux
+habitations légères de loisirs mentionnées au b de l'article R. * 421-2 du code de
+l'urbanisme.
+
+III. - Les dispositions de la présente section s’appliquent à la construction de bâtiments
+ou parties de bâtiments, qui font l’objet d’une demande de permis de construire ou
+d’une déclaration préalable déposée à compter du 1er mai 2026, et figurant dans la liste
+suivante :
+     1° Médiathèques et bibliothèques ;
+     2° Bâtiments d’enseignements atypiques ;
+     3° Bâtiments universitaires d’enseignement et de recherche ;
+     4° Hôtels ;
+     5° Etablissements d’accueil de la petite enfance ;
+     6° Restaurants ;
+     7° Commerces;
+     8° Vestiaires seuls ;
+
+
+                                                                                         2/12
+   9° Etablissements sanitaires avec hébergements ;
+   10° Etablissements de santé ;
+   11° Aérogares ;
+   12° Bâtiments à usage industriel et artisanal ;
+   13° Etablissements sportifs. »
+
+Ces dispositions ne s'appliquent pas à :
+   1° La construction de bâtiments ou de parties de bâtiments qui, en raison de
+   contraintes spécifiques liées à leur usage, doivent garantir des conditions
+   particulières de température, d'hygrométrie ou de qualité de l'air et nécessitant, de
+   ce fait, des règles particulières ;
+   2° La construction temporaire de bâtiments ou de parties de bâtiments mentionnés
+   à l'article R.* 421-5 du code de l'urbanisme ou implantés pour une durée n'excédant
+   pas deux ans ;
+   3° La construction ou l'extension de bâtiments d'une surface inférieure à 50 m2 ;
+   4° L'extension de bâtiments d'une surface cumulativement inférieure à 150 m2 et
+   inférieure à 30 % de la surface des locaux existants.
+
+IV. - La présente section ne s'applique pas en Guadeloupe, en Guyane, en Martinique, à
+La Réunion et à Mayotte. »
+
+Arrêté du 4 août 2021 relatif aux exigences de performance énergétique et
+environnementale des constructions de bâtiments en France métropolitaine modifié
+par l’arrêté du 22 décembre 2022.
+
+Article 2 :
+
+« Une partie de bâtiment peut être assimilée à l'usage principal du bâtiment, avec
+application des exigences associées, lorsque les conditions cumulatives suivantes sont
+remplies :
+   - la surface de référence de la partie de bâtiment considérée est inférieure à 150
+       m² et inférieure à 10 % de la surface de référence de l'usage principal du
+       bâtiment ;
+   - la partie de bâtiment correspondant à l'usage principal est soumise au présent
+       arrêté, ou à l'arrêté du 26 octobre 2010 susvisé, ou à l'arrêté du 28 décembre
+       2012 susvisé.
+
+Une partie de bâtiment à usage de maison individuelle ne peut être assimilée à un autre
+usage.
+
+La surface de référence du bâtiment, notée Sref, est définie au X du chapitre I de
+l'annexe de l'article R. 172-4 du code de la construction et de l'habitation. Sauf mention
+contraire, il s'agit de la surface utilisée dans l'ensemble du présent arrêté. »
+
+
+
+                                                                                     3/12
+Champ d’application :
+Les usages définis dans la méthode Th-BCE pour retranscrire les textes réglementaires
+sont les suivants :
+
+                                                                             N°
+Usages RE2020                                                                d’usage
+                                                                             associé
+Maisons individuelles ou accolées                                               1
+Logements collectifs                                                            2
+Bureaux                                                                         3
+Enseignement primaire                                                           4
+Enseignement secondaire                                                         5
+Médiathèques et bibliothèques                                                   6
+Bâtiments universitaires d'enseignement et de recherche et bâtiments
+                                                                                7
+d’enseignements atypiques
+Hôtels 0, 1 et 2 étoiles (partie nuit)                                          8
+Hôtels 3, 4 et 5 étoiles (partie nuit)                                          9
+Hôtels 0, 1 et 2 étoiles (partie jour)                                          10
+Hôtels 3, 4 et 5 étoiles (partie jour)                                          11
+Etablissements d'accueil de la petite enfance                                   12
+Restaurants - en continu, 18 heures par jour, 7 jours sur 7                     13
+Restaurants - 1 repas par jour, 5 jours sur 7                                   14
+Restaurants - 2 repas par jour, 7 jours sur 7                                   15
+Restaurants - 2 repas par jour, 6 jours sur 7                                   16
+Restaurants scolaires - 1 repas par jour, 5 jours sur 7                         26
+Restaurants scolaires - 3 repas par jour, 5 jours sur 7                         27
+Commerces                                                                       17
+Etablissements sanitaires avec hébergement                                      19
+Etablissements de santé (partie nuit)                                           20
+Etablissements de santé (partie jour)                                           21
+Aérogares                                                                       22
+Industries ou artisanats 3x8h                                                   23
+Industries ou artisanats 8h à 18h                                               24
+Vestiaires seuls                                                                18
+Etablissements sportifs municipaux ou scolaires                                 25
+Etablissements sportifs privés                                                  28
+
+N.B. :
+   - Les vestiaires des établissements sportifs (municipaux, scolaires ou privés) sont
+       compris dans les scenarios conventionnels des usages n°25 et n°28. Il ne doit
+       donc pas être saisi un bâtiment multi-usages avec une zone « vestiaires seuls »
+       pour ces établissements sportifs ;
+
+
+                                                                                 4/12
+   -   Les tribunaux et palais de justice restent soumis à la réglementation thermique
+       2012 (RT2012) ;
+   -   En cas de construction ou d’extension de petite surface d’un bâtiment, le
+       lecteur pourra utilement consulter la fiche d’application « Extension nouvelle
+       d’un bâtiment existant et Construction de petite surface » afin d’identifier les
+       exigences s’appliquant à cette configuration spécifique de projet.
+
+
+Hors champ d’application :
+Certains projets de construction de bâtiments ou de parties de bâtiments ne sont pas
+soumis à la RE2020 en raison des spécificités liées à leurs usages (hygrométrie, apports
+internes, grande variabilité de l’occupation, etc.) et pour lesquels il n’est pas possible
+de se rapprocher des usages décrits dans le tableau ci-dessus. Bien évidemment, ces
+bâtiments peuvent mettre en oeuvre des stratégies volontaires pour s’incrire dans les
+3 objectifs de la RE2020.
+
+Ci-après une liste (non exhaustive) d’usages hors champ de la RE2020 :
+    - Lieux de culte ;
+    - Salles de spectacle : théâtres, cinémas, opéras, auditorium ;
+    - Musées, salles d’exposition ;
+    - Piscines municipales ou équivalents, saunas, hammams ;
+    - Patinoires ;
+    - Etablissements pénitentiaires ;
+    - Salles polyvalentes, salles des fêtes ;
+    - Datacenters.
+
+
+Quelles sont les conventions d’usage ?
+Le choix d’un usage adéquat est primordial pour appliquer la RE2020 puisque celui-ci
+permet de définir plusieurs données de scénarios conventionnelles :
+
+
+   -   Au niveau d’une zone ou d’un groupe, l’usage détermine :
+                                 • Plage d’occupation
+                                 • Horaire de chauffage et refroidissement
+                                 • Horaire d’éclairage
+                                 • Horaire de ventilation
+                                 • Température de consigne en chaud
+                                 • Température de consigne en froid
+                                 • (indirectement) accès aux modes de gestion des
+                                   protections mobiles
+                                 • Besoin unitaire hebdomadaire en ECS à 40°C l/m²
+                                   Sref
+
+
+
+
+                                                                                     5/12
+      -   Le type de local au sein d’un groupe permet d’affiner des données
+          d’occupation :
+                                        • Ratio par défaut de surface utile du local sur la
+                                          surface utile du groupe (%) (Ratel)
+                                        • Nombre d’occupants nominal par m² utile
+                                        • Apports internes en occupation (hors éclairage)
+                                          W/m²
+                                        • Apports internes hors occupation (équipements
+                                          hors éclairage) W/m²
+
+
+Comment identifier l’usage d’un bâtiment et
+l’exigence associée ?
+L’application de la RE2020 s’effectue bâtiment par bâtiment. Les niveaux de
+performance requis (Bbiomax, Cepmax, Cep,nrmax, Icénergiemax, Icconstructionmax et
+DHmax) sont déterminés en fonction de l’usage des zones du bâtiment. Il convient alors
+d’identifier les différents usages présents dans un bâtiment en procédant comme suit :
+
+      1° Identifier les bâtiments en considérant les bâtiments accolés comme bâtiment
+         unique (« deux bâtiments sont dits accolés s’ils sont juxtaposés et liés par des
+         parois mitoyennes, dont la surface de contact est d’au moins 15m² pour les
+         maisons et 50m² pour les autres bâtiments1 ») ;
+
+      2° Identifier les bâtiments ou parties de bâtiment exclus de la RE2020 ;
+
+      3° Identifier, de manière globale le ou les usage(s) issue(s) de la liste de la méthode
+         Th-BCE 2020 qui caractérise au mieux la destination du bâtiment ;
+
+      4° Identifier les types de locaux présents dans le bâtiment ;
+
+      5° Constituer, pour chaque bâtiment, des zones thermiquement homogènes :
+           - Ayant le même usage et, pour certains usages, ayant le même
+               fonctionnement (partie jour ou partie nuit, …),
+           - Traversant/non traversant (logements collectifs),
+           - Les zones peuvent être constituées de locaux non contigus ;
+
+      6° Séparer, dans chaque zone (en groupes) :
+            - Les parties non climatisés /climatisés,
+            - Les parties ayant des classes d'exposition au bruit différenciées ;
+
+
+
+
+1
+    Cf. Annexe I de l’arrêté du 4 août 2021 précédemment cité
+
+                                                                                        6/12
+   7° (Facultatif) Redécouper chaque groupe en un ou plusieurs groupes raccordés à
+      des équipements susceptibles d’opérer des transferts thermiques de chaud ou
+      de froid entre ces groupes.
+
+Remarques
+
+Un bâtiment est à usage mixte s’il contient des zones à usage différent (voir partie
+« Les bâtiments à usage mixte »).
+
+Le calcul des bilans aérauliques de la RE2020 se fait sur la base de zones : c’est à ce
+niveau qu’est caractérisée l’étanchéité à l’air de l’enveloppe. Les zones sont
+considérées comme étanches entre elles.
+
+Les groupes au sein d’une même zone sont en communication aéraulique. La notion
+de groupe de circulation a été introduite pour mener le calcul aéraulique dans le cas
+de transferts thermiques aérauliques entre groupes. Les transferts aérauliques des
+autres groupes se font uniquement vers ce groupe de circulation. Il est donc unique
+dans une zone et il ne peut pas être commun à plusieurs zones. Sa saisie n’est
+nécessaire que pour la valorisation de transferts entre groupes.
+
+
+Cas particulier des locaux de petite taille – article 2
+de l’arrêté du 4 août 2021
+Les dispositions de l’article 2 du 4 août 2021 impliquent que :
+
+   -   La surface de référence Sref est à considérer au sens de l’arrêté du 04 août 2021
+       précédemment cité (surface habitable – SHAB - ou surface utile – SU - suivant
+       usage). Une partie principale soumise à la RT2012 est à considérer en Sref pour
+       vérifier la condition de 10% ;
+   -   Ces petites zones ne sont pas exclues du calcul. C’est uniquement leur type
+       d’usage qui peut être modifié pour prendre celui de la zone majoritaire ;
+   -   L’applicateur de la réglementation doit définir, pour ces petites zones, des
+       systèmes propres (chauffage, refroidissement, éclairage, eau chaude sanitaire,
+       ventilation).
+
+Exemple
+
+Un collège comporte une zone d’enseignement ayant une Sref de 2 000 m² équipée de
+radiateurs à eau chaude et un logement de fonction équipé de convecteurs
+électriques. Le logement de fonction a une Sref inférieure à 150 m² et cette surface est
+inférieure à 10 % de la surface de la zone « enseignement ».
+
+Le logement de fonction de cet exemple peut donc prendre le type d’usage de la zone
+« enseignement ». Les scénarios conventionnels utilisés dans le calcul réglementaire
+seront les mêmes que ceux de la partie enseignement. Les systèmes de chauffage, de
+
+                                                                                   7/12
+refroidissement et d’éclairage de ce logement de fonction sont spécifiques et doivent
+donc être décrits. Dans cet exemple, le logement de fonction n’est alors plus soumis
+aux exigences de moyens des bâtiments d’habitation, mais à celles des bâtiments
+d’enseignement (notamment l’exigence d’étanchéité à l’air).
+
+N.B : La règle ci-dessus ne s’applique pas au cas particulier de locaux de petite taille
+(au sens de l’article 2 de l’arrêté du 4 août 2021 précédemment cité) situés dans des
+bâtiments dont les autres locaux ne sont pas soumis à la RT2012 ou à la RE2020. Le
+local de petite taille ne peut pas dans ce cas prendre l’usage des autres locaux. Il reste
+soumis à la RT2012 ou à la RE2020.
+
+Divers cas particuliers traités dans la FAQ
+ Questions                                    Lien site RT-RE bâtiment
+ Comment prendre en compte les foyers
+ logements, les résidences étudiantes, les    FAQ RE2020 003
+ internats, etc. ?
+ Comment prendre en compte les salles
+                                              FAQ RE2020 220
+ de conférences ?
+ Comment prendre en compte des
+ locaux de bureaux dans un bâtiment
+ dont l’usage principal n’est pas l’usage «   FAQ RE2020 224
+ bureaux » ? (ex : un bâtiment industriel
+ avec une partie « administrative »)
+ Comment prendre en compte les
+ garages des maisons individuelles ? Les      FAQ RE2020 225
+ carports reliés par un auvent ?
+ Comment prendre en compte un bureau
+ avec un local de stockage ? Un bureau        FAQ RE2020 226
+ avec une cantine ?
+ Comment prendre en compte une
+                                              FAQ RE2020 227
+ maison à côté d’un atelier chauffé ?
+ Comment prendre en compte un
+ logement collectif avec un commerce au       FAQ RE2020 228
+ rez-de-chaussée?
+
+
+Usages de groupe
+La liste des usages définis dans le champ d’application de la RE2020 n’est pas
+exhaustive. Certains usages de bâtiments ou de parties de bâtiment ne sont ainsi pas
+retranscrits explicitement dans la méthode Th-BCE 2020 mais doivent être rattachés
+à un usage de groupe RE2020 grâce au tableau suivant :
+
+
+
+
+                                                                                     8/12
+                                                                               N°
+Destination                         Usage RE2020                             d’usage
+                                                                             associé
+Maisons témoins                     Maisons individuelles ou accolées           1
+Habitats de loisir occupés de                                                   1
+manière saisonnière, gîtes          Maisons individuelles ou accolées
+individuels
+Logements de fonction dans un
+                                    Logements collectifs                       2
+bâtiment autre que d’habitation
+                                    Avec cuisine : Logements collectifs        2
+Résidences étudiantes               Sans cuisine : Hôtel 0, 1 et 2 étoiles     8
+                                    (partie nuit)
+                                    Partie jour : Enseignement                 5
+Etablissements de placement         secondaire
+éducatif                            Partie nuit : Hôtel 0, 1 et 2 étoiles      8
+                                    (partie nuit)
+Internats d’établissement
+                                    Hôtel 0, 1 et 2 étoiles (partie jour)      10
+d’enseignement
+Banques ou Assurances               Bureaux                                    3
+Centres administratifs              Bureaux                                    3
+Mairies                             Bureaux                                    3
+Bureaux / commerces avec guichets                                              3
+                                    Bureaux
+pouvant accueillir du public
+                                    Partie bureaux : Bureaux                   3
+Call-centers – Data centers
+                                    Partie process : Hors RE2020               -
+Casernes de pompiers,               Partie jour : Bureaux                      3
+gendarmerie, commissariat           Partie nuit : Logements collectifs         2
+Ecoles maternelles                  Enseignement primaire                      4
+Centres de loisirs                  Enseignement primaire                      4
+Centres de formation des apprentis                                             5
+                                   Enseignement secondaire
+(CFA)
+Bibliothèques universitaires
+                                    Médiathèques et bibliothèques              6
+(bâtiments indépendants)
+
+Ludothèques                         Médiathèques et bibliothèques              6
+
+                                    Bâtiment universitaire
+Bibliothèques universitaires        d’enseignement et de recherche et
+intégrées dans un bâtiment multi-   bâtiments d’enseignements                  7
+usages                              atypiques (local « Centre de
+                                    documentation »)
+
+
+
+
+                                                                                   9/12
+                                                                                 N°
+Destination                            Usage RE2020                            d’usage
+                                                                               associé
+Conservatoires, écoles d’art, écoles   Bâtiments universitaires
+de cuisine, écoles d’ingénieur,        d'enseignement et de recherche et
+                                                                                 7
+écoles d’architecture, écoles de       bâtiments d’enseignements
+commerce                               atypiques
+                                       Hôtel 0, 1 et 2 étoiles (partie nuit)     8
+                                       Hôtel 3, 4 et 5 étoiles (partie nuit)     9
+Auberges de jeunesse
+                                       Hôtel 0, 1 et 2 étoiles (partie jour)     10
+                                       Hôtel 3, 4 et 5 étoiles (partie jour)     11
+Salles communes (hors partie
+restauration) de bâtiment              Hôtel 0, 1 et 2 étoiles (partie jour)
+                                                                                 10
+d’hébergements (hors logements         (local : salle petits déjeuners)
+collectifs)
+                                       Local « salle de restauration » d’un
+                                       des usages suivants :
+                                       Restaurants - en continu, 18 heures       13
+                                       par jour, 7 jours sur 7
+                                       Restaurants - 1 repas par jour, 5         14
+                                       jours sur 7
+                                       Restaurants - 2 repas par jour, 7         15
+Salles de restauration sans cuisine
+                                       jours sur 7
+                                       Restaurants - 2 repas par jour, 6         16
+                                       jours sur 7
+                                       Restaurants scolaires - 1 repas par       26
+                                       jour, 5 jours sur 7
+                                       Restaurants scolaires - 3 repas par       27
+                                       jour, 5 jours sur 7
+                                       Restaurants - en continu, 18 heures       13
+                                       par jour, 7 jours sur 7
+Restaurants sans salle de
+                                       Restaurants - 2 repas par jour, 7         15
+restauration (notamment les dark
+                                       jours sur 7
+kitchens)
+                                       Restaurants - 2 repas par jour, 6         16
+                                       jours sur 7
+Concessions automobiles                Commerces                                 17
+Bars                                   Commerces                                 17
+Gares (espaces de vente)               Commerces                                 17
+Salles de jeux, casinos                Commerces                                 17
+Aires de service                       Commerces                                 17
+                                       Accueil et partie administrative :        3
+                                       Bureaux
+Funérariums, maisons funéraires
+                                       Magasin : Commerces                       17
+                                       Locaux de process : Hors RE2020            -
+
+                                                                                  10/12
+                                                                                 N°
+Destination                             Usage RE2020                           d’usage
+                                                                               associé
+                                        Etablissements sanitaires avec
+EHPAD                                                                            19
+                                        hébergement
+Etablissements médico-social avec
+hébergements : FAM, MAS, Foyers         Etablissements sanitaires avec
+                                                                                 19
+de vie, établissements                  hébergement
+expérimentaux, etc.
+Etablissements médico-social avec
+uniquement de l’accueil de jour,        Etablissement de santé (partie jour)     21
+sans hébergement : FAJ, CAJ, etc.
+
+Cabinets médicaux de ville              Etablissement de santé (partie jour)     21
+
+Cliniques vétérinaires                  Etablissement de santé (partie jour)     21
+Parties d’hôpitaux, cliniques, etc. à
+occupation diurne (uniquement en        Etablissement de santé (partie jour)     21
+journée)
+Parties d’hôpitaux, cliniques, etc. à
+                                        Etablissement de santé (partie nuit)     22
+occupation continue (H24, 7j/7)
+                                        Sans hébergement : Etablissement
+Structures médico-sociales                                                       21
+                                        de santé (partie jour)
+d’éducation adaptée ou
+spécialisée : IME, IEM, ITEP, etc.      Avec hébergement : Etablissement
+                                                                               20 et 21
+                                        de santé (partie jour et nuit)
+Vestiaires de stade                     Vestiaires seuls                         18
+Vestiaires d’un bâtiment industriel
+ou artisanal où l’aire de production    Vestiaires seuls                         18
+est hors périmètre RE2020
+
+Centres de sport ou de fitness          Etablissements sportifs privés           28
+
+                                        Locaux chauffés ou refroidis pour le
+Centres techniques (ateliers,           confort des occupants :
+stockages, petite mécanique,            Industries ou artisanats 3x8h            23
+locaux du personnel, entrepôts,         Industries ou artisanats 8h à 18h        24
+quais de messagerie)
+                                        Sinon : Hors RE2020                       -
+                                        Locaux chauffés ou refroidis pour le
+                                        confort des occupants :
+Entrepôts                               Industries ou artisanats 3x8h            23
+                                        Industries ou artisanats 8h à 18h        24
+                                        Sinon : Hors RE2020                       -
+
+
+
+
+                                                                                      11/12
+Les bâtiments à usage mixte
+
+Comment procède-t-on pour le calcul d'un bâtiment soumis à la RT2012 et RE2020 ?
+
+   -   Les calculs sont menés par « partie de bâtiment », en distinguant une partie
+       RT2012 et une partie RE2020.
+   -   Les objectifs RT2012 et RE2020 ne sont pas liés.
+
+Comment procède-t-on pour le calcul RE2020 d'un bâtiment à usage mixte (plusieurs
+usages) ?
+
+   -   Les calculs sont menés soit par « partie de bâtiment » soit globalement en
+       considérant chacun des usages.
+   -   Les objectifs Bbiomax, Cepmax, Cep,nrmax, Icénergie_max, et Icconstruction_max sont définis
+       par pondération surfacique (Sref) des objectifs spécifiques à chaque type
+       d'usage et selon les catégories des groupes de chaque zone.
+   -   Les performances Bbioprojet, Cepprojet, Cep,nrprojet, Icénergie_projet et Icconstruction_projet)
+       sont calculées pour l'ensemble du bâtiment selon les règles Th-BCE 2020
+   -   Les performances en DH sont élaborées par groupe et donc par usage et type
+       Cat1/Cat2, climatisés ou non, traversant ou non.
+
+
+
+
+                                                                                                12/12
+
