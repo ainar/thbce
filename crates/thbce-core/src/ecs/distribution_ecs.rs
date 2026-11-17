@@ -13,6 +13,18 @@ pub const THETA_2ND_E_CONV_C: f64 = 53.0;
 /// « nbbouchons » en habitation (tableau 279 : 3 en maison et en logement collectif).
 pub const NB_BOUCHONS_HABITATION: f64 = 3.0;
 
+/// « nbbouchons » : nombre conventionnel de bouchons d'eau froide par heure de puisage d'une
+/// distribution d'ECS du groupe, selon le numéro d'usage de la zone (§9.7.3, tableau 279) :
+/// 3 pour les usages 1, 2, 5, 6, 7 et 16 ; 4 pour les hôtels en partie nuit (8 et 9) ; 2 pour
+/// les autres.
+pub fn nb_bouchons(numero_usage: u8) -> f64 {
+    match numero_usage {
+        1 | 2 | 5 | 6 | 7 | 16 => NB_BOUCHONS_HABITATION,
+        8 | 9 => 4.0,
+        _ => 2.0,
+    }
+}
+
 /// « θamb » des pertes intergroupes, en °C (éq. 1745 et 1757).
 pub const THETA_AMB_ECS_C: f64 = 20.0;
 
@@ -85,7 +97,7 @@ impl DistributionEcsGroupeResolue {
             v_hvc_l: d.l_hvc_m * section * 1000.0,
             nb_vc: if d.l_vc_m.is_some() { nb } else { 1.0 },
             nb_hvc: nb,
-            nb_bouchons: NB_BOUCHONS_HABITATION,
+            nb_bouchons: nb_bouchons(usage.numero()),
             espace_tampon,
             q_w_precedent_wh: 0.0,
         }

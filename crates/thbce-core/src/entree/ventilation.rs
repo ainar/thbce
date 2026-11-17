@@ -53,14 +53,30 @@ pub enum SystemeVentilation {
     CentraleTraitementAir,
 }
 
-/// Th-BCE 2020 §6.4.3 et §6.5.2 — ventilateur d'un système simple flux en résidentiel.
+/// Th-BCE 2020 §6.4.3 et §6.5.2 — ventilateur d'un système simple flux : puissances en débit
+/// de base et de pointe en résidentiel, en occupation et en inoccupation en non résidentiel.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct VentilateurSimpleFlux {
-    /// « Pventbase » : puissance électrique du ventilateur en débit de base, en W.
-    pub p_vent_base_w: f64,
-    /// « Pventpointe » : puissance électrique du ventilateur en débit de pointe, en W.
-    pub p_vent_pointe_w: f64,
+    /// « Pventbase » : puissance électrique du ventilateur en débit de base, en W. Requise en
+    /// maison individuelle ou accolée et en logement collectif ; ne pas la saisir dans les
+    /// autres usages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_vent_base_w: Option<f64>,
+    /// « Pventpointe » : puissance électrique du ventilateur en débit de pointe, en W. Requise
+    /// en maison individuelle ou accolée et en logement collectif.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_vent_pointe_w: Option<f64>,
+    /// « Pventocc » : puissance électrique du ventilateur en occupation, en non résidentiel,
+    /// en W (§6.5.3.3, éq. 636 et 638). Requise dans les usages autres que la maison
+    /// individuelle ou accolée et le logement collectif ; ne pas la saisir en habitation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_vent_occ_w: Option<f64>,
+    /// « Pventinocc » : puissance électrique du ventilateur en inoccupation, en non
+    /// résidentiel, en W (éq. 637 et 639). Requise comme `p_vent_occ_w` ; 0 si le ventilateur
+    /// est arrêté en inoccupation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_vent_inocc_w: Option<f64>,
 }
 
 /// Th-BCE 2020 §6.3.2, tableau 61 — groupe de ventilation double flux en habitation.
@@ -303,8 +319,30 @@ pub struct BoucheConduit {
     /// « Isouf » : sens du circuit.
     pub isouf: Isouf,
     /// « qspec,rep,conv_pointe » ou « qspec,souffle,conv_pointe » : débit volumique spécifique
-    /// conventionnel en pointe, en m³/h, positif.
+    /// conventionnel en pointe, en m³/h, positif. Requis en maison individuelle ou accolée et
+    /// en logement collectif ; ne pas le saisir dans les autres usages, qui se décrivent par
+    /// `q_spec_occ_m3_h` et `q_spec_inocc_m3_h`.
+    #[serde(default, skip_serializing_if = "est_nul")]
     pub q_spec_conv_pointe_m3_h: f64,
+    /// « qspec,rep,occ » ou « qspec,soufflé,occ » : débit volumique total repris ou soufflé en
+    /// occupation, en m³/h, positif, pour les usages autres que la maison individuelle ou
+    /// accolée et le logement collectif (§6.2.3.1.1.1, éq. 383 et 384). Requis dans ces usages.
+    /// Le calcul du Bbio ne l'emploie pas : ses débits sont conventionnels (§6.2.3.1.3,
+    /// tableau 56-1).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub q_spec_occ_m3_h: Option<f64>,
+    /// « qspec,rep,inocc » ou « qspec,soufflé,inocc » : débit volumique total repris ou soufflé
+    /// en inoccupation, en m³/h, positif ou nul (éq. 385 et 386). Requis comme
+    /// `q_spec_occ_m3_h`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub q_spec_inocc_m3_h: Option<f64>,
+    /// « Crdbnr » : coefficient de réduction des débits en occupation, en non résidentiel
+    /// (§6.2.3.2.1, tableau 57) : 1 sans régulation des débits, 0,9 avec un dispositif de
+    /// détection d'utilisation du local, 0,8 avec un comptage d'occupants ou des sondes de CO2 ;
+    /// une autre valeur si elle vient d'un Avis Technique. Absent : 1, aucune régulation,
+    /// signalé dans les résultats. Sans objet en habitation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub crdbnr: Option<f64>,
     /// « qspec,rep,conv_base » ou « qspec,souffle,conv_base » : débit volumique spécifique
     /// conventionnel en base, en m³/h, positif et au plus égal au débit de pointe. À saisir sauf
     /// pour un système hygroréglable.
@@ -344,4 +382,9 @@ pub enum Isouf {
     Reprise,
     /// 1 : insufflation (bouches et conduits de soufflage).
     Soufflage,
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn est_nul(x: &f64) -> bool {
+    *x == 0.0
 }

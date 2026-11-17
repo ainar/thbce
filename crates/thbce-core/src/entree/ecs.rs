@@ -205,8 +205,16 @@ pub struct EmetteurEcs {
     pub rat_em: f64,
     /// « Nbmaison » (maison individuelle ou accolée : nombre de maisons desservies, plus de 1
     /// pour des maisons accolées) ou « Nblgt-e » (logement collectif : nombre de logements
-    /// desservis), tableau 272.
+    /// desservis), tableau 272. Requis, au moins 1, en maison individuelle ou accolée et en
+    /// logement collectif ; sans objet dans les autres usages.
+    #[serde(default, skip_serializing_if = "est_zero")]
     pub nb_logements: u32,
+    /// « Nu » : nombre d'unités caractéristiques desservies, pour les usages autres que la
+    /// maison individuelle ou accolée et le logement collectif (§9.6.3.2.2.1, tableau 277 : en
+    /// m² de surface utile pour tous ces usages). Absent : la surface utile que l'émetteur
+    /// dessert, `rat_em × su_m2` (éq. 1682). Ne pas saisir en habitation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nu: Option<f64>,
     /// « partmélangeur » : part des besoins passant par des mélangeurs, mitigeurs mécaniques et
     /// autres émetteurs (gain 0 %, tableau 273).
     pub part_melangeur: f64,
@@ -227,6 +235,10 @@ pub struct EmetteurEcs {
     pub distribution: DistributionEcsGroupe,
     /// Identifiant du réseau de distribution d'ECS intergroupe du bâtiment (§9.8).
     pub distribution_intergroupe: Id,
+}
+
+fn est_zero(n: &u32) -> bool {
+    *n == 0
 }
 
 /// « App_ecs » (§9.5.3, tableau 275).

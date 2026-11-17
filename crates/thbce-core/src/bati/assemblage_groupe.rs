@@ -40,13 +40,17 @@ use crate::confort::confort_ete::{
 };
 use crate::confort::indicateurs_confort::{indicateurs, CumulsConfort, CAT_AMB};
 use crate::conventions::ModeCalcul;
-use crate::eclairage::{eclairage_habitation, einat_vn_lux};
+use crate::eclairage::{
+    a_eclnat2_m2, eclairage_habitation, eclairage_locaux, einat_vn_lux, LocalResolu,
+};
 use crate::entree::{Catalogue, Groupe, RegulationBatterie, UsageZone};
 use crate::scenarios::saisons::{
     refroidissement_possible, Journee, LectureSaisonFroidThD, Saison, Saisons,
 };
 use crate::scenarios::scenarios_conventionnels::{ApportsGroupe, SortiesZone};
-use crate::ventilation::bouche_conduit::{debits_specifiques_bbio_groupe, Debits};
+use crate::ventilation::bouche_conduit::{
+    debits_bbio_non_residentiel, debits_specifiques_bbio_groupe, Debits,
+};
 use crate::ventilation::debits_air_cep::{rho_kg_m3, EntreeAir, GroupeAeraulique};
 use crate::ventilation::ven_bbio::{debits_systeme_conventionnel, LectureDebitsBbio};
 
@@ -435,8 +439,19 @@ pub struct GroupeHoraire {
     pub id: String,
     /// Mode de calcul : Th-B (Bbio) ou Th-D (confort d'été).
     pub mode: ModeCalcul,
-    /// Vrai si l'usage de la zone est d'habitation (période de sommeil de l'éq. 2544).
+    /// Vrai si l'usage de la zone est « de type habitation » au sens du confort d'été (période
+    /// de sommeil de l'éq. 2544) : maison individuelle, logement collectif, établissement
+    /// sanitaire avec hébergement.
     pub habitation: bool,
+    /// « ihebergement » de l'usage de la zone (§4.1.3, tableau 4).
+    pub hebergement: bool,
+    /// Locaux du groupe au sens de l'éclairage (§7.1), hors habitation : puissances et gestion
+    /// conventionnelles en calcul du Bbio (§7.1.3.1), celles du projet sinon (§7.1.3.2). Vide
+    /// en habitation, dont l'éclairage est conventionnel (§7.1.3.6.2).
+    pub locaux_eclairage: Vec<LocalResolu>,
+    /// « Aeclnat2 » : surface des locaux du groupe ayant accès à la lumière naturelle, en m²
+    /// (§7.1.3.3) ; `Agr` en habitation.
+    pub a_eclnat2_m2: f64,
     /// Lectures du texte employées (celles retenues, sauf pour mesurer une sensibilité).
     pub lectures: Lectures,
     /// Inerties séquentielle et annuelle (§5.21.3.3 et 5.21.3.4).
@@ -455,6 +470,10 @@ pub struct GroupeHoraire {
     /// ventilation conventionnel en Th-B (§6.1 et §6.2), ceux du système du projet sinon,
     /// fixés par la zone (§6.2.3.4, éq. 428 et 429).
     pub debits: Debits,
+    /// Débits conventionnels du calcul du Bbio hors habitation, en occupation puis en
+    /// inoccupation au sens de la ventilation (§6.2.3.1.3, tableau 56-1) ; `None` en
+    /// habitation. La zone en tire `debits` à chaque pas de temps du calcul Th-B.
+    pub debits_bbio_non_residentiel: Option<(Debits, Debits)>,
     /// Données aérauliques du groupe (§5.6).
     pub aeraulique: GroupeAeraulique,
     /// « δtrav_surv » : groupe traversant au sens de la surventilation (tableau 43).
@@ -559,15 +578,52 @@ impl GroupeHoraire {
         let ba = EnsembleBaies::de(&enveloppe.baies);
         let thermique =
             GroupeThermique::nouveau(a_gr_m2, ba.a_baies_m2, &groupe.inertie.quotidienne);
-        let debits = debits_specifiques_bbio_groupe(&groupe.bouches_conduits)
-            .map(|d| debits_systeme_conventionnel(d, lectures.debits))
-            .unwrap_or_default();
+        // §6.2.3.1.3 : débits du Bbio — débits d'hygiène des bouches en habitation, débits
+        // conventionnels du tableau 56-1 dans les autres usages, selon l'occupation.
+        let sref_gr_m2 = if usage.est_habitation() {
+            groupe.shab_m2
+        } else {
+            groupe.su_m2
+        }
+        .unwrap_or(0.0);
+        let debits_bbio_non_residentiel = if usage.est_habitation() {
+            None
+        } else {
+            debits_bbio_non_residentiel(usage.numero(), sref_gr_m2)
+        };
+        let debits = match debits_bbio_non_residentiel {
+            Some((occ, _)) => occ,
+            None => debits_specifiques_bbio_groupe(&groupe.bouches_conduits)
+                .map(|d| debits_systeme_conventionnel(d, lectures.debits))
+                .unwrap_or_default(),
+        };
         let initiale = Temperatures {
             theta_i_c: THETA_INITIALE_C,
             theta_s_c: THETA_INITIALE_C,
             theta_mq_c: THETA_INITIALE_C,
             theta_rm_c: THETA_INITIALE_C,
             theta_op_c: THETA_INITIALE_C,
+        };
+        // §7.1.3.1 et 7.1.3.2 : locaux d'éclairage des usages autres que l'habitation.
+        let locaux_eclairage: Vec<LocalResolu> = if usage.est_habitation() {
+            Vec::new()
+        } else {
+            groupe
+                .locaux
+                .iter()
+                .filter_map(|l| {
+                    if mode == ModeCalcul::ThB {
+                        LocalResolu::bbio(usage.numero(), l, a_gr_m2)
+                    } else {
+                        LocalResolu::projet(usage.numero(), l, a_gr_m2)
+                    }
+                })
+                .collect()
+        };
+        let a_eclnat2 = if usage.est_habitation() {
+            a_gr_m2
+        } else {
+            a_eclnat2_m2(&locaux_eclairage)
         };
         let nb_baies = enveloppe.baies.len();
         // Th-BCE 2020 §5.21.3.2 : « En mode Th-B et Th-C, les inerties séquentielle et annuelle
@@ -580,7 +636,10 @@ impl GroupeHoraire {
         Self {
             id: groupe.id.clone(),
             mode,
-            habitation: usage.est_habitation(),
+            habitation: usage.sommeil_confort_ete(),
+            hebergement: usage.i_hebergement(),
+            locaux_eclairage,
+            a_eclnat2_m2: a_eclnat2,
             lectures,
             inerties,
             a_gr_m2,
@@ -588,6 +647,7 @@ impl GroupeHoraire {
             h_th_k_pt_w_k: enveloppe.h_th_k_pt_w_k(),
             thermique,
             debits,
+            debits_bbio_non_residentiel,
             // Th-BCE 2020 §5.6.3.1.5 et §5.7.2 : façades et toits au sens de la perméabilité.
             aeraulique: GroupeAeraulique {
                 a_f_m2: op.a_opv_m2 + ba.a_baies_v_m2,
@@ -844,14 +904,19 @@ impl GroupeHoraire {
         };
         let qm_surv = qm_aj_kg_s(qv_surv, theta_e, 0.0);
 
-        // §7.1 : éclairage. Volumes normaux (baies de type 2) ; Aeclnat2 = Agr en habitation.
+        // §7.1 : éclairage. Volumes normaux (baies de type 2) ; Aeclnat2 = Agr en habitation,
+        // surface des locaux ayant accès à la lumière naturelle dans les autres usages.
         let einat = einat_vn_lux(
             baies.flt1_lm[2],
             baies.flt2_lm[2],
             baies.flt3_lm[2],
-            self.a_gr_m2,
+            self.a_eclnat2_m2,
         );
-        let ecl = eclairage_habitation(sc.i_ecl > 0.0, einat, self.a_gr_m2);
+        let ecl = if self.locaux_eclairage.is_empty() {
+            eclairage_habitation(sc.i_ecl > 0.0, einat, self.a_gr_m2)
+        } else {
+            eclairage_locaux(&self.locaux_eclairage, sc.i_ecl > 0.0, einat)
+        };
 
         // §5.21.3.5 : air entrant équivalent (bilan aéraulique de la zone et surventilation).
         let mut flux_air = [AirEntrant {

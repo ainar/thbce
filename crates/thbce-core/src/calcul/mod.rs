@@ -205,10 +205,18 @@ pub fn calculer(
             }
             None => (None, Vec::new(), Vec::new()),
         };
-        // Éq. (2504) : ventilateurs des centrales, de puissance constante en habitation.
-        for z in &zones {
+        // Éq. (2504) : ventilateurs des centrales, de puissance constante en habitation ; hors
+        // habitation, puissance d'occupation ou d'inoccupation à chaque pas (éq. 636 à 639).
+        for (z, zc) in zones.iter().zip(&th_c.zones) {
             if let Some(v) = &z.ventilation {
-                releve.ajouter_constante(poste::AUX_VENT, v.p_vent_w);
+                let serie = zc
+                    .ventilation
+                    .as_ref()
+                    .and_then(|vp| ventilation::puissance_horaire_w(vp, &zc.scenarios));
+                match serie {
+                    Some(serie) => releve.ajouter_serie(poste::AUX_VENT, &serie),
+                    None => releve.ajouter_constante(poste::AUX_VENT, v.p_vent_w),
+                }
             }
         }
         // Fiche 4.7 : usages mobiliers, pour la consommation « tous usages » (éq. 2515).
@@ -246,6 +254,19 @@ pub fn calculer(
         let bbio = sorties(&energies_bat, sref_m2);
         let generations = resultats_generations(&th_c);
         // §13.2 à 13.4 : indicateurs du bâtiment, dès qu'il a des générations.
+        let c_ecl_zones_kwh: Vec<f64> = th_c
+            .zones
+            .iter()
+            .map(|z| {
+                z.groupes
+                    .iter()
+                    .map(|g| g.cumuls.c_ecl_kwh.iter().sum::<f64>())
+                    .sum()
+            })
+            .collect();
+        let c_ecl_collectif_kwh = conso_collectif.as_ref().map_or(0.0, |c| {
+            c.eclairage_parties_communes.annuel_kwh + c.eclairage_parkings.annuel_kwh
+        });
         let indicateurs = avec_generations.then(|| {
             let bilan = bilan(&releve.horaire, &prod_pv_wh);
             let (i, a) = calculer_indicateurs(&EntreesIndicateurs {
@@ -258,6 +279,8 @@ pub fn calculer(
                 bilan: &bilan,
                 consommations: &consommations_bat.annuel,
                 generations: &generations,
+                c_ecl_zones_kwh: &c_ecl_zones_kwh,
+                c_ecl_collectif_kwh,
             });
             avertissements.extend(a);
             i

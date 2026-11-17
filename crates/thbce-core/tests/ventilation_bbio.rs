@@ -36,6 +36,9 @@ fn bouche(isouf: Isouf, pointe: f64, base: Option<f64>, qvarep: Option<f64>) -> 
         dugd_h: None,
         cdep: None,
         a_cond_m2: None,
+        q_spec_occ_m3_h: None,
+        q_spec_inocc_m3_h: None,
+        crdbnr: None,
     }
 }
 
@@ -265,4 +268,46 @@ fn regles_de_saisie_des_bouches() {
         }),
         [format!("{chemin}[1].id")]
     );
+}
+
+/// Débits conventionnels du Bbio hors habitation (§6.2.3.1.3, tableau 56-1), calculés à la
+/// main.
+#[test]
+fn debits_conventionnels_non_residentiels() {
+    use thbce_core::ventilation::bouche_conduit::{
+        debits_bbio_non_residentiel, debits_dep_non_residentiel, param_debits_bbio,
+    };
+    // Bureaux, 1 000 m² : 4 m³/h par m² en occupation ; max(60 ; 0,42 × 1 000) = 420 m³/h en
+    // inoccupation ; repris et soufflés par le système conventionnel du Bbio (Q36, Q60).
+    let (occ, inocc) = debits_bbio_non_residentiel(3, 1000.0).unwrap();
+    assert_eq!((occ.q_rep_m3_h, occ.q_souffle_m3_h), (-4000.0, 4000.0));
+    assert_eq!((inocc.q_rep_m3_h, inocc.q_souffle_m3_h), (-420.0, 420.0));
+    // Petit groupe de 100 m² : le plancher de 60 m³/h l'emporte sur 42 m³/h.
+    let (occ, inocc) = debits_bbio_non_residentiel(3, 100.0).unwrap();
+    assert_eq!((occ.q_souffle_m3_h, inocc.q_souffle_m3_h), (400.0, 60.0));
+    // Commerces : Param_inoccupation = 0, le plancher s'applique.
+    let (occ, inocc) = debits_bbio_non_residentiel(17, 500.0).unwrap();
+    proche(occ.q_souffle_m3_h, 1850.0);
+    assert_eq!(inocc.q_souffle_m3_h, 60.0);
+    // Habitation : débits d'hygiène des bouches, pas de paramètres conventionnels.
+    assert!(debits_bbio_non_residentiel(1, 100.0).is_none());
+    assert!(param_debits_bbio(2).is_none() && param_debits_bbio(29).is_none());
+    for usage in 3..=28 {
+        let (o, i) = param_debits_bbio(usage).unwrap();
+        assert!(o > 0.0 && i >= 0.0, "usage {usage}");
+    }
+    // Hôtels 3 à 5 étoiles, partie nuit : le tableau donne plus en inoccupation (2,2) qu'en
+    // occupation (2).
+    assert_eq!(param_debits_bbio(9), Some((2.0, 2.2)));
+
+    // Débits du projet, éq. (383) à (386), (400) à (402), (412) et (413) : soufflage de
+    // 2 000 m³/h en occupation et 500 en inoccupation, Crdbnr = 0,8, Cdep = 1,3.
+    let (max, occ, inocc) = debits_dep_non_residentiel(Isouf::Soufflage, 2000.0, 500.0, 0.8, 1.3);
+    proche(max, 2000.0);
+    proche(occ, 2080.0);
+    proche(inocc, 650.0);
+    let (max, occ, inocc) = debits_dep_non_residentiel(Isouf::Reprise, 2000.0, 0.0, 1.0, 1.15);
+    proche(max, -2000.0);
+    proche(occ, -2300.0);
+    assert_eq!(inocc, 0.0);
 }

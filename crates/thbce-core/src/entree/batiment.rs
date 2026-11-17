@@ -173,6 +173,12 @@ pub struct Groupe {
     /// Émetteurs d'ECS équivalents du groupe (§9.5 à 9.7). Au moins un en habitation.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub emetteurs_ecs: Vec<EmetteurEcs>,
+    /// Locaux du groupe au sens de l'éclairage (§7.1), pour les usages autres que la maison
+    /// individuelle ou accolée et le logement collectif, dont l'éclairage est conventionnel :
+    /// ne pas les saisir en habitation. Requis dans les autres usages ; la somme des
+    /// `ratio_local` vaut 1.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub locaux: Vec<LocalEclairage>,
 }
 
 /// Catégorie de contrainte extérieure du groupe (§13.1.2 : « 1 = CE1 / 2 = CE2 »).

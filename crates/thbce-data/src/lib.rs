@@ -8,6 +8,7 @@
 //! d'utilisation interdisent de les diffuser. Ils sont fournis par l'appelant au moment du calcul.
 
 pub mod departement;
+pub mod eclairage;
 pub mod energies;
 pub mod ponderation_dynamique;
 pub mod protections_mobiles;

@@ -305,7 +305,7 @@ impl BatimentHoraire {
                         i_occ: i_occ[l.zone],
                         aut_ch: g.etat.saisons.aut_ch,
                         aut_fr: g.etat.saisons.aut_fr,
-                        hebergement: g.habitation,
+                        hebergement: g.hebergement,
                     }
                 }));
                 et.phi_rejet_w = self.systemes.phi_rejet_et_w.get(i).copied().unwrap_or(0.0);

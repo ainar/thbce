@@ -254,11 +254,47 @@ mod ecs {
         .unwrap()
     }
 
+    /// Bureaux : tableaux 274 et 277, §9.6.3.2.2.1.
+    #[test]
+    fn besoins_hebdomadaires_en_bureaux() {
+        let e: EmetteurEcs = serde_json::from_str(
+            r#"{"id": "e", "rat_em": 0.5, "part_melangeur": 0, "part_mitigeur": 0,
+                "part_temporisateur": 1, "appareils": "douche_seule",
+                "distribution": {"d_int_m": 0.016, "l_hvc_m": 2, "nb_dist": 1},
+                "distribution_intergroupe": "dp"}"#,
+        )
+        .unwrap();
+        // corr = (1 − 1 × 0,07) × (1 − 0,5 × 0,05) = 0,93 × 0,975 (Ratdouches-bains = 50 %).
+        assert_proche!(corr_e(&e, UsageZone::Bureaux), 0.93 * 0.975);
+        // Autres usages : Ratdouches-bains = 0, seuls les émetteurs corrigent.
+        assert_proche!(corr_e(&e, UsageZone::Commerces), 0.93);
+        // Groupe de 800 m² utiles, émetteur desservant la moitié : Nu = 400 m² ;
+        // a = 1,25 L/(m².semaine) ; Vuw_hebdo = 500 L.
+        let b = BesoinsHebdomadaires::nouveaux(&e, UsageZone::Bureaux, 800.0).unwrap();
+        assert_proche!(b.a_m2, 400.0);
+        assert_proche!(b.nadeq, 400.0);
+        assert_proche!(b.a_l, 1.25);
+        assert_proche!(b.v_uw_hebdo_l, 500.0);
+        assert_proche!(b.v_uw_hebdo_corr_l, 500.0 * 0.93 * 0.975);
+        // Qw = 1,163 × 500 × 0,93 × 0,975 × 0,012 × (40 − 12).
+        assert_proche!(
+            b.q_w_wh(0.012, 12.0),
+            1.163 * 500.0 * 0.93 * 0.975 * 0.012 * 28.0
+        );
+        // Nombre d'unités saisi : il remplace la surface desservie.
+        let e2 = EmetteurEcs {
+            nu: Some(250.0),
+            ..e
+        };
+        let b = BesoinsHebdomadaires::nouveaux(&e2, UsageZone::Bureaux, 800.0).unwrap();
+        assert_proche!(b.v_uw_hebdo_l, 312.5);
+    }
+
     #[test]
     fn besoins_hebdomadaires_eq_1676_a_1692() {
         let e = emetteur();
         // corr = (1 − 0,6 × 0,05) × (1 − 0,8 × 0,05) = 0,97 × 0,96.
-        assert_proche!(corr_e(&e), 0.97 * 0.96);
+        assert_proche!(corr_e(&e, UsageZone::MaisonIndividuelle), 0.97 * 0.96);
         // Maison de 100 m² : Nmax = 2,5 ; Nadeq = 1,75 + 0,3 × 0,75 = 1,975 ;
         // a = min(392 ; 40 × 100/1,975) = 392 L.
         let b = BesoinsHebdomadaires::nouveaux(&e, UsageZone::MaisonIndividuelle, 100.0).unwrap();
