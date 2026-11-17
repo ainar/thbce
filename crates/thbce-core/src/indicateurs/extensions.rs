@@ -56,69 +56,97 @@ pub fn usage_principal(zones: &[(u8, f64)]) -> Option<u8> {
     meilleur.map(|(u, _)| u)
 }
 
+/// Surfaces qui fixent le régime d'exigences, en m².
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Surfaces {
+    /// `Sref` de la partie décrite (extension ou construction).
+    pub propre_m2: f64,
+    /// Cumul des surfaces des extensions du même bâtiment : « la surface considérée pour
+    /// l'application du présent I » de l'article 50-3 ; égal à `propre_m2` sans autre
+    /// extension.
+    pub cumul_m2: f64,
+    /// `Sref` des locaux existants ; `None` : inconnue (aucun seuil de 30 % n'est alors
+    /// franchi, ce qui retient le régime complet ; la validation l'exige quand elle sert).
+    pub existant_m2: Option<f64>,
+}
+
+impl Surfaces {
+    /// Une seule extension (ou une construction) de `s_m2`.
+    pub fn seule(s_m2: f64, existant_m2: Option<f64>) -> Self {
+        Self {
+            propre_m2: s_m2,
+            cumul_m2: s_m2,
+            existant_m2,
+        }
+    }
+}
+
 /// Régime d'exigences (Q86).
 ///
-/// `s_m2` : surface considérée (cumul des extensions du même bâtiment) ; `part` : rapport de
-/// cette surface à la `Sref` des locaux existants (`None` : inconnue ; aucun seuil de 30 %
-/// n'est alors franchi, ce qui retient le régime complet ; la validation l'exige quand elle
-/// sert).
+/// Le cumul des extensions ne sert qu'à l'article 50-3, I, comme sa clause le dit (« pour
+/// l'application du présent I ») ; les exclusions de l'article R. 172-1, III et la date
+/// d'application de l'article 3, II portent sur la surface de la partie décrite. Bornes à la
+/// lettre (« inférieure à » stricte).
 pub fn regime(
     nature: NatureTravaux,
     famille: FamilleUsage,
-    s_m2: f64,
-    part: Option<f64>,
+    s: Surfaces,
     p: &ParametresExigences,
 ) -> RegimeExigences {
     use FamilleUsage as F;
     use RegimeExigences as R;
     let extension = nature != NatureTravaux::Construction;
-    let petite = s_m2 < SEUIL_PETITE_SURFACE_M2;
-    let part_inf_30 = part.is_some_and(|x| x < 0.3);
-    let part_sup_30 = part.is_some_and(|x| x > 0.3);
-    let entre = |a: f64, b: f64| s_m2 > a && s_m2 < b;
+    let part_inf_30 = |x: f64| s.existant_m2.is_some_and(|e| e > 0.0 && x / e < 0.3);
+    let part_sup_30 = |x: f64| s.existant_m2.is_some_and(|e| e > 0.0 && x / e > 0.3);
+    // Surface propre : article 3, II et article R. 172-1, III.
+    let sp = s.propre_m2;
+    // Surface cumulée : article 50-3, I.
+    let sc = s.cumul_m2;
+    let entre = |x: f64, a: f64, b: f64| x > a && x < b;
     // Arrêté du 4 août 2021, article 3, II : jusqu'au 31 décembre 2022, seule la RT 2012
     // s'applique aux bâtiments et extensions de moins de 50 m², aux extensions de maisons de
     // 50 à 100 m² (strictement) et aux autres extensions de moins de 150 m² et de 30 % de
     // l'existant. Les exigences alternatives de l'article 50-3 datent du 1er janvier 2023.
     if p.annee_depot_permis <= 2022 {
-        let rt2012 = petite
+        let rt2012 = sp < SEUIL_PETITE_SURFACE_M2
             || (extension
                 && match famille {
-                    F::MaisonIndividuelle => entre(50.0, 100.0),
-                    _ => s_m2 < 150.0 && part_inf_30,
+                    F::MaisonIndividuelle => entre(sp, 50.0, 100.0),
+                    _ => sp < 150.0 && part_inf_30(sp),
                 });
         return if rt2012 { R::Rt2012 } else { R::Complet };
     }
+    // Article R. 172-1, III, 3° et 4° (usages 6 à 28) : hors du champ ; « cumulativement »
+    // y signifie que les deux conditions (150 m² et 30 %) sont réunies.
+    if famille == F::TertiaireSpecifiqueOuIndustriel
+        && (sp < SEUIL_PETITE_SURFACE_M2 || (extension && sp < 150.0 && part_inf_30(sp)))
+    {
+        return R::HorsChamp;
+    }
+    let petite = sc < SEUIL_PETITE_SURFACE_M2;
     match famille {
         // Article 50-3, I : III pour moins de 50 m², II pour une extension de maison de 50 à
         // 80 m² (strictement), surélévations comprises.
         F::MaisonIndividuelle => {
             if petite {
                 R::ExigencesDeMoyens
-            } else if extension && entre(50.0, 80.0) {
+            } else if extension && entre(sc, 50.0, 80.0) {
                 R::Intermediaire
             } else {
                 R::Complet
             }
         }
-        // Article R. 172-1, III, 3° et 4° : hors du champ.
-        F::TertiaireSpecifiqueOuIndustriel
-            if petite || (extension && s_m2 < 150.0 && part_inf_30) =>
-        {
-            R::HorsChamp
-        }
-        F::CollectifBureauxEnseignement if petite => R::ExigencesDeMoyens,
+        _ if petite => R::ExigencesDeMoyens,
         _ if !extension => R::Complet,
         _ => {
             // Article 50-3, I (rédaction de l'arrêté du 18 mars 2026, permis déposés à partir
             // du 1er juillet 2026) : surélévations à usage autre que de maison.
             let surelevation_2026 =
                 nature == NatureTravaux::Surelevation && p.depot_a_partir_de(2026, 7);
-            if entre(50.0, 150.0) && part_inf_30 {
-                // Atteint seulement pour les usages 2 à 5 (hors du champ pour 6 à 28).
+            if entre(sc, 50.0, 150.0) && part_inf_30(sc) {
                 R::ExigencesDeMoyens
             } else if surelevation_2026
-                && ((entre(50.0, 150.0) && part_sup_30) || (s_m2 > 150.0 && part_inf_30))
+                && ((entre(sc, 50.0, 150.0) && part_sup_30(sc)) || (sc > 150.0 && part_inf_30(sc)))
             {
                 R::Intermediaire
             } else {
@@ -130,8 +158,9 @@ pub fn regime(
 
 /// `DH_max` d'un groupe sous le régime intermédiaire : celui de l'article R. 172-4, porté à
 /// 1 400 °C.h pour une surélévation climatisée de maison individuelle en H2d ou H3 (article
-/// 50-3, II, 1). Q88 : seulement en catégorie 1, où `DH_maxcat` vaut 1 250 °C.h (en catégorie 2,
-/// 1 850 °C.h, « porter à 1 400 » abaisserait l'exigence).
+/// 50-3, II, 1), valeur de la colonne « catégorie 1, climatisé en H2d et H3 » des logements
+/// collectifs. Q88 : en catégorie 1 seulement, et `max(DH_maxcat ; 1 400)` (« porter à »
+/// n'abaisse pas l'exigence).
 pub fn dh_max_intermediaire(
     dh_max: f64,
     nature: NatureTravaux,
@@ -146,7 +175,7 @@ pub fn dh_max_intermediaire(
         && matches!(zone, ZoneClimatique::H2d | ZoneClimatique::H3)
         && categorie == CategorieContraintes::Categorie1
     {
-        DH_MAX_SURELEVATION_MAISON_C_H
+        dh_max.max(DH_MAX_SURELEVATION_MAISON_C_H)
     } else {
         dh_max
     }
@@ -164,46 +193,56 @@ pub fn regime_alternatif(
     zone: ZoneClimatique,
     ex: &ResultatsExigences,
 ) -> Option<RegimeAlternatif> {
-    let (nature, s, part) = match &pa.extension {
+    let (nature, surfaces) = match &pa.extension {
         Some(x) => {
-            let s = sref_m2 + x.sref_autres_extensions_m2;
             let nature = if x.surelevation {
                 NatureTravaux::Surelevation
             } else {
                 NatureTravaux::Extension
             };
-            let part = x.sref_existant_m2.filter(|&e| e > 0.0).map(|e| s / e);
-            (nature, s, part)
+            let surfaces = Surfaces {
+                propre_m2: sref_m2,
+                cumul_m2: sref_m2 + x.sref_autres_extensions_m2,
+                existant_m2: x.sref_existant_m2.filter(|&e| e > 0.0),
+            };
+            (nature, surfaces)
         }
-        None if sref_m2 < SEUIL_PETITE_SURFACE_M2 => (NatureTravaux::Construction, sref_m2, None),
+        None if sref_m2 < SEUIL_PETITE_SURFACE_M2 => {
+            (NatureTravaux::Construction, Surfaces::seule(sref_m2, None))
+        }
         None => return None,
     };
     let famille = famille(usage_principal(zones)?);
-    let regime = regime(nature, famille, s, part, pa);
+    let regime = regime(nature, famille, surfaces, pa);
+    let s = surfaces.cumul_m2;
+    let part = surfaces.existant_m2.map(|e| s / e);
     let mut verifications = Vec::new();
     let mut manquants = Vec::new();
     let conforme = match regime {
         RegimeExigences::Complet => Some(ex.conforme),
         RegimeExigences::Intermediaire => {
+            let mut groupes = bat
+                .zones
+                .iter()
+                .flat_map(|z| z.groupes.iter().map(move |g| (z, g)));
             for v in &ex.verifications {
                 match v.indicateur.as_str() {
                     "bbio" => verifications.push(v.clone()),
                     "dh" => {
-                        let max = v
-                            .groupe
-                            .as_deref()
-                            .and_then(|g| groupe_et_zone(bat, g))
-                            .map_or(v.maximum, |(u, zid, climatise)| {
-                                let gid = v.groupe.as_deref().unwrap_or_default();
-                                dh_max_intermediaire(
-                                    v.maximum,
-                                    nature,
-                                    u,
-                                    climatise,
-                                    zone,
-                                    pa.categorie_groupe(zid, gid),
-                                )
-                            });
+                        // Les vérifications du DH suivent l'ordre des zones et des groupes :
+                        // chaque groupe est cherché dans sa zone (identifiants uniques par zone).
+                        let groupe = v.groupe.as_deref().unwrap_or_default();
+                        let trouve = groupes.find(|(_, g)| g.id == groupe);
+                        let max = trouve.map_or(v.maximum, |(z, g)| {
+                            dh_max_intermediaire(
+                                v.maximum,
+                                nature,
+                                z.usage.numero(),
+                                g.iclim == Some(true),
+                                zone,
+                                pa.categorie_groupe(&z.id, &g.id),
+                            )
+                        });
                         verifications.push(super::sorties_th_c::verifier(
                             "dh",
                             v.groupe.clone(),
@@ -259,17 +298,6 @@ pub fn avertissement(batiment: &str, r: &RegimeAlternatif) -> Option<String> {
     }
 }
 
-/// Numéro d'usage de la zone, identifiant de la zone et climatisation du groupe `id` (premier
-/// groupe de ce nom dans le bâtiment).
-fn groupe_et_zone<'a>(bat: &'a Batiment, id: &str) -> Option<(u8, &'a str, bool)> {
-    bat.zones.iter().find_map(|z| {
-        z.groupes
-            .iter()
-            .find(|g| g.id == id)
-            .map(|g| (z.usage.numero(), z.id.as_str(), g.iclim == Some(true)))
-    })
-}
-
 #[cfg(test)]
 #[allow(clippy::float_cmp)]
 mod tests {
@@ -298,79 +326,139 @@ mod tests {
         }
     }
 
-    /// FA03 v2, tableau 2 (maisons) et article 50-3, I, à la lettre.
+    /// Une seule extension de `s` m² sur `e` m² existants.
+    fn sf(s: f64, e: Option<f64>) -> Surfaces {
+        Surfaces::seule(s, e)
+    }
+
+    /// Article 50-3, I, à la lettre (« inférieure à » stricte) ; cas aux frontières de la
+    /// relecture de la PR #58.
     #[test]
     fn maisons_individuelles() {
         let q = p(2025, None);
-        let r = |n, s| regime(n, F::MaisonIndividuelle, s, None, &q);
-        assert_eq!(r(N::Extension, 45.0), R::ExigencesDeMoyens);
+        let r = |n, s| regime(n, F::MaisonIndividuelle, sf(s, None), &q);
+        assert_eq!(r(N::Extension, 49.9), R::ExigencesDeMoyens);
         assert_eq!(r(N::Construction, 45.0), R::ExigencesDeMoyens);
+        assert_eq!(r(N::Extension, 50.0), R::Complet);
+        assert_eq!(r(N::Extension, 50.1), R::Intermediaire);
         assert_eq!(r(N::Extension, 60.0), R::Intermediaire);
         assert_eq!(r(N::Surelevation, 79.9), R::Intermediaire);
-        assert_eq!(r(N::Extension, 90.0), R::Complet);
-        assert_eq!(r(N::Construction, 60.0), R::Complet);
-        // Bornes : 50 et 80 m² ne sont ni « inférieure à 50 » ni « strictement entre 50 et
-        // 80 » (Q86 ; la FA03 range 50 m² dans les exigences de moyens).
-        assert_eq!(r(N::Extension, 50.0), R::Complet);
+        assert_eq!(r(N::Extension, 79.9), R::Intermediaire);
         assert_eq!(r(N::Extension, 80.0), R::Complet);
-        // Permis de 2022 (article 3, II) : RT 2012 sous 50 m² et de 50 à 100 m².
+        assert_eq!(r(N::Construction, 60.0), R::Complet);
+        // Permis de 2022 (article 3, II) : RT 2012 sous 50 m² et strictement de 50 à 100 m².
         let q = p(2022, None);
-        let r = |n, s| regime(n, F::MaisonIndividuelle, s, None, &q);
+        let r = |n, s| regime(n, F::MaisonIndividuelle, sf(s, None), &q);
+        assert_eq!(r(N::Extension, 49.9), R::Rt2012);
         assert_eq!(r(N::Construction, 45.0), R::Rt2012);
-        assert_eq!(r(N::Extension, 90.0), R::Rt2012);
+        assert_eq!(r(N::Extension, 50.0), R::Complet);
+        assert_eq!(r(N::Extension, 80.0), R::Rt2012);
+        assert_eq!(r(N::Extension, 99.9), R::Rt2012);
         assert_eq!(r(N::Extension, 100.0), R::Complet);
         assert_eq!(r(N::Construction, 90.0), R::Complet);
     }
 
-    /// FA03 v2, tableau 3 (logements collectifs, bureaux, enseignement).
+    /// Logements collectifs, bureaux, enseignement (FA03 v2, tableau 3).
     #[test]
     fn collectif_bureaux_enseignement() {
         let f = F::CollectifBureauxEnseignement;
         let q = p(2025, None);
-        let r = |n, s, part: f64| regime(n, f, s, Some(part), &q);
-        assert_eq!(r(N::Extension, 40.0, 0.5), R::ExigencesDeMoyens);
-        assert_eq!(r(N::Extension, 120.0, 0.12), R::ExigencesDeMoyens);
-        assert_eq!(r(N::Extension, 120.0, 0.4), R::Complet);
-        assert_eq!(r(N::Extension, 200.0, 0.2), R::Complet);
+        let r = |n, s, e: f64| regime(n, f, sf(s, Some(e)), &q);
+        assert_eq!(r(N::Extension, 40.0, 80.0), R::ExigencesDeMoyens);
+        // 120 m² : 29,9 % → III ; 30 % → complet.
+        assert_eq!(r(N::Extension, 120.0, 120.0 / 0.299), R::ExigencesDeMoyens);
+        assert_eq!(r(N::Extension, 120.0, 400.0), R::Complet);
+        assert_eq!(r(N::Extension, 120.0, 300.0), R::Complet);
+        // À 20 % : 149,9 m² → III ; 150 m² → complet.
+        assert_eq!(r(N::Extension, 149.9, 749.5), R::ExigencesDeMoyens);
+        assert_eq!(r(N::Extension, 150.0, 750.0), R::Complet);
         // Avant juillet 2026, une surélévation suit les règles des extensions.
-        assert_eq!(r(N::Surelevation, 120.0, 0.4), R::Complet);
-        assert_eq!(r(N::Surelevation, 200.0, 0.2), R::Complet);
+        assert_eq!(r(N::Surelevation, 120.0, 300.0), R::Complet);
+        assert_eq!(r(N::Surelevation, 200.0, 1000.0), R::Complet);
         // À partir du 1er juillet 2026 (arrêté du 18 mars 2026).
         let q = p(2026, Some(7));
-        let r = |n, s, part: f64| regime(n, f, s, Some(part), &q);
-        assert_eq!(r(N::Surelevation, 40.0, 0.1), R::ExigencesDeMoyens);
-        assert_eq!(r(N::Surelevation, 120.0, 0.12), R::ExigencesDeMoyens);
-        assert_eq!(r(N::Surelevation, 120.0, 0.4), R::Intermediaire);
-        assert_eq!(r(N::Surelevation, 200.0, 0.2), R::Intermediaire);
-        assert_eq!(r(N::Surelevation, 200.0, 0.4), R::Complet);
-        assert_eq!(r(N::Extension, 200.0, 0.2), R::Complet);
+        let r = |n, s, e: f64| regime(n, f, sf(s, Some(e)), &q);
+        assert_eq!(r(N::Surelevation, 40.0, 400.0), R::ExigencesDeMoyens);
+        assert_eq!(
+            r(N::Surelevation, 120.0, 120.0 / 0.299),
+            R::ExigencesDeMoyens
+        );
+        assert_eq!(r(N::Surelevation, 120.0, 400.0), R::Complet);
+        assert_eq!(r(N::Surelevation, 120.0, 120.0 / 0.301), R::Intermediaire);
+        assert_eq!(r(N::Surelevation, 150.1, 750.5), R::Intermediaire);
+        assert_eq!(r(N::Surelevation, 200.0, 500.0), R::Complet);
+        assert_eq!(r(N::Extension, 200.0, 1000.0), R::Complet);
         let q = p(2026, Some(6));
-        assert_eq!(regime(N::Surelevation, f, 200.0, Some(0.2), &q), R::Complet);
+        assert_eq!(
+            regime(N::Surelevation, f, sf(150.1, Some(750.5)), &q),
+            R::Complet
+        );
         // Permis de 2022 : RT 2012 sous 150 m² et 30 %.
         let q = p(2022, Some(9));
-        let r = |n, s, part: f64| regime(n, f, s, Some(part), &q);
-        assert_eq!(r(N::Extension, 120.0, 0.12), R::Rt2012);
-        assert_eq!(r(N::Extension, 120.0, 0.4), R::Complet);
-        assert_eq!(r(N::Construction, 45.0, 0.0), R::Rt2012);
+        let r = |n, s, e: f64| regime(n, f, sf(s, Some(e)), &q);
+        assert_eq!(r(N::Extension, 120.0, 1000.0), R::Rt2012);
+        assert_eq!(r(N::Extension, 120.0, 300.0), R::Complet);
+        assert_eq!(regime(N::Construction, f, sf(45.0, None), &q), R::Rt2012);
     }
 
-    /// FA03 v2, tableau 4, et article R. 172-1, III (usages 6 à 28).
+    /// Usages 6 à 28 (FA03 v2, tableau 4, et article R. 172-1, III).
     #[test]
     fn tertiaire_specifique() {
         let f = F::TertiaireSpecifiqueOuIndustriel;
         let q = p(2026, Some(9));
-        let r = |n, s, part: f64| regime(n, f, s, Some(part), &q);
-        assert_eq!(r(N::Construction, 40.0, 0.0), R::HorsChamp);
-        assert_eq!(r(N::Extension, 40.0, 0.5), R::HorsChamp);
-        assert_eq!(r(N::Extension, 100.0, 0.2), R::HorsChamp);
-        assert_eq!(r(N::Extension, 100.0, 0.5), R::Complet);
-        assert_eq!(r(N::Extension, 160.0, 0.2), R::Complet);
-        // Surélévations : le texte (R. 172-1, III) les exclut comme les extensions sous 50 m²
-        // et sous 150 m² et 30 % ; la FA03 les range dans les exigences de moyens (Q86).
-        assert_eq!(r(N::Surelevation, 100.0, 0.2), R::HorsChamp);
-        assert_eq!(r(N::Surelevation, 100.0, 0.5), R::Intermediaire);
-        assert_eq!(r(N::Surelevation, 160.0, 0.2), R::Intermediaire);
-        assert_eq!(r(N::Surelevation, 160.0, 0.5), R::Complet);
+        let r = |n, s, e: f64| regime(n, f, sf(s, Some(e)), &q);
+        assert_eq!(regime(N::Construction, f, sf(49.9, None), &q), R::HorsChamp);
+        assert_eq!(r(N::Extension, 49.9, 99.8), R::HorsChamp);
+        assert_eq!(r(N::Extension, 50.0, 100.0), R::Complet);
+        assert_eq!(r(N::Extension, 149.9, 149.9 / 0.299), R::HorsChamp);
+        assert_eq!(r(N::Extension, 150.0, 750.0), R::Complet);
+        assert_eq!(r(N::Extension, 100.0, 200.0), R::Complet);
+        // Surélévations : le texte (R. 172-1, III) les exclut comme les extensions ; la FA03 les
+        // range dans les exigences de moyens (Q86).
+        assert_eq!(r(N::Surelevation, 100.0, 500.0), R::HorsChamp);
+        assert_eq!(r(N::Surelevation, 100.0, 200.0), R::Intermediaire);
+        assert_eq!(r(N::Surelevation, 160.0, 800.0), R::Intermediaire);
+        assert_eq!(r(N::Surelevation, 160.0, 320.0), R::Complet);
+    }
+
+    /// Cumul des extensions : article 50-3, I seulement (Q86, point 4b).
+    #[test]
+    fn cumul_des_extensions() {
+        let q = p(2026, Some(9));
+        // Commerce : 100 m² décrits sur 1 000 m² existants, 60 m² d'autres extensions. R. 172-1,
+        // III porte sur la partie décrite : hors du champ.
+        let s = Surfaces {
+            propre_m2: 100.0,
+            cumul_m2: 160.0,
+            existant_m2: Some(1000.0),
+        };
+        let f = F::TertiaireSpecifiqueOuIndustriel;
+        assert_eq!(regime(N::Extension, f, s, &q), R::HorsChamp);
+        // Bureaux : 40 m² décrits, 30 m² d'autres extensions → 70 m² cumulés, sur 1 000 m² :
+        // article 50-3, III (et non « moins de 50 m² »).
+        let s = Surfaces {
+            propre_m2: 40.0,
+            cumul_m2: 70.0,
+            existant_m2: Some(1000.0),
+        };
+        let f = F::CollectifBureauxEnseignement;
+        assert_eq!(regime(N::Extension, f, s, &q), R::ExigencesDeMoyens);
+        // Maison : 40 + 30 m² → 70 m² cumulés : article 50-3, II.
+        let s = Surfaces {
+            propre_m2: 40.0,
+            cumul_m2: 70.0,
+            existant_m2: None,
+        };
+        assert_eq!(
+            regime(N::Extension, F::MaisonIndividuelle, s, &q),
+            R::Intermediaire
+        );
+        // Permis de 2022 : l'article 3, II porte sur la partie décrite.
+        let q = p(2022, None);
+        assert_eq!(
+            regime(N::Extension, F::MaisonIndividuelle, s, &q),
+            R::Rt2012
+        );
     }
 
     #[test]

@@ -15,7 +15,7 @@ use thbce_core::entree::{
     CategorieContraintes as C, ExtensionSaisie, ParametresExigences, ZoneBruit as B,
 };
 use thbce_core::indicateurs::exigences::{dh_max, exigences_partie, PartieBatiment, SeuilDh};
-use thbce_core::indicateurs::extensions::{dh_max_intermediaire, famille, regime};
+use thbce_core::indicateurs::extensions::{dh_max_intermediaire, famille, regime, Surfaces};
 use thbce_core::indicateurs::resultats::{NatureTravaux as N, RegimeExigences as R};
 use thbce_data::ZoneClimatique as Z;
 
@@ -70,13 +70,19 @@ fn extension_de_maison_de_60_m2() {
     assert_eq!(dh, SeuilDh::Maximum(1250.0));
     // Régime : strictement entre 50 et 80 m² → article 50-3, II.
     let f = famille(1);
-    assert_eq!(regime(N::Extension, f, 60.0, None, &p), R::Intermediaire);
+    assert_eq!(
+        regime(N::Extension, f, Surfaces::seule(60.0, None), &p),
+        R::Intermediaire
+    );
     // 45 m² → III ; 90 m² → complet.
     assert_eq!(
-        regime(N::Extension, f, 45.0, None, &p),
+        regime(N::Extension, f, Surfaces::seule(45.0, None), &p),
         R::ExigencesDeMoyens
     );
-    assert_eq!(regime(N::Extension, f, 90.0, None, &p), R::Complet);
+    assert_eq!(
+        regime(N::Extension, f, Surfaces::seule(90.0, None), &p),
+        R::Complet
+    );
 }
 
 /// Extension de maison de 90 m² (régime complet) : `Mbsurf_moy` = (49 − 44,1)/63 ;
@@ -103,7 +109,7 @@ fn surelevation_climatisee_de_maison_en_h3() {
     let e = exigences_partie(&partie(1, 60.0, 1), &p, Z::H3, 50.0).unwrap();
     proche(e.bbio_max, 76.3);
     assert_eq!(
-        regime(N::Surelevation, famille(1), 60.0, None, &p),
+        regime(N::Surelevation, famille(1), Surfaces::seule(60.0, None), &p),
         R::Intermediaire
     );
     let dh = dh_max(1, C::Categorie1, Z::H3, true, 60.0)
@@ -127,12 +133,25 @@ fn extension_de_logements_collectifs_de_120_m2() {
     // Existant de 1 000 m² : 12 % → article 50-3, III.
     let p = parametres(2025, None, Some(1000.0));
     assert_eq!(
-        regime(N::Extension, f, 120.0, Some(0.12), &p),
+        regime(
+            N::Extension,
+            f,
+            Surfaces::seule(120.0, Some(120.0 / 0.12)),
+            &p
+        ),
         R::ExigencesDeMoyens
     );
     // Existant de 300 m² : 40 % → régime complet.
     let p = parametres(2025, None, Some(300.0));
-    assert_eq!(regime(N::Extension, f, 120.0, Some(0.4), &p), R::Complet);
+    assert_eq!(
+        regime(
+            N::Extension,
+            f,
+            Surfaces::seule(120.0, Some(120.0 / 0.4)),
+            &p
+        ),
+        R::Complet
+    );
     let e = exigences_partie(&partie(2, 120.0, 2), &p, Z::H2b, 100.0).unwrap();
     proche(e.bbio_max, 82.7);
     proche(e.cep_nr_max, 81.8);
@@ -141,7 +160,12 @@ fn extension_de_logements_collectifs_de_120_m2() {
     // La même en surélévation, permis de juillet 2026 : article 50-3, II.
     let p = parametres(2026, Some(7), Some(300.0));
     assert_eq!(
-        regime(N::Surelevation, f, 120.0, Some(0.4), &p),
+        regime(
+            N::Surelevation,
+            f,
+            Surfaces::seule(120.0, Some(120.0 / 0.4)),
+            &p
+        ),
         R::Intermediaire
     );
 }
@@ -154,12 +178,22 @@ fn extension_de_logements_collectifs_de_120_m2() {
 fn extension_de_bureaux_de_200_m2() {
     let p = parametres(2026, Some(9), Some(500.0));
     assert_eq!(
-        regime(N::Extension, famille(3), 200.0, Some(0.4), &p),
+        regime(
+            N::Extension,
+            famille(3),
+            Surfaces::seule(200.0, Some(200.0 / 0.4)),
+            &p
+        ),
         R::Complet
     );
     // 100 m² sur 500 m² existants (20 %) → article 50-3, III.
     assert_eq!(
-        regime(N::Extension, famille(3), 100.0, Some(0.2), &p),
+        regime(
+            N::Extension,
+            famille(3),
+            Surfaces::seule(100.0, Some(100.0 / 0.2)),
+            &p
+        ),
         R::ExigencesDeMoyens
     );
     let e = exigences_partie(&partie(3, 200.0, 0), &p, Z::H2b, 100.0).unwrap();
@@ -179,7 +213,26 @@ fn extension_de_bureaux_de_200_m2() {
 fn extension_de_commerce() {
     let p = parametres(2026, Some(9), Some(500.0));
     let f = famille(17);
-    assert_eq!(regime(N::Extension, f, 100.0, Some(0.2), &p), R::HorsChamp);
-    assert_eq!(regime(N::Extension, f, 100.0, Some(0.5), &p), R::Complet);
-    assert_eq!(regime(N::Construction, f, 40.0, None, &p), R::HorsChamp);
+    assert_eq!(
+        regime(
+            N::Extension,
+            f,
+            Surfaces::seule(100.0, Some(100.0 / 0.2)),
+            &p
+        ),
+        R::HorsChamp
+    );
+    assert_eq!(
+        regime(
+            N::Extension,
+            f,
+            Surfaces::seule(100.0, Some(100.0 / 0.5)),
+            &p
+        ),
+        R::Complet
+    );
+    assert_eq!(
+        regime(N::Construction, f, Surfaces::seule(40.0, None), &p),
+        R::HorsChamp
+    );
 }

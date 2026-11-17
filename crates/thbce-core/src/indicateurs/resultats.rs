@@ -419,17 +419,21 @@ impl ResultatsIndicateurs {
         self.cep_nr_kwhep_m2 = a(self.cep_nr_kwhep_m2);
         self.ic_energie_kgco2_m2 = self.ic_energie_kgco2_m2.map(a);
         if let Some(e) = &mut self.exigences {
-            e.bbio_max_pts = a(e.bbio_max_pts);
-            e.cep_max_kwhep_m2 = a(e.cep_max_kwhep_m2);
-            e.cep_nr_max_kwhep_m2 = a(e.cep_nr_max_kwhep_m2);
-            e.ic_energie_max_kgco2_m2 = a(e.ic_energie_max_kgco2_m2);
+            // Valeurs maximales : produits de coefficients décimaux du texte, arrondies à 1e-9
+            // près avant l'arrondi de restitution pour qu'une erreur de représentation ne fasse
+            // pas tomber une demi-décimale du mauvais côté (55 × 1,15 = 63,24999999999999).
+            let ax = |x: f64| a((x * 1e9).round() / 1e9);
+            e.bbio_max_pts = ax(e.bbio_max_pts);
+            e.cep_max_kwhep_m2 = ax(e.cep_max_kwhep_m2);
+            e.cep_nr_max_kwhep_m2 = ax(e.cep_nr_max_kwhep_m2);
+            e.ic_energie_max_kgco2_m2 = ax(e.ic_energie_max_kgco2_m2);
             for z in &mut e.zones {
                 z.sref_m2 = a(z.sref_m2);
                 z.smoy_lgt_m2 = a(z.smoy_lgt_m2);
-                z.bbio_max_pts = a(z.bbio_max_pts);
-                z.cep_max_kwhep_m2 = a(z.cep_max_kwhep_m2);
-                z.cep_nr_max_kwhep_m2 = a(z.cep_nr_max_kwhep_m2);
-                z.ic_energie_max_kgco2_m2 = a(z.ic_energie_max_kgco2_m2);
+                z.bbio_max_pts = ax(z.bbio_max_pts);
+                z.cep_max_kwhep_m2 = ax(z.cep_max_kwhep_m2);
+                z.cep_nr_max_kwhep_m2 = ax(z.cep_nr_max_kwhep_m2);
+                z.ic_energie_max_kgco2_m2 = ax(z.ic_energie_max_kgco2_m2);
                 for m in [
                     &mut z.mb_geo,
                     &mut z.mb_combles,
@@ -449,7 +453,7 @@ impl ResultatsIndicateurs {
             }
             for v in &mut e.verifications {
                 v.valeur = a(v.valeur);
-                v.maximum = a(v.maximum);
+                v.maximum = ax(v.maximum);
                 v.marge = a(v.marge);
                 v.marge_pct = a(v.marge_pct);
             }
@@ -458,7 +462,7 @@ impl ResultatsIndicateurs {
                 r.part_existant_pct = r.part_existant_pct.map(a);
                 for v in &mut r.verifications {
                     v.valeur = a(v.valeur);
-                    v.maximum = a(v.maximum);
+                    v.maximum = ax(v.maximum);
                     v.marge = a(v.marge);
                     v.marge_pct = a(v.marge_pct);
                 }

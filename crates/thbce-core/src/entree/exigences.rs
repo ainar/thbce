@@ -98,6 +98,10 @@ pub struct ParametresExigences {
     /// réglementation de l'existant, leur puissance nominale au prorata des besoins (à défaut,
     /// des surfaces) desservis (FA03, annexe II).
     ///
+    /// Le `nb_logements` d'une zone d'extension compte les logements qu'elle contient en tout
+    /// ou en partie, logements existants agrandis compris (au moins 1 : une extension de
+    /// logements collectifs sans logement nouveau compte les logements qu'elle agrandit ; Q87).
+    ///
     /// Les exigences de l'article R. 172-4 (`Bbio_max`, `Cep_max`… calculées sur la `Sref` et
     /// les logements de l'extension) restent calculées et vérifiées ; le régime d'exigences
     /// alternatives ouvert par la surface et l'usage (article 50-3) est restitué à côté
@@ -111,12 +115,13 @@ pub struct ParametresExigences {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ExtensionSaisie {
-    /// Extension verticale (« surélévation ») : étage ajouté, ou combles existants aménagés
-    /// en surélevant le faîtage de plus de 1,8 m (fiche 4.4). Pour un permis déposé à partir du
-    /// 1er juillet 2026, les surélévations à usage autre que de maison individuelle ont leurs
-    /// propres seuils (article 50-3, I, arrêté du 18 mars 2026), et le `DH_max` d'une
-    /// surélévation climatisée de maison en H2d ou H3 est porté à 1 400 °C.h (article 50-3,
-    /// II). Absent : extension horizontale.
+    /// Extension verticale (« surélévation ») : étage ajouté, ou combles existants d'une maison
+    /// aménagés en surélevant le faîtage d'au moins 1,8 m (fiche 4.4 ; la FA03 dit « de plus de
+    /// 1,8 mètre »). Sous le régime intermédiaire, le `DH_max` d'une surélévation climatisée de
+    /// maison en H2d ou H3 est porté à 1 400 °C.h (article 50-3, II, en vigueur depuis le 1er
+    /// janvier 2023) ; pour un permis déposé à partir du 1er juillet 2026, les surélévations à
+    /// usage autre que de maison individuelle ont leurs propres seuils (article 50-3, I,
+    /// arrêté du 18 mars 2026). Absent : extension horizontale.
     #[serde(default)]
     pub surelevation: bool,
     /// Surface de référence des locaux existants avant travaux (y compris les locaux rénovés),

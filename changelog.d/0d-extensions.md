@@ -7,4 +7,7 @@
 
 ### Modifié
 
+- Le régime d'exigences s'applique aux extensions de maisons, de logements collectifs et de bureaux (usages calculés) ; les seuils de l'article 50-3 portent sur la surface cumulée des extensions, les exclusions de l'article R. 172-1, III et l'article 3, II sur la seule partie décrite (Q86).
+- Arrondi de restitution des exigences maximales robuste aux erreurs de représentation (arrondi à 1e-9 près d'abord : 55 × 1,15 restitue 63,3 au lieu de 63,2) ; aucun résultat des exemples ne change.
+
 - Format compatible : champs d'entrée et de résultats nouveaux, tous facultatifs ; schéma JSON et types TypeScript régénérés. Les résultats des exemples existants ne changent pas.

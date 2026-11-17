@@ -149,6 +149,61 @@ const CEP_REGL: f64 = 131.4;
 const CEP_NR_REGL: f64 = 131.4;
 const IC_REGL: f64 = 160.6;
 
+/// Surélévation climatisée de maison de 75 m² en H2d (Vaucluse), à 450 m, permis de 2025 :
+/// régime intermédiaire, `DH_max` du groupe climatisé porté à 1 400 °C.h (article 50-3, II ;
+/// Q88). Recalculs : classe d'altitude 400-800 m, `Mbgéo` = 0,1, `Mcgéo` = 0 ;
+/// `Mbsurf_moy` = (49 − 0,49 × 75)/63 = 12,25/63 : `Bbio_max` = 63 × 1,1 + 12,25 = 81,55 ;
+/// `Mcsurf_moy` = (49,5 − 0,55 × 75)/55 = 0,15 : `Cep_max` = 86,25, `Cep,nr_max` = 63,25,
+/// `Icénergie_max` = 184. Restitution arrondie : 63,25 → 63,3 (arrondi robuste).
+#[test]
+fn surelevation_climatisee_en_h2d() {
+    let mut p = cas("maison-pac-air-air-ademe");
+    p.localisation.departement = thbce_data::Departement::nouveau("84").unwrap();
+    p.localisation.alt_m = 450.0;
+    p.batiments[0].zones[0].groupes[0].shab_m2 = Some(75.0);
+    p.batiments[0].zones[0].groupes[0].su_m2 = Some(75.0);
+    p.batiments[0].exigences.as_mut().unwrap().extension = Some(ExtensionSaisie {
+        surelevation: true,
+        sref_existant_m2: None,
+        sref_autres_extensions_m2: 0.0,
+    });
+    let (_, dh, e) = exigences(&p, &meteo_ademe);
+    let proche3 = |a: f64, b: f64| assert!((a - b).abs() < 1e-9, "{a} ≠ {b}");
+    proche3(e.bbio_max_pts, 81.55);
+    proche3(e.cep_max_kwhep_m2, 86.25);
+    proche3(e.cep_nr_max_kwhep_m2, 63.25);
+    proche3(e.ic_energie_max_kgco2_m2, 184.0);
+    // Régime complet : DH_max 1 250 ; régime intermédiaire : 1 400.
+    let dh_complet = e
+        .verifications
+        .iter()
+        .find(|v| v.indicateur == "dh")
+        .unwrap();
+    proche3(dh_complet.maximum, 1250.0);
+    let a = e.regime_alternatif.clone().unwrap();
+    assert_eq!(a.nature, NatureTravaux::Surelevation);
+    assert_eq!(a.regime, RegimeExigences::Intermediaire);
+    let v = a
+        .verifications
+        .iter()
+        .find(|v| v.indicateur == "dh")
+        .unwrap();
+    proche3(v.maximum, 1400.0);
+    proche3(v.valeur, dh);
+    // Restitution arrondie.
+    let res = calculer(&p, &meteo_ademe(&p), &Options::default()).unwrap();
+    let e = res.batiments[0]
+        .indicateurs
+        .as_ref()
+        .unwrap()
+        .exigences
+        .as_ref()
+        .unwrap();
+    assert_eq!(e.cep_nr_max_kwhep_m2, 63.3);
+    assert_eq!(e.bbio_max_pts, 81.6);
+    assert_eq!(e.cep_max_kwhep_m2, 86.3);
+}
+
 fn erreurs(p: &Projet) -> Vec<String> {
     thbce_core::valider(p)
         .erreurs
@@ -212,6 +267,19 @@ fn validation_de_l_extension() {
         .unwrap()
         .sref_autres_extensions_m2 = 0.0;
     assert!(erreurs(&p).is_empty(), "{:?}", erreurs(&p));
+    // Valeurs extrêmes refusées (elles rendraient la part de l'existant non finie).
+    for (existant, autres) in [(1e308, 0.0), (1e-300, 0.0), (2000.0, 1e308)] {
+        let x = p.batiments[0]
+            .exigences
+            .as_mut()
+            .unwrap()
+            .extension
+            .as_mut()
+            .unwrap();
+        x.sref_existant_m2 = Some(existant);
+        x.sref_autres_extensions_m2 = autres;
+        assert!(!erreurs(&p).is_empty(), "{existant} {autres}");
+    }
 }
 
 /// Fiches 4.2 et 4.3 (Q85) : avertissements seulement.
