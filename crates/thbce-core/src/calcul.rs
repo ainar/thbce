@@ -29,6 +29,8 @@ use crate::ecs::distribution_ecs::{l_vc_2nd_e_defaut_m, EmetteurEcsResolu};
 use crate::entree::{Batiment, Catalogue, Groupe, Projet, UsageZone, Zone};
 use crate::erreur::Erreur;
 use crate::indicateurs::sorties_th_b::{sorties, EnergiesMensuelles};
+use crate::pv::global::produire;
+use crate::pv::ResultatsProductionPv;
 use crate::resultats::{
     Consommations, ConsommationsPostes, PeriodeConfortAdaptatif, Resultats, ResultatsBaie,
     ResultatsBatiment, ResultatsClimat, ResultatsConfort, ResultatsConfortEte, ResultatsDebitsBbio,
@@ -38,8 +40,6 @@ use crate::resultats::{
     ResultatsStockage, ResultatsSystemesGroupe, ResultatsVentilationGroupe,
     ResultatsVentilationMode, ResultatsVentilationZone, ResultatsZone, ValeurParDefaut,
 };
-use crate::pv::global::produire;
-use crate::pv::ResultatsProductionPv;
 use crate::validation::valider;
 use crate::ventilation::bouche_conduit::debits_specifiques_bbio_groupe;
 use crate::ventilation::ven_bbio::{debits_systeme_conventionnel, LectureDebitsBbio};

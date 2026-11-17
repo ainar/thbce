@@ -237,10 +237,10 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
-| 12.1 | S1_PV_installation_PV | 1340–1342 | 7a | `core/src/pv/installation.rs` | non commencé |
-| 12.2 | S2_PV_global_PV | 1343–1345 | 7a | `core/src/pv/global.rs` | non commencé |
-| 12.3 | C_PV_capteur_PV | 1346–1351 | 7a | `core/src/pv/capteur.rs` | non commencé |
-| 12.4 | C_PV_onduleurs_PV | 1352–1354 | 7a | `core/src/pv/onduleur.rs` | non commencé |
+| 12.1 | S1_PV_installation_PV | 1340–1342 | 7a | `core/src/pv/installation.rs` | implémenté : assemblage modules et onduleur (figure 212) |
+| 12.2 | S2_PV_global_PV | 1343–1345 | 7a | `core/src/pv/global.rs` | implémenté : environnement proche (masques de la fiche 3.2) et installation, production horaire ; autoconsommation et exportation au chapitre 13 (Q51) |
+| 12.3 | C_PV_capteur_PV | 1346–1351 | 7a | `core/src/pv/capteur.rs` | implémenté : éq. (2366) à (2373), valeurs de calcul de Pc, μ et NOCT (Q51) |
+| 12.4 | C_PV_onduleurs_PV | 1352–1354 | 7a | `core/src/pv/onduleur.rs` | implémenté : éq. (2374), cas n° 1 à 3, extinction (Q51) |
 
 ### 13. Calcul des indicateurs (p. 1355–1406)
 

@@ -134,6 +134,27 @@ export interface ResultatsBatiment {
   zones: ResultatsZone[];
   /** Espaces tampons du bâtiment ; absent sans espace tampon. */
   espaces_tampons?: ResultatsEspaceTampon[];
+  /** Production photovoltaïque (§12) ; absente sans installation. */
+  production_pv?: ResultatsProductionPv;
+}
+export interface ResultatsInstallationPv {
+  id: string;
+  n_modules: number;
+  puissance_crete_calcul_kwc: number;
+  eta_stc: number;
+  u1_w_m2k: number;
+  p_ac_nom_w: number;
+  g_kwh_m2: number;
+  e_pv_kwh: number;
+  e_ond_kwh: number;
+  e_ond_mensuel_kwh: number[];
+  nbh_extinction: number;
+  valeurs_par_defaut?: ValeurParDefaut[];
+}
+export interface ResultatsProductionPv {
+  e_prod_pv_kwh: number;
+  e_prod_pv_mensuel_kwh: number[];
+  installations: ResultatsInstallationPv[];
 }
 export interface ResultatsEspaceTamponMode {
   b_therm_moyen: number;

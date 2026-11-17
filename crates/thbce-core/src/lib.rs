@@ -32,7 +32,9 @@ pub mod scenarios;
 pub mod validation;
 pub mod ventilation;
 
-pub use calcul::{calculer, series_horaires, series_pv, Options, SerieHoraireGroupe, SeriePvBatiment};
+pub use calcul::{
+    calculer, series_horaires, series_pv, Options, SerieHoraireGroupe, SeriePvBatiment,
+};
 pub use erreur::Erreur;
 pub use validation::{valider, RapportValidation};
 

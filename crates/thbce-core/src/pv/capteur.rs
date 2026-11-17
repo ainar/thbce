@@ -73,14 +73,9 @@ pub struct PerformancesCalcul {
 /// - justifiées : `0,9 × Pc`, `1,10 × μ`, `1,10 × NOCT` ;
 /// - déclarées : `0,8 × Pc`, `max(1,20 × μ ; μ_util_min)`, `max(1,20 × NOCT ; NOCT_util_min)` ;
 /// - par défaut : `0,8 × Pc`, `1,20 × μ_util_min`, `1,20 × NOCT_util_min`.
-pub fn performances_de_calcul(
-    techno: TechnologiePv,
-    perf: &PerformancesPv,
-) -> PerformancesCalcul {
+pub fn performances_de_calcul(techno: TechnologiePv, perf: &PerformancesPv) -> PerformancesCalcul {
     let mu_min = mu_util_min(techno);
-    let regle = |valeur: &str| {
-        format!("Th-BCE 2020 §12.3.3.1, valeur par défaut : {valeur}")
-    };
+    let regle = |valeur: &str| format!("Th-BCE 2020 §12.3.3.1, valeur par défaut : {valeur}");
     match *perf {
         PerformancesPv::Certifie {
             pc_w,
@@ -321,5 +316,69 @@ mod tests {
         let attendu = (28.8 - fr() * 5.0 * 38.0 / 25.0) / 2.0;
         assert!((u1_w_m2k(45.0, 2.0) - attendu).abs() < 1e-12);
         assert!((u1_w_m2k(45.0, 2.0) - 10.855).abs() < 1e-3);
+    }
+
+    #[test]
+    fn pas_calcule_a_la_main() {
+        // 10 modules de 300 W (certifiés), μ = 0,004, NOCT = 45 °C, S = 1,6 m², CT = 2, plan
+        // horizontal (F = 1), direct normal de 800 W/m² (θ = 0, Fopt = 1), Text = 20 °C,
+        // Tciel = 7 °C. Γ = 0,07 (mono-cristallin).
+        let perf = PerformancesPv::Certifie {
+            pc_w: 300.0,
+            mu_par_c: 0.004,
+            noct_c: 45.0,
+        };
+        let c = CapteurPv::nouveau(
+            10.0,
+            TechnologiePv::MonoCristallinSi,
+            &perf,
+            1.6,
+            ConfinementPv::Confine,
+            0.0,
+        );
+        let s = c.pas(0.0, 800.0, 0.0, 0.0, 20.0, 7.0);
+        assert!((s.g_w_m2 - 800.0).abs() < 1e-9);
+        assert!((s.tm_c - 51.852_05).abs() < 1e-4);
+        assert!((s.p_pv_w - 2045.496).abs() < 1e-2);
+        // Sans rayonnement : pas de production.
+        assert_eq!(c.pas(0.0, 0.0, 0.0, 0.0, 20.0, 7.0).p_pv_w, 0.0);
+    }
+
+    #[test]
+    fn valeurs_de_calcul_selon_l_origine() {
+        let t = TechnologiePv::CdTe;
+        let d = performances_de_calcul(t, &PerformancesPv::Defaut { pc_w: 100.0 });
+        assert!((d.pc_w - 80.0).abs() < 1e-12);
+        assert!((d.mu_par_c - 1.2 * 0.00208).abs() < 1e-12);
+        assert!((d.noct_c - 48.0).abs() < 1e-12);
+        assert_eq!(d.valeurs_par_defaut.len(), 2);
+        let j = performances_de_calcul(
+            t,
+            &PerformancesPv::Justifie {
+                pc_w: 100.0,
+                mu_par_c: 0.002,
+                noct_c: 42.0,
+            },
+        );
+        assert!((j.pc_w - 90.0).abs() < 1e-12 && (j.mu_par_c - 0.0022).abs() < 1e-12);
+        assert!((j.noct_c - 46.2).abs() < 1e-12);
+        // Déclarées : plancher μ_util_min et NOCT_util_min.
+        let e = performances_de_calcul(
+            t,
+            &PerformancesPv::Declare {
+                pc_w: 100.0,
+                mu_par_c: 0.001,
+                noct_c: 30.0,
+            },
+        );
+        assert!((e.mu_par_c - 0.00208).abs() < 1e-12 && (e.noct_c - 40.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn angles_moyens_du_diffus() {
+        assert!((theta1_deg(0.0) - 59.7).abs() < 1e-12);
+        assert!((theta2_deg(90.0) - (90.0 - 52.092 + 21.8133)).abs() < 1e-9);
+        assert!((fopt(0.0) - 1.0).abs() < 1e-12);
+        assert!((fopt(89.0) - fopt(87.0)).abs() < 1e-12);
     }
 }

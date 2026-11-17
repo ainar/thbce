@@ -117,7 +117,10 @@ impl ResultatsProductionPv {
         Self {
             e_prod_pv_kwh: productions.iter().map(|p| p.e_ond_kwh()).sum(),
             e_prod_pv_mensuel_kwh: mensuel,
-            installations: productions.iter().map(ResultatsInstallationPv::depuis).collect(),
+            installations: productions
+                .iter()
+                .map(ResultatsInstallationPv::depuis)
+                .collect(),
         }
     }
 

@@ -5,7 +5,7 @@ use crate::entree::Batiment;
 use crate::pv::entree::{PerformancesPv, RendementOnduleur};
 use crate::pv::onduleur::POINTS_OBLIGES;
 
-use super::{valider_exposition, References, RapportValidation};
+use super::{valider_exposition, RapportValidation, References};
 
 pub(super) fn valider_installations_pv(
     r: &mut RapportValidation,
