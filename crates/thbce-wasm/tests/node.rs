@@ -60,3 +60,36 @@ fn valide_et_signale_les_erreurs() {
         Some("saisie")
     );
 }
+
+#[wasm_bindgen_test]
+fn un_usage_hors_perimetre_est_non_pris_en_charge() {
+    let bureaux = ENTREE.replace("maison_individuelle", "bureaux");
+    let r = thbce_wasm::valider(JsValue::from_str(&bureaux)).unwrap();
+    assert_eq!(champ(&r, "valide"), JsValue::FALSE);
+    assert_eq!(champ(&r, "hors_perimetre"), JsValue::TRUE);
+    let e = thbce_wasm::calculer(JsValue::from_str(&bureaux), &meteo(), JsValue::UNDEFINED)
+        .unwrap_err();
+    assert_eq!(
+        champ(&champ(&e, "cause"), "nature").as_string().as_deref(),
+        Some("non_pris_en_charge")
+    );
+}
+
+#[wasm_bindgen_test]
+fn un_objet_mal_forme_est_signale_en_francais() {
+    let objet = js_sys::JSON::parse(r#"{"nom": 3}"#).unwrap();
+    let e = thbce_wasm::valider(objet).unwrap_err();
+    let cause = champ(&e, "cause");
+    assert_eq!(
+        champ(&cause, "nature").as_string().as_deref(),
+        Some("lecture")
+    );
+    let message = champ(&cause, "message").as_string().unwrap_or_default();
+    assert!(message.starts_with("nom : type invalide"), "{message}");
+}
+
+#[wasm_bindgen_test]
+fn schemas() {
+    assert!(thbce_wasm::schema_entree().contains("\"title\": \"Projet\""));
+    assert!(thbce_wasm::schema_resultats().contains("\"title\": \"Resultats\""));
+}

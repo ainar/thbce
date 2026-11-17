@@ -6,6 +6,7 @@
 //! cargo run -p xtask -- temperature-base [--verifier]
 //! cargo run -p xtask -- reseaux-chaleur [--verifier]
 //! cargo run -p xtask -- scenarios [--verifier]
+//! cargo run -p xtask -- typescript [--verifier]
 //! cargo run -p xtask -- verifier
 //! cargo run -p xtask -- meteo-synthetique <fichier.csv>
 //! ```
@@ -20,6 +21,8 @@
 //! - `reseaux-chaleur` extrait identifiant, facteur d'émission et taux d'EnR&R des réseaux de
 //!   chaleur et de froid de l'annexe 7 de l'arrêté du 15 septembre 2006 en
 //!   `crates/thbce-data/src/reseaux_chaleur/table.rs`.
+//! - `typescript` écrit les définitions TypeScript du module WebAssembly
+//!   (`crates/thbce-wasm/src/types.d.ts`) depuis les JSON Schema d'entrée et de résultats.
 //! - `verifier` contrôle tous les fichiers générés.
 //! - `meteo-synthetique` écrit un jeu météo constant pour les huit zones, au format CSV long,
 //!   pour les tests de bout en bout. Ce jeu n'est pas réglementaire.
@@ -34,6 +37,7 @@ use thbce_data::ZoneClimatique;
 mod reseaux;
 mod scenarios;
 mod temperature_base;
+mod typescript;
 mod zones;
 
 fn racine() -> PathBuf {
@@ -104,6 +108,14 @@ fn scenarios_conventionnels(verifier: bool) -> Result<(), String> {
     )
 }
 
+fn definitions_typescript(verifier: bool) -> Result<(), String> {
+    let genere = typescript::generer(
+        &thbce_io::json::schema_entree(),
+        &thbce_io::json::schema_resultats(),
+    )?;
+    produire(typescript::SORTIE, genere, "typescript", verifier)
+}
+
 fn meteo_synthetique(sortie: &str) -> Result<(), String> {
     let jeux: Vec<MeteoProjet> = ZoneClimatique::TOUTES
         .into_iter()
@@ -133,13 +145,16 @@ fn main() -> ExitCode {
         ["reseaux-chaleur", "--verifier"] => reseaux_de_chaleur(true),
         ["scenarios"] => scenarios_conventionnels(false),
         ["scenarios", "--verifier"] => scenarios_conventionnels(true),
+        ["typescript"] => definitions_typescript(false),
+        ["typescript", "--verifier"] => definitions_typescript(true),
         ["verifier"] => zones_climatiques(true)
             .and_then(|()| temperature_de_base(true))
             .and_then(|()| reseaux_de_chaleur(true))
-            .and_then(|()| scenarios_conventionnels(true)),
+            .and_then(|()| scenarios_conventionnels(true))
+            .and_then(|()| definitions_typescript(true)),
         ["meteo-synthetique", sortie] => meteo_synthetique(sortie),
         _ => Err(
-            "usage : xtask zones-climatiques [--verifier] | temperature-base [--verifier] | reseaux-chaleur [--verifier] | scenarios [--verifier] | verifier | meteo-synthetique <fichier.csv>"
+            "usage : xtask zones-climatiques [--verifier] | temperature-base [--verifier] | reseaux-chaleur [--verifier] | scenarios [--verifier] | typescript [--verifier] | verifier | meteo-synthetique <fichier.csv>"
                 .to_owned(),
         ),
     };

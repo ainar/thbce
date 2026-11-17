@@ -7,6 +7,15 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consolidée au 19 mars 2026.
 
+### Modifié (ligne de commande, erreurs et module WebAssembly de la version 1.0)
+
+- **Codes de retour** : un élément ou un usage hors du périmètre de cette version donne le code 3, à la validation comme au calcul ; `thbce valider` sur une entrée correcte mais non calculable le dit (« entrée correcte mais non calculable par cette version ») et renvoie 3. Les erreurs de saisie l'emportent (code 2). Les erreurs correspondantes du rapport de validation portent `hors_perimetre: true` (format des rapports, **non incompatible**) ; l'usage non résidentiel, jusqu'ici un avertissement, est une telle erreur. API Rust : `Probleme::hors_perimetre`, `RapportValidation::seulement_hors_perimetre`, `Erreur::hors_perimetre`.
+- **Messages** : « après v1 » devient « non pris en charge par cette version (voir docs/couverture.md) » ; erreurs de lecture du JSON en français (champ inconnu, champ absent, type ou valeur invalide, fin de fichier inattendue, JSON mal formé), position donnée une seule fois, sans segment `?` pour un document tronqué ; erreurs de fichier en français ; valeurs d'énumération des messages en snake_case ; `thbce meteo convertir` sur un fichier qui n'est pas un classeur indique « attendu : le classeur .xlsx officiel » ; aide et erreurs d'arguments de la ligne de commande en français.
+- **Ligne de commande** : `--horaire`, jamais disponible, est retiré ; `thbce --version` et `-V` ajoutés. La synthèse des indicateurs calcule les marges à partir des valeurs arrondies affichées et aligne la colonne du DH.
+- **Altitude** : `localisation.alt_m` est borné à 4 000 m (erreur de saisie au-delà).
+- **Module WebAssembly** : les types TypeScript `Projet` et `Resultats` sont générés depuis les JSON Schema (`cargo run -p xtask -- typescript`, contrôlé par `xtask verifier` ; la CI vérifie le `.d.ts` avec `tsc --strict`) et couvrent désormais tous les résultats (consommations, générations, ventilation, systèmes, ascenseurs, parkings, etc.) ; `schemaResultats()` exportée ; une entrée passée en objet est lue comme son texte JSON (mêmes messages qu'en ligne de commande) ; `RapportValidation.hors_perimetre` et la nature `non_pris_en_charge` pour une entrée hors périmètre. Le JSON Schema des résultats (`thbce schema --resultats`) décrit les résultats tels qu'ils sont écrits : un champ toujours présent y est requis.
+- **Exemple web** : la page affiche la conformité (valeur, maximum, marge de chaque exigence, bilan) et ne dit plus que seule la surface est calculée.
+
 ### Modifié (contrat d'entrée de la version 1.0)
 
 - **Format d'entrée, changement incompatible** : noms unifiés avant la version 1.0. Une entrée écrite pour une version antérieure se met à jour par ces seuls renommages :

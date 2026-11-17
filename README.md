@@ -48,7 +48,7 @@ thbce calcul projet.json --meteo meteo-re2020.xlsx -o resultats.json
 thbce valider projet.json
 thbce meteo convertir meteo-re2020.xlsx -o meteo-re2020.csv   # CSV pour le module WebAssembly
 thbce schema                 # JSON Schema du format d'entrée (--resultats pour celui des résultats)
-thbce version                # version du moteur et de la méthode implémentée
+thbce version                # version du moteur et de la méthode implémentée (aussi thbce --version, -V)
 ```
 
 `--meteo` est obligatoire. `--sans-arrondi` restitue les valeurs en pleine précision au lieu de l'arrondi à une décimale prévu par la méthode (§1.3.1).
@@ -56,9 +56,11 @@ thbce version                # version du moteur et de la méthode implémentée
 | Code de retour | Signification |
 |---|---|
 | 0 | succès |
-| 1 | erreur d'usage ou de fichier |
-| 2 | entrée invalide (projet ou données météo) |
-| 3 | erreur de calcul (élément non pris en charge) |
+| 1 | erreur d'usage (arguments) ou de fichier (introuvable, illisible, écriture impossible) |
+| 2 | entrée invalide : JSON mal formé, saisie fautive, données météo absentes ou d'une autre zone |
+| 3 | entrée correcte mais non calculable par cette version : élément ou usage hors périmètre ([`docs/couverture.md`](docs/couverture.md)), à la validation comme au calcul ; ou calcul impossible |
+
+`thbce valider` applique les mêmes codes : une entrée correcte qui décrit un élément hors du périmètre (usage non résidentiel, ventilation naturelle, store vénitien…) est signalée « non calculé » et renvoie 3. Les erreurs de saisie l'emportent : une entrée qui en contient renvoie 2.
 
 Un exemple d'entrée se trouve dans [`tests/cas/squelette-maison/entree.json`](tests/cas/squelette-maison/entree.json). Le format RSEE XML n'est pas encore lu.
 
@@ -69,14 +71,23 @@ wasm-pack build crates/thbce-wasm --target web --release
 ```
 
 ```js
-import init, { calculer, valider, versionMoteur } from "./pkg/thbce_wasm.js";
+import init, { calculer, valider, versionMoteur, schemaEntree, schemaResultats } from "./pkg/thbce_wasm.js";
 
 await init();
 const meteo = new Uint8Array(await fichierMeteo.arrayBuffer());
 const resultats = calculer(projet, meteo);      // projet : objet ou texte JSON
 ```
 
-Les fonctions sont typées (`pkg/thbce_wasm.d.ts`), synchrones et sans état ; pour ne pas bloquer l'interface, les appeler depuis un Web Worker. [`examples/web/`](examples/web/) contient une page minimale.
+| Fonction | Rôle |
+|---|---|
+| `calculer(projet, meteo, options?)` | calcule ; `projet` : objet ou texte JSON, `meteo` : octets du CSV dérivé ou d'un fichier ADEME ; renvoie `Resultats` |
+| `valider(projet)` | valide sans calculer ; renvoie `RapportValidation` (`valide`, `hors_perimetre`, `erreurs`, `avertissements`) |
+| `versionMoteur()` | version du moteur et de la méthode |
+| `schemaEntree()`, `schemaResultats()` | JSON Schema de l'entrée et des résultats |
+
+Les noms des fonctions suivent l'usage de JavaScript (camelCase) ; les champs de l'entrée et des résultats gardent les noms du format JSON (snake_case). En cas d'échec, `calculer` et `valider` lèvent une `Error` dont la propriété `cause` est un `ErreurCalcul` : `nature` vaut `lecture`, `saisie`, `meteo`, `non_pris_en_charge` (entrée correcte mais hors du périmètre) ou `calcul`.
+
+Les fonctions sont typées (`pkg/thbce_wasm.d.ts`) : les types `Projet` et `Resultats` sont générés depuis les JSON Schema (`cargo run -p xtask -- typescript`, contrôlé par `xtask verifier`). Elles sont synchrones et sans état ; pour ne pas bloquer l'interface, les appeler depuis un Web Worker. [`examples/web/`](examples/web/) contient une page minimale.
 
 ## Organisation du dépôt
 

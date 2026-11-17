@@ -549,11 +549,10 @@ fn valider_ecs_groupe(
             );
         }
         if e.recuperateur_eaux_grises == Some(true) {
-            r.erreur(
+            r.hors_perimetre(
                 format!("{ce}.recuperateur_eaux_grises"),
-                None,
-                "récupérateur de chaleur sur les eaux grises non pris en charge dans cette \
-                 version (Th-BCE 2020 §9.21)",
+                Some("true".into()),
+                "récupérateur de chaleur sur les eaux grises (Th-BCE 2020 §9.21)",
             );
         }
         let d = &e.distribution;
