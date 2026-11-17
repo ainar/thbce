@@ -10,6 +10,8 @@
 /// « RgrA,AT » : ratio de la surface totale des parois du groupe à sa surface utile (§7.1.2,
 /// constantes).
 pub const R_GR_A_AT: f64 = 4.5;
+pub mod parties_communes;
+
 /// « Roplafond_pv » : coefficient de réflexion lumineuse du plafond, locaux de volume normal.
 pub const RO_PLAFOND_PV: f64 = 0.7;
 /// « Romurs_pv » : coefficient de réflexion lumineuse des murs, locaux de volume normal.

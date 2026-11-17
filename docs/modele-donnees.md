@@ -291,6 +291,24 @@ Résultats : les consommations des générateurs à combustion sont restituées 
 
 Les liens entre objets (un émetteur vers sa distribution, une distribution vers sa génération) sont des `Id` en entrée et des indices typés (`IdxGroupe`, `IdxGeneration`) dans `modele`, vérifiés une fois pour toutes à la résolution.
 
+### Format d'entrée des postes du logement collectif et des parkings (lot 6e)
+
+Facultatif ; l'éclairage des parties communes (§7.2) ne demande aucune saisie (toute zone de logement collectif). Lectures : `docs/questions.md`, Q50.
+
+```
+Batiment
+├── ascenseurs[]   { id, tech_mac: traction_avec_reduction | traction_sans_reduction | hydraulique | autre,
+│                    q_kg (≥ 75), v_m_s (≤ 2,5), h_m, netage (≥ 2), cp?, zones_desservies[] (zones de LC),   §10.1
+│                    sc_veille?, pti_w?, dp1_w?, t1_s?, dp2_w?, t2_s? }
+└── parkings[]     { id, type_parking: interieur | exterieur, npl, net,                                       §10.3, §10.4
+                     ventilation? { regulee, p_vent600_w_par_place? },
+                     eclairage { p_installee_w?, plages_detection_semaine[], plages_detection_week_end[]
+                                 ({ debut_h, fin_h }, au plus 3), extinction_en_fermeture? },
+                     jours_fermes[] }
+```
+
+Résultats : `consommations_collectif` (zone et bâtiment) : `eclairage_parties_communes`, `ascenseurs`, `ventilation_parkings`, `eclairage_parkings`, chacun `{ annuel_kwh, annuel_kwh_m2, mensuel_kwh[12] }` ; `ascenseurs[]` (`n_dem`, `t_mob_h`, `pti_w`, `e_tm_kwh`, `e_ti_kwh`, `e_tot_kwh`, `valeurs_par_defaut`) et `parkings[]` (`e_vent_kwh`, `e_ecl_kwh`, `valeurs_par_defaut`) au niveau du bâtiment.
+
 ## Énumérations issues du texte
 
 ```rust

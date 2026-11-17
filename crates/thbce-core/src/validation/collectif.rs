@@ -1,0 +1,207 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+//! Validation des postes propres au logement collectif et aux parkings (Th-BCE 2020 §10.1,
+//! §10.3 et §10.4) : plages des nomenclatures et références aux zones.
+
+use std::collections::BTreeMap;
+
+use crate::entree::{Batiment, PlageHoraire, TechMac, UsageZone};
+
+use super::RapportValidation;
+
+/// Valide les ascenseurs et les parkings d'un bâtiment.
+pub(super) fn valider_collectif(r: &mut RapportValidation, cb: &str, bat: &Batiment) {
+    let zones: BTreeMap<&str, UsageZone> =
+        bat.zones.iter().map(|z| (z.id.as_str(), z.usage)).collect();
+    r.ids_uniques(
+        &format!("{cb}.ascenseurs"),
+        bat.ascenseurs.iter().map(|a| &a.id),
+    );
+    for (i, a) in bat.ascenseurs.iter().enumerate() {
+        let c = format!("{cb}.ascenseurs[{i}]");
+        // Tableau 309 : Q ≥ 75 kg, 0 < V ≤ 2,5 m/s, H > 0, netage ≥ 2, Cp de −1,2 à 0,5.
+        r.plage(format!("{c}.q_kg"), a.q_kg, 75.0, f64::INFINITY);
+        r.plage(format!("{c}.v_m_s"), a.v_m_s, 0.0, 2.5);
+        if a.v_m_s == 0.0 {
+            r.erreur(
+                format!("{c}.v_m_s"),
+                Some("0".into()),
+                "doit être strictement positif",
+            );
+        }
+        r.strictement_positif(format!("{c}.h_m"), a.h_m);
+        if a.netage < 2 {
+            r.erreur(
+                format!("{c}.netage"),
+                Some(a.netage.to_string()),
+                "doit être supérieur ou égal à 2 (tableau 309)",
+            );
+        }
+        if let Some(cp) = a.cp {
+            r.plage(format!("{c}.cp"), cp, -1.2, 0.5);
+            // Tableau 314, note : −1,2 est obligatoire, et non demandé, pour un hydraulique.
+            if a.tech_mac == TechMac::Hydraulique && (cp + 1.2).abs() > 1e-12 {
+                r.erreur(
+                    format!("{c}.cp"),
+                    Some(cp.to_string()),
+                    "vaut −1,2 pour un ascenseur hydraulique (tableau 314) : ne pas le saisir",
+                );
+            }
+        }
+        for (nom, x) in [
+            ("pti_w", a.pti_w),
+            ("dp1_w", a.dp1_w),
+            ("t1_s", a.t1_s),
+            ("dp2_w", a.dp2_w),
+            ("t2_s", a.t2_s),
+        ] {
+            if let Some(x) = x {
+                r.positif(format!("{c}.{nom}"), x);
+            }
+        }
+        if !a.sc_veille
+            && [a.dp1_w, a.t1_s, a.dp2_w, a.t2_s]
+                .iter()
+                .any(Option::is_some)
+        {
+            r.avertissement(
+                format!("{c}.sc_veille"),
+                Some("false".into()),
+                "dp1_w, t1_s, dp2_w et t2_s ne sont employés que si sc_veille est vrai : ignorés",
+            );
+        }
+        if let (Some(pti), Some(dp1), Some(dp2)) = (a.pti_w, a.dp1_w, a.dp2_w) {
+            if a.sc_veille && dp1 + dp2 > pti {
+                r.erreur(
+                    format!("{c}.dp1_w"),
+                    Some(dp1.to_string()),
+                    "dP1 + dP2 ne peut pas dépasser Pti",
+                );
+            }
+        }
+        if a.zones_desservies.is_empty() {
+            r.erreur(
+                format!("{c}.zones_desservies"),
+                None,
+                "au moins une zone desservie (tableau 309 : C ≥ 1)",
+            );
+        }
+        for (iz, id) in a.zones_desservies.iter().enumerate() {
+            match zones.get(id.as_str()) {
+                None => r.erreur(
+                    format!("{c}.zones_desservies[{iz}]"),
+                    Some(id.clone()),
+                    "zone inconnue dans ce bâtiment",
+                ),
+                // Tableau 310 : le besoin de voyages Bv n'est défini que pour les usages 2 et
+                // suivants ; les ascenseurs ne se calculent que dans les zones de logement
+                // collectif.
+                Some(u) if *u != UsageZone::LogementCollectif => r.erreur(
+                    format!("{c}.zones_desservies[{iz}]"),
+                    Some(id.clone()),
+                    "les ascenseurs ne sont calculés que pour les zones de logement collectif \
+                     (tableau 310 : pas de besoin de voyages pour la maison individuelle)",
+                ),
+                _ => {}
+            }
+        }
+        let mut vues = std::collections::BTreeSet::new();
+        for id in &a.zones_desservies {
+            if !vues.insert(id) {
+                r.erreur(
+                    format!("{c}.zones_desservies"),
+                    Some(id.clone()),
+                    "zone listée deux fois",
+                );
+            }
+        }
+    }
+
+    r.ids_uniques(
+        &format!("{cb}.parkings"),
+        bat.parkings.iter().map(|p| &p.id),
+    );
+    for (i, p) in bat.parkings.iter().enumerate() {
+        let c = format!("{cb}.parkings[{i}]");
+        // §10.3.3 : Npl peut être un réel ; minimum 1 (tableaux 320 et 322).
+        r.plage(format!("{c}.npl"), p.npl, 1.0, f64::INFINITY);
+        if p.net < 1 {
+            r.erreur(
+                format!("{c}.net"),
+                Some(p.net.to_string()),
+                "doit être supérieur ou égal à 1",
+            );
+        }
+        if let Some(v) = &p.ventilation {
+            if let Some(x) = v.p_vent600_w_par_place {
+                r.plage(
+                    format!("{c}.ventilation.p_vent600_w_par_place"),
+                    x,
+                    1.0,
+                    f64::INFINITY,
+                );
+            }
+            if p.type_parking == crate::entree::TypeParking::Exterieur {
+                r.avertissement(
+                    format!("{c}.ventilation"),
+                    None,
+                    "un parking extérieur n'a pas de ventilation forcée (éq. 2333) : ignorée",
+                );
+            }
+        }
+        if let Some(x) = p.eclairage.p_installee_w {
+            r.plage(
+                format!("{c}.eclairage.p_installee_w"),
+                x,
+                1.0,
+                f64::INFINITY,
+            );
+        }
+        for (nom, plages) in [
+            (
+                "plages_detection_semaine",
+                &p.eclairage.plages_detection_semaine,
+            ),
+            (
+                "plages_detection_week_end",
+                &p.eclairage.plages_detection_week_end,
+            ),
+        ] {
+            if plages.len() > 3 {
+                r.erreur(
+                    format!("{c}.eclairage.{nom}"),
+                    Some(plages.len().to_string()),
+                    "au plus trois plages (tableau 322)",
+                );
+            }
+            for (k, pl) in plages.iter().enumerate() {
+                valider_plage(r, &format!("{c}.eclairage.{nom}[{k}]"), *pl);
+            }
+        }
+        for j in &p.jours_fermes {
+            if *j == 0 || *j > 365 {
+                r.erreur(
+                    format!("{c}.jours_fermes"),
+                    Some(j.to_string()),
+                    "numéro de jour de 1 à 365",
+                );
+            }
+        }
+        if !p.jours_fermes.is_empty() && p.eclairage.extinction_en_fermeture.is_none() {
+            r.erreur(
+                format!("{c}.eclairage.extinction_en_fermeture"),
+                None,
+                "requis quand le parking a des jours de fermeture (« Ex », tableau 322)",
+            );
+        }
+    }
+}
+
+fn valider_plage(r: &mut RapportValidation, c: &str, p: PlageHoraire) {
+    if p.debut_h > 24 || p.fin_h > 24 || p.debut_h > p.fin_h {
+        r.erreur(
+            c.to_owned(),
+            Some(format!("{} h – {} h", p.debut_h, p.fin_h)),
+            "heures légales de 0 à 24, début au plus égal à la fin",
+        );
+    }
+}

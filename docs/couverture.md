@@ -149,7 +149,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
 | 7.1 | C_ECL_éclairage | 470–501 | 4 | `core/src/eclairage/mod.rs` | partiel : habitation (§7.1.3.6.2), éclairement naturel des volumes normaux (§7.1.3.4), autonomie (éq. 785), consommation (éq. 786 à 790), apports récupérables ; tableaux 78 et 79, grands volumes et fractionnement non transcrits (autres usages) ; branché sur le calcul Th-B ; autonomie en lumière naturelle non restituée |
-| 7.2 | C_ECL_calcul des consommations d’éclairage des parties communes en logement collectif | 502–503 | 6e | `core/src/eclairage/parties_communes.rs` | non commencé |
+| 7.2 | C_ECL_calcul des consommations d’éclairage des parties communes en logement collectif | 502–503 | 6e | `core/src/eclairage/parties_communes.rs` | implémenté : éq. (791) à (794), lectures Q50 ; pas d'apport interne |
 
 ### 8. Chauffage, refroidissement (p. 504–1018)
 
@@ -222,10 +222,10 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
-| 10.1 | C_Bat_Ascenseurs | 1295–1308 | 6e | `core/src/deplacements/ascenseurs.rs` | non commencé |
+| 10.1 | C_Bat_Ascenseurs | 1295–1308 | 6e | `core/src/deplacements/ascenseurs.rs` | implémenté : éq. (2274) à (2310), tableaux 310 à 317 ; lectures Q50 ; la fiche d'application ministérielle n'est pas dans les références |
 | 10.2 | C_Bat_Escalators | 1309–1317 | après v1 | `core/src/deplacements/escalators.rs` | non commencé |
-| 10.3 | C_VEN_Calcul des consommations de ventilation des parcs de stationnement fermés | 1318–1326 | 6e | `core/src/deplacements/calcul_des_consommations_de_ventilation.rs` | non commencé |
-| 10.4 | C_ECL_calcul des consommations d’éclairage des parkings | 1327–1332 | 6e | `core/src/deplacements/calcul_des_consommations_d_eclairage.rs` | non commencé |
+| 10.3 | C_VEN_Calcul des consommations de ventilation des parcs de stationnement fermés | 1318–1326 | 6e | `core/src/deplacements/parkings.rs` | implémenté : éq. (2326) à (2346), tableau 321 ; hors habitation codé et testé mais inaccessible (zones d'habitation seules) ; lectures Q50 |
+| 10.4 | C_ECL_calcul des consommations d’éclairage des parkings | 1327–1332 | 6e | `core/src/deplacements/parkings.rs` | implémenté : éq. (2347) à (2354), tableau 323 ; lectures Q50 |
 
 ### 11. Pertes (p. 1333–1339)
 
