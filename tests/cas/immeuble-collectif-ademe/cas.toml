@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Petit immeuble de logements collectifs (R+3, 12 logements, SHAB 720 m²) en une zone et un groupe, sur la météo ouverte ADEME (Tours, zone H2b) : VMC simple flux, émetteurs et ballon à effet Joule, une cabine d'ascenseur de 630 kg à 1 m/s sur 10,2 m (traction sans réduction, valeurs par défaut de Cp, Pti et de la veille), un parking intérieur de 15 places en sous-sol (ventilation régulée à 40 W/place, éclairage par défaut de 75 W/place en détection de présence permanente), éclairage conventionnel des circulations. Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : valeurs attendues calculées à la main pour les postes du lot 6e. Éclairage des parties communes, §7.2 éq. (791), (792) : 2,19 W/m² × 720 m² × Σ Uk ; Σ Uk = 10,25 par semaine (5 jours à 1,45 et 2 à 1,5, scénario de mobilité de l'usage 2) × 51 semaines (la 4e semaine de décembre est en vacances) = 522,75, soit 824,3 kWh. Ventilation du parking, §10.3.3.6, éq. (2343), tableau 321 (habitat : Σ Rmvtpl = 1,995 mouvement par place et par jour) : 40 W × 15 places × 1,995 × 365 = 436,9 kWh. Éclairage du parking, §10.4.3, éq. (2349), (2353) : 75 × 15 = 1125 W, détection permanente donc facteur 0,2 (éq. 2348), 1125 × 0,2 × 8760 = 1971,0 kWh. Ascenseur, §10.1.3.4 : Pti par défaut, éq. (2274) = 75 + 5 × 2 + 13 + 5 + 140 + 10 = 253 W ; Tmob = (0,9167 × 10,2 / 1 + 1 / 0,5) × Ndem = 11,35 s × 20 610,8 démarrages (Ndem = 1582,4 × NB × 75 / (630 × 0,2) avec NB = 21,9 occupants maximaux) = 65 h ; Eti = 253 W × (8760 − 65) h = 2199,8 kWh (éq. 2303 sans veille). Ce n'est pas un cas de référence : Etm (187,8 kWh) est la valeur du moteur."
+meteo = "ademe"
+
+[tolerances]
+defaut = 0.005
+n_dem = 0.01
+e_tm_kwh = 0.01
+e_tot_kwh = 0.01
+annuel_kwh = 0.005
