@@ -22,7 +22,7 @@ use std::path::Path;
 
 use thbce_core::climat::MeteoProjet;
 use thbce_core::entree::Projet;
-use thbce_core::resultats::{Resultats, ResultatsGeneration};
+use thbce_core::resultats::{Resultats, ResultatsGeneration, ResultatsStockage};
 use thbce_core::{calculer, valider, Options};
 use thbce_io::{json, meteo};
 
@@ -76,18 +76,34 @@ fn bilan(g: &ResultatsGeneration, titre: &str) -> (f64, f64, f64, f64) {
     let mensuel: f64 = sol.e_sol_mensuel_kwh.iter().sum();
     assert!((mensuel - sol.e_sol_kwh).abs() < 1e-6, "{titre}");
     // Bilan du ballon : injections − pertes − puisage − écrêtement à la température maximale
-    // (éq. 1779) = variation du stock, bornée par la capacité du ballon de 300 L
-    // (1,163 × 300 × 80 K = 28 kWh).
+    // (éq. 1779) = variation du stock entre le début et la fin du calcul.
     let ecart = st.q_fou_sto_base_kwh + st.q_fou_sto_ap_kwh
         - st.pertes_kwh
         - st.q_fou_ecs_kwh
         - sol.ecretement_kwh;
-    assert!(ecart.abs() < 28.0, "{titre} : {ecart}");
+    let d_stock = variation_stock_kwh(st);
+    assert!(
+        (ecart - d_stock).abs() < 1e-6,
+        "{titre} : {ecart} contre {d_stock}"
+    );
     // Électricité d'ECS : la pompe de la boucle (éq. 1972) et les générateurs électriques à
     // rendement unitaire.
     let joule: f64 = g.generateurs.iter().map(|x| x.q_fou_ecs_kwh).sum();
     assert!((elec - joule - sol.w_pompe_kwh).abs() < 1e-6, "{titre}");
     (sol.e_sol_kwh, st.q_fou_sto_ap_kwh, sol.w_pompe_kwh, elec)
+}
+
+/// Variation du stock de chaleur d'un assemblage (un seul ballon) sur le calcul, en kWh :
+/// `ρw·cw·Σ Vz·(θbz,fin − θbz,début)` (tableau 281 : ρw·cw = 1,163 Wh/(L.K)).
+fn variation_stock_kwh(st: &ResultatsStockage) -> f64 {
+    assert_eq!(st.v_zones_l.len(), 4);
+    st.v_zones_l
+        .iter()
+        .zip(&st.theta_zones_debut_c)
+        .zip(&st.theta_zones_fin_c)
+        .map(|((v, d), f)| 1.163 * v * (f - d))
+        .sum::<f64>()
+        / 1000.0
 }
 
 fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
@@ -163,11 +179,13 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
     let ecretement_c = gc.stockages[0].solaire.as_ref().unwrap().ecretement_kwh;
     assert!(esol_c > esol && elec_c < elec);
 
-    // Kit CESI (§9.23).
+    // Kit CESI (§9.23). « Kθ », sortie de l'outil IdCESI (§9.23.3.2.3), est requis : faute
+    // de sortie IdCESI, 0,92, la valeur des capteurs plans vitrés de l'exemple (facteur
+    // d'angle d'incidence courant d'un capteur plan vitré), saisie (lecture Q52).
     let kit = variante(&maison, |v| {
         v["description"] = serde_json::json!({"kit": {"surface_m2": 4.0, "v_tot_l": 300.0,
             "p_np_w": 40.0, "ac_etoile_m2": 2.4, "uc_etoile_w_m2k": 4.5, "us_w_k": 1.9,
-            "f_aux": 0.4, "theta_max_c": 90.0}});
+            "f_aux": 0.4, "theta_max_c": 90.0, "k_theta": 0.92}});
         v["appoint"]["integre"]
             .as_object_mut()
             .unwrap()
@@ -176,7 +194,7 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
     let rk = brut(&kit, &m);
     let gk = &rk.batiments[0].generations[1];
     let (esol_k, ap_k, ..) = bilan(gk, titre);
-    assert!(gk.stockages[0]
+    assert!(!gk.stockages[0]
         .valeurs_par_defaut
         .iter()
         .any(|x| x.champ == "kit.k_theta"));
@@ -194,7 +212,7 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
         "{titre} : capteurs certifiés (η0 0,78, a1 3,6, a2 0,015) : {esol_c:.1} kWh solaires, \
          appoint {ap_c:.1} kWh, couverture {:.1} %, électricité {elec_c:.1} kWh, écrêtement \
          {ecretement_c:.1} kWh ; kit CESI (AC* \
-         2,4 m², UC* 4,5, US 1,9, Kθ 0,8 par défaut) : {esol_k:.1} kWh, appoint {ap_k:.1} kWh, \
+         2,4 m², UC* 4,5, US 1,9, Kθ 0,92 saisi) : {esol_k:.1} kWh, appoint {ap_k:.1} kWh, \
          couverture {:.1} % ; appoint séparé instantané : {esol_s:.1} kWh solaires, appoint \
          instantané {:.1} kWh, pompe {pompe_s:.1} kWh, électricité {elec_s:.1} kWh ; capteurs \
          au nord {esol_nord:.1} kWh, masqués {esol_masque:.1} kWh",
@@ -238,11 +256,35 @@ fn validation_des_chauffe_eau_solaires() {
     let p = variante(&maison, |v| {
         v["description"] = serde_json::json!({"kit": {"surface_m2": 2.0, "v_tot_l": 200.0,
             "p_np_w": 30.0, "ac_etoile_m2": 1.8, "uc_etoile_w_m2k": 4.0, "us_w_k": 1.5,
-            "theta_max_c": 90.0}});
+            "theta_max_c": 90.0, "k_theta": 0.92}});
     });
     let m = messages(&p);
     assert!(m.iter().any(|x| x.contains("ac_etoile_m2")), "{m:?}");
     assert!(m.iter().any(|x| x.contains("f_aux")), "{m:?}");
+    // « Kθ » d'un kit requis (Q52) : absent, l'entrée ne se lit pas.
+    let mut v =
+        serde_json::to_value(&maison.batiments[0].generations[1].chauffe_eau_solaires[0]).unwrap();
+    v["description"] = serde_json::json!({"kit": {"surface_m2": 4.0, "v_tot_l": 300.0,
+        "p_np_w": 40.0, "ac_etoile_m2": 2.4, "uc_etoile_w_m2k": 4.5, "us_w_k": 1.9,
+        "f_aux": 0.4, "theta_max_c": 90.0}});
+    let e = serde_json::from_value::<thbce_core::entree::ChauffeEauSolaire>(v).unwrap_err();
+    assert!(e.to_string().contains("k_theta"), "{e}");
+    // Kit à appoint séparé instantané ou sans appoint : refusé (§9.23.3.2.2, ballon base seule
+    // solaire avec appoint intégré).
+    for appoint in ["separe_instantane", "aucun"] {
+        let p = variante(&maison, |v| {
+            v["description"] = serde_json::json!({"kit": {"surface_m2": 4.0, "v_tot_l": 300.0,
+                "p_np_w": 40.0, "ac_etoile_m2": 2.4, "uc_etoile_w_m2k": 4.5, "us_w_k": 1.9,
+                "theta_max_c": 90.0, "k_theta": 0.92}});
+            v["appoint"] = appoint.into();
+        });
+        let m = messages(&p);
+        assert!(
+            m.iter()
+                .any(|x| x.contains("un kit CESI est un ballon base seule")),
+            "{appoint} : {m:?}"
+        );
+    }
     // Appoint séparé instantané sans générateur instantané d'ECS dans la génération.
     let mut p = variante(&maison, |v| v["appoint"] = "separe_instantane".into());
     p.batiments[0].generations[1].generateurs.clear();
@@ -268,6 +310,16 @@ fn validation_des_chauffe_eau_solaires() {
     assert!(messages(&p)
         .iter()
         .any(|x| x.contains("assurant le chauffage et l'ECS")));
+    // « θch_max^gen » (éq. 2117) : température de départ de dimensionnement requise.
+    let mut p = ssc.clone();
+    for d in &mut p.batiments[0].zones[0].groupes[0].distributions {
+        if let thbce_core::entree::ReseauGroupe::Hydraulique(h) = &mut d.reseau {
+            h.theta_dep_dim_c = None;
+        }
+    }
+    assert!(messages(&p)
+        .iter()
+        .any(|x| x.contains("température de départ de dimensionnement")));
     let mut p = ssc;
     p.batiments[0].distributions_intergroupes.clear();
     p.batiments[0].zones[0].groupes[0].distributions.clear();
@@ -290,14 +342,18 @@ fn verifier_ssc(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
     let st = &g.stockages[0];
     let sol = st.solaire.as_ref().unwrap();
     let ssc = st.ssc.unwrap();
-    // Bilan du ballon : solaire + appoint = ECS + chauffage puisé + pertes + écrêtement, à la
-    // variation du stock près (500 L, 1,163 × 500 × 80 K = 47 kWh).
+    // Bilan du ballon : solaire + appoint = ECS + chauffage puisé + pertes + écrêtement +
+    // variation du stock entre le début et la fin du calcul.
     let ecart = st.q_fou_sto_base_kwh + st.q_fou_sto_ap_kwh
         - st.q_fou_ecs_kwh
         - ssc.q_puise_ch_kwh
         - st.pertes_kwh
         - sol.ecretement_kwh;
-    assert!(ecart.abs() < 47.0, "{titre} : {ecart}");
+    let d_stock = variation_stock_kwh(st);
+    assert!(
+        (ecart - d_stock).abs() < 1e-6,
+        "{titre} : {ecart} contre {d_stock}"
+    );
     // Le ballon contribue au chauffage ; l'énergie fournie en chauffage par la génération est
     // la chaleur puisée et celle des générateurs.
     assert!(ssc.q_puise_ch_kwh > 0.0, "{titre}");

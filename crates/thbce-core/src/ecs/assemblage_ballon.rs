@@ -159,6 +159,8 @@ pub struct CumulsAssemblage {
     pub q_puise_ch_wh: f64,
     /// Chauffage fourni par l'appoint raccordé d'un système solaire combiné, en Wh.
     pub q_fou_ch_ap_wh: f64,
+    /// Températures des zones au début du premier pas de temps, en °C.
+    pub theta_debut_c: Option<[f64; NB_ZONES]>,
 }
 
 /// Assemblage d'un ballon, d'un générateur de base et d'un éventuel appoint intégré.
@@ -239,6 +241,9 @@ impl AssemblageBallon {
         appel: &mut dyn FnMut(usize, Poste, f64, f64) -> f64,
     ) -> SortiesAssemblage {
         let nb = self.nb;
+        if self.cumuls.theta_debut_c.is_none() {
+            self.cumuls.theta_debut_c = Some(self.ballon.theta_c);
+        }
         // Pertes du pas de temps, avec les températures de la fin du pas précédent (éq. 1770).
         self.ballon.debut_pas(e.theta_amb_c);
         // Première étape : volume puisé pour l'ECS (éq. 1952 à 1954).

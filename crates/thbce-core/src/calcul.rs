@@ -773,6 +773,12 @@ fn resultats_generations(b: &BatimentHoraire) -> Vec<ResultatsGeneration> {
                             theta_haut_min_c: k.theta_haut_min_c,
                             nbh_temp_insuff_max: k.nbh_temp_insuff_max,
                             nbh_report_e: k.nbh_report_e,
+                            v_zones_l: s.ballon.v_l.to_vec(),
+                            theta_zones_debut_c: k
+                                .theta_debut_c
+                                .unwrap_or(s.ballon.theta_c)
+                                .to_vec(),
+                            theta_zones_fin_c: s.ballon.theta_c.to_vec(),
                             ssc: s.ssc.map(|_| ResultatsSsc {
                                 q_puise_ch_kwh: k.q_puise_ch_wh / 1000.0,
                                 q_fou_ch_appoint_kwh: k.q_fou_ch_ap_wh / 1000.0,
