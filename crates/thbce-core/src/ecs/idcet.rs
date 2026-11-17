@@ -714,4 +714,152 @@ mod tests {
         assert!((id.essai_reproduit.cop_dhw / r.cop_dhw - 1.0).abs() < 2e-2);
         assert!((id.triplet.cop_pivot / 3.0 - 1.0).abs() < 0.15, "{id:?}");
     }
+
+    /// Modèle de l'essai écrit indépendamment de l'assemblage, à la main, pour un cas où le
+    /// ballon reste homogène : sans puisage, la pompe à chaleur chauffe la zone basse, qui se
+    /// mélange aussitôt à tout le ballon (§9.9.3.2.2.2), si bien que les quatre zones forment une
+    /// seule zone ; avec un puisage d'au plus un quart du volume, seule la zone basse change
+    /// (effet piston, éq. 1773 et 1776) et la pompe à chaleur, assez puissante, ramène tout le
+    /// ballon à la consigne dans l'heure. Matrice de la pompe à chaleur (éq. 2235) : seule la
+    /// colonne du pivot (7 °C amont) sert, avec les coefficients des tableaux 178 et 179,
+    /// linéaires en θaval : `COP(θ) = COPpivot × (1 + 0,02 × (45 − θ))`,
+    /// `Pabs(θ) = Pabspivot × (1 + 0,01 × (45 − θ))`. Compresseur tout ou rien sans
+    /// auxiliaires : `Pabs,LR = Pabs × LR × (1 + 0,5 × (1 − LR) / 26)` (éq. 1301 à 1303).
+    fn essai_a_la_main(e: &Essai, t: &Triplet) -> ResultatsEssai {
+        const RC: f64 = 1.163;
+        let (v, ua, tc) = (e.v_tot_l, t.ua_s_w_k, e.theta_wh_c);
+        let tamb = e.theta_amb_c();
+        let pfou_pc = |th: f64| {
+            t.cop_pivot * (1.0 + 0.02 * (45.0 - th)) * t.pabs_pivot_w * (1.0 + 0.01 * (45.0 - th))
+        };
+        let pabs = |th: f64, lr: f64| {
+            t.pabs_pivot_w * (1.0 + 0.01 * (45.0 - th)) * lr * (1.0 + 0.5 * (1.0 - lr) / 26.0)
+        };
+        // État : température homogène du ballon en fin de pas, et celle du pas précédent.
+        let (mut th, mut th2) = (10.0, 10.0);
+        // Un pas sans puisage : renvoie (Qreq, LR, Qcons) ; éq. (1770), (1813), (1815) et
+        // (1786).
+        let sans_puisage = |th: &mut f64, th2: &mut f64| {
+            let pertes = ua * (*th - tamb);
+            let actif = *th < tc - 2.0 || (*th < tc - 1e-9 && *th2 < *th);
+            let (q_req, lr, q_cons) = if actif {
+                let q_req = RC * v * (tc - *th) + pertes;
+                let lr = (q_req / pfou_pc(*th)).min(1.0);
+                (q_req, lr, pabs(*th, lr))
+            } else {
+                (0.0, 0.0, 0.0)
+            };
+            let q_fou = if actif { lr * pfou_pc(*th) } else { 0.0 };
+            *th2 = *th;
+            *th += (q_fou - pertes) / (RC * v);
+            (q_req, lr, q_cons)
+        };
+        // Étape C (éq. 2238 et 2239).
+        let mut t_h = 0.0;
+        let mut q_cons_prec;
+        loop {
+            let (q_req, lr, q_cons) = sans_puisage(&mut th, &mut th2);
+            q_cons_prec = q_cons;
+            if q_req > 0.0 {
+                t_h += lr;
+            } else {
+                break;
+            }
+        }
+        // Étape D (éq. 2240 à 2242).
+        let (mut duree, mut nb_cycles, mut t_es, mut w_es) = (0, 0, 0.0, 0.0);
+        let mut dernier = (0.0, 0.0);
+        while duree < 48 && nb_cycles < 6 {
+            let (_, _, q_cons) = sans_puisage(&mut th, &mut th2);
+            if q_cons_prec != 0.0 && q_cons == 0.0 {
+                if nb_cycles > 0 {
+                    dernier = (w_es, t_es);
+                }
+                nb_cycles += 1;
+                t_es = 0.0;
+                w_es = 0.0;
+            } else {
+                duree += 1;
+                t_es += 1.0;
+                w_es += q_cons;
+            }
+            q_cons_prec = q_cons;
+        }
+        let p_es = dernier.0 / dernier.1;
+        // Étape E (éq. 2243 à 2245) : ballon à la consigne au premier puisage.
+        th = tc;
+        th2 = tc;
+        let (mut q_tc, mut w_tc, mut duree_e) = (0.0, 0.0, 0usize);
+        q_cons_prec = 0.0;
+        let t_ttc = loop {
+            let besoin = if duree_e < 24 {
+                e.cycle.besoin_wh(duree_e)
+            } else {
+                0.0
+            };
+            let q_cons = if besoin > 0.0 {
+                // Puisage dans la zone haute, à θ, d'un volume d'au plus un quart du ballon :
+                // seule la zone basse change.
+                let vz = v / 4.0;
+                let vp = besoin / (RC * (th - 10.0));
+                assert!(vp <= vz);
+                let t0 = (th * (vz - vp) + 10.0 * vp) / vz;
+                let pertes = ua * (th - tamb);
+                let q_req = RC * vz * (tc - t0) + 3.0 * RC * vz * (tc - th) + pertes;
+                // Éq. (1785) : moyenne de la zone basse entre la fin du pas précédent et l'état
+                // après puisage.
+                let t_aval = (th + t0) / 2.0;
+                let lr = q_req / pfou_pc(t_aval);
+                assert!(
+                    lr < 1.0,
+                    "pompe à chaleur trop petite pour ce calcul à la main"
+                );
+                th2 = th;
+                th = tc;
+                pabs(t_aval, lr)
+            } else {
+                sans_puisage(&mut th, &mut th2).2
+            };
+            if duree_e >= 24 && q_cons_prec != 0.0 && q_cons == 0.0 {
+                break duree_e as f64;
+            }
+            duree_e += 1;
+            q_tc += besoin;
+            w_tc += q_cons;
+            q_cons_prec = q_cons;
+        };
+        ResultatsEssai {
+            t_h_h: t_h,
+            p_es_w: p_es,
+            cop_dhw: q_tc / (w_tc + (24.0 - t_ttc) * p_es),
+        }
+    }
+
+    #[test]
+    fn essai_simule_compare_a_un_calcul_a_la_main() {
+        // Ballon de 200 L dont les pertes (2 W/K) déclenchent des cycles en régime stabilisé ;
+        // pompe à chaleur de 1 kW absorbé (COP 3 au pivot), assez puissante pour remonter le
+        // ballon dans l'heure après chaque puisage du cycle S.
+        let e = Essai {
+            cycle: Cycle::S,
+            theta_wh_c: 55.0,
+            air_ambiant: false,
+            ..essai()
+        };
+        let t = Triplet {
+            ua_s_w_k: 2.0,
+            cop_pivot: 3.0,
+            pabs_pivot_w: 1000.0,
+        };
+        let main = essai_a_la_main(&e, &t);
+        let r = simuler_essai(&e, &t).unwrap();
+        println!("{r:?} {main:?}");
+        assert!((r.t_h_h - main.t_h_h).abs() < 1e-9, "{r:?} {main:?}");
+        assert!((r.p_es_w - main.p_es_w).abs() < 1e-9, "{r:?} {main:?}");
+        assert!((r.cop_dhw - main.cop_dhw).abs() < 1e-9, "{r:?} {main:?}");
+        // Ordres de grandeur : 1,163 × 200 × 45 = 10,5 kWh à fournir avec 3,5 à 4,6 kW, soit
+        // moins de 4 h ; pertes de 70 W à 55 °C compensées avec un COP voisin de 2,6.
+        assert!((2.0..4.0).contains(&main.t_h_h), "{main:?}");
+        assert!((15.0..40.0).contains(&main.p_es_w), "{main:?}");
+    }
 }
