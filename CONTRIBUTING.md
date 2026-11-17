@@ -20,6 +20,28 @@ Les fichiers météorologiques conventionnels de la RE2020 **ne doivent jamais e
 
 Les tables de `thbce-data` issues d'un document se génèrent par script (`xtask`), pas à la main, et la CI vérifie qu'elles sont à jour. Une table transcrite d'une image (pondération dynamique) est protégée par des tests de contrôle.
 
+## Retrouver une équation ou un tableau du texte réglementaire
+
+Le PDF fait foi : une équation ou un tableau se lit sur l'image de sa page, pas dans l'extraction texte. Deux commandes aident à y accéder (pagination du PDF ; pour l'annexe III elle coïncide avec « n/1854 »).
+
+```sh
+cargo run -p xtask -- index-texte            # régénère docs/reference/index/
+cargo run -p xtask -- page 142               # image PNG de la page 142 (150 dpi)
+cargo run -p xtask -- page --eq 134          # page de l'équation (134)
+cargo run -p xtask -- page --tableau 56-1    # page du tableau 56-1 (suffixes admis)
+cargo run -p xtask -- page --figure 191      # page de la figure 191
+cargo run -p xtask -- page --eq 75 --annexe ii   # annexe II (règles générales)
+```
+
+- `index-texte` lit les extractions de `docs/reference/texte/` et écrit, dans `docs/reference/index/`, les tables CSV `annexe-iii-{equations,tableaux,figures,fiches}.csv` et `annexe-ii-{equations,tableaux,figures}.csv`, ainsi que `anomalies.md` (numéros introuvables, en double, hors séquence : aucun n'est inventé). `xtask verifier` contrôle que ces fichiers sont à jour et que les plages de pages des fiches recoupent `docs/couverture.md`. La méthode est décrite en tête de `xtask/src/index_texte.rs`.
+- Colonnes des CSV (séparateur virgule, champs entre guillemets si besoin) :
+  - `annexe-*-equations.csv` : `equation` (numéro), `page` (page du numéro), `tete_de_page` (1 si le numéro ouvre la page : l'équation peut commencer sur la page précédente), `doublon` (1 pour une occurrence supplémentaire d'un numéro déjà rencontré), `fiche` (annexe III seulement : fiche, ou chapitre, courante à cet endroit du texte).
+  - `annexe-*-tableaux.csv` et `annexe-*-figures.csv` : `tableau` ou `figure` (numéro, suffixe admis : `56-1`), `page` (page de la légende, qui suit le tableau), `tete_de_page` (tableaux : 1 si la légende ouvre la page, le corps du tableau est alors sur la page précédente ; signal heuristique à vérifier sur l'image), `fiche` (annexe III seulement), `titre`.
+  - `annexe-iii-fiches.csv` : `numero` (`5` ou `5.13`), `type` (`chapitre` ou `fiche`), `titre`, `page_debut`, `page_fin`.
+- Exemple : `grep '^1238,' docs/reference/index/annexe-iii-equations.csv` donne la ou les lignes de l'équation (1238) ; plusieurs lignes signalent un numéro en double.
+- `page --eq`, `--tableau` et `--figure` sortent en **code 1** avec un message sur un numéro en double (demander alors `page <N>` avec la page voulue) ou introuvable (voir `docs/reference/index/anomalies.md`). Une équation ou un tableau dont `tete_de_page` vaut 1 produit deux images (page précédente puis page du numéro).
+- `page` appelle `pdftoppm` (paquet `poppler-utils`) et écrit dans `target/pages/` (jamais versionné) ; un message clair s'affiche s'il manque.
+
 ## Code
 
 - `thbce-core` reste pur : ni fichier, ni réseau, ni horloge, ni aléa.
