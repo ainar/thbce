@@ -22,6 +22,7 @@ use exigences::valider_exigences;
 mod baies;
 mod batiment;
 mod collectif;
+mod eclairage;
 mod ecs;
 mod enveloppe;
 mod espaces_tampons;

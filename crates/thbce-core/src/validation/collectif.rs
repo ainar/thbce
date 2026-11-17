@@ -95,6 +95,13 @@ pub(super) fn valider_collectif(r: &mut RapportValidation, cb: &str, bat: &Batim
                 // Tableau 310 : le besoin de voyages Bv n'est défini que pour les usages 2 et
                 // suivants ; les ascenseurs ne se calculent que dans les zones de logement
                 // collectif.
+                // Usage non résidentiel calculé : ascenseurs reconnus mais pas encore calculés
+                // (besoin de voyages et nombre d'occupants de la zone hors habitation).
+                Some(u) if !u.est_habitation() && u.est_pris_en_charge() => r.hors_perimetre(
+                    format!("{c}.zones_desservies[{iz}]"),
+                    Some(id.clone()),
+                    "ascenseur desservant une zone d'usage non résidentiel (Th-BCE 2020 §10.1)",
+                ),
                 Some(u) if *u != UsageZone::LogementCollectif => r.erreur(
                     format!("{c}.zones_desservies[{iz}]"),
                     Some(id.clone()),
@@ -120,6 +127,20 @@ pub(super) fn valider_collectif(r: &mut RapportValidation, cb: &str, bat: &Batim
         &format!("{cb}.parkings"),
         bat.parkings.iter().map(|p| &p.id),
     );
+    // §10.3.2 : « Typeusage » du parking (bureau, commerce, habitat). Seul l'habitat est
+    // calculé : un parking d'un bâtiment qui a une zone non résidentielle calculée est refusé.
+    if !bat.parkings.is_empty()
+        && bat
+            .zones
+            .iter()
+            .any(|z| !z.usage.est_habitation() && z.usage.est_pris_en_charge())
+    {
+        r.hors_perimetre(
+            format!("{cb}.parkings"),
+            None,
+            "parking d'un bâtiment d'usage non résidentiel (Th-BCE 2020 §10.3 et §10.4)",
+        );
+    }
     for (i, p) in bat.parkings.iter().enumerate() {
         let c = format!("{cb}.parkings[{i}]");
         // §10.3.3 : Npl peut être un réel ; minimum 1 (tableaux 320 et 322).

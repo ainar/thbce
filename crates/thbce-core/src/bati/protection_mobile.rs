@@ -11,10 +11,8 @@
 //! En l'absence d'espace tampon, `becl = 1` et `Etp** = Etp*` (éq. 176).
 
 use thbce_data::protections_mobiles::{
-    LigneGpm, LigneInoccupation, LigneOccupation, MatriceManuelle, R_PROT2_OCC0,
-    STORE_ENROULABLE_HABITATION, TH_D_R_PROT_JOUR_MIN_AUTRE, TH_D_R_PROT_JOUR_MIN_MOTORISEE,
-    TH_D_R_PROT_NUIT_MAX_VOLET, TH_D_R_PROT_NUIT_STORE_ENROULABLE, TOP_J1_LIM_MANU_C,
-    VOLET_HABITATION, V_VENT_LIM_MANU_SE_M_S,
+    LigneGpm, LigneInoccupation, LigneOccupation, MatriceManuelle, R_PROT2_OCC0, TOP_J1_LIM_MANU_C,
+    V_VENT_LIM_MANU_SE_M_S,
 };
 
 use crate::entree::{GestionPm, ProtectionMobile, TypePm, TypoPm};
@@ -127,16 +125,20 @@ pub struct GestionResolue {
     pm2: bool,
     p_occ: f64,
     matrice: &'static MatriceManuelle,
+    th_d: thbce_data::protections_mobiles::ValeursThD,
 }
 
 impl GestionResolue {
     /// Résout la gestion d'une protection mobile pour un usage. Renvoie `None` pour ce que cette
-    /// version ne prend pas en charge : store vénitien, gestion automatique, usage hors de la
-    /// famille « habitation » (cas écartés par la validation).
+    /// version ne prend pas en charge : store vénitien, gestion automatique, usage d'une famille
+    /// dont les matrices ne sont pas transcrites (cas écartés par la validation).
     pub fn nouvelle(pm: &ProtectionMobile, usage: u8) -> Option<Self> {
+        let (famille, parts) = thbce_data::protections_mobiles::famille_et_parts(usage)?;
+        let (volet, store_enroulable) = thbce_data::protections_mobiles::matrices(famille)?;
+        let th_d = thbce_data::protections_mobiles::valeurs_th_d(famille)?;
         let matrice = match pm.type_pm {
-            TypePm::Volet => &VOLET_HABITATION,
-            TypePm::StoreEnroulable => &STORE_ENROULABLE_HABITATION,
+            TypePm::Volet => volet,
+            TypePm::StoreEnroulable => store_enroulable,
             TypePm::StoreVenitien => return None,
         };
         let motorisee = match pm.gestion {
@@ -144,7 +146,6 @@ impl GestionResolue {
             GestionPm::ManuelleMotorisee => true,
             GestionPm::AutomatiqueAvecDerogation => return None,
         };
-        let parts = thbce_data::protections_mobiles::parts_occupation(usage)?;
         Some(Self {
             type_pm: pm.type_pm,
             motorisee,
@@ -152,6 +153,7 @@ impl GestionResolue {
             pm2: pm.seconde_protection,
             p_occ: parts.p_occ,
             matrice,
+            th_d,
         })
     }
 
@@ -175,26 +177,26 @@ impl GestionResolue {
                 m.inoccupation_non_motorisee[ligne],
             )
         };
-        // Th-BCE 2020 §5.9.3.6, éq. (202) à (204) et tableau 34 (colonne « Résidentiel ») : en
+        // Th-BCE 2020 §5.9.3.6, éq. (202) à (204) et tableau 34 (colonne de la famille d'usages) : en
         // Th-D, en période de confort adaptatif et quand Topj-1max ≥ Topj-1lim_manu, seuls les
         // ratios changent ; les seuils d'éclairement sont conservés.
         let th_d_chaud = c.confort_adaptatif_th_d && chaud;
         if th_d_chaud {
             let plancher = if self.motorisee {
-                TH_D_R_PROT_JOUR_MIN_MOTORISEE
+                self.th_d.r_prot_jour_min_motorisee
             } else {
-                TH_D_R_PROT_JOUR_MIN_AUTRE
+                self.th_d.r_prot_jour_min_autre
             };
             occ.r_prot0 = occ.r_prot0.max(plancher);
             inocc.r_prot_jour = inocc.r_prot_jour.max(plancher);
             match self.type_pm {
                 TypePm::StoreEnroulable => {
-                    occ.r_prot_nuit = TH_D_R_PROT_NUIT_STORE_ENROULABLE;
-                    inocc.r_prot_nuit = TH_D_R_PROT_NUIT_STORE_ENROULABLE;
+                    occ.r_prot_nuit = self.th_d.r_prot_nuit_store_enroulable;
+                    inocc.r_prot_nuit = self.th_d.r_prot_nuit_store_enroulable;
                 }
                 _ => {
-                    occ.r_prot_nuit = occ.r_prot_nuit.min(TH_D_R_PROT_NUIT_MAX_VOLET);
-                    inocc.r_prot_nuit = inocc.r_prot_nuit.min(TH_D_R_PROT_NUIT_MAX_VOLET);
+                    occ.r_prot_nuit = occ.r_prot_nuit.min(self.th_d.r_prot_nuit_max_volet);
+                    inocc.r_prot_nuit = inocc.r_prot_nuit.min(self.th_d.r_prot_nuit_max_volet);
                 }
             }
         }

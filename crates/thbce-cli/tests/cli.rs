@@ -133,10 +133,10 @@ fn codes_de_retour() {
         Some(2)
     );
     // 3 : usage hors périmètre de cette version.
-    let bureaux = texte.replace("maison_individuelle", "bureaux");
-    let bureaux = fichier("bureaux.json", &bureaux);
+    let ecole = texte.replace("maison_individuelle", "enseignement_primaire");
+    let ecole = fichier("ecole.json", &ecole);
     let h2b = meteo("h2b-bis.csv", ZoneClimatique::H2b);
-    let s = thbce(&["calcul", bureaux.to_str().unwrap(), "--meteo", &h2b]);
+    let s = thbce(&["calcul", ecole.to_str().unwrap(), "--meteo", &h2b]);
     assert_eq!(
         s.status.code(),
         Some(3),
@@ -144,19 +144,19 @@ fn codes_de_retour() {
         String::from_utf8_lossy(&s.stderr)
     );
     // `valider` sur la même entrée : correcte mais non calculable, code 3 et message explicite.
-    let s = thbce(&["valider", bureaux.to_str().unwrap()]);
+    let s = thbce(&["valider", ecole.to_str().unwrap()]);
     assert_eq!(s.status.code(), Some(3));
     let erreur = String::from_utf8_lossy(&s.stderr).into_owned();
     assert!(
         erreur.contains("non pris en charge par cette version (voir docs/couverture.md)"),
         "{erreur}"
     );
-    assert!(erreur.contains("usage = bureaux"), "{erreur}");
+    assert!(erreur.contains("usage = enseignement_primaire"), "{erreur}");
     // Une erreur de saisie l'emporte sur un élément hors périmètre : code 2.
     let mixte = fichier(
         "mixte.json",
         &texte
-            .replace("maison_individuelle", "bureaux")
+            .replace("maison_individuelle", "enseignement_primaire")
             .replace("\"shab_m2\": 96.44", "\"shab_m2\": -1"),
     );
     assert_eq!(

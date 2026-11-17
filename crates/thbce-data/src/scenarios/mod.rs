@@ -348,6 +348,55 @@ mod tests {
         assert!(occ[5].iter().chain(&occ[6]).all(|v| *v == 0.0));
     }
 
+    /// Recoupement avec le tableau 277 de l'annexe III (§9.6.3.2, p. 1053 et 1054) : besoins
+    /// unitaires hebdomadaires d'ECS à 40 °C des usages 3 à 28, en litres par m² de surface
+    /// utile. Valeurs relevées sur le texte de l'annexe, indépendamment du classeur.
+    #[test]
+    fn besoins_d_ecs_du_tableau_277() {
+        let tableau_277: [(u8, f64); 26] = [
+            (3, 1.25),
+            (4, 0.2),
+            (5, 0.2),
+            (6, 0.2),
+            (7, 0.2),
+            (8, 22.873),
+            (9, 18.98),
+            (10, 5.694),
+            (11, 4.76),
+            (12, 0.714),
+            (13, 19.5),
+            (14, 2.2),
+            (15, 5.3),
+            (16, 19.5),
+            (17, 0.24),
+            (18, 79.0),
+            (19, 2.8),
+            (20, 1.68),
+            (21, 25.2),
+            (22, 0.24),
+            (23, 0.24),
+            (24, 0.24),
+            (25, 13.2),
+            (26, 4.5),
+            (27, 9.8),
+            (28, 33.9),
+        ];
+        let mut ecarts = Vec::new();
+        for (numero, a) in tableau_277 {
+            let u = usage(numero).unwrap();
+            if u.ecs.volume_l_semaine_unite != Some(a) {
+                ecarts.push((numero, u.ecs.volume_l_semaine_unite, a));
+            }
+        }
+        // Les usages d'habitation renvoient à la fiche des besoins d'ECS.
+        assert_eq!(usage(1).unwrap().ecs.volume_l_semaine_unite, None);
+        assert_eq!(usage(2).unwrap().ecs.volume_l_semaine_unite, None);
+        // Seul écart : l'usage 16 (restaurants, 2 repas par jour, 6 jours sur 7), 4,7 dans le
+        // classeur et 19,5 dans le tableau 277, valeur de l'usage 13 (question Q57). Le
+        // classeur est retenu : « a est figé dans les scénarios conventionnels » (§9.6.3.2).
+        assert_eq!(ecarts, [(16, Some(4.7), 19.5)]);
+    }
+
     #[test]
     fn les_ratios_de_surface_des_locaux_somment_a_un() {
         for u in &USAGES {

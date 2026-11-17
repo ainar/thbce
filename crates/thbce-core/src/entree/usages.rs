@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// Th-BCE 2020 §4.1.3, tableau 4 — usages d'une zone.
 ///
 /// Les 28 usages sont reconnus à la lecture. La première version du moteur ne calcule que les
-/// usages 1 et 2 (décision Q4) ; les autres sont signalés « non pris en charge ».
+/// usages 1 et 2 (décision Q4) et l'usage 3 (lot 0a) ; les autres sont signalés « non pris en charge ».
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum UsageZone {
@@ -105,8 +105,47 @@ impl UsageZone {
         }
     }
 
-    /// Usage calculé par la version courante du moteur (décision Q4).
+    /// Usage calculé par la version courante du moteur : habitation (décision Q4) et bureaux
+    /// (lot 0a).
     pub fn est_pris_en_charge(self) -> bool {
-        self.est_habitation()
+        self.est_habitation() || self == Self::Bureaux
+    }
+
+    /// « ihebergement » : usage d'habitation ou d'hébergement (§4.1.3, tableau 4) — usages 1 et
+    /// 2, hôtels en partie nuit (8 et 9), établissements sanitaires avec hébergement (19) et
+    /// établissements de santé en partie nuit (20).
+    pub fn i_hebergement(self) -> bool {
+        matches!(
+            self,
+            Self::MaisonIndividuelle
+                | Self::LogementCollectif
+                | Self::Hotel012Nuit
+                | Self::Hotel345Nuit
+                | Self::SanitaireAvecHebergement
+                | Self::SanteNuit
+        )
+    }
+
+    /// « ienseignement » : usage d'enseignement ou affilié (§4.1.3, tableau 4) — usages 4, 5,
+    /// 7, 26 et 27.
+    pub fn i_enseignement(self) -> bool {
+        matches!(
+            self,
+            Self::EnseignementPrimaire
+                | Self::EnseignementSecondaire
+                | Self::Universitaire
+                | Self::RestaurantScolaire1Repas
+                | Self::RestaurantScolaire3Repas
+        )
+    }
+
+    /// Usages « de type habitation » au sens du confort d'été (§13.5.3.3, éq. 2544) : maison
+    /// individuelle, logement collectif, établissement sanitaire avec hébergement ; la
+    /// température d'inconfort chaud y est ramenée à la consigne pendant la période de sommeil.
+    pub fn sommeil_confort_ete(self) -> bool {
+        matches!(
+            self,
+            Self::MaisonIndividuelle | Self::LogementCollectif | Self::SanitaireAvecHebergement
+        )
     }
 }

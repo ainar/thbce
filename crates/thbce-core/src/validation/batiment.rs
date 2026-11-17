@@ -2,9 +2,11 @@
 //! Validation des zones et des groupes, et cohérence des composants d'une zone.
 
 use super::baies::valider_baie;
+use super::eclairage::valider_locaux_eclairage;
 use super::enveloppe::{valider_inertie, valider_paroi, valider_pont_thermique};
 use super::ventilation::{
-    valider_aeraulique_zone, valider_bouche_conduit, valider_entrees_air, valider_ventilation,
+    valider_aeraulique_zone, valider_bouche_conduit, valider_bouche_conduit_non_residentielle,
+    valider_entrees_air, valider_ventilation,
 };
 use super::{nom_json, RapportValidation, References};
 use crate::bati::assemblage_groupe::EnveloppeResolue;
@@ -21,8 +23,8 @@ pub(super) fn valider_zone(r: &mut RapportValidation, c: &str, zone: &Zone, refs
             format!("{c}.usage"),
             Some(nom_json(&zone.usage)),
             format!(
-                "usage n° {} (seuls la maison individuelle ou accolée et le logement collectif \
-                 sont calculés)",
+                "usage n° {} (seuls la maison individuelle ou accolée, le logement collectif et \
+                 les bureaux sont calculés)",
                 zone.usage.numero()
             ),
         );
@@ -43,13 +45,13 @@ pub(super) fn valider_zone(r: &mut RapportValidation, c: &str, zone: &Zone, refs
         _ => {}
     }
     valider_aeraulique_zone(r, c, zone);
-    if zone.usage.est_habitation() {
+    if zone.usage.est_pris_en_charge() {
         match &zone.ventilation {
             None => r.erreur(
                 format!("{c}.ventilation"),
                 None,
-                "système de ventilation requis en habitation : il sert aux calculs du confort \
-                 d'été et des consommations (Th-BCE 2020 §6.2 à 6.5)",
+                "système de ventilation requis : il sert aux calculs du confort d'été et des \
+                 consommations (Th-BCE 2020 §6.2 à 6.5)",
             ),
             Some(v) => valider_ventilation(r, &format!("{c}.ventilation"), v, zone),
         }
@@ -170,8 +172,17 @@ fn valider_groupe(
         g.bouches_conduits.iter().map(|b| &b.id),
     );
     for (i, b) in g.bouches_conduits.iter().enumerate() {
-        valider_bouche_conduit(r, &format!("{c}.bouches_conduits[{i}]"), b);
+        let cb = format!("{c}.bouches_conduits[{i}]");
+        // Un usage non calculé n'a pas de contrôle de ses bouches : qu'elles soient saisies à
+        // la manière de l'habitation ou du non résidentiel, son refus (code 3) ne doit pas être
+        // masqué par une erreur de saisie (code 2).
+        if zone.usage.est_habitation() {
+            valider_bouche_conduit(r, &cb, b);
+        } else if zone.usage.est_pris_en_charge() {
+            valider_bouche_conduit_non_residentielle(r, &cb, b);
+        }
     }
+    valider_locaux_eclairage(r, c, g, zone);
     if let Some(e) = &g.entrees_air {
         valider_entrees_air(r, &format!("{c}.entrees_air"), e);
     }

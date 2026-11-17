@@ -5,7 +5,7 @@
 use super::dh_le_plus_defavorable;
 use super::emission_distribution::resultats_systemes;
 use super::enveloppe::{defauts_groupe, enveloppe_groupe, resultats_baies};
-use super::ventilation::{debits_bbio_groupe, ventilation_groupe};
+use super::ventilation::{debits_bbio_groupe, puissance_horaire_w, ventilation_groupe};
 use crate::bati::assemblage_groupe::{GroupeHoraire, THETA_INITIALE_C};
 use crate::bati::assemblage_zone::ZoneHoraire;
 use crate::conventions::NB_HEURES_AN;
@@ -90,7 +90,7 @@ pub(super) fn restituer_zone(
                 saisons_th_d: Some(resultats_saisons(d)),
                 ventilation: ventilation
                     .as_ref()
-                    .map(|v| ventilation_groupe(v, ig, sref_m2)),
+                    .map(|v| ventilation_groupe(v, ig, sref_m2, &th_c.scenarios)),
                 systemes: resultats_systemes(gc),
                 consommations: None,
                 baies: resultats_baies(g, &projet.catalogue),
@@ -109,13 +109,19 @@ pub(super) fn restituer_zone(
         ResultatsZone {
             id: zone.id.clone(),
             sref_m2,
-            nadeq: Some(th_b.scenarios.nadeq),
+            // Adultes équivalents : usages 1 et 2 seulement (§4.1.3.6.3.1).
+            nadeq: zone.usage.est_habitation().then_some(th_b.scenarios.nadeq),
             bbio: Some(sorties(&energies_zone, sref_m2)),
             dh_c_h,
             ventilation: ventilation.as_ref().map(|v| ResultatsVentilationZone {
                 id: v.id.clone(),
                 p_vent_w: v.p_vent_w(),
-                c_aux_vent_kwh: v.p_vent_w() * NB_HEURES_AN as f64 / 1000.0,
+                // Puissance constante en habitation ; hors habitation, celle de l'occupation
+                // ou de l'inoccupation à chaque pas de temps (éq. 636 à 639).
+                c_aux_vent_kwh: match puissance_horaire_w(v, &th_c.scenarios) {
+                    Some(serie) => serie.iter().sum::<f64>() / 1000.0,
+                    None => v.p_vent_w() * NB_HEURES_AN as f64 / 1000.0,
+                },
                 th_d: th_d.ventilation.as_ref().map(|_| ResultatsVentilationMode {
                     nbh_bypass: th_d.cumuls_ventilation.nbh_bypass,
                     q_ag_kwh: th_d.cumuls_ventilation.w_ag_wh / 1000.0,

@@ -89,7 +89,7 @@ pub(super) fn valider_systemes_batiment(r: &mut RapportValidation, cb: &str, bat
         espace_tampon_connu(r, &cr, et, bat);
     }
     for (iz, zone) in bat.zones.iter().enumerate() {
-        if !zone.usage.est_habitation() {
+        if !zone.usage.est_pris_en_charge() {
             continue;
         }
         for (ig, g) in zone.groupes.iter().enumerate() {
@@ -99,6 +99,7 @@ pub(super) fn valider_systemes_batiment(r: &mut RapportValidation, cb: &str, bat
                 g,
                 bat,
                 &ids_ecs,
+                zone.usage.est_habitation(),
             );
         }
         for (ig, g) in zone.groupes.iter().enumerate() {
@@ -112,7 +113,7 @@ fn valider_systemes_groupe(r: &mut RapportValidation, c: &str, g: &Groupe, bat: 
         r.erreur(
             format!("{c}.iclim"),
             None,
-            "« iclim » requis en habitation : vrai si le groupe est climatisé (Th-BCE 2020 \
+            "« iclim » requis : vrai si le groupe est climatisé (Th-BCE 2020 \
              §8.1.2)",
         );
         return;
@@ -121,7 +122,7 @@ fn valider_systemes_groupe(r: &mut RapportValidation, c: &str, g: &Groupe, bat: 
         None => r.erreur(
             format!("{c}.programmation"),
             None,
-            "programmation des relances requise en habitation (Th-BCE 2020 §8.5)",
+            "programmation des relances requise (Th-BCE 2020 §8.5)",
         ),
         Some(p) => {
             if iclim && p.refroidissement.is_none() {
@@ -143,7 +144,7 @@ fn valider_systemes_groupe(r: &mut RapportValidation, c: &str, g: &Groupe, bat: 
         r.erreur(
             format!("{c}.emetteurs"),
             None,
-            "au moins un émetteur de chauffage requis en habitation (Th-BCE 2020 §8.1)",
+            "au moins un émetteur de chauffage requis (Th-BCE 2020 §8.1)",
         );
     }
     let a_froid = g.emetteurs.iter().any(|e| e.refroidissement.is_some());
@@ -490,19 +491,22 @@ fn valider_hydraulique_groupe(
     }
 }
 
-/// Émetteurs d'ECS d'un groupe d'habitation (§9.5 à 9.7).
+/// Émetteurs d'ECS d'un groupe (§9.5 à 9.7). Hors habitation, un bâtiment sans production
+/// d'ECS se décrit avec la production conventionnelle de la fiche d'application 9.24.
 fn valider_ecs_groupe(
     r: &mut RapportValidation,
     c: &str,
     g: &Groupe,
     bat: &Batiment,
     ids_ecs: &BTreeSet<&str>,
+    habitation: bool,
 ) {
     if g.emetteurs_ecs.is_empty() {
         r.erreur(
             format!("{c}.emetteurs_ecs"),
             None,
-            "au moins un émetteur d'ECS requis en habitation (Th-BCE 2020 §9.5 et §9.6)",
+            "au moins un émetteur d'ECS requis (Th-BCE 2020 §9.5 et §9.6 ; pour un bâtiment tertiaire \
+             sans production d'ECS, décrire la production conventionnelle du §9.24)",
         );
         return;
     }
@@ -523,12 +527,35 @@ fn valider_ecs_groupe(
     for (i, e) in g.emetteurs_ecs.iter().enumerate() {
         let ce = format!("{c}.emetteurs_ecs[{i}]");
         r.plage(format!("{ce}.rat_em"), e.rat_em, 0.0, 1.0);
-        if e.nb_logements == 0 {
-            r.erreur(
-                format!("{ce}.nb_logements"),
-                Some("0".into()),
-                "doit être supérieur ou égal à 1 (Th-BCE 2020 §9.5.3, tableau 272)",
-            );
+        if habitation {
+            if e.nb_logements == 0 {
+                r.erreur(
+                    format!("{ce}.nb_logements"),
+                    Some("0".into()),
+                    "doit être supérieur ou égal à 1 (Th-BCE 2020 §9.5.3, tableau 272)",
+                );
+            }
+            if e.nu.is_some() {
+                r.erreur(
+                    format!("{ce}.nu"),
+                    e.nu.map(|n| n.to_string()),
+                    "le nombre d'unités ne se saisit pas en maison individuelle ou accolée ni en \
+                     logement collectif : il se déduit des adultes équivalents (Th-BCE 2020 \
+                     §9.6.3.2.2.2)",
+                );
+            }
+        } else {
+            if e.nb_logements != 0 {
+                r.erreur(
+                    format!("{ce}.nb_logements"),
+                    Some(e.nb_logements.to_string()),
+                    "le nombre de logements desservis ne se saisit qu'en maison individuelle ou \
+                     accolée et en logement collectif (Th-BCE 2020 §9.5.2)",
+                );
+            }
+            if let Some(nu) = e.nu {
+                r.strictement_positif(format!("{ce}.nu"), nu);
+            }
         }
         let parts = [
             ("part_melangeur", e.part_melangeur),
