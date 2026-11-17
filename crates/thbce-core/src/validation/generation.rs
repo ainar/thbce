@@ -147,6 +147,7 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
         && g.chauffe_eau_thermodynamiques.is_empty()
         && g.chauffe_eau_solaires.is_empty()
         && g.systemes_solaires_combines.is_empty()
+        && g.chauffe_eau_solaires_collectifs.is_empty()
     {
         r.erreur(
             format!("{c}.generateurs"),
@@ -166,11 +167,17 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
             .systemes_solaires_combines
             .iter()
             .any(|s| s.appoint.generateur == id)
+            || g.chauffe_eau_solaires_collectifs.iter().any(|c| {
+                c.ensembles
+                    .iter()
+                    .any(|e| e.appoint.as_ref().is_some_and(|a| a.generateur == id))
+            })
     };
     let avec_stockage = !g.stockages.is_empty()
         || !g.chauffe_eau_thermodynamiques.is_empty()
         || !g.chauffe_eau_solaires.is_empty()
-        || !g.systemes_solaires_combines.is_empty();
+        || !g.systemes_solaires_combines.is_empty()
+        || !g.chauffe_eau_solaires_collectifs.is_empty();
     if avec_stockage && g.priorite == Some(TypePriorite::SansPriorite) {
         r.erreur(
             format!("{c}.priorite"),

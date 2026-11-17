@@ -17,12 +17,15 @@ use super::boucle_solaire::{
     RegulationBoucle, TypeCapteur, ALPHA_P_CONV, DELTA_THETA_REG_HABITATION_K, ISR_MIN_CONV_W_M2,
     M_CP_CONV_W_K_M2, UA_HX_CONV_W_K_M2,
 };
+use super::cesci::{
+    BallonCentral, CumulsCentral, LectureEntreeCescai, ProductionCollective, TypeProduction,
+};
 use super::gestion_regulation_ballon::{nb_iter_vp, Programmation, DELTA_THETA_DEFAUT_K};
 use crate::entree::{
     AppointCesi, BallonSaisi, BoucleSolaireSaisie, CapteursSolaires, Catalogue, ChauffeEauSolaire,
-    DescriptionCesi, NatureBallonSaisie, PerformancesCapteurs, PertesBallon, ProgrammationBallon,
-    RaccordementSsc, RegulationBoucleSaisie, SystemeSolaireCombine, TransfertBoucle,
-    TypeCapteurSolaire,
+    ChauffeEauSolaireCollectif, DescriptionCesi, NatureBallonSaisie, PerformancesCapteurs,
+    PertesBallon, ProgrammationBallon, RaccordementSsc, RegulationBoucleSaisie,
+    SystemeSolaireCombine, TransfertBoucle, TypeCapteurSolaire, TypePcad,
 };
 use crate::resultats::ValeurParDefaut;
 
@@ -238,6 +241,118 @@ pub fn resoudre_ssc(
     Some(assemblage)
 }
 
+/// Résout une production solaire collective à appoints décentralisés saisie et validée
+/// (fiches 9.16 et 9.17) ; `appoint(id)` donne l'indice d'un générateur d'appoint dans la
+/// génération.
+pub fn resoudre_collectif(
+    c: &ChauffeEauSolaireCollectif,
+    catalogue: &Catalogue,
+    appoint: impl Fn(&str) -> Option<usize>,
+) -> Option<ProductionCollective> {
+    let mut defauts = Vec::new();
+    let boucle = resoudre_boucle(&c.capteurs, &c.boucle, &mut defauts);
+    let type_production = match c.type_pcad {
+        TypePcad::Cesci => TypeProduction::Cesci,
+        TypePcad::Cescai => TypeProduction::Cescai,
+        TypePcad::CesciAppointSepare => TypeProduction::CesciAppointSepare,
+    };
+    let mut ensembles = Vec::with_capacity(c.ensembles.len());
+    for (k, en) in c.ensembles.iter().enumerate() {
+        let mut d = Vec::new();
+        let champ = format!("ensembles[{k}]");
+        let ua_s = ua_s_ballon_w_k(&en.ballon, &format!("{champ}.ballon"), &mut d);
+        let regulation = match &en.appoint {
+            None => None,
+            Some(a) => {
+                let f = a.f_aux.unwrap_or_else(|| {
+                    d.push(ValeurParDefaut {
+                        champ: format!("{champ}.appoint.f_aux"),
+                        valeur: F_AUX_DEFAUT,
+                        regle: "Th-BCE 2020 §9.9.3.1 : fraction du ballon chauffée par \
+                                l'appoint par défaut"
+                            .to_owned(),
+                    });
+                    F_AUX_DEFAUT
+                });
+                if a.delta_theta_k.is_none() {
+                    d.push(ValeurParDefaut {
+                        champ: format!("{champ}.appoint.delta_theta_k"),
+                        valeur: DELTA_THETA_DEFAUT_K,
+                        regle: "Th-BCE 2020 §9.10.3.2.2 : hystérésis du thermostat par \
+                                défaut, 2 K"
+                            .to_owned(),
+                    });
+                }
+                let zone = |z: u8| usize::from(z.clamp(1, 4)) - 1;
+                Some((
+                    RegulationGenerateur {
+                        generateur: appoint(&a.generateur)?,
+                        programmation: match a.programmation {
+                            ProgrammationBallon::Permanent => Programmation::Permanent,
+                            ProgrammationBallon::Nuit => Programmation::Nuit,
+                            ProgrammationBallon::Jour => Programmation::Jour,
+                        },
+                        delta_theta_k: a.delta_theta_k.unwrap_or(DELTA_THETA_DEFAUT_K),
+                        z_gen: zone(a.z_ap),
+                        z_reg: zone(a.z_reg),
+                        h_rel_ech: 0.0,
+                    },
+                    f,
+                ))
+            }
+        };
+        let f_aux = regulation.map(|(_, f)| f);
+        let mut a = AssemblageBallon::nouveau(
+            format!("{}/{}", c.id, en.id),
+            f64::from(en.nb_ballons.max(1)),
+            Ballon::nouveau(en.ballon.v_tot_l, ua_s, f_aux, en.ballon.theta_max_c),
+            RegulationGenerateur {
+                // L'énergie de la boucle ou du réseau est injectée : pas de générateur de base.
+                generateur: usize::MAX,
+                programmation: Programmation::Permanent,
+                delta_theta_k: DELTA_THETA_DEFAUT_K,
+                // Éq. (1980) et (2066) : échangeur et sonde en zone basse.
+                z_gen: 0,
+                z_reg: 0,
+                h_rel_ech: 0.0,
+            },
+            regulation.map(|(r, _)| r),
+            // Éq. (1950) : 4 itérations sans appoint intégré.
+            nb_iter_vp(f_aux),
+        );
+        a.appoint_separe = type_production == TypeProduction::CesciAppointSepare;
+        a.valeurs_par_defaut = d;
+        ensembles.push(a);
+    }
+    let central = match (type_production, &c.ballon_central) {
+        (TypeProduction::Cescai, Some(b)) => {
+            let ua_s = ua_s_ballon_w_k(b, "ballon_central", &mut defauts);
+            Some(BallonCentral {
+                ballon: Ballon::nouveau(b.v_tot_l, ua_s, None, b.theta_max_c),
+                cumuls: CumulsCentral::default(),
+            })
+        }
+        _ => None,
+    };
+    if let Some(a) = ensembles.first_mut() {
+        // Valeurs par défaut de la boucle et du ballon central, portées par le premier
+        // ensemble.
+        a.valeurs_par_defaut.splice(0..0, defauts);
+    }
+    Some(ProductionCollective {
+        id: c.id.clone(),
+        type_production,
+        boucle: BoucleSolaireHoraire {
+            boucle,
+            capteurs: CapteursExposes::nouveaux(&c.exposition_capteurs, catalogue),
+            cumuls: CumulsBoucle::default(),
+        },
+        ensembles,
+        central,
+        lecture_entree: LectureEntreeCescai::default(),
+    })
+}
+
 /// Paramètres d'une boucle solaire et de son ballon décrits composant par composant :
 /// `(boucle, Vtot, (UA)S, θmax, hrelech)` ; les valeurs par défaut appliquées sont ajoutées à
 /// `defauts`.
@@ -247,6 +362,55 @@ fn resoudre_composants(
     ballon: &BallonSaisi,
     defauts: &mut Vec<ValeurParDefaut>,
 ) -> (BoucleSolaire, f64, f64, f64, f64) {
+    let b = resoudre_boucle(capteurs, boucle, defauts);
+    let ua_s = ua_s_ballon_w_k(ballon, "ballon", defauts);
+    (
+        b,
+        ballon.v_tot_l,
+        ua_s,
+        ballon.theta_max_c,
+        boucle.h_rel_ech.unwrap_or(0.0),
+    )
+}
+
+/// « (UA)S » d'un ballon saisi, en W/K, après correction de statut (éq. 1766 à 1768) ; la
+/// valeur par défaut éventuelle est ajoutée à `defauts` sous le champ `{champ}.pertes`.
+pub(crate) fn ua_s_ballon_w_k(
+    ballon: &BallonSaisi,
+    champ: &str,
+    defauts: &mut Vec<ValeurParDefaut>,
+) -> f64 {
+    match ballon.pertes {
+        PertesBallon::Certifie { ua_s_w_k } => ua_s_w_k,
+        PertesBallon::Justifie { ua_s_w_k } => 1.1 * ua_s_w_k,
+        PertesBallon::ParDefaut { nature } => {
+            let ua = ua_s_defaut_w_k(
+                match nature {
+                    NatureBallonSaisie::EffetJouleHorizontal => NatureBallon::EffetJouleHorizontal,
+                    NatureBallonSaisie::EffetJouleVertical => NatureBallon::EffetJouleVertical,
+                    NatureBallonSaisie::Autre => NatureBallon::Autre,
+                },
+                ballon.v_tot_l,
+            );
+            defauts.push(ValeurParDefaut {
+                champ: format!("{champ}.pertes.par_defaut"),
+                valeur: ua,
+                regle: "Th-BCE 2020 §9.9.3.1, tableau 282 et éq. (1768) : coefficient de \
+                        pertes par défaut du ballon, en W/K"
+                    .to_owned(),
+            });
+            ua
+        }
+    }
+}
+
+/// Paramètres d'une boucle solaire décrite composant par composant (tableau 292) ; les
+/// valeurs par défaut appliquées sont ajoutées à `defauts`.
+pub(crate) fn resoudre_boucle(
+    capteurs: &CapteursSolaires,
+    boucle: &BoucleSolaireSaisie,
+    defauts: &mut Vec<ValeurParDefaut>,
+) -> BoucleSolaire {
     let defaut = |champ: &str, valeur: f64, regle: &str| ValeurParDefaut {
         champ: champ.to_owned(),
         valeur,
@@ -319,48 +483,20 @@ fn resoudre_composants(
             }),
         },
     };
-    let v = ballon.v_tot_l;
-    let ua_s = match ballon.pertes {
-        PertesBallon::Certifie { ua_s_w_k } => ua_s_w_k,
-        PertesBallon::Justifie { ua_s_w_k } => 1.1 * ua_s_w_k,
-        PertesBallon::ParDefaut { nature } => {
-            let ua = ua_s_defaut_w_k(
-                match nature {
-                    NatureBallonSaisie::EffetJouleHorizontal => NatureBallon::EffetJouleHorizontal,
-                    NatureBallonSaisie::EffetJouleVertical => NatureBallon::EffetJouleVertical,
-                    NatureBallonSaisie::Autre => NatureBallon::Autre,
-                },
-                v,
-            );
-            defauts.push(defaut(
-                "ballon.pertes.par_defaut",
-                ua,
-                "Th-BCE 2020 §9.9.3.1, tableau 282 et éq. (1768) : coefficient de \
-                 pertes par défaut du ballon, en W/K",
-            ));
-            ua
-        }
-    };
-    (
-        BoucleSolaire {
-            a_m2: a,
-            eta0,
-            a1_w_m2k: a1,
-            a2_w_m2k2: a2,
-            k_theta: capteurs.k_theta,
-            ua_te_w_k: boucle.ua_te_w_k,
-            ua_ti_w_k: boucle.ua_ti_w_k,
-            ua_hx_w_k: ua_hx,
-            p_np_w: boucle.p_np_w,
-            alpha_p,
-            m_cp_w_k: m_cp,
-            regulation,
-        },
-        v,
-        ua_s,
-        ballon.theta_max_c,
-        boucle.h_rel_ech.unwrap_or(0.0),
-    )
+    BoucleSolaire {
+        a_m2: a,
+        eta0,
+        a1_w_m2k: a1,
+        a2_w_m2k2: a2,
+        k_theta: capteurs.k_theta,
+        ua_te_w_k: boucle.ua_te_w_k,
+        ua_ti_w_k: boucle.ua_ti_w_k,
+        ua_hx_w_k: ua_hx,
+        p_np_w: boucle.p_np_w,
+        alpha_p,
+        m_cp_w_k: m_cp,
+        regulation,
+    }
 }
 
 #[cfg(test)]

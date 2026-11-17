@@ -24,7 +24,9 @@ use crate::climat::calendrier::{date_scenario, hleg, jour_bascule_saisons};
 use crate::climat::environnement_proche::ventc_m_s;
 use crate::climat::{ClimatExterieur, ConfortAdaptatif};
 use crate::conventions::{ModeCalcul, NB_HEURES_AN};
-use crate::ecs::distribution_ecs::{pas_intergroupe, SortiesDistributionEcsIntergroupe};
+use crate::ecs::distribution_ecs::{
+    pas_intergroupe_selon_depart, SortiesDistributionEcsIntergroupe,
+};
 use crate::entree::{Batiment, Catalogue};
 use crate::entree::{
     FonctionReseau, PositionGeneration, RaccordementReseaux, ReseauEcsIntergroupe, ReseauGroupe,
@@ -699,7 +701,21 @@ impl SystemesBatiment {
                 .espace_tampon
                 .and_then(|i| espaces_tampons.get(i))
                 .map_or(1.0, |e| e.b_therm);
-            let s = pas_intergroupe(&d.reseau, &aval, true, theta_cw_c, theta_ext_c, b_therm);
+            // CESCAI : réseau au départ de la zone haute du ballon central (§9.17.3.2,
+            // deuxième étape).
+            let depart_ballon = self
+                .generations_horaires
+                .get(d.generation)
+                .and_then(GenerationHoraire::theta_depart_reseau_ecs_c);
+            let s = pas_intergroupe_selon_depart(
+                &d.reseau,
+                &aval,
+                true,
+                theta_cw_c,
+                theta_ext_c,
+                b_therm,
+                depart_ballon,
+            );
             let c = &mut self.cumuls_ecs[k];
             c.q_w_prim_mensuel_wh[mois] += s.q_w_prim_wh;
             c.phi_pertes_vc_wh += s.phi_pertes_vc_wh;
@@ -744,6 +760,7 @@ impl SystemesBatiment {
                     theta_i_aval_eq_c: s.theta_i_aval_eq_c,
                     relance: s.relance,
                     rat_surf_dess: self.rat_surf_dess[k],
+                    phi_pertes_prim_wh: 0.0,
                 });
                 origines.push(Origine::Reseau(k));
             }
@@ -763,6 +780,14 @@ impl SystemesBatiment {
                     theta_i_aval_eq_c: 0.0,
                     relance: false,
                     rat_surf_dess: self.rat_surf_dess_ecs[k],
+                    // Pertes comprises dans la demande (éq. 1752 : réseau bouclé sans
+                    // réchauffeur).
+                    phi_pertes_prim_wh: match &d.reseau {
+                        ReseauEcsIntergroupe::Boucle(b) if !b.rechauffeur => {
+                            s.phi_pertes_vc_wh + s.phi_pertes_hvc_wh
+                        }
+                        _ => 0.0,
+                    },
                 });
                 origines.push(Origine::Ecs(k));
             }
@@ -782,6 +807,7 @@ impl SystemesBatiment {
                     relance: false,
                     // Sans demande, la sécurité antigel ne pèse pas dans les répartitions.
                     rat_surf_dess: 0.0,
+                    phi_pertes_prim_wh: 0.0,
                 });
                 origines.push(Origine::Antigel(iz));
             }

@@ -25,6 +25,9 @@ use crate::chauffage_refroidissement::calculs_generation::Poste;
 use crate::climat::calendrier::date_scenario;
 use crate::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
 use crate::conventions::{ModeCalcul, NB_HEURES_AN};
+use crate::ecs::assemblage_ballon::AssemblageBallon;
+use crate::ecs::boucle_solaire::BoucleSolaireHoraire;
+use crate::ecs::cesci::ProductionCollective;
 use crate::ecs::distribution_ecs::{l_vc_2nd_e_defaut_m, EmetteurEcsResolu};
 use crate::entree::{Batiment, Catalogue, Groupe, Projet, UsageZone, Zone};
 use crate::erreur::Erreur;
@@ -37,9 +40,9 @@ use crate::resultats::{
     ResultatsConfortEte, ResultatsDebitsBbio, ResultatsDistributionGroupe, ResultatsEcsEmetteur,
     ResultatsEcsIntergroupe, ResultatsEmetteur, ResultatsEnveloppe, ResultatsEspaceTampon,
     ResultatsEspaceTamponMode, ResultatsGenerateur, ResultatsGeneration, ResultatsGroupe,
-    ResultatsIdCet, ResultatsIntergroupes, ResultatsSaisons, ResultatsSsc, ResultatsStockage,
-    ResultatsSystemesGroupe, ResultatsVentilationGroupe, ResultatsVentilationMode,
-    ResultatsVentilationZone, ResultatsZone, ValeurParDefaut,
+    ResultatsIdCet, ResultatsIntergroupes, ResultatsSaisons, ResultatsSolaireCollectif,
+    ResultatsSsc, ResultatsStockage, ResultatsSystemesGroupe, ResultatsVentilationGroupe,
+    ResultatsVentilationMode, ResultatsVentilationZone, ResultatsZone, ValeurParDefaut,
 };
 use crate::validation::valider;
 use crate::ventilation::bouche_conduit::debits_specifiques_bbio_groupe;
@@ -736,6 +739,109 @@ fn resultats_intergroupes(b: &BatimentHoraire) -> Vec<ResultatsIntergroupes> {
         .collect()
 }
 
+/// Résultats d'un assemblage avec ballon de stockage d'ECS (§9.14).
+fn resultats_stockage(s: &AssemblageBallon) -> ResultatsStockage {
+    let k = &s.cumuls;
+    ResultatsStockage {
+        id: s.id.clone(),
+        q_fou_ecs_kwh: k.q_fou_ecs_wh / 1000.0,
+        q_fou_sto_base_kwh: k.q_fou_sto_wh[0] / 1000.0,
+        q_fou_sto_ap_kwh: k.q_fou_sto_wh[1] / 1000.0,
+        pertes_kwh: k.phi_pertes_wh / 1000.0,
+        v_puise_l: k.v_p_l,
+        theta_haut_min_c: k.theta_haut_min_c,
+        nbh_temp_insuff_max: k.nbh_temp_insuff_max,
+        nbh_report_e: k.nbh_report_e,
+        v_zones_l: s.ballon.v_l.to_vec(),
+        theta_zones_debut_c: k.theta_debut_c.unwrap_or(s.ballon.theta_c).to_vec(),
+        theta_zones_fin_c: s.ballon.theta_c.to_vec(),
+        ssc: s.ssc.map(|_| ResultatsSsc {
+            q_puise_ch_kwh: k.q_puise_ch_wh / 1000.0,
+            q_fou_ch_appoint_kwh: k.q_fou_ch_ap_wh / 1000.0,
+        }),
+        solaire: s
+            .solaire
+            .as_ref()
+            .map(|b| resultats_boucle(b, s.nb, s.ballon.ecretement_wh * s.nb)),
+        idcet: s.identification.map(|i| ResultatsIdCet {
+            ua_s_w_k: i.triplet.ua_s_w_k,
+            cop_pivot: i.triplet.cop_pivot,
+            pabs_pivot_kw: i.triplet.pabs_pivot_w / 1000.0,
+            epsilon: i.epsilon,
+        }),
+        valeurs_par_defaut: s.valeurs_par_defaut.clone(),
+    }
+}
+
+/// Résultats d'une boucle solaire pour `nb` assemblages identiques ; `ecretement_wh` :
+/// énergie écrêtée à la température maximale des ballons qu'elle chauffe, en Wh.
+fn resultats_boucle(
+    b: &BoucleSolaireHoraire,
+    nb: f64,
+    ecretement_wh: f64,
+) -> ResultatsBoucleSolaire {
+    let c = &b.cumuls;
+    ResultatsBoucleSolaire {
+        e_sol_kwh: c.e_sol_wh() * nb / 1000.0,
+        e_sol_mensuel_kwh: c.e_sol_mensuel_wh.iter().map(|x| x * nb / 1000.0).collect(),
+        w_pompe_kwh: c.e_aux_wh * nb / 1000.0,
+        pertes_vc_kwh: c.phi_vc_wh * nb / 1000.0,
+        isr_kwh_m2: c.isr_wh_m2 / 1000.0,
+        a_capteurs_m2: b.boucle.a_m2,
+        nbh_marche: c.nbh_marche,
+        ecretement_kwh: ecretement_wh / 1000.0,
+    }
+}
+
+/// Résultats d'une production solaire collective à appoints décentralisés (fiches 9.16 et
+/// 9.17).
+fn resultats_collectif(c: &ProductionCollective) -> ResultatsSolaireCollectif {
+    use crate::ecs::cesci::TypeProduction;
+    let ecretement: f64 = match &c.central {
+        Some(b) => b.ballon.ecretement_wh,
+        None => c
+            .ensembles
+            .iter()
+            .map(|a| a.ballon.ecretement_wh * a.nb)
+            .sum(),
+    };
+    let central = c.central.as_ref().map(|b| {
+        let k = &b.cumuls;
+        ResultatsStockage {
+            id: format!("{}/central", c.id),
+            q_fou_ecs_kwh: (k.q_fou_reseau_wh + k.pertes_reseau_deduites_wh) / 1000.0,
+            q_fou_sto_base_kwh: c.boucle.cumuls.e_sol_wh() / 1000.0,
+            q_fou_sto_ap_kwh: 0.0,
+            pertes_kwh: k.phi_pertes_wh / 1000.0,
+            v_puise_l: 0.0,
+            theta_haut_min_c: k.theta_haut_min_c.unwrap_or(b.ballon.theta_c[3]),
+            nbh_temp_insuff_max: 0,
+            nbh_report_e: 0,
+            v_zones_l: b.ballon.v_l.to_vec(),
+            theta_zones_debut_c: k.theta_debut_c.unwrap_or(b.ballon.theta_c).to_vec(),
+            theta_zones_fin_c: b.ballon.theta_c.to_vec(),
+            solaire: None,
+            ssc: None,
+            idcet: None,
+            valeurs_par_defaut: Vec::new(),
+        }
+    });
+    let k = c.central.as_ref().map(|b| b.cumuls).unwrap_or_default();
+    ResultatsSolaireCollectif {
+        id: c.id.clone(),
+        type_pcad: match c.type_production {
+            TypeProduction::Cesci => crate::entree::TypePcad::Cesci,
+            TypeProduction::Cescai => crate::entree::TypePcad::Cescai,
+            TypeProduction::CesciAppointSepare => crate::entree::TypePcad::CesciAppointSepare,
+        },
+        solaire: resultats_boucle(&c.boucle, 1.0, ecretement),
+        ensembles: c.ensembles.iter().map(resultats_stockage).collect(),
+        ballon_central: central,
+        q_fou_reseau_kwh: k.q_fou_reseau_wh / 1000.0,
+        pertes_reseau_deduites_kwh: k.pertes_reseau_deduites_wh / 1000.0,
+    }
+}
+
 /// Générations d'un bâtiment à l'issue du calcul Th-C : demandes de leurs réseaux, énergies
 /// fournies et consommations de leurs générateurs (§8.29).
 fn resultats_generations(b: &BatimentHoraire) -> Vec<ResultatsGeneration> {
@@ -758,58 +864,8 @@ fn resultats_generations(b: &BatimentHoraire) -> Vec<ResultatsGeneration> {
                 pertes_vc_kwh: c.phi_vc_tot_wh / 1000.0,
                 nbh_sousdim_ch_ecs_max: c.nb_sousdim_max[0],
                 nbh_sousdim_fr_max: c.nb_sousdim_max[1],
-                stockages: g
-                    .stockages
-                    .iter()
-                    .map(|s| {
-                        let k = &s.cumuls;
-                        ResultatsStockage {
-                            id: s.id.clone(),
-                            q_fou_ecs_kwh: k.q_fou_ecs_wh / 1000.0,
-                            q_fou_sto_base_kwh: k.q_fou_sto_wh[0] / 1000.0,
-                            q_fou_sto_ap_kwh: k.q_fou_sto_wh[1] / 1000.0,
-                            pertes_kwh: k.phi_pertes_wh / 1000.0,
-                            v_puise_l: k.v_p_l,
-                            theta_haut_min_c: k.theta_haut_min_c,
-                            nbh_temp_insuff_max: k.nbh_temp_insuff_max,
-                            nbh_report_e: k.nbh_report_e,
-                            v_zones_l: s.ballon.v_l.to_vec(),
-                            theta_zones_debut_c: k
-                                .theta_debut_c
-                                .unwrap_or(s.ballon.theta_c)
-                                .to_vec(),
-                            theta_zones_fin_c: s.ballon.theta_c.to_vec(),
-                            ssc: s.ssc.map(|_| ResultatsSsc {
-                                q_puise_ch_kwh: k.q_puise_ch_wh / 1000.0,
-                                q_fou_ch_appoint_kwh: k.q_fou_ch_ap_wh / 1000.0,
-                            }),
-                            solaire: s.solaire.as_ref().map(|b| {
-                                let c = &b.cumuls;
-                                ResultatsBoucleSolaire {
-                                    e_sol_kwh: c.e_sol_wh() * s.nb / 1000.0,
-                                    e_sol_mensuel_kwh: c
-                                        .e_sol_mensuel_wh
-                                        .iter()
-                                        .map(|x| x * s.nb / 1000.0)
-                                        .collect(),
-                                    w_pompe_kwh: c.e_aux_wh * s.nb / 1000.0,
-                                    pertes_vc_kwh: c.phi_vc_wh * s.nb / 1000.0,
-                                    isr_kwh_m2: c.isr_wh_m2 / 1000.0,
-                                    a_capteurs_m2: b.boucle.a_m2,
-                                    nbh_marche: c.nbh_marche,
-                                    ecretement_kwh: s.ballon.ecretement_wh * s.nb / 1000.0,
-                                }
-                            }),
-                            idcet: s.identification.map(|i| ResultatsIdCet {
-                                ua_s_w_k: i.triplet.ua_s_w_k,
-                                cop_pivot: i.triplet.cop_pivot,
-                                pabs_pivot_kw: i.triplet.pabs_pivot_w / 1000.0,
-                                epsilon: i.epsilon,
-                            }),
-                            valeurs_par_defaut: s.valeurs_par_defaut.clone(),
-                        }
-                    })
-                    .collect(),
+                stockages: g.stockages.iter().map(resultats_stockage).collect(),
+                solaires_collectifs: g.collectifs.iter().map(resultats_collectif).collect(),
                 generateurs: g
                     .generateurs
                     .iter()
