@@ -134,7 +134,7 @@ pub fn debits_avec_depassement(cdep: f64, regul: Debits) -> Debits {
 /// saisie ou, pour un système hygroréglable, celle que donne la formule du §6.2.3.1.1.2 avec la
 /// durée d'utilisation du grand débit du calcul en cours.
 ///
-/// Lecture (`docs/questions.md`, Q36 point 3) : le débit de base d'un système hygroréglable est
+/// Lecture (`docs/questions/Q036.md`, point 3) : le débit de base d'un système hygroréglable est
 /// déduit avec le même `Dugd` que celui de l'éq. (403), de sorte que le débit régulé est
 /// exactement `Qvarepspec`, le « débit énergétique équivalent » de la note 4 du §6.2.3.2.2.2.
 /// `None` si la bouche ne donne ni débit de base ni `Qvarepspec` (refusé par la validation).
@@ -249,8 +249,7 @@ pub fn a_cond_defaut_maison_m2(shab_m2: f64) -> f64 {
 ///
 /// Th-BCE 2020 §6.2.3.4, éq. (424) et (425) : `abs(qmax) × Ratdebcond`. Pour la VMC double
 /// flux, les éq. (426) et (427) emploient le débit maximal « en mode actif » des CTA, qui n'a
-/// pas d'objet en habitation : le débit maximal de la bouche le remplace (`docs/questions.md`,
-/// Q42).
+/// pas d'objet en habitation : le débit maximal de la bouche le remplace (`docs/questions/Q042.md`).
 pub fn a_cond_defaut_collectif_m2(q_max_m3_h: f64) -> f64 {
     q_max_m3_h.abs() * RAT_DEB_COND
 }

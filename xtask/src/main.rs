@@ -7,6 +7,8 @@
 //! cargo run -p xtask -- reseaux-chaleur [--verifier]
 //! cargo run -p xtask -- scenarios [--verifier]
 //! cargo run -p xtask -- typescript [--verifier]
+//! cargo run -p xtask -- questions [--verifier]
+//! cargo run -p xtask -- changelog <version> [--date AAAA-MM-JJ] | --apercu
 //! cargo run -p xtask -- verifier
 //! cargo run -p xtask -- meteo-synthetique <fichier.csv>
 //! ```
@@ -23,6 +25,9 @@
 //!   `crates/thbce-data/src/reseaux_chaleur/table.rs`.
 //! - `typescript` écrit les définitions TypeScript du module WebAssembly
 //!   (`crates/thbce-wasm/src/types.d.ts`) depuis les JSON Schema d'entrée et de résultats.
+//! - `questions` régénère le tableau de bord de `docs/questions/README.md` depuis les
+//!   en-têtes des fichiers `Q<nnn>.md`.
+//! - `changelog` assemble les fragments de `changelog.d/` dans `CHANGELOG.md`.
 //! - `verifier` contrôle tous les fichiers générés.
 //! - `meteo-synthetique` écrit un jeu météo constant pour les huit zones, au format CSV long,
 //!   pour les tests de bout en bout. Ce jeu n'est pas réglementaire.
@@ -34,6 +39,8 @@ use thbce_core::climat::donnees::DESCRIPTION_SYNTHETIQUE;
 use thbce_core::climat::MeteoProjet;
 use thbce_data::ZoneClimatique;
 
+mod changelog;
+mod questions;
 mod reseaux;
 mod scenarios;
 mod temperature_base;
@@ -151,10 +158,17 @@ fn main() -> ExitCode {
             .and_then(|()| temperature_de_base(true))
             .and_then(|()| reseaux_de_chaleur(true))
             .and_then(|()| scenarios_conventionnels(true))
-            .and_then(|()| definitions_typescript(true)),
+            .and_then(|()| definitions_typescript(true))
+            .and_then(|()| questions::commande(true))
+            .and_then(|()| changelog::verifier()),
+        ["questions"] => questions::commande(false),
+        ["questions", "--verifier"] => questions::commande(true),
+        ["changelog", "--apercu"] => changelog::commande(None, None),
+        ["changelog", version] => changelog::commande(Some(version), None),
+        ["changelog", version, "--date", date] => changelog::commande(Some(version), Some(date)),
         ["meteo-synthetique", sortie] => meteo_synthetique(sortie),
         _ => Err(
-            "usage : xtask zones-climatiques [--verifier] | temperature-base [--verifier] | reseaux-chaleur [--verifier] | scenarios [--verifier] | typescript [--verifier] | verifier | meteo-synthetique <fichier.csv>"
+            "usage : xtask zones-climatiques [--verifier] | temperature-base [--verifier] | reseaux-chaleur [--verifier] | scenarios [--verifier] | typescript [--verifier] | questions [--verifier] | changelog <version> [--date AAAA-MM-JJ] | changelog --apercu | verifier | meteo-synthetique <fichier.csv>"
                 .to_owned(),
         ),
     };

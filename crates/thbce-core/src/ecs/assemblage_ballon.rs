@@ -11,8 +11,7 @@
 //!
 //! Périmètre : assemblages « base seule » (ballon électrique, chauffe-eau thermodynamique) et
 //! « base et appoint intégré » en ECS seule ; second ballon séparé, appoint séparé instantané
-//! et stockage de chauffage sont refusés par la validation. Lectures : `docs/questions.md`,
-//! Q48.
+//! et stockage de chauffage sont refusés par la validation. Lectures : `docs/questions/Q048.md`.
 
 use super::ballon_de_stockage::{Ballon, NB_ZONES, RHO_CW_WH_L_K};
 use super::boucle_solaire::{BoucleSolaireHoraire, EntreesBoucle, SortiesBoucle};

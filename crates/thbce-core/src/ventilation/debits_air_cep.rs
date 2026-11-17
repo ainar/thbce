@@ -17,7 +17,7 @@
 //! mécanique à simple ou à double flux (éq. 154 à 157), ce qui couvre le système conventionnel
 //! du Bbio ; l'aération par les fenêtres, la ventilation naturelle par conduit et les centrales
 //! à débit variable (éq. 158, 159, 162 à 166) viendront avec leurs systèmes (lot 6a).
-//! Lectures : `docs/questions.md`, Q37.
+//! Lectures : `docs/questions/Q037.md`.
 
 use crate::bati::comportement_thermique::AirEntrant;
 use crate::entree::EntreesAir;
@@ -185,7 +185,7 @@ pub fn altitudes(z_m: f64, h_plancher_m: f64, h_zone_m: f64, permea_verticale: b
     }
 }
 
-/// Origine des altitudes des composants dans les éq. (136) et (137) (`docs/questions.md`, Q37
+/// Origine des altitudes des composants dans les éq. (136) et (137) (`docs/questions/Q037.md`
 /// point 3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LectureAltitudes {

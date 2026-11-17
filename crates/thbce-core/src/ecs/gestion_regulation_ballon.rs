@@ -9,7 +9,7 @@
 //!
 //! La gestion optimisée de l'appoint (§9.10.3.3, éq. 1816 à 1824), l'appoint séparé instantané
 //! (éq. 1800 à 1807) et les échangeurs côté distribution (éq. 1808 et 1809) sont hors de cette
-//! version. Lectures : `docs/questions.md`, Q48.
+//! version. Lectures : `docs/questions/Q048.md`.
 
 use super::ballon_de_stockage::{Ballon, NB_ZONES, RHO_CW_WH_L_K};
 

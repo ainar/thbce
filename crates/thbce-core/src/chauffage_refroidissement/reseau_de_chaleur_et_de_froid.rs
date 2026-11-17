@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Sous-stations de réseaux de chaleur et de froid : fiche `C_gen_Réseau de chaleur et de
 //! froid` (Th-BCE 2020 §8.28), types 600 et 601 du tableau 111. Seules les pertes de la
-//! sous-station sont prises en compte (éq. 1467 à 1483). Lectures : `docs/questions.md`, Q49.
+//! sous-station sont prises en compte (éq. 1467 à 1483). Lectures : `docs/questions/Q049.md`.
 
 use super::calculs_generation::{Energie, Poste};
 use super::generation::{EntreesAppel, SortiesAppel};

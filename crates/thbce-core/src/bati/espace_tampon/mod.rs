@@ -9,7 +9,7 @@
 //! parois opaques (§5.17.3), ponts thermiques (§5.19.3) et baies (§5.10.3) qui séparent le
 //! volume chauffé de l'espace tampon, par l'assemblage du groupe ; l'air neuf qui transite par
 //! un espace tampon entre à sa température (§5.6.3.1, éq. 134). Lectures du texte :
-//! `docs/questions.md`, Q41.
+//! `docs/questions/Q041.md`.
 
 pub mod assemblage;
 #[allow(clippy::module_inception)]
