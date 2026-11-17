@@ -435,4 +435,41 @@ mod tests {
         assert!(avec.eti_wh < sans.eti_wh);
         assert!(avec.eti_wh > 0.0);
     }
+
+    /// Effet des variantes de lecture (Q50) sur la cabine du cas d'exemple de l'immeuble :
+    /// 21,9 occupants maximaux, 630 kg, 1 m/s, 10,2 m, 4 étages.
+    #[test]
+    fn effet_des_variantes_de_lecture() {
+        let u = vec![1.0; NB_H];
+        let z = || ZoneDesservie {
+            q_z_kg: 630.0,
+            nb_z: 21.88,
+            bv_z: 1582.4,
+            u_z: &u,
+            habitation: true,
+        };
+        let a = cabine();
+        let ref_ = calculer_cabine(&a, &[z()], &Lectures::default());
+        let variante = |l: Lectures| calculer_cabine(&a, &[z()], &l).etot_wh / ref_.etot_wh - 1.0;
+        let mpass = variante(Lectures {
+            mpass_kg: 120.0,
+            ..Lectures::default()
+        });
+        let veille = variante(Lectures {
+            p_veille_porte_w: 75.0,
+            ..Lectures::default()
+        });
+        let gravite = variante(Lectures {
+            gravite_acceleration_imprimee: false,
+            ..Lectures::default()
+        });
+        println!(
+            "Q50 : Mpass 120 kg {:+.2} %, Pveilleporte 75 W {:+.2} %, gravité (G−F) {:+.4} %",
+            mpass * 100.0,
+            veille * 100.0,
+            gravite * 100.0
+        );
+        assert!(mpass > 0.0 && veille > 0.0);
+        assert!(gravite < 0.0 && gravite > -0.05);
+    }
 }
