@@ -107,6 +107,10 @@ pub struct ResultatsBatiment {
     /// génération.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub consommations: Option<Consommations>,
+    /// Production photovoltaïque du bâtiment (§12), sur le jeu météo « Th-BC » ; absente sans
+    /// installation. La répartition autoconsommé/exporté relève du chapitre 13.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub production_pv: Option<crate::pv::ResultatsProductionPv>,
 }
 
 /// Consommations en énergie finale d'un poste par type d'énergie, en kWh (colonnes de la
@@ -946,6 +950,9 @@ impl Resultats {
             b.dh_c_h = b.dh_c_h.map(a);
             b.ic_energie_kgco2_m2 = b.ic_energie_kgco2_m2.map(a);
             b.c_aux_vent_kwh = b.c_aux_vent_kwh.map(a);
+            if let Some(pv) = &mut b.production_pv {
+                pv.arrondir();
+            }
             for d in &mut b.distributions_intergroupes {
                 d.arrondir();
             }

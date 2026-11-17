@@ -99,6 +99,9 @@ pub struct Batiment {
     /// Réseaux de distribution d'ECS intergroupes (§9.8).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub distributions_ecs_intergroupes: Vec<DistributionEcsIntergroupe>,
+    /// Installations photovoltaïques intégrées au bâtiment (§12.1 et §12.2). Facultatif.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub installations_pv: Vec<crate::pv::InstallationPv>,
 }
 
 /// Th-BCE 2020 §5.4 — espace tampon.

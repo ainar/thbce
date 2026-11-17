@@ -26,12 +26,13 @@ pub mod entree;
 pub mod erreur;
 pub mod indicateurs;
 pub mod pertes;
+pub mod pv;
 pub mod resultats;
 pub mod scenarios;
 pub mod validation;
 pub mod ventilation;
 
-pub use calcul::{calculer, series_horaires, Options, SerieHoraireGroupe};
+pub use calcul::{calculer, series_horaires, series_pv, Options, SerieHoraireGroupe, SeriePvBatiment};
 pub use erreur::Erreur;
 pub use validation::{valider, RapportValidation};
 
