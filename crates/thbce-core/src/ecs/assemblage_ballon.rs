@@ -14,12 +14,13 @@
 //! et stockage de chauffage sont refusés par la validation. Lectures : `docs/questions.md`,
 //! Q48.
 
-use super::ballon_de_stockage::{Ballon, NB_ZONES};
+use super::ballon_de_stockage::{Ballon, NB_ZONES, RHO_CW_WH_L_K};
 use super::boucle_solaire::{BoucleSolaireHoraire, EntreesBoucle};
 use super::gestion_regulation_ballon::{
     active, boucle_puisage, boucle_puisage_appoint_separe, f_p, q_req_sto_wh, Programmation,
     THETA_C_ECS_C,
 };
+use crate::chauffage_refroidissement::calculs_generation::Poste;
 use crate::resultats::ValeurParDefaut;
 
 /// Nombre d'heures consécutives sans atteindre la consigne au-delà duquel le texte signale un
@@ -29,6 +30,29 @@ pub const SEUIL_TEMPERATURE_INSUFFISANTE_H: u32 = 168;
 /// Nombre d'heures de report d'énergie à l'issue du puisage au-delà duquel le moteur affiche
 /// une alerte (§9.9.3.2.3, éq. 1780).
 pub const SEUIL_REPORT_PUISAGE_H: u32 = 24;
+
+/// « zech_ch » : indice (à partir de 0) de la zone de l'échangeur de la boucle de chauffage
+/// d'un système solaire combiné, la zone n° 2 du texte (éq. 2129 et 2143).
+pub const Z_ECH_CH: usize = 1;
+
+/// « UAhx^bcl_ch(Vtot) » : coefficient d'échange de l'échangeur de la boucle de chauffage d'un
+/// système solaire combiné, en W/K (éq. 2118 et tableau 296) : interpolation linéaire entre
+/// 1 200 W/K pour 200 L et 12 000 W/K pour 2 000 L.
+pub fn ua_hx_bcl_ch_w_k(v_tot_l: f64) -> f64 {
+    let (v1, u1, v2, u2) = (200.0, 1200.0, 2000.0, 12_000.0);
+    (u2 - u1) / (v2 - v1) * v_tot_l + (u1 * v2 - u2 * v1) / (v2 - v1)
+}
+
+/// Boucle de chauffage d'un système solaire combiné (fiches 9.18 à 9.20).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ParametresSsc {
+    /// Vrai pour un appoint de chauffage raccordé à l'assemblage (« Typeprod_stockage = 5 »,
+    /// fiche 9.20) ; faux pour un appoint de chauffage indépendant (« = 4 », fiche 9.19).
+    pub raccorde: bool,
+    /// « Δθreg^bcl_ch » : réglage de la régulation de la boucle de chauffage, en K (éq. 2120,
+    /// appoint indépendant).
+    pub delta_theta_reg_bcl_k: f64,
+}
 
 /// Régulation d'un générateur de ballon, base ou appoint (§9.10.2).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -68,6 +92,14 @@ pub struct EntreesAssemblage {
     pub isr_w_m2: f64,
     /// Mois des scénarios, de 0 à 11, pour les cumuls.
     pub mois: usize,
+    /// « Qreq_ch(h) » : demande de chauffage transmise à un système solaire combiné, en Wh
+    /// (nulle hors saison de chauffage et pour les autres assemblages).
+    pub q_req_ch_wh: f64,
+    /// « θch_max^gen » : température maximale des réseaux de chauffage de la génération, en °C.
+    pub theta_ch_max_c: f64,
+    /// « θwm_ch^gen » : température de fonctionnement des générateurs instantanés de chauffage,
+    /// en °C (appoint raccordé, éq. 2150).
+    pub theta_aval_ch_c: f64,
 }
 
 /// Sorties d'un assemblage à un pas de temps, pour l'ensemble des assemblages identiques.
@@ -92,6 +124,15 @@ pub struct SortiesAssemblage {
     pub w_pompe_wh: f64,
     /// « ΦvcBS » : pertes d'une boucle solaire vers l'intérieur du bâtiment, en Wh (éq. 1973).
     pub phi_vc_bs_wh: f64,
+    /// Part de la consommation de la pompe attribuée au chauffage, en Wh (comprise dans
+    /// `w_pompe_wh` ; éq. 2135 et 2151).
+    pub w_pompe_ch_wh: f64,
+    /// « Qpuisé_ch_SSC » : chaleur puisée dans le ballon par la boucle de chauffage, en Wh.
+    pub q_puise_ch_wh: f64,
+    /// Chauffage fourni par l'appoint raccordé, en Wh (éq. 2150).
+    pub q_fou_ch_ap_wh: f64,
+    /// « Qrest_ch » : demande de chauffage que l'assemblage n'a pas couverte, en Wh.
+    pub q_rest_ch_wh: f64,
 }
 
 /// Cumuls annuels d'un assemblage.
@@ -114,6 +155,10 @@ pub struct CumulsAssemblage {
     /// le conserve sinon, sans le remettre à zéro : c'est un total annuel, et non une suite
     /// d'heures consécutives.
     pub nbh_report_e: u32,
+    /// Chaleur puisée par la boucle de chauffage d'un système solaire combiné, en Wh.
+    pub q_puise_ch_wh: f64,
+    /// Chauffage fourni par l'appoint raccordé d'un système solaire combiné, en Wh.
+    pub q_fou_ch_ap_wh: f64,
 }
 
 /// Assemblage d'un ballon, d'un générateur de base et d'un éventuel appoint intégré.
@@ -148,6 +193,8 @@ pub struct AssemblageBallon {
     /// puisage suit les éq. (1800) à (1807) et le reste est fourni par les générateurs
     /// instantanés d'ECS de la génération.
     pub appoint_separe: bool,
+    /// Boucle de chauffage d'un système solaire combiné (fiches 9.18 à 9.20).
+    pub ssc: Option<ParametresSsc>,
 }
 
 impl AssemblageBallon {
@@ -177,17 +224,19 @@ impl AssemblageBallon {
             identification: None,
             solaire: None,
             appoint_separe: false,
+            ssc: None,
         }
     }
 
-    /// Calcule un pas de temps (§9.14.3.2.2). `appel(generateur, Qreq, θaval)` appelle un
-    /// générateur de la génération pour l'ensemble des assemblages identiques et renvoie
+    /// Calcule un pas de temps (§9.14.3.2.2). `appel(generateur, poste, Qreq, θaval)` appelle
+    /// un générateur de la génération pour l'ensemble des assemblages identiques et renvoie
     /// l'énergie qu'il fournit, en Wh ; il est appelé même sans demande, la fiche du générateur
-    /// décidant de sa consommation à charge nulle.
+    /// décidant de sa consommation à charge nulle. Le poste est l'ECS (chauffage du ballon),
+    /// ou le chauffage pour l'appoint raccordé d'un système solaire combiné (éq. 2150).
     pub fn pas(
         &mut self,
         e: &EntreesAssemblage,
-        appel: &mut dyn FnMut(usize, f64, f64) -> f64,
+        appel: &mut dyn FnMut(usize, Poste, f64, f64) -> f64,
     ) -> SortiesAssemblage {
         let nb = self.nb;
         // Pertes du pas de temps, avec les températures de la fin du pas précédent (éq. 1770).
@@ -213,8 +262,18 @@ impl AssemblageBallon {
         let q_rest = puisage.q_report_wh * nb;
         let q_fou = e.q_req_ecs_wh - q_rest;
         let a_puise = puisage.v_p_l > 0.0;
+        // Systèmes solaires combinés, deuxième et troisième étapes (fiche 9.18, éq. 2116 à
+        // 2125) : chaleur puisée par la boucle de chauffage dans la partie basse du ballon.
+        let (q_puise_ch, mut q_rest_ch) = match self.ssc {
+            Some(p) if e.q_req_ch_wh > 0.0 => {
+                let q_req = e.q_req_ch_wh;
+                self.puiser_chauffage(&p, q_req, e.theta_ch_max_c, e.theta_amb_c)
+            }
+            _ => (0.0, e.q_req_ch_wh.max(0.0)),
+        };
         // Éq. (1785) : la température vue par un échangeur est celle des zones après le
-        // puisage, avant toute injection de puissance ; celle de l'appoint est donc calculée
+        // puisage (et, dans un système solaire combiné, après l'extraction de la chaleur de
+        // chauffage), avant toute injection de puissance ; celle de l'appoint est donc calculée
         // avant l'injection de la base.
         let b = self.base;
         let theta_aval_base = self.ballon.theta_b_moy_ech_c(b.z_gen, b.h_rel_ech);
@@ -259,7 +318,7 @@ impl AssemblageBallon {
             ) {
                 q_req_sto[0] = q_req_sto_wh(&self.ballon, b.z_gen, self.theta_c_c, true);
             }
-            q_fou_sto[0] = appel(b.generateur, q_req_sto[0] * nb, theta_aval_base) / nb;
+            q_fou_sto[0] = appel(b.generateur, Poste::Ecs, q_req_sto[0] * nb, theta_aval_base) / nb;
         }
         // Les pertes du pas de temps sont appliquées au ballon, que la base fonctionne ou non.
         self.ballon.injecter(b.z_gen, q_fou_sto[0], true);
@@ -277,8 +336,20 @@ impl AssemblageBallon {
                 ) {
                     q_req_sto[1] = q_req_sto_wh(&self.ballon, a.z_gen, self.theta_c_c, false);
                 }
-                q_fou_sto[1] = appel(a.generateur, q_req_sto[1] * nb, theta_aval_ap) / nb;
+                q_fou_sto[1] =
+                    appel(a.generateur, Poste::Ecs, q_req_sto[1] * nb, theta_aval_ap) / nb;
                 self.ballon.injecter(a.z_gen, q_fou_sto[1], false);
+            }
+        }
+        // Système solaire combiné à appoint raccordé, neuvième étape (éq. 2150) : l'appoint est
+        // appelé une seconde fois pour le chauffage restant, à la température de fonctionnement
+        // des générateurs instantanés de chauffage ; il fonctionne alors comme un générateur
+        // instantané, sans la programmation du thermostat du ballon (lecture Q52).
+        let mut q_fou_ch_ap = 0.0;
+        if let (Some(p), Some(a)) = (self.ssc, self.appoint) {
+            if p.raccorde && q_rest_ch > 0.0 {
+                q_fou_ch_ap = appel(a.generateur, Poste::Chauffage, q_rest_ch, e.theta_aval_ch_c);
+                q_rest_ch = (q_rest_ch - q_fou_ch_ap).max(0.0);
             }
         }
         // Éq. (1959) : heures consécutives sans atteindre la consigne en zone haute.
@@ -298,6 +369,17 @@ impl AssemblageBallon {
             q_sol_wh: boucle.map_or(0.0, |b| b.q_sol_wh * nb),
             w_pompe_wh: boucle.map_or(0.0, |b| b.p_p_wh * nb),
             phi_vc_bs_wh: boucle.map_or(0.0, |b| b.phi_vc_wh * nb),
+            // Éq. (2135) et (2151) : la pompe d'un système solaire combiné est répartie entre le
+            // chauffage et l'ECS au prorata des demandes, et va à l'ECS sans demande.
+            w_pompe_ch_wh: match (self.ssc, boucle) {
+                (Some(_), Some(b)) if e.q_req_ch_wh + e.q_req_ecs_wh > 0.0 => {
+                    b.p_p_wh * nb * e.q_req_ch_wh / (e.q_req_ch_wh + e.q_req_ecs_wh)
+                }
+                _ => 0.0,
+            },
+            q_puise_ch_wh: q_puise_ch,
+            q_fou_ch_ap_wh: q_fou_ch_ap,
+            q_rest_ch_wh: q_rest_ch,
         };
         let c = &mut self.cumuls;
         c.q_fou_ecs_wh += s.q_fou_ecs_wh;
@@ -307,12 +389,60 @@ impl AssemblageBallon {
             c.q_fou_sto_wh[k] += s.q_fou_sto_wh[k];
         }
         c.nbh_temp_insuff_max = c.nbh_temp_insuff_max.max(self.nbh_temp_insuff);
+        c.q_puise_ch_wh += s.q_puise_ch_wh;
+        c.q_fou_ch_ap_wh += s.q_fou_ch_ap_wh;
         c.theta_haut_min_c = c.theta_haut_min_c.min(theta_haut);
         // Éq. (1780).
         if puisage.q_report_wh != 0.0 {
             c.nbh_report_e += 1;
         }
         s
+    }
+}
+
+impl AssemblageBallon {
+    /// Gestion-régulation de la boucle de chauffage d'un système solaire combiné (fiche 9.18,
+    /// éq. 2116 à 2125, relues sur l'image des p. 1217 et 1218) et extraction de la chaleur
+    /// dans la zone de son échangeur, sans pertes (troisième étape des fiches 9.19 et 9.20) :
+    /// renvoie `(Qpuisé_ch_SSC, Qrest_ch)`, en Wh.
+    fn puiser_chauffage(
+        &mut self,
+        p: &ParametresSsc,
+        q_req_ch_wh: f64,
+        theta_ch_max_c: f64,
+        theta_amb_c: f64,
+    ) -> (f64, f64) {
+        let b = &mut self.ballon;
+        // Éq. (2117) et (2118).
+        let theta_puisage = theta_ch_max_c + q_req_ch_wh / ua_hx_bcl_ch_w_k(b.v_tot_l());
+        // Éq. (2116) : énergie disponible dans les zones situées sous l'échangeur, après le
+        // puisage d'ECS.
+        let dispo: f64 = (0..=Z_ECH_CH)
+            .map(|z| RHO_CW_WH_L_K * b.v_l[z] * (b.theta_c[z] - theta_puisage).max(0.0))
+            .sum();
+        // Éq. (2119).
+        let q_int = q_req_ch_wh.min(dispo);
+        let q_puise = if p.raccorde {
+            // Éq. (2123) à (2125) : la boucle ne fonctionne que si le ballon couvre toute la
+            // demande (l'éq. 2123, mal imprimée, est lue `Qpuisé_ch_SSC_int < Qreq_ch` ;
+            // lecture Q52).
+            if q_int < q_req_ch_wh {
+                0.0
+            } else {
+                q_req_ch_wh
+            }
+        } else if b.theta_prec_c[Z_ECH_CH] - theta_amb_c < p.delta_theta_reg_bcl_k || dispo <= 0.0 {
+            // Éq. (2120) et (2121).
+            0.0
+        } else {
+            // Éq. (2122).
+            q_int
+        };
+        if q_puise > 0.0 {
+            b.theta_c[Z_ECH_CH] -= q_puise / (RHO_CW_WH_L_K * b.v_l[Z_ECH_CH]);
+            b.melanger();
+        }
+        (q_puise, q_req_ch_wh - q_puise)
     }
 }
 
@@ -343,6 +473,9 @@ mod tests {
             theta_ext_c: 10.0,
             isr_w_m2: 0.0,
             mois: 0,
+            q_req_ch_wh: 0.0,
+            theta_ch_max_c: 35.0,
+            theta_aval_ch_c: 35.0,
         }
     }
 
@@ -358,7 +491,7 @@ mod tests {
             None,
             4,
         );
-        let mut resistance = |_: usize, q: f64, _: f64| q.min(2000.0);
+        let mut resistance = |_: usize, _: Poste, q: f64, _: f64| q.min(2000.0);
         // Premier pas : ballon à 50 °C, sous θc − Δθ : il faut 1 163 Wh pour remonter à 55 °C
         // et 60 Wh de pertes (éq. 1815) ; la résistance les fournit.
         let s = a.pas(&entrees(0.0, 12), &mut resistance);
@@ -399,7 +532,7 @@ mod tests {
             None,
             4,
         );
-        let mut resistance = |_: usize, q: f64, _: f64| q.min(4000.0);
+        let mut resistance = |_: usize, _: Poste, q: f64, _: f64| q.min(4000.0);
         // De jour, la résistance n'est pas autorisée : rien n'est injecté ; la zone haute à
         // 50 °C est sous les 53 °C attendus, la demande est reportée (éq. 1795 et 1953).
         let s = a.pas(&entrees(1000.0, 12), &mut resistance);
@@ -409,7 +542,7 @@ mod tests {
         // Le générateur n'est pas appelé hors de sa programmation (§9.10.3.2.2 et §9.14.3.2.2),
         // même à charge nulle ; les pertes du ballon sont appliquées.
         let mut appels = 0;
-        let mut compteur = |_: usize, q: f64, _: f64| {
+        let mut compteur = |_: usize, _: Poste, q: f64, _: f64| {
             appels += 1;
             q
         };
@@ -439,7 +572,7 @@ mod tests {
         };
         let mut a = AssemblageBallon::nouveau("ballon", 1.0, ballon, base, Some(appoint), 4);
         let mut avals = Vec::new();
-        let mut appel = |g: usize, q: f64, theta: f64| {
+        let mut appel = |g: usize, _: Poste, q: f64, theta: f64| {
             avals.push(theta);
             if g == 0 {
                 q.min(500.0)
@@ -458,5 +591,70 @@ mod tests {
         assert!((s.q_fou_sto_wh[1] - 331.5).abs() < 1e-9);
         assert!((a.ballon.theta_c[3] - 55.0).abs() < 1e-9);
         assert!(a.ballon.theta_c[0] < 55.0);
+    }
+
+    #[test]
+    fn boucle_de_chauffage_d_un_systeme_solaire_combine() {
+        // Éq. (2118) : 1 200 W/K à 200 L, 12 000 W/K à 2 000 L, linéaire.
+        assert!((ua_hx_bcl_ch_w_k(200.0) - 1200.0).abs() < 1e-9);
+        assert!((ua_hx_bcl_ch_w_k(500.0) - 3000.0).abs() < 1e-9);
+        // Ballon de 200 L à 50 °C, sans pertes, appoint en zone 3 (faux = 0,5) ; réseau à
+        // 35 °C, 1 000 Wh demandés : θpuisage = 35 + 1 000/1 200 (éq. 2117) ; énergie
+        // disponible dans les zones 1 et 2, 1,163 × 100 × (50 − 35,83) = 1 647,6 Wh (éq. 2116).
+        let nouveau = |raccorde: bool| {
+            let base = regulation(Programmation::Permanent);
+            let appoint = RegulationGenerateur {
+                generateur: 1,
+                z_gen: 2,
+                z_reg: 2,
+                ..base
+            };
+            let mut a = AssemblageBallon::nouveau(
+                "ssc",
+                1.0,
+                Ballon::nouveau(200.0, 0.0, Some(0.5), 90.0),
+                base,
+                Some(appoint),
+                4,
+            );
+            a.ssc = Some(ParametresSsc {
+                raccorde,
+                delta_theta_reg_bcl_k: 2.0,
+            });
+            a
+        };
+        let e = |q_ch: f64| EntreesAssemblage {
+            q_req_ch_wh: q_ch,
+            ..entrees(0.0, 12)
+        };
+        let appels = std::cell::RefCell::new(Vec::new());
+        let mut appel = |g: usize, p: Poste, q: f64, _: f64| {
+            appels.borrow_mut().push((g, p, q));
+            if p == Poste::Chauffage {
+                q
+            } else {
+                0.0
+            }
+        };
+        // Appoint indépendant : la demande est couverte (éq. 2122), puisée en zone 2.
+        let mut a = nouveau(false);
+        let s = a.pas(&e(1000.0), &mut appel);
+        assert!((s.q_puise_ch_wh - 1000.0).abs() < 1e-9);
+        assert!(s.q_rest_ch_wh.abs() < 1e-9);
+        // 2 000 Wh : seule l'énergie disponible est puisée, le reste va aux autres générateurs.
+        let mut a = nouveau(false);
+        let s = a.pas(&e(2000.0), &mut appel);
+        let dispo = 1.163 * 100.0 * (50.0 - (35.0 + 2000.0 / 1200.0));
+        assert!((s.q_puise_ch_wh - dispo).abs() < 1e-9);
+        assert!((s.q_rest_ch_wh - (2000.0 - dispo)).abs() < 1e-9);
+        // Appoint raccordé : rien n'est puisé si le ballon ne couvre pas toute la demande
+        // (éq. 2123 et 2124) ; l'appoint est rappelé pour le chauffage (éq. 2150).
+        appels.borrow_mut().clear();
+        let mut a = nouveau(true);
+        let s = a.pas(&e(2000.0), &mut appel);
+        assert_eq!(s.q_puise_ch_wh, 0.0);
+        assert_eq!(s.q_fou_ch_ap_wh, 2000.0);
+        assert_eq!(s.q_rest_ch_wh, 0.0);
+        assert!(appels.borrow().contains(&(1, Poste::Chauffage, 2000.0)));
     }
 }

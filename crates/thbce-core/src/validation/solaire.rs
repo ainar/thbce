@@ -3,8 +3,9 @@
 
 use crate::ecs::gestion_regulation_ballon::THETA_C_ECS_C;
 use crate::entree::{
-    AppointCesi, Batiment, DescriptionCesi, FonctionEffetJoule, Generation, NatureGenerateur,
-    PerformancesCapteurs, PertesBallon, RegulationBoucleSaisie, TransfertBoucle,
+    AppointCesi, BallonSaisi, Batiment, BoucleSolaireSaisie, CapteursSolaires, DescriptionCesi,
+    FonctionEffetJoule, FonctionReseau, Generation, NatureGenerateur, PerformancesCapteurs,
+    PertesBallon, RaccordementSsc, RegulationBoucleSaisie, TransfertBoucle,
 };
 
 use super::generation::postes_assures;
@@ -17,11 +18,17 @@ pub(super) fn valider_chauffe_eau_solaires(
     refs: &References<'_>,
 ) {
     for (i, g) in bat.generations.iter().enumerate() {
-        valider_generation(r, &format!("{cb}.generations[{i}]"), g, refs);
+        valider_generation(r, &format!("{cb}.generations[{i}]"), g, bat, refs);
     }
 }
 
-fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, refs: &References<'_>) {
+fn valider_generation(
+    r: &mut RapportValidation,
+    c: &str,
+    g: &Generation,
+    bat: &Batiment,
+    refs: &References<'_>,
+) {
     // Générateurs déjà pilotés par un ballon.
     let mut pilotes: Vec<&str> = g
         .stockages
@@ -68,61 +75,7 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, refs: 
                 ballon,
             } => {
                 let cd = format!("{cc}.description.composants");
-                r.strictement_positif(format!("{cd}.capteurs.surface_m2"), capteurs.surface_m2);
-                if let PerformancesCapteurs::Certifiees {
-                    eta0,
-                    a1_w_m2k,
-                    a2_w_m2k2,
-                } = capteurs.performances
-                {
-                    let cp = format!("{cd}.capteurs.performances.certifiees");
-                    r.plage(format!("{cp}.eta0"), eta0, 0.0, 1.0);
-                    r.positif(format!("{cp}.a1_w_m2k"), a1_w_m2k);
-                    r.positif(format!("{cp}.a2_w_m2k2"), a2_w_m2k2);
-                }
-                r.strictement_positif(format!("{cd}.capteurs.k_theta"), capteurs.k_theta);
-                r.plage(format!("{cd}.capteurs.k_theta"), capteurs.k_theta, 0.0, 1.0);
-                r.positif(format!("{cd}.boucle.ua_te_w_k"), boucle.ua_te_w_k);
-                r.positif(format!("{cd}.boucle.ua_ti_w_k"), boucle.ua_ti_w_k);
-                r.positif(format!("{cd}.boucle.p_np_w"), boucle.p_np_w);
-                if let TransfertBoucle::Echangeur {
-                    ua_hx_w_k: Some(ua),
-                } = boucle.transfert
-                {
-                    r.strictement_positif(format!("{cd}.boucle.transfert.echangeur.ua_hx_w_k"), ua);
-                }
-                if let RegulationBoucleSaisie::Irradiance {
-                    isr_min_w_m2: Some(v),
-                } = boucle.regulation
-                {
-                    r.plage(
-                        format!("{cd}.boucle.regulation.irradiance.isr_min_w_m2"),
-                        v,
-                        0.0,
-                        1500.0,
-                    );
-                }
-                if let Some(a) = boucle.alpha_p {
-                    r.plage(format!("{cd}.boucle.alpha_p"), a, 0.0, 1.0);
-                }
-                if let Some(m) = boucle.m_cp_w_k {
-                    r.strictement_positif(format!("{cd}.boucle.m_cp_w_k"), m);
-                }
-                if let Some(h) = boucle.h_rel_ech {
-                    r.plage(format!("{cd}.boucle.h_rel_ech"), h, 0.0, 1.0);
-                }
-                r.strictement_positif(format!("{cd}.ballon.v_tot_l"), ballon.v_tot_l);
-                if let PertesBallon::Certifie { ua_s_w_k } | PertesBallon::Justifie { ua_s_w_k } =
-                    ballon.pertes
-                {
-                    r.strictement_positif(format!("{cd}.ballon.pertes.ua_s_w_k"), ua_s_w_k);
-                }
-                r.plage(
-                    format!("{cd}.ballon.theta_max_c"),
-                    ballon.theta_max_c,
-                    THETA_C_ECS_C,
-                    100.0,
-                );
+                valider_composants(r, &cd, capteurs, boucle, ballon);
             }
             DescriptionCesi::Kit(k) => {
                 let ck = format!("{cc}.description.kit");
@@ -235,4 +188,154 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, refs: 
             }
         }
     }
+    let chauffe = bat
+        .distributions_intergroupes
+        .iter()
+        .any(|d| d.generation == g.id && d.fonction == FonctionReseau::Chauffage);
+    for (k, x) in g.systemes_solaires_combines.iter().enumerate() {
+        let cc = format!("{c}.systemes_solaires_combines[{k}]");
+        if g.generateurs.iter().any(|y| y.id == x.id) {
+            r.erreur(
+                format!("{cc}.id"),
+                Some(x.id.clone()),
+                "identifiant déjà porté par un générateur de la génération",
+            );
+        }
+        if !chauffe {
+            r.erreur(
+                cc.clone(),
+                None,
+                "un système solaire combiné assure le chauffage : la génération doit alimenter \
+                 un réseau de chauffage (Th-BCE 2020 §9.19.3, éq. 2127)",
+            );
+        }
+        valider_exposition(
+            r,
+            &format!("{cc}.exposition_capteurs"),
+            &x.exposition_capteurs,
+            refs,
+        );
+        r.plage(
+            format!("{cc}.exposition_capteurs.inclinaison_deg"),
+            x.exposition_capteurs.inclinaison_deg,
+            0.0,
+            90.0,
+        );
+        valider_composants(r, &cc, &x.capteurs, &x.boucle, &x.ballon);
+        let a = &x.appoint;
+        if let Some(f) = a.f_aux {
+            if !(f > 0.0 && f < 1.0) {
+                r.erreur(
+                    format!("{cc}.appoint.f_aux"),
+                    Some(f.to_string()),
+                    "« faux » strictement compris entre 0 et 1 (Th-BCE 2020 §9.9.3.1)",
+                );
+            }
+        }
+        if let Some(d) = a.delta_theta_k {
+            r.plage(format!("{cc}.appoint.delta_theta_k"), d, 0.0, 20.0);
+        }
+        let generateur = g.generateurs.iter().find(|y| y.id == a.generateur);
+        let (ok, attendu) = match x.raccordement {
+            RaccordementSsc::Independant {
+                delta_theta_reg_boucle_chauffage_k,
+            } => {
+                r.plage(
+                    format!("{cc}.raccordement.independant.delta_theta_reg_boucle_chauffage_k"),
+                    delta_theta_reg_boucle_chauffage_k,
+                    0.0,
+                    50.0,
+                );
+                (
+                    generateur.is_some_and(|y| {
+                        matches!(&y.nature, NatureGenerateur::EffetJoule(j)
+                            if j.fonction == FonctionEffetJoule::Ecs)
+                    }),
+                    "générateur à effet Joule de fonction `ecs` (fiche 9.19, éq. 2127 : appoint \
+                     d'ECS seule)",
+                )
+            }
+            RaccordementSsc::Raccorde => (
+                generateur.is_some_and(|y| {
+                    let p = postes_assures(&y.nature);
+                    p[0] && p[2]
+                }),
+                "générateur assurant le chauffage et l'ECS (fiche 9.20, éq. 2141)",
+            ),
+        };
+        if !ok || pilotes.contains(&a.generateur.as_str()) {
+            r.erreur(
+                format!("{cc}.appoint.generateur"),
+                Some(a.generateur.clone()),
+                format!(
+                    "l'appoint d'un système solaire combiné est un {attendu} de la génération, \
+                     propre à l'assemblage"
+                ),
+            );
+        }
+        pilotes.push(&a.generateur);
+    }
+}
+
+fn valider_composants(
+    r: &mut RapportValidation,
+    cd: &str,
+    capteurs: &CapteursSolaires,
+    boucle: &BoucleSolaireSaisie,
+    ballon: &BallonSaisi,
+) {
+    r.strictement_positif(format!("{cd}.capteurs.surface_m2"), capteurs.surface_m2);
+    if let PerformancesCapteurs::Certifiees {
+        eta0,
+        a1_w_m2k,
+        a2_w_m2k2,
+    } = capteurs.performances
+    {
+        let cp = format!("{cd}.capteurs.performances.certifiees");
+        r.plage(format!("{cp}.eta0"), eta0, 0.0, 1.0);
+        r.positif(format!("{cp}.a1_w_m2k"), a1_w_m2k);
+        r.positif(format!("{cp}.a2_w_m2k2"), a2_w_m2k2);
+    }
+    r.strictement_positif(format!("{cd}.capteurs.k_theta"), capteurs.k_theta);
+    r.plage(format!("{cd}.capteurs.k_theta"), capteurs.k_theta, 0.0, 1.0);
+    r.positif(format!("{cd}.boucle.ua_te_w_k"), boucle.ua_te_w_k);
+    r.positif(format!("{cd}.boucle.ua_ti_w_k"), boucle.ua_ti_w_k);
+    r.positif(format!("{cd}.boucle.p_np_w"), boucle.p_np_w);
+    if let TransfertBoucle::Echangeur {
+        ua_hx_w_k: Some(ua),
+    } = boucle.transfert
+    {
+        r.strictement_positif(format!("{cd}.boucle.transfert.echangeur.ua_hx_w_k"), ua);
+    }
+    if let RegulationBoucleSaisie::Irradiance {
+        isr_min_w_m2: Some(v),
+    } = boucle.regulation
+    {
+        r.plage(
+            format!("{cd}.boucle.regulation.irradiance.isr_min_w_m2"),
+            v,
+            0.0,
+            1500.0,
+        );
+    }
+    if let Some(a) = boucle.alpha_p {
+        r.plage(format!("{cd}.boucle.alpha_p"), a, 0.0, 1.0);
+    }
+    if let Some(m) = boucle.m_cp_w_k {
+        r.strictement_positif(format!("{cd}.boucle.m_cp_w_k"), m);
+    }
+    if let Some(h) = boucle.h_rel_ech {
+        r.plage(format!("{cd}.boucle.h_rel_ech"), h, 0.0, 1.0);
+    }
+    r.strictement_positif(format!("{cd}.ballon.v_tot_l"), ballon.v_tot_l);
+    if let PertesBallon::Certifie { ua_s_w_k } | PertesBallon::Justifie { ua_s_w_k } = ballon.pertes
+    {
+        r.strictement_positif(format!("{cd}.ballon.pertes.ua_s_w_k"), ua_s_w_k);
+    }
+    r.plage(
+        format!("{cd}.ballon.theta_max_c"),
+        ballon.theta_max_c,
+        THETA_C_ECS_C,
+        100.0,
+    );
 }

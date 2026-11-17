@@ -230,8 +230,11 @@ pub fn simuler_essai(essai: &Essai, t: &Triplet) -> Option<ResultatsEssai> {
                 theta_ext_c: theta_amb,
                 isr_w_m2: 0.0,
                 mois: 0,
+                q_req_ch_wh: 0.0,
+                theta_ch_max_c: 0.0,
+                theta_aval_ch_c: 0.0,
             },
-            &mut |_, q_req, theta_aval| {
+            &mut |_, _, q_req, theta_aval| {
                 let p = pac.point(Poste::Ecs, q_req, theta_amont, theta_aval, 1.0, true, None);
                 sortie = (q_req, p.lr, p.pabs_lr_w);
                 p.pfou_lr_w

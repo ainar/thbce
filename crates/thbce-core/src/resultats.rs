@@ -485,6 +485,9 @@ pub struct ResultatsStockage {
     /// identiques.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub solaire: Option<ResultatsBoucleSolaire>,
+    /// Boucle de chauffage d'un système solaire combiné (fiches 9.18 à 9.20).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ssc: Option<ResultatsSsc>,
     /// Paramètres Th-BCE identifiés à partir de l'essai d'un chauffe-eau thermodynamique
     /// (§9.22).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -518,6 +521,16 @@ pub struct ResultatsBoucleSolaire {
     /// en kWh : part de l'énergie solaire transmise que le ballon ne peut pas stocker (lecture
     /// Q52).
     pub ecretement_kwh: f64,
+}
+
+/// Contribution d'un système solaire combiné au chauffage, calcul Th-C.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsSsc {
+    /// « Qpuisé_ch_SSC » : chaleur de chauffage puisée dans le ballon, en kWh ; elle est
+    /// comprise dans l'énergie fournie en chauffage par la génération.
+    pub q_puise_ch_kwh: f64,
+    /// Chauffage fourni par l'appoint raccordé à l'assemblage, en kWh (éq. 2150).
+    pub q_fou_ch_appoint_kwh: f64,
 }
 
 /// Identification d'un chauffe-eau thermodynamique (§9.22.3.4) : entrées du modèle Th-BCE
@@ -1140,6 +1153,10 @@ impl Resultats {
                         &mut s.theta_haut_min_c,
                     ] {
                         *x = a(*x);
+                    }
+                    if let Some(x) = &mut s.ssc {
+                        x.q_puise_ch_kwh = a(x.q_puise_ch_kwh);
+                        x.q_fou_ch_appoint_kwh = a(x.q_fou_ch_appoint_kwh);
                     }
                     if let Some(b) = &mut s.solaire {
                         for x in [
