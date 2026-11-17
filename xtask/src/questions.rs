@@ -11,18 +11,16 @@
 //! ---
 //! ```
 //!
-//! dont les valeurs `sujet` et `statut` sont des chaînes JSON. Le tableau de bord de
-//! `docs/questions/README.md`, entre deux marqueurs, en est généré.
+//! dont les valeurs `sujet` et `statut` sont des chaînes JSON. Le tableau de bord
+//! `docs/questions/ETAT.md` en est entièrement généré.
 
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use crate::racine;
 
 const DOSSIER: &str = "docs/questions";
-const MARQUE_DEBUT: &str = "<!-- debut tableau genere -->";
-const MARQUE_FIN: &str = "<!-- fin tableau genere -->";
-const MARQUE_PLAGES: &str = "<!-- plages reservees:";
+const ETAT: &str = "ETAT.md";
 
 /// Question lue depuis l'en-tête d'un fichier.
 #[derive(Debug, PartialEq, Eq)]
@@ -113,12 +111,6 @@ fn lire_question(nom: &str, contenu: &str) -> Result<Question, String> {
         sujet,
         statut,
     };
-    if question.nom_fichier() != nom {
-        return Err(format!(
-            "{nom} : le numéro {numero} impose le nom {}",
-            question.nom_fichier()
-        ));
-    }
     let titre = format!("### {numero} — ");
     if !corps.trim_start().starts_with(&titre) {
         return Err(format!(
@@ -128,35 +120,6 @@ fn lire_question(nom: &str, contenu: &str) -> Result<Question, String> {
     Ok(question)
 }
 
-/// Plages réservées déclarées dans le README (`60-69, 80-89`).
-fn plages_reservees(readme: &str) -> Result<BTreeSet<u32>, String> {
-    let mut numeros = BTreeSet::new();
-    let Some(debut) = readme.find(MARQUE_PLAGES) else {
-        return Ok(numeros);
-    };
-    let reste = &readme[debut + MARQUE_PLAGES.len()..];
-    let Some(fin) = reste.find("-->") else {
-        return Err("README des questions : ligne « plages reservees » non refermée".to_owned());
-    };
-    for plage in reste[..fin]
-        .split(',')
-        .map(str::trim)
-        .filter(|p| !p.is_empty())
-    {
-        let borne = |t: &str| {
-            t.trim()
-                .parse::<u32>()
-                .map_err(|_| format!("README des questions : plage réservée illisible « {plage} »"))
-        };
-        let (a, b) = match plage.split_once('-') {
-            Some((a, b)) => (borne(a)?, borne(b)?),
-            None => (borne(plage)?, borne(plage)?),
-        };
-        numeros.extend(a..=b);
-    }
-    Ok(numeros)
-}
-
 fn dossier() -> PathBuf {
     racine().join(DOSSIER)
 }
@@ -164,12 +127,12 @@ fn dossier() -> PathBuf {
 /// Lit toutes les questions, triées par numéro, en contrôlant leur cohérence.
 fn lire_toutes() -> Result<Vec<Question>, String> {
     let chemin = dossier();
-    let mut questions = Vec::new();
+    let mut trouvees: Vec<(String, Question)> = Vec::new();
     let entrees = std::fs::read_dir(&chemin).map_err(|e| format!("{} : {e}", chemin.display()))?;
     for entree in entrees {
         let entree = entree.map_err(|e| format!("{} : {e}", chemin.display()))?;
         let nom = entree.file_name().to_string_lossy().into_owned();
-        if nom == "README.md" {
+        if nom == "README.md" || nom == ETAT {
             continue;
         }
         if !(nom.starts_with('Q') && nom.ends_with(".md")) {
@@ -179,35 +142,29 @@ fn lire_toutes() -> Result<Vec<Question>, String> {
         }
         let contenu =
             std::fs::read_to_string(entree.path()).map_err(|e| format!("{DOSSIER}/{nom} : {e}"))?;
-        questions.push(lire_question(&nom, &contenu)?);
+        trouvees.push((nom.clone(), lire_question(&nom, &contenu)?));
     }
-    questions.sort_by(|a, b| (a.principal, &a.suffixe).cmp(&(b.principal, &b.suffixe)));
-    for paire in questions.windows(2) {
-        if paire[0].numero() == paire[1].numero() {
-            return Err(format!("numéro {} en double", paire[0].numero()));
+    trouvees.sort_by(|a, b| a.0.cmp(&b.0));
+    let mut utilises: BTreeMap<String, String> = BTreeMap::new();
+    for (nom, q) in &trouvees {
+        if let Some(autre) = utilises.get(&q.numero()) {
+            return Err(format!(
+                "{} déjà utilisé par {autre} (doublon dans {nom} : un numéro n'a qu'un seul fichier)",
+                q.numero()
+            ));
+        }
+        utilises.insert(q.numero(), nom.clone());
+        if q.nom_fichier() != *nom {
+            return Err(format!(
+                "{nom} : le numéro {} impose le nom {}",
+                q.numero(),
+                q.nom_fichier()
+            ));
         }
     }
+    let mut questions: Vec<Question> = trouvees.into_iter().map(|(_, q)| q).collect();
+    questions.sort_by(|a, b| (a.principal, &a.suffixe).cmp(&(b.principal, &b.suffixe)));
     Ok(questions)
-}
-
-/// Contrôle l'absence de trou dans les numéros principaux, hors plages réservées.
-fn controler_numeros(questions: &[Question], reserves: &BTreeSet<u32>) -> Result<(), String> {
-    let presents: BTreeSet<u32> = questions.iter().map(|q| q.principal).collect();
-    let Some(&max) = presents.last() else {
-        return Err(format!("{DOSSIER} ne contient aucune question"));
-    };
-    let manquants: Vec<String> = (1..=max)
-        .filter(|n| !presents.contains(n) && !reserves.contains(n))
-        .map(|n| format!("Q{n}"))
-        .collect();
-    if manquants.is_empty() {
-        Ok(())
-    } else {
-        Err(format!(
-            "numéros manquants : {} (à créer, ou à déclarer dans la ligne « plages reservees » du README des questions)",
-            manquants.join(", ")
-        ))
-    }
 }
 
 /// Tableau de bord, une ligne par question.
@@ -225,44 +182,33 @@ fn tableau(questions: &[Question]) -> String {
     sortie
 }
 
-/// README avec le tableau de bord à jour entre les marqueurs.
-fn readme_avec_tableau(readme: &str, tableau: &str) -> Result<String, String> {
-    let debut = readme
-        .find(MARQUE_DEBUT)
-        .ok_or_else(|| format!("README des questions : marqueur « {MARQUE_DEBUT} » absent"))?;
-    let fin = readme
-        .find(MARQUE_FIN)
-        .ok_or_else(|| format!("README des questions : marqueur « {MARQUE_FIN} » absent"))?;
-    if fin < debut {
-        return Err("README des questions : marqueurs dans le mauvais ordre".to_owned());
-    }
-    Ok(format!(
-        "{}{MARQUE_DEBUT}\n\n{tableau}\n{}",
-        &readme[..debut],
-        &readme[fin..]
-    ))
+/// Contenu complet de `ETAT.md`.
+fn etat(questions: &[Question]) -> String {
+    format!(
+        "<!-- SPDX-License-Identifier: GPL-3.0-or-later -->\n# État des questions\n\n> Fichier généré par `cargo run -p xtask -- questions`, ne pas modifier à la main.\n> En cas de conflit lors d'une intégration de `main`, garder n'importe quelle version puis relancer la commande.\n\n{}",
+        tableau(questions)
+    )
 }
 
-/// `xtask questions` : régénère le tableau de bord ; avec `verifier`, contrôle tout
-/// sans rien écrire (numéros, en-têtes, tableau à jour).
+/// `xtask questions` : régénère `ETAT.md` ; avec `verifier`, contrôle tout sans rien
+/// écrire (doublons, en-têtes, noms de fichiers, titres, `ETAT.md` à jour).
 pub fn commande(verifier: bool) -> Result<(), String> {
     let questions = lire_toutes()?;
-    let chemin = dossier().join("README.md");
-    let readme = std::fs::read_to_string(&chemin)
-        .map_err(|e| format!("{} : {e}", chemin.display()))?
-        .replace("\r\n", "\n");
-    controler_numeros(&questions, &plages_reservees(&readme)?)?;
-    let genere = readme_avec_tableau(&readme, &tableau(&questions))?;
+    let chemin = dossier().join(ETAT);
+    let genere = etat(&questions);
     if verifier {
-        if genere != readme {
+        let actuel = std::fs::read_to_string(&chemin)
+            .map_err(|e| format!("{} : {e}", chemin.display()))?
+            .replace("\r\n", "\n");
+        if genere != actuel {
             return Err(format!(
-                "{DOSSIER}/README.md n'est pas à jour : relancer `cargo run -p xtask -- questions`"
+                "{DOSSIER}/{ETAT} n'est pas à jour : relancer `cargo run -p xtask -- questions`"
             ));
         }
         println!("{DOSSIER} est à jour ({} questions)", questions.len());
     } else {
         std::fs::write(&chemin, genere).map_err(|e| format!("{} : {e}", chemin.display()))?;
-        println!("{DOSSIER}/README.md écrit ({} questions)", questions.len());
+        println!("{DOSSIER}/{ETAT} écrit ({} questions)", questions.len());
     }
     Ok(())
 }
@@ -299,7 +245,6 @@ mod tests {
     fn lectures_invalides() {
         let ok = "numero: Q2\nsujet: \"s\"\nstatut: \"t\"";
         assert!(lire_question("Q002.md", "### Q2 — x").is_err());
-        assert!(lire_question("Q003.md", &fichier(ok, "### Q2 — x")).is_err());
         assert!(lire_question("Q002.md", &fichier(ok, "texte")).is_err());
         let sans_statut = "numero: Q2\nsujet: \"s\"";
         assert!(lire_question("Q002.md", &fichier(sans_statut, "### Q2 — x")).is_err());
@@ -309,30 +254,15 @@ mod tests {
     }
 
     #[test]
-    fn trous_et_plages() {
-        let q = |n| Question {
-            principal: n,
+    fn etat_genere() {
+        let q = Question {
+            principal: 3,
             suffixe: String::new(),
-            sujet: "s".to_owned(),
+            sujet: "a | b".to_owned(),
             statut: "t".to_owned(),
         };
-        let questions = [q(1), q(2), q(5)];
-        assert!(controler_numeros(&questions, &BTreeSet::new()).is_err());
-        let reserves = plages_reservees("<!-- plages reservees: 3-4 -->").expect("plage");
-        assert!(controler_numeros(&questions, &reserves).is_ok());
-    }
-
-    #[test]
-    fn tableau_entre_marqueurs() {
-        let readme = format!("avant\n{MARQUE_DEBUT}\nvieux\n{MARQUE_FIN}\naprès\n");
-        let genere = readme_avec_tableau(&readme, "T\n").expect("marqueurs");
-        assert_eq!(
-            genere,
-            format!("avant\n{MARQUE_DEBUT}\n\nT\n\n{MARQUE_FIN}\naprès\n")
-        );
-        assert_eq!(
-            readme_avec_tableau(&genere, "T\n").expect("idempotent"),
-            genere
-        );
+        let e = etat(&[q]);
+        assert!(e.contains("ne pas modifier à la main"));
+        assert!(e.ends_with("| Q3 | a \\| b | t |\n"));
     }
 }
