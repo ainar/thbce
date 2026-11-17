@@ -1,6 +1,7 @@
 ### Ajouté
 
-- Socle des usages non résidentiels (lot 0a), l'usage 3 (bureaux) restant refusé tant que tout n'est pas livré :
+- **Bureaux (usage 3) calculés de bout en bout** (lot 0a) : Bbio, DH, Cep, Cep,nr et Ic énergie, avec la ventilation simple flux, les émetteurs, distributions, générations et productions d'ECS déjà pris en charge ; exemple `tests/cas/bureaux-simple-flux-ademe` (météo ADEME : Bbio 94,3, DH 1 079,7, Cep 66,0, Ic énergie 315,5 ; météo réglementaire H2b : Bbio 82,9, DH 688,7, Cep 66,8, Ic énergie 349,8). Restent refusés en bureaux : double flux et centrales de traitement d'air, locaux d'éclairage de grand volume, ascenseurs et parkings ; les exigences de l'usage ne sont pas évaluées par ce lot.
+- Socle des usages non résidentiels, commun aux 28 usages :
   - fiche 4.1 pour les 28 usages : occupants par local (éq. 38), `iecs` (éq. 47), indicateurs `ihebergement` et `ienseignement` du tableau 4 ;
   - besoins d'ECS hors habitation (fiches 9.5 à 9.7) : tableaux 274, 277 et 279 ; champ facultatif `emetteurs_ecs[].nu` (nombre d'unités, à défaut la surface utile desservie) ;
   - éclairage hors habitation (fiche 7.1) : tableau 78 des usages 3 à 28, coefficients `C1` et `C2` (tableau 79), fractionnement, éclairage mobilier des bureaux, périphériques de gestion (éq. 782 et 787) ; nouveaux `groupes[].locaux[]` (`type_local`, `ratio_local`, `ratio_ecl_nat`, `eclairage`) ;
@@ -12,6 +13,7 @@
 
 ### Modifié
 
+- Le message de refus d'un usage cite désormais les bureaux parmi les usages calculés ; les 25 autres usages restent refusés (code 3).
 - Format d'entrée, sans incompatibilité : `p_vent_base_w`, `p_vent_pointe_w` (ventilateur simple flux), `q_spec_conv_pointe_m3_h` (bouche) et `nb_logements` (émetteur d'ECS) ne sont plus requis par le schéma ; la validation les exige toujours en maison individuelle ou accolée et en logement collectif, et les refuse dans les autres usages.
 - Un bâtiment dont une zone est d'un usage sans exigences transcrites n'a plus d'exigences ni de conformité (avertissement), au lieu d'un maximum calculé sans cette zone.
 - `zones[].nadeq` n'est restitué qu'en habitation.

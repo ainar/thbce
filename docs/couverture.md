@@ -24,7 +24,7 @@ Tant qu'aucun cas de référence n'est disponible, aucune fiche ne peut dépasse
 
 ## Périmètre de la première version (validé le 16 novembre 2026)
 
-- Usages : maison individuelle ou accolée (usage 1) et logement collectif (usage 2).
+- Usages : maison individuelle ou accolée (usage 1) et logement collectif (usage 2) ; bureaux (usage 3) depuis le lot 0a.
 - Espaces tampons (lot 4b) compris.
 - Hors première version : Titres V du chapitre 16.
 - Tout composant hors périmètre est reconnu à la lecture et produit une erreur « non pris en charge ».
