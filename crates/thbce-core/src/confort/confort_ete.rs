@@ -12,7 +12,7 @@
 //! Périmètre : usages d'habitation ; sans système modifiant la sensation thermique
 //! (`Δθcorr_syst = 0` : brasseurs d'air et humidification hors de la première version).
 //!
-//! Lectures : `docs/questions.md`, Q40.
+//! Lectures : `docs/questions/Q040.md`.
 
 use crate::confort::indicateurs_confort::theta_op_inc_max_c;
 use crate::conventions::ModeCalcul;

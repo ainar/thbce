@@ -5,7 +5,7 @@
 //!
 //! Les pas de temps sont les itérations `h` de 0 à 8759 ; « Hleg » du texte est l'heure légale
 //! de fin du pas de temps (tableaux 321 et 323), c'est-à-dire la case de scénario de 1 à 24.
-//! Lectures retenues : `docs/questions.md`, Q50.
+//! Lectures retenues : `docs/questions/Q050.md`.
 
 use crate::climat::calendrier::{case_scenario, jour_legal};
 use crate::entree::{Parking, PlageHoraire, TypeParking};

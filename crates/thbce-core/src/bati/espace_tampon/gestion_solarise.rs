@@ -8,7 +8,7 @@
 //! d'ouverture (éq. 102, tableau 17), période de sommeil (éq. 103), ratio d'ouverture requis
 //! (éq. 104, figure 17, tableau 18) et effectif (éq. 105).
 //!
-//! Lectures du texte : `docs/questions.md`, Q41.
+//! Lectures du texte : `docs/questions/Q041.md`.
 
 use thbce_data::protections_mobiles::V_VENT_LIM_MANU_SE_M_S;
 

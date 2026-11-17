@@ -6,7 +6,7 @@
 //! manuelle (motorisée ou non), pour les usages de la famille « habitation, hôtellerie et
 //! hébergement » pris en charge ; seconde protection mobile ; règles propres au calcul Th-D
 //! (§5.9.3.6). La gestion automatique et les stores vénitiens ne sont pas pris en charge : la
-//! validation les refuse (`docs/questions.md`, Q30 et Q31).
+//! validation les refuse (`docs/questions/`, Q30 et Q31).
 //!
 //! En l'absence d'espace tampon, `becl = 1` et `Etp** = Etp*` (éq. 176).
 

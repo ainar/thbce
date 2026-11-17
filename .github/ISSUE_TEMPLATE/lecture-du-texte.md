@@ -13,4 +13,4 @@ labels: methode
 
 **Lecture proposée** :
 
-Voir aussi `docs/questions.md`, qui recense les ambiguïtés déjà tranchées.
+Voir aussi `docs/questions/`, qui recense les ambiguïtés déjà tranchées.

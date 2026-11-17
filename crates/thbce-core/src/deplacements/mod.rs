@@ -6,7 +6,7 @@
 //! se calculent à partir des scénarios conventionnels (« Uk ») et de la description saisie.
 //! Elles sont restituées par zone et par bâtiment sous quatre postes distincts
 //! ([`ConsommationsCollectif`]) pour le calcul des indicateurs (éq. 2510, 2511 et 2513).
-//! Aucune n'entraîne d'apport interne : voir `docs/questions.md`, Q50.
+//! Aucune n'entraîne d'apport interne : voir `docs/questions/Q050.md`.
 
 pub mod ascenseurs;
 pub mod parkings;
