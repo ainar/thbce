@@ -29,10 +29,10 @@ Projet { $schema?, version_format?, nom, localisation, catalogue }
     └── zones[]       usage, nb_logements, aéraulique de zone, ventilation
         └── groupes[] surfaces, volume, inertie, parois opaques, baies, ponts thermiques,
                       bouches et entrées d'air, iclim, programmation, émetteurs, distributions,
-                      émetteurs d'ECS
+                      émetteurs d'ECS, locaux d'éclairage (hors habitation)
 ```
 
-Usages calculés : maison individuelle ou accolée (`maison_individuelle`) et logement collectif (`logement_collectif`) ; les 26 autres usages du tableau 4 sont reconnus et refusés.
+Usages calculés : maison individuelle ou accolée (`maison_individuelle`), logement collectif (`logement_collectif`) et bureaux (`bureaux`, lot 0a) ; les 25 autres usages du tableau 4 sont reconnus et refusés. Ce qui diffère hors habitation est décrit plus bas (« Usages non résidentiels »).
 
 ## Enveloppe
 
@@ -86,7 +86,7 @@ Eau chaude sanitaire (§9.5 à 9.8) :
 ```
 Batiment.distributions_ecs_intergroupes[]  { id, generation, reseau: aucun | boucle { l_vc_m, l_hvc_m,
                                              u_w_mk, rechauffeur, p_circ_w, espace_tampon? } | trace { … } }
-Groupe.emetteurs_ecs[]                     { id, rat_em, nb_logements, part_melangeur, part_mitigeur,
+Groupe.emetteurs_ecs[]                     { id, rat_em, nb_logements | nu?, part_melangeur, part_mitigeur,
                                              part_temporisateur, appareils, recuperateur_eaux_grises?,
                                              distribution { theta_2nd_e_c?, d_int_m, l_vc_m?, l_hvc_m,
                                              nb_dist, espace_tampon? }, distribution_intergroupe }
@@ -222,6 +222,31 @@ tests/cas/<nom-du-cas>/
 **Relecture du lot 7b (17 novembre 2026).** `chauffe_eau_solaires[].description.kit.k_theta` devient **requis** (changement incompatible ; sortie de l'outil IdCESI, Q52 point 1) ; un kit n'admet que l'appoint `integre`. Un système solaire combiné demande un réseau hydraulique de chauffage du groupe, relié à sa génération, dont `theta_dep_dim_c` est saisie (« θch_max^gen », éq. 2117). Résultats : `generations[].stockages[]` porte `v_zones_l`, `theta_zones_debut_c` et `theta_zones_fin_c` (volumes et températures des quatre zones d'un ballon, de bas en haut, au début et à la fin du calcul), qui ferment le bilan des ballons.
 
 **Lot 7c (fiches 9.16 et 9.17).** `generations[].chauffe_eau_solaires_collectifs[]` (au plus un par génération, seul assemblage avec ballon de sa génération) : `id`, `type_pcad` (`cesci`, `cescai` ou `cesci_appoint_separe`), `exposition_capteurs` (inclinaison de 0 à 90°), `capteurs` et `boucle` (comme pour un chauffe-eau solaire décrit par ses composants, pour tout le champ ; régulation `irradiance` requise pour un CESCI, éq. 1981 ; `h_rel_ech` refusé), `ballon_central` (CESCAI seulement, comme `ballon`) et `ensembles[]` (au moins un : `id`, `nb_ballons`, `ballon` individuel, `appoint` intégré comme celui d'un stockage — requis pour `cesci` et `cescai`, sans objet pour `cesci_appoint_separe` —, générateur d'effet Joule de fonction `ecs` ou chaudière assurant l'ECS, dont `rdim` vaut `nb_ballons`). Réseau d'ECS intergroupe de la génération : `aucun` pour un CESCI, `boucle` sans réchauffeur pour un CESCAI. Un CESCI à appoint séparé demande un générateur instantané d'ECS dans la génération. Résultats : `generations[].solaires_collectifs[]` (`id`, `type_pcad`, `solaire` comme pour un chauffe-eau solaire, `ensembles[]` comme `stockages[]` pour tous les ballons d'un ensemble, `ballon_central`, `q_fou_reseau_kwh`, `pertes_reseau_deduites_kwh`). Lectures : Q53.
+
+## Usages non résidentiels (lot 0a)
+
+Seul l'usage 3 (bureaux) est ouvert ; le socle (scénarios, ECS, éclairage, ventilation simple flux, protections mobiles) vaut pour les 28 usages. Ce qui change dans l'entrée par rapport à l'habitation :
+
+```
+Zone.usage                       "bureaux" ; nb_logements et trav_zone sans objet (tableau 22)
+Zone.ventilation.systeme         simple_flux_extraction | simple_flux_insufflation
+                                 { p_vent_occ_w, p_vent_inocc_w }            éq. 636 à 639
+Groupe.su_m2                     surface utile = surface de référence (éq. 2376) ; pas de shab_m2
+Groupe.bouches_conduits[]        { id, isouf, q_spec_occ_m3_h, q_spec_inocc_m3_h, crdbnr?, cdep?,
+                                   a_cond_m2? }                               éq. 383 à 386, 400 à 402
+Groupe.locaux[]                  { id, type_local, ratio_local, ratio_ecl_nat,
+                                   eclairage { p_ecl_tot_w_m2, p_ecl_aux_w_m2?, gest_ecl, grad_ecl,
+                                               fractionne, eff_ecl_immo_projet_w_m2_100lux?,
+                                               ei_proj_lux? } }               §7.1
+Groupe.emetteurs_ecs[]           nu? au lieu de nb_logements                  §9.6.3.2.2.1
+```
+
+- **Ventilation.** En non résidentiel, les débits saisis sont les débits totaux repris ou soufflés, en occupation et en inoccupation au sens de l'indicateur de ventilation des scénarios ; `crdbnr` (tableau 57 : 1, 0,9 ou 0,8) vaut 1 s'il est absent, valeur signalée. Le calcul du Bbio n'emploie pas ces bouches : ses débits sont conventionnels (tableau 56-1, par m² de surface de référence). Au moins une bouche dans la zone. Les champs de l'habitation (`q_spec_conv_pointe_m3_h`, `q_spec_conv_base_m3_h`, `qvarep_spec_m3_h`, `dugd_h`, `p_vent_base_w`, `p_vent_pointe_w`) sont refusés, et inversement. Double flux, centrales de traitement d'air, ventilation naturelle et aération : hors périmètre (code 3).
+- **Éclairage.** Les locaux du groupe sont requis ; la somme des `ratio_local` vaut 1 ; `type_local` est un des types que le tableau 78 donne à l'usage (bureaux : `bureau_standard`, `salle_reunion`, `circulation_accueil`, `sanitaires_collectifs`). `gest_ecl` : `permanent`, `interrupteur_manuel`, `interrupteur_et_horloge`, `marche_et_arret_automatiques`, `marche_manuelle_arret_automatique` ; `grad_ecl` : `aucune`, `manuelle`, `gradation_automatique`, `allumage_et_extinction_automatiques`, `extinction_automatique`. `p_ecl_aux_w_m2` est requis avec une détection de présence ou une gestion automatique selon la lumière naturelle, refusé sinon (nul par convention). `eff_ecl_immo_projet_w_m2_100lux` et `ei_proj_lux` sont requis pour un bureau standard dont la puissance immobilière est inférieure à 10 W/m² (éclairage mobilier, §7.1.3.2.3). Le calcul du Bbio ignore le système saisi (`2 × Eiref/100` W/m², horloge, gestion manuelle). Les locaux de grand volume sont hors périmètre.
+- **ECS.** `nu` est le nombre d'unités du tableau 277 (m² de surface utile) ; absent, c'est `rat_em × su_m2`. Un bâtiment de bureaux sans production d'ECS se décrit avec la production conventionnelle de la fiche 9.24 (chauffe-eau électriques de 15 L, un par niveau et par tranche de 750 m² au-delà de 750 m², appareils `douche_seule`).
+- **Protections mobiles.** Volets et stores enroulables à gestion manuelle, avec les matrices de la famille « bureau ».
+- **Ascenseurs et parkings** : réservés au logement collectif dans cette version.
+- **Résultats.** `zones[].nadeq` est absent ; `ecs[].nadeq` d'un émetteur porte `Nu` ; l'éclairage entre dans l'Ic énergie au facteur « bâtiment tertiaire » de l'article 10 ; `indicateurs.exigences` suit les exigences de l'usage (lot 0b).
 
 ## Indicateurs réglementaires et exigences (lot 7)
 

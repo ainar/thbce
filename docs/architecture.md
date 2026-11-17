@@ -37,7 +37,7 @@ Point d'entrée unique : `calcul/mod.rs::calculer` (projet, météo, options →
 **Zone** (`bati/assemblage_zone.rs::ZoneHoraire::pas_avec_espaces_tampons`, §5.5, figure 18)
 
 1. Conditions du pas : climat (`conditions_exterieures`), scénarios (`ScenariosZone::evaluer`), `θrm` ; en Th-C, consignes des heures à venir pour les relances (§8.5).
-2. Air soufflé : système du projet en Th-C et Th-D (`VentilationProjet::pas`, §6.2 à 6.5 ; décision Q42), système conventionnel du Bbio en Th-B (`ventilation/ven_bbio.rs::t_air_souffle_c`, §6.1).
+2. Débits des groupes selon l'indicateur de ventilation hors habitation (§6.2.3.2.2.1), puis air soufflé : système du projet en Th-C et Th-D (`VentilationProjet::pas`, §6.2 à 6.5 ; décision Q42), système conventionnel du Bbio en Th-B (`ventilation/ven_bbio.rs::t_air_souffle_c`, §6.1).
 3. Bilan aéraulique de la zone (`ZoneAeraulique::bilan`, §5.6) avec les températures des groupes au pas précédent.
 4. Groupes, en deux passes (figure 20) : ceux qui cèdent de l'air au hall, le hall fictif (`ventilation/debits_air_cep.rs::hall_fictif`), puis ceux qui en reçoivent ; pour chacun, `flux_entrants`, `ScenariosZone::apports_groupe`, puis `GroupeHoraire::pas_avec_espaces_tampons`.
 
@@ -48,7 +48,7 @@ Point d'entrée unique : `calcul/mod.rs::calculer` (projet, météo, options →
 3. Conditions d'ouverture des baies (§5.13.3.1) : `bati/surventilation.rs::r_ouv_theta_op_man_selon`.
 4. Baies (§5.8) : protections mobiles (`bati/protection_mobile.rs`, §5.9), flux solaires et lumineux (`bati/baie.rs`, §5.10), ouverture (`bati/surventilation.rs::r_ouv_manuelle`).
 5. Débit de surventilation (§5.13.3.2.4 et 5.13.3.3) : `bati/surventilation.rs::qv_surv_m3_h`.
-6. Éclairage (§7.1) : `eclairage/mod.rs::eclairage_habitation`.
+6. Éclairage (§7.1) : `eclairage/mod.rs::eclairage_habitation` en habitation, `eclairage/mod.rs::eclairage_locaux` dans les autres usages (locaux du groupe, conventionnels en Th-B, du projet sinon).
 7. Air entrant équivalent, sollicitations, inerties séquentielle et annuelle en Th-D (`bati/inerties_longues.rs`), puis matrice de comportement thermique (`bati/comportement_thermique.rs::GroupeThermique::matrice`, §5.21) ; les pertes récupérées du pas précédent y entrent (§11.1).
 8. Indicateurs de confort en évolution libre (§4.5) : `confort/indicateurs_confort.rs::indicateurs`.
 9. Relances (§8.5, Th-C seulement) : `chauffage_refroidissement/relances.rs`.
@@ -167,12 +167,20 @@ Exemple à imiter : le double flux (§6.3, lot 6a). Variante existante de `entre
 
 ### 3.4 Ajouter un usage
 
-Aucun usage non résidentiel n'est encore calculé ; l'exemple à imiter est l'ajout du logement collectif (usage 2) à côté de la maison (usage 1). **Ordre conseillé** : saisie et validation propres à l'usage d'abord, l'usage restant refusé (`hors_perimetre`, code 3) ; calcul et tests ensuite ; le refus ne se lève qu'en dernier, dans `est_pris_en_charge`, quand tout est calculé, restitué et testé. Les scénarios des 28 usages sont déjà transcrits : `crates/thbce-data/src/scenarios/table.rs` est généré depuis le classeur de `docs/reference/scenarios/` par `cargo run -p xtask -- scenarios` (ne jamais l'éditer à la main ; `xtask verifier` le contrôle). **Questions à ouvrir** (`docs/questions/`) pour un usage non résidentiel, au moins : règles codées jusqu'ici sous l'hypothèse de l'habitation (à repérer avec la recherche du point 3), éclairage hors habitation (§7.1, système d'éclairage saisi), surfaces de référence et exigences propres à l'usage (annexe de l'article R. 172-4), valeurs par défaut absentes du texte pour cet usage.
+Exemple à imiter : les bureaux (usage 3, lot 0a), premier usage non résidentiel. Le socle commun (scénarios, ECS, éclairage par locaux, ventilation simple flux selon l'occupation, indicateurs) vaut pour les 28 usages : ouvrir un usage revient à compléter ses données et ses cas particuliers. **Ordre conseillé** : données et validation propres à l'usage d'abord, l'usage restant refusé (`hors_perimetre`, code 3) ; calcul et tests ensuite ; le refus ne se lève qu'en dernier, dans `est_pris_en_charge`, quand tout est calculé, restitué et testé. Les scénarios des 28 usages sont déjà transcrits : `crates/thbce-data/src/scenarios/table.rs` est généré depuis le classeur de `docs/reference/scenarios/` par `cargo run -p xtask -- scenarios`.
 
-1. `entree/usages.rs::UsageZone::est_pris_en_charge` (les 28 variantes existent déjà ; `est_habitation` sépare les règles résidentielles).
-2. Tables par usage : scénarios de `crates/thbce-data/src/scenarios/` (générés par `cargo run -p xtask -- scenarios`) et constantes par usage de `scenarios/scenarios_conventionnels.rs` ; éclairage (`eclairage/mod.rs`, `eclairage/parties_communes.rs`) ; typologie du réseau de ventilation (`ventilation/ventilation_projet.rs::VentilationProjet::nouvelle`) ; ascenseurs et parkings (`deplacements/mod.rs`) ; longueurs de distribution d'ECS par défaut (`calcul/ecs.rs`, `ecs/distribution_ecs.rs`) ; exigences (déjà transcrites pour les 28 usages : `indicateurs/exigences_usages.rs`, Q65 ; rien à ajouter, sauf si l'usage a une modulation propre) et forfait de refroidissement (`indicateurs/forfait_refroidissement.rs::coef_kwh_fr_par_dh`) ; surfaces de référence (`calcul/batiment.rs`).
-3. Validation : quelques lignes par famille (`validation/batiment.rs`, `validation/ventilation.rs`, `validation/systemes.rs`, `validation/collectif.rs`, `validation/exigences.rs`). Pour tout repérer : `grep -rn "est_habitation\|est_pris_en_charge\|LogementCollectif\|MaisonIndividuelle\|usage.numero()" crates/thbce-core/src`.
-4. Tests : `crates/thbce-io/tests/collectif.rs`, exemple `tests/cas/immeuble-collectif-ademe`.
+1. `entree/usages.rs::UsageZone::est_pris_en_charge` (les 28 variantes existent déjà ; `est_habitation` sépare les règles résidentielles ; `i_hebergement`, `i_enseignement` et `sommeil_confort_ete` portent les indicateurs du tableau 4 et de l'éq. 2544).
+2. Tables par usage, à vérifier une à une (celles marquées ✔ couvrent déjà les 28 usages) :
+   - scénarios ✔ (`scenarios/scenarios_conventionnels.rs::ScenariosZone::nouveau`) ; valeurs fractionnaires de quelques usages à trancher (`docs/questions/Q063.md`) ;
+   - éclairage : `crates/thbce-data/src/eclairage.rs::TABLEAU_78` ✔ ; grands volumes et commerces à coder dans `eclairage/mod.rs` (`LocalResolu::projet`) ;
+   - protections mobiles : `crates/thbce-data/src/protections_mobiles.rs::famille_et_parts` ✔, mais `matrices` et `valeurs_th_d` ne connaissent que les familles « habitation » et « bureau » ;
+   - ventilation : `ventilation/bouche_conduit.rs::param_debits_bbio` ✔ (tableau 56-1), typologie du réseau dans `ventilation/ventilation_projet.rs::VentilationProjet::nouvelle` ;
+   - caractère traversant : `bati/surventilation.rs::traversant_conventionnel` ✔, `ventilation/debits_air_cep.rs::trav_zone_conventionnel` ✔ ;
+   - ECS : `ecs/besoins_ecs.rs::rat_douches_bains` ✔, `ecs/distribution_ecs.rs::nb_bouchons` ✔, longueurs par défaut (`ecs/distribution_ecs.rs`) ;
+   - ascenseurs et parkings (`deplacements/mod.rs`, `deplacements/ascenseurs.rs::bv`) : logement collectif seulement ;
+   - exigences ✔ (`indicateurs/exigences_usages.rs`, Q65 ; rien à ajouter, sauf si l'usage a une modulation propre) et forfait de refroidissement (`indicateurs/forfait_refroidissement.rs::coef_kwh_fr_par_dh` ✔).
+3. Validation : quelques lignes par famille (`validation/batiment.rs`, `validation/eclairage.rs`, `validation/ventilation.rs`, `validation/systemes.rs`, `validation/collectif.rs`, `validation/exigences.rs`). Pour tout repérer : `grep -rn "est_habitation\|est_pris_en_charge\|LogementCollectif\|MaisonIndividuelle\|usage.numero()" crates/thbce-core/src`.
+4. Tests : `crates/thbce-io/tests/tertiaire.rs` (bout en bout, sens des effets, refus), exemple `tests/cas/bureaux-simple-flux-ademe`.
 
 ### 3.5 Ajouter un champ d'entrée
 

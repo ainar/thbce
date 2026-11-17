@@ -3974,7 +3974,7 @@ export type TypoPm = "etanche" | "faiblement_ajouree" | "ajouree" | "fortement_a
  * Th-BCE 2020 §4.1.3, tableau 4 — usages d'une zone.
  *
  * Les 28 usages sont reconnus à la lecture. La première version du moteur ne calcule que les
- * usages 1 et 2 (décision Q4) ; les autres sont signalés « non pris en charge ».
+ * usages 1 et 2 (décision Q4) et l'usage 3 (lot 0a) ; les autres sont signalés « non pris en charge ».
  */
 export type UsageZone = "maison_individuelle" | "logement_collectif" | "bureaux" | "enseignement_primaire" | "enseignement_secondaire" | "mediatheque_bibliotheque" | "universitaire" | "hotel012_nuit" | "hotel345_nuit" | "hotel012_jour" | "hotel345_jour" | "petite_enfance" | "restaurant_continu" | "restaurant1_repas5_jours" | "restaurant2_repas7_jours" | "restaurant2_repas6_jours" | "commerces" | "vestiaires" | "sanitaire_avec_hebergement" | "sante_nuit" | "sante_jour" | "aerogare" | "industrie3x8" | "industrie8h18h" | "sport_municipal_scolaire" | "restaurant_scolaire1_repas" | "restaurant_scolaire3_repas" | "sport_prive";
 
