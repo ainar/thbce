@@ -15,10 +15,10 @@
 //! Q48.
 
 use super::ballon_de_stockage::{Ballon, NB_ZONES, RHO_CW_WH_L_K};
-use super::boucle_solaire::{BoucleSolaireHoraire, EntreesBoucle};
+use super::boucle_solaire::{BoucleSolaireHoraire, EntreesBoucle, SortiesBoucle};
 use super::gestion_regulation_ballon::{
     active, boucle_puisage, boucle_puisage_appoint_separe, f_p, q_req_sto_wh, Programmation,
-    THETA_C_ECS_C,
+    Puisage, THETA_C_ECS_C,
 };
 use crate::chauffage_refroidissement::calculs_generation::Poste;
 use crate::resultats::ValeurParDefaut;
@@ -240,6 +240,32 @@ impl AssemblageBallon {
         e: &EntreesAssemblage,
         appel: &mut dyn FnMut(usize, Poste, f64, f64) -> f64,
     ) -> SortiesAssemblage {
+        let p = self.puiser_pas(e);
+        let mut boucle = None;
+        let base = if let Some(sol) = &mut self.solaire {
+            // Boucle solaire de base (§9.10.3.2.2) : enclenchée dès qu'elle peut réchauffer le
+            // ballon, selon sa propre régulation (§9.15.3.2) ; son énergie est injectée en zone
+            // basse, sans égard pour la consigne (la température maximale du ballon, éq. 1779,
+            // borne la stratification).
+            let s = sol.boucle.pas(&EntreesBoucle {
+                isr_w_m2: e.isr_w_m2,
+                theta_e_c: e.theta_ext_c,
+                theta_amb_c: e.theta_amb_c,
+                theta_b_moy_ech_c: p.theta_aval_base_c,
+            });
+            sol.cumuls.ajouter(&s, e.isr_w_m2, e.mois);
+            boucle = Some(s);
+            BaseDuPas::Injection(s.q_sol_wh)
+        } else {
+            BaseDuPas::Generateur
+        };
+        self.terminer_pas(e, &p, base, boucle, appel)
+    }
+
+    /// Début d'un pas de temps (§9.14.3.2.2, première étape) : pertes du pas de temps, puisage
+    /// d'ECS et, pour un système solaire combiné, chaleur puisée par la boucle de chauffage ;
+    /// températures vues par les échangeurs de la base et de l'appoint (éq. 1785).
+    pub fn puiser_pas(&mut self, e: &EntreesAssemblage) -> ApresPuisage {
         let nb = self.nb;
         if self.cumuls.theta_debut_c.is_none() {
             self.cumuls.theta_debut_c = Some(self.ballon.theta_c);
@@ -264,12 +290,9 @@ impl AssemblageBallon {
                 self.nb_iter_vp,
             )
         };
-        let q_rest = puisage.q_report_wh * nb;
-        let q_fou = e.q_req_ecs_wh - q_rest;
-        let a_puise = puisage.v_p_l > 0.0;
         // Systèmes solaires combinés, deuxième et troisième étapes (fiche 9.18, éq. 2116 à
         // 2125) : chaleur puisée par la boucle de chauffage dans la partie basse du ballon.
-        let (q_puise_ch, mut q_rest_ch) = match self.ssc {
+        let (q_puise_ch, q_rest_ch) = match self.ssc {
             Some(p) if e.q_req_ch_wh > 0.0 => {
                 let q_req = e.q_req_ch_wh;
                 self.puiser_chauffage(&p, q_req, e.theta_ch_max_c, e.theta_amb_c)
@@ -281,55 +304,71 @@ impl AssemblageBallon {
         // chauffage), avant toute injection de puissance ; celle de l'appoint est donc calculée
         // avant l'injection de la base.
         let b = self.base;
-        let theta_aval_base = self.ballon.theta_b_moy_ech_c(b.z_gen, b.h_rel_ech);
-        let theta_aval_ap = self
-            .appoint
-            .map(|a| self.ballon.theta_b_moy_ech_c(a.z_gen, a.h_rel_ech));
+        ApresPuisage {
+            puisage,
+            q_puise_ch_wh: q_puise_ch,
+            q_rest_ch_wh: q_rest_ch,
+            theta_aval_base_c: self.ballon.theta_b_moy_ech_c(b.z_gen, b.h_rel_ech),
+            theta_aval_ap_c: self
+                .appoint
+                .map(|a| self.ballon.theta_b_moy_ech_c(a.z_gen, a.h_rel_ech)),
+        }
+    }
+
+    /// Fin d'un pas de temps (§9.14.3.2.2, troisième et quatrième étapes) : énergie du
+    /// générateur de base (appelé, ou injectée par une boucle solaire ou un réseau de
+    /// distribution), appoint intégré, appoint raccordé d'un système solaire combiné, cumuls.
+    /// `boucle` : sorties de la boucle solaire propre à l'assemblage, le cas échéant.
+    pub fn terminer_pas(
+        &mut self,
+        e: &EntreesAssemblage,
+        p: &ApresPuisage,
+        base: BaseDuPas,
+        boucle: Option<SortiesBoucle>,
+        appel: &mut dyn FnMut(usize, Poste, f64, f64) -> f64,
+    ) -> SortiesAssemblage {
+        let nb = self.nb;
+        let puisage = p.puisage;
+        let q_rest = puisage.q_report_wh * nb;
+        let q_fou = e.q_req_ecs_wh - q_rest;
+        let a_puise = puisage.v_p_l > 0.0;
+        let mut q_rest_ch = p.q_rest_ch_wh;
         // Troisième étape : générateur de base (§9.13 : la température aval du générateur est
         // la température du ballon vue par son échangeur ; lecture Q48). §9.10.3.2.2 : « si
         // fp(h) = 0, alors Qreq_sto_base(h) = 0 » ; §9.14.3.2.2 : « si le générateur de base
         // est autorisé à fonctionner, il est appelé » : hors de sa programmation, le générateur
         // n'est pas appelé et ne consomme rien, pas même ses auxiliaires à charge nulle.
+        let b = self.base;
         let mut q_req_sto = [0.0; 2];
         let mut q_fou_sto = [0.0; 2];
-        let mut boucle = None;
-        if let Some(sol) = &mut self.solaire {
-            // Boucle solaire de base (§9.10.3.2.2) : enclenchée dès qu'elle peut réchauffer le
-            // ballon, selon sa propre régulation (§9.15.3.2) ; son énergie est injectée en zone
-            // basse, sans égard pour la consigne (la température maximale du ballon, éq. 1779,
-            // borne la stratification).
-            let s = sol.boucle.pas(&EntreesBoucle {
-                isr_w_m2: e.isr_w_m2,
-                theta_e_c: e.theta_ext_c,
-                theta_amb_c: e.theta_amb_c,
-                theta_b_moy_ech_c: theta_aval_base,
-            });
-            q_fou_sto[0] = s.q_sol_wh;
-            let c = &mut sol.cumuls;
-            c.e_sol_mensuel_wh[e.mois.min(11)] += s.q_sol_wh;
-            c.e_aux_wh += s.p_p_wh;
-            c.phi_vc_wh += s.phi_vc_wh;
-            c.isr_wh_m2 += e.isr_w_m2;
-            c.nbh_marche += u32::from(s.en_marche);
-            boucle = Some(s);
-        } else if f_p(b.programmation, e.hleg) {
-            if active(
-                &self.ballon,
-                b.z_reg,
-                self.theta_c_c,
-                b.delta_theta_k,
-                a_puise,
-                true,
-            ) {
-                q_req_sto[0] = q_req_sto_wh(&self.ballon, b.z_gen, self.theta_c_c, true);
+        match base {
+            BaseDuPas::Injection(q) => q_fou_sto[0] = q,
+            BaseDuPas::Generateur => {
+                if f_p(b.programmation, e.hleg) {
+                    if active(
+                        &self.ballon,
+                        b.z_reg,
+                        self.theta_c_c,
+                        b.delta_theta_k,
+                        a_puise,
+                        true,
+                    ) {
+                        q_req_sto[0] = q_req_sto_wh(&self.ballon, b.z_gen, self.theta_c_c, true);
+                    }
+                    q_fou_sto[0] = appel(
+                        b.generateur,
+                        Poste::Ecs,
+                        q_req_sto[0] * nb,
+                        p.theta_aval_base_c,
+                    ) / nb;
+                }
             }
-            q_fou_sto[0] = appel(b.generateur, Poste::Ecs, q_req_sto[0] * nb, theta_aval_base) / nb;
         }
         // Les pertes du pas de temps sont appliquées au ballon, que la base fonctionne ou non.
         self.ballon.injecter(b.z_gen, q_fou_sto[0], true);
         // Quatrième étape : appoint intégré, après l'injection de la base ; les pertes du pas
         // de temps, déjà appliquées, ne sont pas comptées une seconde fois (note de l'éq. 1786).
-        if let (Some(a), Some(theta_aval_ap)) = (self.appoint, theta_aval_ap) {
+        if let (Some(a), Some(theta_aval_ap)) = (self.appoint, p.theta_aval_ap_c) {
             if f_p(a.programmation, e.hleg) {
                 if active(
                     &self.ballon,
@@ -351,8 +390,8 @@ impl AssemblageBallon {
         // des générateurs instantanés de chauffage ; il fonctionne alors comme un générateur
         // instantané, sans la programmation du thermostat du ballon (lecture Q52).
         let mut q_fou_ch_ap = 0.0;
-        if let (Some(p), Some(a)) = (self.ssc, self.appoint) {
-            if p.raccorde && q_rest_ch > 0.0 {
+        if let (Some(ps), Some(a)) = (self.ssc, self.appoint) {
+            if ps.raccorde && q_rest_ch > 0.0 {
                 q_fou_ch_ap = appel(a.generateur, Poste::Chauffage, q_rest_ch, e.theta_aval_ch_c);
                 q_rest_ch = (q_rest_ch - q_fou_ch_ap).max(0.0);
             }
@@ -382,7 +421,7 @@ impl AssemblageBallon {
                 }
                 _ => 0.0,
             },
-            q_puise_ch_wh: q_puise_ch,
+            q_puise_ch_wh: p.q_puise_ch_wh,
             q_fou_ch_ap_wh: q_fou_ch_ap,
             q_rest_ch_wh: q_rest_ch,
         };
@@ -403,6 +442,33 @@ impl AssemblageBallon {
         }
         s
     }
+}
+
+/// État d'un assemblage après le puisage d'un pas de temps (§9.14.3.2.2, première étape).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ApresPuisage {
+    /// Volume puisé et énergie restant à puiser, pour un assemblage.
+    pub puisage: Puisage,
+    /// « Qpuisé_ch_SSC » : chaleur puisée par la boucle de chauffage d'un système solaire
+    /// combiné, en Wh.
+    pub q_puise_ch_wh: f64,
+    /// « Qrest_ch » : demande de chauffage non couverte par le ballon, en Wh.
+    pub q_rest_ch_wh: f64,
+    /// « θb_moy_ech » vue par l'échangeur de la base, en °C (éq. 1785).
+    pub theta_aval_base_c: f64,
+    /// La même pour l'appoint intégré, en °C.
+    pub theta_aval_ap_c: Option<f64>,
+}
+
+/// Énergie du générateur de base d'un assemblage au pas de temps.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BaseDuPas {
+    /// Générateur de la génération, appelé selon son thermostat (§9.10.3.2.2).
+    Generateur,
+    /// Énergie injectée en zone de base, pour un assemblage, en Wh : boucle solaire (§9.15),
+    /// part de la boucle collective d'un CESCI (éq. 2009) ou énergie reçue du réseau
+    /// intergroupe d'un CESCAI (éq. 2079).
+    Injection(f64),
 }
 
 impl AssemblageBallon {

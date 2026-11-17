@@ -320,6 +320,16 @@ pub struct CumulsBoucle {
 }
 
 impl CumulsBoucle {
+    /// Ajoute les sorties d'un pas de temps, sous l'ensoleillement `isr_w_m2`, au mois `mois`
+    /// des scénarios (de 0 à 11).
+    pub fn ajouter(&mut self, s: &SortiesBoucle, isr_w_m2: f64, mois: usize) {
+        self.e_sol_mensuel_wh[mois.min(11)] += s.q_sol_wh;
+        self.e_aux_wh += s.p_p_wh;
+        self.phi_vc_wh += s.phi_vc_wh;
+        self.isr_wh_m2 += isr_w_m2;
+        self.nbh_marche += u32::from(s.en_marche);
+    }
+
     /// « Esol_tot^BS » annuelle, en Wh.
     pub fn e_sol_wh(&self) -> f64 {
         self.e_sol_mensuel_wh.iter().sum()
