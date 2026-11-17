@@ -9,6 +9,8 @@
 //! cargo run -p xtask -- typescript [--verifier]
 //! cargo run -p xtask -- questions [--verifier]
 //! cargo run -p xtask -- changelog <version> [--date AAAA-MM-JJ] | --apercu
+//! cargo run -p xtask -- index-texte [--verifier]
+//! cargo run -p xtask -- page <N> | --eq <n> | --tableau <t> [--annexe iii|ii]
 //! cargo run -p xtask -- verifier
 //! cargo run -p xtask -- meteo-synthetique <fichier.csv>
 //! ```
@@ -28,6 +30,9 @@
 //! - `questions` régénère le tableau de bord de `docs/questions/README.md` depuis les
 //!   en-têtes des fichiers `Q<nnn>.md`.
 //! - `changelog` assemble les fragments de `changelog.d/` dans `CHANGELOG.md`.
+//! - `index-texte` écrit l'index des équations, tableaux, figures et fiches des annexes III et II
+//!   dans `docs/reference/index/`.
+//! - `page` produit l'image PNG d'une page du PDF (voir `page.rs`).
 //! - `verifier` contrôle tous les fichiers générés.
 //! - `meteo-synthetique` écrit un jeu météo constant pour les huit zones, au format CSV long,
 //!   pour les tests de bout en bout. Ce jeu n'est pas réglementaire.
@@ -40,6 +45,8 @@ use thbce_core::climat::MeteoProjet;
 use thbce_data::ZoneClimatique;
 
 mod changelog;
+mod index_texte;
+mod page;
 mod questions;
 mod reseaux;
 mod scenarios;
@@ -160,7 +167,11 @@ fn main() -> ExitCode {
             .and_then(|()| scenarios_conventionnels(true))
             .and_then(|()| definitions_typescript(true))
             .and_then(|()| questions::commande(true))
-            .and_then(|()| changelog::verifier()),
+            .and_then(|()| changelog::verifier())
+            .and_then(|()| index_texte::commande(true)),
+        ["index-texte"] => index_texte::commande(false),
+        ["index-texte", "--verifier"] => index_texte::commande(true),
+        ["page", reste @ ..] => page::commande(reste),
         ["questions"] => questions::commande(false),
         ["questions", "--verifier"] => questions::commande(true),
         ["changelog", "--apercu"] => changelog::commande(None, None),
@@ -168,7 +179,7 @@ fn main() -> ExitCode {
         ["changelog", version, "--date", date] => changelog::commande(Some(version), Some(date)),
         ["meteo-synthetique", sortie] => meteo_synthetique(sortie),
         _ => Err(
-            "usage : xtask zones-climatiques [--verifier] | temperature-base [--verifier] | reseaux-chaleur [--verifier] | scenarios [--verifier] | typescript [--verifier] | questions [--verifier] | changelog <version> [--date AAAA-MM-JJ] | changelog --apercu | verifier | meteo-synthetique <fichier.csv>"
+            "usage : xtask zones-climatiques [--verifier] | temperature-base [--verifier] | reseaux-chaleur [--verifier] | scenarios [--verifier] | typescript [--verifier] | questions [--verifier] | changelog <version> [--date AAAA-MM-JJ] | changelog --apercu | index-texte [--verifier] | page <N> [--eq <n>] [--tableau <t>] [--annexe iii|ii] | verifier | meteo-synthetique <fichier.csv>"
                 .to_owned(),
         ),
     };

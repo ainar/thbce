@@ -1,0 +1,429 @@
+tableau,page,fiche,titre
+1,30,3.1,Nomenclature du modèle
+2,38,3.2,Nomenclature des différentes variables du modèle
+3,55,4.1,Nomenclature du modèle
+4,57,4.1,liste des usages de la zone
+5,58,4.1,Algèbre de Bool modifiée pour les autorisations de chauffage/refroidissement symbolisée par 
+6,58,4.1,Algèbre de bool ET symbolisée par 
+7,74,4.5,Nomenclature du modèle
+8,84,4.6,Nomenclature du modèle
+9,91,4.6,"correspondance entre Cat_amb et les valeurs de   op _ inc , fr ( h ) à récupérer"
+10,82,4.6,Paramètres d’intégration
+10,91,4.6,relation entre les catégories d'ambiance et le type d'usage
+11,93,4.6,"Relations entre 𝑨𝒖𝒕𝒄𝒉,𝒑𝒓𝒐 (𝒋),𝑨𝒖𝒕𝒇𝒓,𝒑𝒓𝒐 (𝒋) et les saisons propres de groupe"
+12,95,4.7,Nomenclature du modèle
+13,100,5.1,Nomenclature des différentes variables du modèle de bâtiment
+14,106,5.2,Nomenclature du modèle
+15,111,5.3,Nomenclature du modèle
+16,113,5.3,Valeur des températures de consigne pour la gestion des protections mobiles de l'espace tampon
+17,115,5.3,Paramètres conventionnels d’autorisation de surventilation naturelle de l’espace tampon solarisé
+18,115,5.3,Paramètres conventionnels de consigne pour la gestion de la surventilation naturelle de l’espace
+19,122,5.4,Nomenclature du modèle
+20,130,5.5,Nomenclature des différentes variables du modèle de zone
+21,141,5.6,Nomenclature du modèle
+22,144,5.6,relation entre le type d'usage et le caractère traversant du groupe au sens des conditions d’hiver
+23,145,5.6,𝑪𝒑 pour les zones traversantes (réf : NF EN 16798)3
+24,145,5.6,C p pour les zones non traversantes
+25,149,5.6,Répartition des entrées d’air dans la zone
+26,150,5.6,Répartition des entrées d’air dans le groupe (NF EN 16798)
+27,151,5.6,Répartition des défauts d’étanchéité dans une zone sans contact avec la toiture
+28,152,5.6,Répartition des défauts d’étanchéité dans une zone avec contacts avec la toiture
+29,152,5.6,Répartition des défauts d’étanchéité dans un groupe
+30,154,5.6,Valeurs par défaut de la perméabilité à l’air de l’enveloppe
+31,167,5.7,Nomenclature du modèle
+32,176,5.8,Nomenclature du modèle
+33,184,5.9,Nomenclature des différentes variables du modèle de gestion des protections mobiles
+34,218,5.9,ratio Rprot0 de la gestion des protections mobiles (GPM) en mode Th-D
+35,228,5.10,Nomenclature des différentes variables du modèle de baie vitrée
+36,233,5.10,Facteurs solaires pour Th-BC
+37,233,5.10,Facteurs solaires pour Th-D
+38,233,5.10,Facteurs de transmission lumineuse pour Th-BCDE
+39,252,5.12,Nomenclature du modèle
+40,253,5.12,typologie des Protections Mobiles selon leur taux de passage d'air
+41,259,5.13,Nomenclature du modèle
+42,261,5.13,Valeurs de Cpr(h) en période d’occupation
+43,266,5.13,relation entre le type d'usage et le caractère traversant du groupe au sens de la surventilation par
+44,267,5.13,valeurs par défaut du ratio d'ouverture maximal d’un ouvrant en fonction de son type
+45,275,5.14,Nomenclature du modèle
+46,282,5.15,Nomenclature du modèle
+47,285,5.16,Nomenclature du modèle
+48,290,5.17,Nomenclature des différentes variables du modèle de paroi opaque
+49,295,5.18,Nomenclature du modèle
+50,300,5.19,Nomenclature des différentes variables du modèle de pont thermique
+51,304,5.20,Nomenclature du modèle
+52,311,5.21,Nomenclature des différentes variables du modèle de comportement
+53,313,5.21,Classes d’inertie quotidienne
+54,313,5.21,Classes d’inertie séquentielle
+55,323,6.1,Nomenclature du modèle
+56,330,6.2,Nomenclature du modèle
+56-1,335,6.2,Paramètres Param_occupation et Param_innocupation selon le type d’usage réglementaire
+57,335,6.2,coefficient de réduction des débits en non résidentiel suivant le mode de régulation
+57,336,6.2,Durée d’Utilisation du Grand Débit
+58,338,6.2,Valeurs de Cdep à considérer
+59,339,6.2,Valeurs conventionnelles de Kres
+60,340,6.2,"Valeurs des paramètres Ratfuitevc, Ratsurfcond et Ratdebcond"
+61,352,6.3,Nomenclature du modèle
+62,379,6.3,Valeurs par défaut pour le paramètre TsechLIM
+63,398,6.4,Nomenclature du modèle
+64,405,6.5,Nomenclature du modèle
+65,416,6.6,Nomenclature du modèle
+66,418,6.6,Courbe caractéristiques d’une bouche autoréglable
+67,425,6.6,Horaires d'utilisation du grand débit cuisine en ventilation hybride
+68,430,6.7,Nomenclature du modèle
+69,436,6.8,Nomenclature du modèle
+70,437,6.8,Valeurs de gm pour différents types de sol
+71,443,6.9,Nomenclature du modèle
+72,444,6.9,Valeurs de gm pour différents types de sol
+73,451,6.10,Nomenclature des différentes variables du modèle
+74,455,6.11,Nomenclature du modèle
+75,464,6.12,Nomenclature du modèle
+76,472,7.1,matrices des flux lumineux disponibles pour chaque groupe
+77,480,7.1,Nomenclature du modèle
+78,491,7.1,valeurs du coefficient C1 et de l’éclairement intérieur de référence
+79,497,7.1,points de référence pour calculer les valeurs des coefficients C2.
+80,502,7.2,Nomenclature du modèle
+81,512,8.1,Nomenclature du modèle
+82,514,8.1,Valeurs de variation spatiale en chauffage en fonction des paramètres
+83,514,8.1,Valeurs de variation spatiale en chauffage pour les poêles et inserts
+84,515,8.1,Valeurs de variation spatiale en refroidissement en fonction des
+85,516,8.1,Parts convectives en chauffage Pemconv_ch en fonction de la typologie
+86,517,8.1,Parts convectives en refroidissement Pemconv_fr en fonction de la
+87,518,8.1,Valeurs par défaut de variations temporelles en chauffage et en
+88,518,8.1,Valeurs conventionnelles de variations temporelles dans le cas de
+89,545,8.3,Nomenclature du modèle
+90,553,8.4,Nomenclature du modèle
+91,558,8.5,Nomenclature du modèle
+92,559,8.5,Type de programmation et durée de relance en chauffage
+93,559,8.5,Type de programmation et durée de relance en refroidissement
+94,565,8.6,Nomenclature du modèle
+95,572,8.7,Nomenclature du modèle
+96,574,8.7,Récapitulatif de l'appel des procédures
+97,584,8.8,Nomenclature du modèle
+98,585,8.8,Récapitulatif de l'appel des procédures
+99,592,8.9,Nomenclature du modèle
+100,595,8.9,Récapitulatif de l'appel des procédures
+101,606,8.10,Nomenclature du modèle
+102,607,8.10,Récapitulatif de l'appel des procédures
+103,614,8.11,Nomenclature du modèle
+104,617,8.11,Récapitulatif de l'appel des procédures
+105,621,8.12,Nomenclature du modèle
+106,622,8.12,Récapitulatif de l'appel des procédures
+107,629,8.14,Nomenclature du modèle
+108,636,8.15,Nomenclature du modèle
+109,649,8.16,Nomenclature du modèle
+110,663,8.17,Nomenclature du modèle
+111,666,8.17,Types de générateurs
+112,691,8.18,Nomenclature du modèle
+113,693,8.18,Matrice des consommations en énergies finales {Qcef (poste;énergie)}
+114,698,8.19,Nomenclature du modèle
+115,699,8.19,liste des déclinaisons de chaudières
+115,711,8.20,Paramètres intrinsèques du composant
+116,699,8.19,Valeur du coefficient PCSI en fonction du type de combustible
+117,700,8.19,normes applicables pour la caractérisation des performances thermiques des chaudières
+118,701,8.19,"valeurs par défaut des chaudières gaz et fioul, coefficients c1 à c6"
+119,702,8.19,"valeurs par défaut des chaudières gaz, fioul et bis, coefficients c7 à c10 et n"
+120,703,8.19,paramètres de calcul pour le rendement à pleine charge et charge intermédiaire
+121,708,8.19,pertes par les parois du générateur à l’arrêt en fonction des propriétés du générateur
+122,708,8.19,part des pertes par les parois du générateur en fonctionnement
+122,712,8.20,Wveille
+123,714,8.20,Nomenclature du modèle
+124,715,8.20,Liste des générateurs à combustion
+125,715,8.20,Valeur du coefficient PCSI en fonction du type de combustible
+126,717,8.20,Rendements par défaut
+127,717,8.20,Pertes à charge nulle par défaut
+128,717,8.20,Puissances d'auxiliaires par défaut
+129,720,8.20,"Coefficient de majoration des pertes pour les radiateurs gaz, poêles et"
+130,720,8.20,Coefficient de majoration des pertes pour les générateurs radiants.
+131,725,8.20,pertes par les parois du générateur à l’arrêt en fonction des propriétés
+132,725,8.20,part des pertes par les parois du générateur en fonctionnement
+133,726,8.20,Matrice des consommations en énergies finales {Qcef (po;én) (h)}
+135,731,8.21,Nomenclature du modèle
+136,732,8.21,Valeur du coefficient PCSI en fonction du type de combustible
+137,732,8.21,paramètres micro-cogénérateur standard et à condensation
+138,734,8.21,Valeurs utiles maximales des rendements et puissance d’auxiliaires pour un micro-cogénérateur
+139,734,8.21,Valeurs utiles maximales des rendements et puissance d’auxiliaires pour un
+140,735,8.21,Valeur par défaut des paramètres de caractérisation de la charge partielle ou nulle
+141,745,8.22,Nomenclature du modèle
+142,747,8.22,Matrice des consommations en énergies finales {Qcef(po;en)}
+143,755,8.23,Nomenclature du modèle
+144,757,8.23,"normes pour la détermination des performances des climatiseurs, groupes refroidisseurs de liquide"
+145,759,8.23,"Generateur_Thermodynamique_Elec_NonReversible, technologies disponibles"
+146,759,8.23,"Generateur_Thermodynamique_Elec_Reversible, liste des technologies disponibles"
+147,760,8.23,"Source_Ballon_Base_Thermodynamique_Elec, technologies disponibles"
+148,760,8.23,"Source_Ballon_Base_Thermodynamique_Elec_DoubleService, liste des technologies disponibles"
+149,761,8.23,"Source_Ballon_Base_Thermodynamique_Elec_TripleService, liste des technologies disponibles"
+150,762,8.23,ordre de saisie des températures aval et amont des PAC air extérieur / eau (chauffage)
+151,763,8.23,"PAC air extérieur / eau (chauffage), coefficients Cnn pour le COP"
+152,765,8.23,"PAC air extérieur / eau (chauffage), coefficients Cnn pour Pabs"
+153,766,8.23,ordre de saisie des températures aval et amont des PAC air extérieur/ air recyclé (chauffage)
+154,767,8.23,"PAC air extérieur / air recyclé (chauffage), coefficients Cnn pour le COP"
+155,767,8.23,"PAC air extérieur / air recyclé (chauffage), coefficients Cnn pour Pabs"
+156,768,8.23,ordre de saisie des températures aval et amont des PAC air extrait / air neuf (chauffage)
+157,769,8.23,coefficients de correction en fonction des températures aux sources
+158,769,8.23,"PAC air extérieur / air recyclé (chauffage), coefficients Cnn pour Pabs"
+159,770,8.23,ordre de saisie des températures aval et amont des PAC eau de nappe / eau (chauffage)
+160,771,8.23,"PAC eau de nappe / eau (chauffage), coefficients Cnn pour le COP"
+161,771,8.23,"PAC eau de nappe / eau (chauffage), coefficients Cnn pour Pabs"
+162,772,8.23,ordre de saisie des températures aval et amont des PAC eau glycolée / eau (chauffage)
+163,773,8.23,"PAC eau glycolée / eau (chauffage), coefficients Cnn pour le COP"
+164,773,8.23,"PAC eau glycolée / eau (chauffage), coefficients Cnn pour Pabs"
+165,774,8.23,ordre de saisie des températures aval et amont des PAC eau de nappe / air (chauffage)
+166,775,8.23,"PAC eau glycolée / air (chauffage), coefficients Cnn pour le COP"
+167,775,8.23,"PAC eau glycolée / air (chauffage), coefficients Cnn pour Pabs"
+168,776,8.23,ordre de saisie des températures aval et amont des PAC eau de boucle / air (chauffage)
+169,777,8.23,"PAC eau glycolée / air (chauffage), coefficients Cnn pour le COP"
+170,777,8.23,"PAC eau de boucle/ air (chauffage), coefficients Cnn pour Pabs"
+171,778,8.23,ordre de saisie des températures aval et amont des PAC sol/eau (chauffage)
+172,779,8.23,"PAC sol /eau (chauffage), coefficients Cnn pour le COP"
+173,779,8.23,"PAC sol/eau (chauffage), coefficients Cnn pour Pabs"
+174,780,8.23,ordre de saisie des températures aval et amont des PAC sol/eau (chauffage)
+175,780,8.23,"PAC sol /sol (chauffage), coefficients Cnn pour le COP"
+176,781,8.23,"PAC sol/sol (chauffage), coefficients Cnn pour Pabs"
+177,782,8.23,ordre de saisie des températures aval et amont des PAC air extérieur / eau (ECS)
+178,783,8.23,"PAC air extérieur/eau (ECS), coefficients Cnn pour le COP"
+179,783,8.23,"PAC air extérieur/eau (ECS), coefficients Cnn pour Pabs"
+180,784,8.23,ordre de saisie des températures aval et amont des PAC air extrait / eau (ECS)
+181,785,8.23,"PAC air extrait/eau (ECS), coefficients Cnn pour le COP"
+182,785,8.23,"PAC air extrait/eau (ECS), coefficients Cnn pour Pabs"
+183,786,8.23,ordre de saisie des températures aval et amont des PAC air ambiant / eau (ECS)
+184,787,8.23,"PAC air ambiant/eau (ECS), coefficients Cnn pour le COP"
+185,787,8.23,"PAC air ambiant/eau (ECS), coefficients Cnn pour Pabs"
+186,788,8.23,ordre de saisie des températures aval et amont des PAC eau de nappe / eau (ECS)
+187,789,8.23,"PAC eau de nappe/eau (ECS), coefficients Cnn pour le COP"
+188,789,8.23,"PAC eau de nappe/eau (ECS), coefficients Cnn pour Pabs"
+189,790,8.23,ordre de saisie des températures aval et amont des PAC sol / eau (ECS)
+190,791,8.23,"PAC sol/eau (ECS), coefficients Cnn pour le COP"
+191,791,8.23,"PAC sol/eau (ECS), coefficients Cnn pour Pabs"
+192,792,8.23,ordre de saisie des températures aval et amont des PAC eau glycolée / eau (ECS)
+193,793,8.23,"PAC eau glycolée/eau (ECS), coefficients Cnn pour le COP"
+194,793,8.23,"PAC eau glycolée/eau (ECS), coefficients Cnn pour Pabs"
+195,794,8.23,ordre de saisie des températures aval et amont des refroidisseurs air extérieur/ eau
+196,795,8.23,"refroidisseurs air extérieur/eau , coefficients Cnn pour l’EER"
+197,795,8.23,"refroidisseurs air extérieur/eau, coefficients Cnn pour Pabs"
+198,796,8.23,ordre de saisie des températures aval et amont des refroidisseurs air extérieur / air recyclé
+199,797,8.23,"refroidisseurs air extérieur / air recyclé , coefficients Cnn pour l’EER"
+200,797,8.23,"refroidisseurs air extérieur / air recyclé, coefficients Cnn pour Pabs"
+201,798,8.23,ordre de saisie des températures aval et amont des refroidisseurs air extrait / air neuf
+202,799,8.23,"refroidisseurs air extrait / air neuf, coefficients Cnn pour l’EER"
+203,799,8.23,"refroidisseurs air extrait / air neuf, coefficients Cnn pour Pabs"
+204,800,8.23,ordre de saisie des températures aval et amont des refroidisseurs eau / eau ou eau glycolée / eau
+205,801,8.23,"refroidisseurs eau / eau ou eau glycolée / eau, coefficients Cnn pour l’EER"
+206,801,8.23,"refroidisseurs eau / eau ou eau glycolée / eau, coefficients Cnn pour Pabs"
+207,802,8.23,ordre de saisie des températures aval et amont des refroidisseurs eau / air ou eau glycolée / air
+208,803,8.23,"refroidisseurs eau / air ou eau glycolée / air, coefficients Cnn pour l’EER"
+209,803,8.23,"refroidisseurs eau / air ou eau glycolée / air, coefficients Cnn pour Pabs"
+210,804,8.23,ordre de saisie des températures aval et amont des refroidisseurs eau de nappe (ou captage) / air
+211,805,8.23,"refroidisseurs eau de nappe (ou captage) / air, coefficients Cnn pour l’EER"
+212,805,8.23,"refroidisseurs eau de nappe (ou captage) / air, coefficients Cnn pour Pabs"
+213,806,8.23,ordre de saisie des températures aval et amont des refroidisseurs eau de nappe (ou captage) / eau
+214,807,8.23,"refroidisseurs eau de nappe (ou captage) / eau, coefficients Cnn pour l’EER"
+215,808,8.23,"refroidisseurs eau de nappe (ou captage) / eau, coefficients Cnn pour Pabs"
+216,809,8.23,Valeurs conventionnelle de Dfou0 en minutes pour différents systèmes d'émission
+217,827,8.24,Nomenclature du modèle
+218,831,8.24,Températures aux sources
+219,838,8.24,Températures aux sources
+220,843,8.24,Températures aux sources
+221,848,8.24,Températures aux sources
+222,854,8.24,Températures aux sources
+223,859,8.24,Températures aux sources
+224,864,8.24,Températures aux sources
+225,871,8.24,Températures aux sources
+226,877,8.24,Températures aux sources
+227,885,8.24,Valeurs conventionelles de Deq pour les machines à absorption gaz
+228,886,8.24,Matrice des consommations en énergies finales {Qcef (poste;énergie) }
+229,895,8.25,Nomenclature du modèle
+230,896,8.25,Statuts GUE et correction
+231,899,8.25,Températures aux sources en chauffage pour la PAC MG air/eau
+232,900,8.25,Valeurs de Cnnav en chauffage pour la PAC MG air/eau
+233,901,8.25,Valeurs de Cnnam en chauffage pour la PAC MG air/eau
+234,902,8.25,Températures aux sources en chauffage pour la PAC MG air/air
+235,903,8.25,Valeurs de Cnnav en chauffage pour la PAC MG air/air
+236,904,8.25,Valeurs de Cnnam en chauffage pour la PAC MG air/air
+237,904,8.25,Températures aux sources en refroidissement des PAC MG air/eau
+238,905,8.25,Valeurs de Cnnav en refroidissement des PAC MG air/eau
+239,906,8.25,Valeurs de Cnnam en refroidissement des PAC MG air/eau
+240,906,8.25,Températures aux sources
+241,907,8.25,Valeurs de Cnnav en refroidissement
+242,907,8.25,Valeurs de Cnnam en refroidissement
+243,918,8.26,Nomenclature du modèle
+244,932,8.27,Nomenclature du modèle
+245,934,8.27,correspondance entre la température de sol et la température d'essai de la machine sur source sol
+246,936,8.28,Nomenclature du modèle
+247,938,8.28,"Coefficient Bss en fonction du type d'isolation, de la catégorie d'isolation"
+248,939,8.28,Température primaire et coefficient Dss en fonction du type de réseau
+249,940,8.28,Matrice des consommations en énergies finales {Qcef (poste;énergie) }
+250,947,8.29,Nomenclature du modèle
+251,948,8.29,Vecteur des coefficients d’énergie primaire {Coefep(énergie)}
+252,948,8.29,Matrice des consommations en énergies finales {Qcef (poste ;énergie)(h)}
+253,966,8.30,Nomenclature des différentes variables du modèle
+254,976,8.31,Nomenclature des différentes variables du modèle
+255,982,8.31,Parts convectives par défaut de Pemconv pour le
+256,992,8.32,Nomenclature du modèle
+257,996,8.32,Rat_Us par défaut en fonction de la typologie de la zone et de l’usage jour/nuit des brasseurs
+258,998,8.32,Paramètres conventionnels de consigne en gestion manuelle
+259,1011,8.33,Nomenclature des différentes variables du modèle
+260,1012,8.33,Extrait de la méthode Th-BCE sur les valeurs de variation spatiale en chauffage en fonction de la
+261,1014,8.33,Récapitulatif des valeurs prises par les paramètres de la gestion de la génération pour le système
+262,1015,8.33,Récapitulatif des valeurs prises pour les paramètres du générateur effet joule
+263,1016,8.33,Matrice des consommations en énergies finales {Qcef (poste;énergie)}
+264,1016,8.33,Valeurs des paramètres liés au réseau intergroupe chaud
+265,1018,8.33,Valeurs des paramètres liés à l'émetteur de chaud
+266,1018,8.33,Valeurs des paramètres liés à la distribution de groupe chaud
+267,1021,9.1,Nomenclature du modèle
+268,1027,9.2,Nomenclature du modèle
+269,1034,9.3,Nomenclature du modèle
+270,1039,9.4,Nomenclature du modèle
+271,1044,9.5,Nomenclature du modèle
+272,1045,9.5,Paramètres d’intégration au niveau des émetteurs d’ECS équivalents
+273,1046,9.5,Gains sur les besoins d’ECS selon le type d’émetteur d’ECS
+274,1047,9.5,Valeurs conventionnelles de ratio de besoins dédiés aux douches et/ou aux bains
+275,1047,9.5,Gains sur les besoins d’eau chaude selon le type d’appareil sanitaire
+276,1052,9.6,Nomenclature du modèle
+277,1055,9.6,Besoins unitaires hebdomadaires d’eau chaude sanitaire à 40 °C
+278,1069,9.7,Nomenclature du modèle
+279,1073,9.7,valeurs conventionnelles du nombre de bouchons d'eau froide d'une
+280,1077,9.8,Nomenclature du modèle
+281,1090,9.9,Nomenclature des différentes variables du modèle de ballon
+282,1091,9.9,Valeurs par défaut et normes de détermination des pertes des ballons
+283,1092,9.9,Valeurs par défaut et normes de détermination des pertes des ballons
+284,1103,9.10,Nomenclature des différentes variables du modèle
+285,1116,9.11,Nomenclature des différentes variables du modèle
+286,1128,9.12,Nomenclature des différentes variables du modèle
+287,1133,9.12,Nomenclature des différentes variables du modèle
+288,1133,9.12,Valeurs de températures de consigne conventionnelles pour les
+289,1148,9.13,Nomenclature du modèle
+290,1154,9.14,Nomenclature des différentes variables du modèle de ballon base avec échangeur et appoint
+291,1155,9.14,Liste des différents types d’assemblages
+292,1166,9.15,Nomenclature des différentes variables du modèle de boucle solaire
+293,1167,9.15,Valeurs par défaut pour les capteurs solaires
+294,1176,9.16,Nomenclature des différentes variables du modèle de CESCI
+295,1201,9.17,Nomenclature du modèle
+296,1216,9.18,Nomenclature du modèle
+297,1221,9.19,Nomenclature des différentes variables du modèle de système solaire
+298,1231,9.20,Nomenclature des différentes variables du modèle de système solaire
+299,1247,9.21,Nomenclature des différentes variables du modèle « émetteur équivalent avec récupérateur de
+300,1256,9.21,Nomenclature des différentes variables utilisées dans les ajouts à « assemblage ballon stockage
+301,1259,9.21,Nomenclature des différentes variables du modèle « distribution du groupe d’évacuation des eaux
+302,1262,9.21,Nomenclature des différentes variables du modèle « distribution d’évacuation intergroupe des
+303,1266,9.21,Nomenclature des différentes variables utilisées dans le modèle « échangeur instantané de chaleur
+304,1273,9.22,Nomenclature du modèle
+305,1276,9.22,"Profil moyen de puisage journalier des cinq cycles (S, M, L, XL, XXL)"
+306,1277,9.22,"Volume d’eau quotidien à 40°C, V40°C"
+307,1277,9.22,Clé de répartition ahNF_EN_16147 du volume quotidien à chaque pas de temps
+308,1291,9.23,Nomenclature des différentes variables du préprocesseur
+309,1299,10.1,Nomenclature des différentes variables du modèle
+310,1301,10.1,"Besoin de voyages Bv par an, par personne et par usage de bâtiment en fonction de l’usage de la"
+311,1302,10.1,Rendement global Rg des chaines de traction des cabines en fonction de la typologie d’ascenseur
+312,1302,10.1,Accélération Ac des cabines en fonction de la vitesse nominale V
+313,1302,10.1,Coefficient d’inertie α des cabines en fonction de la typologie d’ascenseur TechMac
+314,1302,10.1,Coefficient d’équilibrage Cp des cabines en fonction de la typologie d’ascenseur TechMac
+315,1303,10.1,Puissance par défaut d’éclairage de cabine Pec en fonction de la charge utile Q
+316,1303,10.1,puissance par défaut des auxiliaires de cabine en période d’immobilité
+317,1304,10.1,Spectre de charges S des cabines
+318,1312,10.2,Nomenclature des différentes variables du modèle
+319,1313,10.2,Rendements globaux marginaux à la charge r_m (en montée) et r_d (en descente) des
+320,1322,10.3,Nomenclature des différentes variables du modèle
+321,1324,10.3,Valeurs conventionnelles de Rmvtpl(h) en fonction de l’heure légale et de typeusage
+322,1329,10.4,Nomenclature du modèle
+323,1330,10.4,Valeurs de Fhext(h) en fonction de l’heure légale
+324,1337,11.1,Nomenclature du modèle
+325,1341,12.1,Nomenclature des différentes variables du modèle
+326,1344,12.2,Nomenclature des différentes variables du modèle
+327,1348,12.3,Nomenclature des différentes variables du modèle
+328,1349,12.3,Listes des technologies dans lequel l’utilisateur doit s’inscrire
+329,1350,12.3,Valeurs par défaut de Г disponibles pour l’utilisateur en fonction de la technologie
+330,1353,12.4,Nomenclature des différentes variables du modèle
+331,1358,13.1,Nomenclature du modèle
+332,1370,13.2,Nomenclature du modèle
+333,1371,13.2,coefficients de conversion de l’énergie finale en énergie
+334,1382,13.3,Nomenclature des différentes variables du modèle
+335,1384,13.3,Coefficient de consommation de froid en fonction des DH d’inconfort du groupe par type
+336,1384,13.3,Coefficient de modulation du forfait de refroidissement en fonction de la zone climatique et
+337,1388,13.4,Nomenclature du modèle
+338,1389,13.4,"Matrice des consommations en énergies finales {Qcef (poste ;énergie)gen,gr(h)}"
+339,1398,13.5,Nomenclature du modèle
+340,1401,13.5,Relation entre les catégories d'ambiance et le type d'usage
+341,1404,13.6,Nomenclature des différentes variables du modèle
+342,1405,13.6,Nombre d’occupants à prendre en compte en fonction du nombre de pièces des logements
+343,1411,16.1,Nombre d’entrées d’air en fonction de la largeur du vitrage et du type d’entrée
+344,1414,16.1,Coefficients des polynômes pour ETA
+345,1414,16.1,Coefficients des polynômes pour ETA
+346,1415,16.1,Coefficients des polynômes pour ΔSw2
+347,1415,16.1,Coefficients des polynômes pour ΔSw3
+348,1422,16.2,Paramètres (a ; b) pour la détermination de Pmoy_Ech
+349,1423,16.2,Puissance max du moteur R2E en fonction du débit d’air fourni
+350,1424,16.2,Configuration avec conduit échangeur – Sans couverture de la partie
+351,1425,16.2,Configuration avec conduit échangeur – Sans couverture de la partie
+352,1426,16.2,Configuration avec conduit échangeur – Avec couverture de la partie
+353,1427,16.2,Configuration avec conduit échangeur – Sans couverture de la partie
+354,1428,16.2,Configuration avec conduit échangeur – Avec couverture de la partie
+355,1435,16.4,matrices de COP et de Pabs complétées selon la méthode Th-B-C-E
+356,1435,16.4,"matrices de COP et de Pabs complètes, reproduisant la régulation en énergie"
+357,1443,16.5,Nomenclature du modèle
+358,1444,16.5,ordre de saisie des températures aval et amont des PAC
+359,1445,16.5,coefficients Cnn pour le COP
+360,1445,16.5,coefficients Cnn pour Pabs
+361,1454,16.6,Nomenclature du modèle
+362,1457,16.6,Statuts COP et correction
+363,1458,16.6,Matrice de performance des générateurs thermodynamiques électriques air
+364,1459,16.6,Matrice de performance des générateurs thermodynamiques électriques air
+365,1459,16.6,températures aux sources pour la matrice air extérieur – air extrait /eau
+366,1460,16.6,"valeurs de Cnnav en chauffage pour θamont =20°C, mélange air extrait-air"
+367,1460,16.6,"valeurs de Cnnam en chauffage θaval = 32,5°C, mélange air extrait-air"
+368,1461,16.6,températures aux sources
+369,1461,16.6,valeurs de Cnnav en chauffage pour θamont = 20°C en air extrait
+370,1462,16.6,"valeurs de Cnnam en chauffage θaval = 32,5°C en air extrait"
+371,1463,16.6,Matrice de performance des machines air extrait - extérieur / eau en ECS
+372,1464,16.6,Matrice de performance des systèmes thermodynamiques air extrait / eau en
+373,1465,16.6,températures aux sources
+374,1465,16.6,"coefficients de correction en fonction des températures aval, mélange air"
+375,1466,16.6,"valeurs de Cnnam en ECS pour θaval = 45°C, air extrait"
+376,1466,16.6,températures aux sources
+377,1467,16.6,"valeurs de Cnnav en ECS pour θamont = 20°C, air extrait"
+378,1467,16.6,"valeurs de Cnnam en ECS pour θaval = 45°C, air extrait"
+379,1470,16.6,Valeurs conventionnelle de Dfou0 en minutes pour différents systèmes
+380,1477,16.7,Nomenclature du modèle
+381,1545,16.10,Nomenclature des différentes variables du module Boucle solaire
+382,1548,16.10,Nomenclature des différentes variables du module Pompe à chaleur Simple
+383,1552,16.10,Nomenclature du modèle
+384,1582,16.11,Nomenclature des différentes variables du modèle.
+385,1583,16.11,Nombre de compresseur par PAC « aCQUAREVIA ».
+386,1588,16.11,Valeurs de Ratio (Recs/fr).
+387,1597,16.12,Nomenclature des différentes variables du modèle.
+388,1600,16.12,Matrice de performances de la PAC eau de boucle/eau en mode ECS.
+389,1600,16.12,"PAC eau de boucle/eau, coefficient Cnn pour le COP."
+390,1601,16.12,"PAC eau de boucle/eau, coefficient Cnn pour le Pabs."
+391,1603,16.12,Valeurs conventionnelle de Dfou0 en minutes pour différents systèmes
+392,1639,16.13,Matrice de performance des machines eaux grises /eau de ville
+393,1639,16.13,Températures aux sources
+394,1640,16.13,Coefficients de correction en fonction des températures aux sources
+395,1643,16.13,Coefficients de correction en fonction des températures aux sources
+396,1666,16.14,Nomenclature des différentes variables du modèle.
+397,1674,16.15,Nomenclature du modèle
+398,1677,16.15,Nomenclature du modèle de réchauffeur de boucle
+399,1687,16.16,Nomenclature des différentes variables du modèle d’appoint
+400,1702,16.18,normes de référence pour la prise en compte des DFTh
+401,1715,16.18,Nomenclature du modèle
+402,1719,16.18,"Valeurs conventionnelles de Kres,recyclage"
+403,1741,16.19,Nomenclature des différentes variables du modèle.
+404,1744,16.19,Matrice de performance de la PAC air extérieur / eau en mode ECS.
+405,1744,16.19,Ordre de saisie des températures aval et amont des PAC air extérieur / eau (ECS).
+406,1745,16.19,"PAC air extérieur/eau (ECS), coefficients Cnn pour le COP."
+407,1746,16.19,"PAC air extérieur/eau (ECS), coefficients Cnn pour Pabs."
+408,1749,16.19,Matrice de performance du refroidisseur air extérieur / eau
+409,1749,16.19,Ordre de saisie des températures aval et amont du refroidisseur air extérieur / eau.
+410,1750,16.19,"Refroidisseur air extérieur/eau, coefficients Cnn pour l’EER."
+411,1751,16.19,"Refroidisseur air extérieur/eau, coefficients Cnn pour Pabs."
+412,1754,16.19,Matrice de performance de la PAC air extérieur / eau (chauffage).
+413,1754,16.19,ordre de saisie des températures aval et amont de la PAC air extérieur / eau
+414,1755,16.19,"PAC air extérieur / eau (chauffage), coefficients Cnn pour le COP"
+415,1756,16.19,"PAC air extérieur / eau (chauffage), coefficients Cnn pour Pabs."
+416,1764,16.20,Nomenclature des différentes variables du modèle
+417,1794,16.21,Nomenclature du modèle
+418,1821,16.22,Nomenclature des différentes variables du modèle.
+419,1822,16.22,Listes des technologies dans lequel l’utilisateur doit s’inscrire
+420,1823,16.22,Valeurs par défaut de Г disponibles pour l’utilisateur en fonction de la technologie.
+421,1829,16.23,Nomenclature du modèle
+422,1837,16.24,Nomenclature du module « Assemblage production stockage »
+423,1840,16.24,Nomenclature du module « ballon stockage »
+424,1841,16.24,Nomenclature du module « récupération d’énergie »
