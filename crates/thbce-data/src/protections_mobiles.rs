@@ -463,6 +463,7 @@ mod tests {
     fn parts_d_occupation_des_usages_d_habitation() {
         assert_eq!(parts_occupation(1).map(|p| p.p_occ), Some(0.5));
         assert_eq!(parts_occupation(2).map(|p| p.p_occ), Some(0.7));
-        assert_eq!(parts_occupation(3), None);
+        assert_eq!(parts_occupation(3).map(|p| p.p_occ), Some(0.5));
+        assert_eq!(parts_occupation(0), None);
     }
 }
