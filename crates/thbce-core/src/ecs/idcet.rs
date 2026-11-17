@@ -10,7 +10,7 @@
 //! le cycle de soutirage (§9.22.3.1). Les étapes C, D et E de la norme sont simulées au pas
 //! horaire (§9.22.3.3) et le triplet est cherché par l'algorithme de Nelder-Mead (§9.22.3.4).
 //!
-//! Lectures : `docs/questions.md`, Q48.
+//! Lectures : `docs/questions/Q048.md`.
 
 use super::assemblage_ballon::{AssemblageBallon, EntreesAssemblage, RegulationGenerateur};
 use super::ballon_de_stockage::{Ballon, RHO_CW_WH_L_K};

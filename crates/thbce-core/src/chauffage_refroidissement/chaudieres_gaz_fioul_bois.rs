@@ -6,7 +6,7 @@
 //! pertes à l'arrêt et ses auxiliaires (valeurs par défaut des éq. 1072 à 1077). Au pas de
 //! temps, l'ECS est servie d'abord (éq. 1081 à 1098) puis le chauffage sur la puissance restante
 //! (éq. 1099 à 1109). La consommation est exprimée en énergie finale sur PCI (éq. 1098), les
-//! auxiliaires en électricité. Lectures : `docs/questions.md`, Q49.
+//! auxiliaires en électricité. Lectures : `docs/questions/Q049.md`.
 
 use super::calculs_generation::{Energie, Poste};
 use super::generation::{EntreesAppel, SortiesAppel};

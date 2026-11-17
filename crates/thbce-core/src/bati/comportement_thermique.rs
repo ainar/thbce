@@ -12,7 +12,7 @@
 //! groupes (`φmig`, `Hs,ig,eq` des éq. 365 et 367), que la fiche ne définit pas, sont nuls.
 //!
 //! Le texte ne dit pas où va la part des apports radiatifs et solaires reçue par les parois
-//! légères : voir [`LectureFluxRadiatifs`] (`docs/questions.md`, Q34). Les échanges entre
+//! légères : voir [`LectureFluxRadiatifs`] (`docs/questions/Q034.md`). Les échanges entre
 //! groupes étant nuls, le modèle ne décrit pas les transferts entre les groupes d'un logement
 //! collectif qui en compte plusieurs.
 

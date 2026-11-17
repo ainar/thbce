@@ -13,7 +13,7 @@
 //! Chaque générateur répond au même contrat (figure 112) : [`EntreesAppel`] et
 //! [`SortiesAppel`]. L'assemblage (§8.14, figure 103) produit la matrice des consommations de la
 //! génération (éq. 1056 et 1057), ses pertes vers l'ambiance (éq. 1058) et les demandes
-//! reportées au pas suivant (éq. 1028 et 1034). Lectures : `docs/questions.md`, Q46.
+//! reportées au pas suivant (éq. 1028 et 1034). Lectures : `docs/questions/Q046.md`.
 
 use super::calculs_generation::{
     classe_charge, CumulsCef, CumulsGenerateur, Energie, MatriceCef, Poste,

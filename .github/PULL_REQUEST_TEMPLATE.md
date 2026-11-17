@@ -13,6 +13,6 @@
 - [ ] Chaque équation a été relue sur le PDF (et non sur l'extraction texte)
 - [ ] Tests unitaires sur des valeurs calculées à la main
 - [ ] `docs/couverture.md` à jour
-- [ ] Toute ambiguïté du texte est notée dans `docs/questions.md`
+- [ ] Toute ambiguïté du texte est notée dans `docs/questions/` (un fichier par question)
 - [ ] Aucune formule, valeur par défaut ni coefficient saisi de mémoire
 - [ ] Aucun fichier météo réglementaire ajouté au dépôt

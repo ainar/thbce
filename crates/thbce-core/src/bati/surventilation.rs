@@ -7,7 +7,7 @@
 //! gestion automatique de l'ouverture (§5.13.3.1.3) n'est pas prise en charge.
 //!
 //! Deux éléments de la gestion manuelle ne sont décrits que par un schéma ou pas du tout ; les
-//! lectures retenues sont isolées dans [`r_ouv_theta_op_man_selon`] (`docs/questions.md`, Q32).
+//! lectures retenues sont isolées dans [`r_ouv_theta_op_man_selon`] (`docs/questions/Q032.md`).
 
 use libm::{fabs, sqrt};
 
