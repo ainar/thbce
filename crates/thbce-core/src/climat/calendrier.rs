@@ -41,7 +41,7 @@ pub fn hleg(h: usize) -> u8 {
 ///
 /// La dernière ligne du tableau (itération 8759 : « Hleg 1H–2H, case 2 ») contredit la règle
 /// d'hiver appliquée partout ailleurs, qui donne la case 1 ; la règle est retenue (question
-/// Q22, `docs/questions.md`).
+/// Q22, `docs/questions/Q022.md`).
 pub fn case_scenario(h: usize) -> u8 {
     (ihj(h) + ehlo(h) - 1) % 24 + 1
 }
@@ -104,7 +104,7 @@ pub struct DateScenario {
 /// « se déduisent de l'heure de la simulation par incrémentations successives » ; « on suppose
 /// que l'année commence un lundi » ; les scénarios « sont décrits en heure légale ».
 ///
-/// Lectures retenues (`docs/questions.md`) :
+/// Lectures retenues (`docs/questions/Q028.md`) :
 /// - l'heure est la case de scénario du tableau du §4.1.3, et le jour change quand cette case
 ///   revient à 1, c'est-à-dire à minuit en heure légale (décision Q28). Ce choix est isolé dans
 ///   cette fonction : c'est le deuxième paramètre à tester, après la lecture du fichier météo

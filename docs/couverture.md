@@ -7,6 +7,8 @@ Ce document suit, fiche par fiche, l'état d'implémentation de la méthode dans
 - **Textes complémentaires** : articles de l'arrêté (coefficients d'énergie primaire à l'article 9, facteurs d'émission à l'article 10), annexe II (règles générales, Ic énergie), règles Th-Bat 2020, annexe 7 de l'arrêté du 15 septembre 2006 (réseaux de chaleur). Voir `docs/reference/README.md`.
 - **Les numéros de page** sont ceux du PDF de l'annexe III (pagination « n/1854 »).
 
+**Règle de mise à jour.** Un lot ne modifie que les lignes des fiches qu'il traite (et, au besoin, les tableaux de synthèse qui les comptent) ; il ne reformate ni ne réordonne le reste du document. Cela évite les conflits entre lots menés en parallèle.
+
 ## Statuts
 
 | Statut | Signification |

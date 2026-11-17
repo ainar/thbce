@@ -34,7 +34,7 @@ pub fn theta_op_inc_max_c(theta_ii_fr_c: f64, theta_rm_c: f64, categorie: u8) ->
     theta_ii_fr_c.max(PENTE_THETA_RM * theta_rm_c + ORDONNEE_SEUIL_C + delta)
 }
 
-/// Lecture du facteur des éq. (60) et (61) (`docs/questions.md`, Q38 point 1).
+/// Lecture du facteur des éq. (60) et (61) (`docs/questions/Q038.md`, point 1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LectureEcarts {
     /// Lecture retenue : chaque écart est pondéré par son propre indicateur, `i × (i + 1)/2`,

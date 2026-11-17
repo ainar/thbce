@@ -10,7 +10,7 @@
 //! Périmètre : ballon d'ECS à puisage direct, générateurs raccordés par un échangeur ou une
 //! résistance en partie basse (`TypeRaccordement_Base_Ballon = 0`). Les piquages haut et bas
 //! (éq. 1787 à 1789), l'échangeur interne côté distribution (éq. 1777) et le puisage pour le
-//! chauffage sont hors de cette version. Lectures : `docs/questions.md`, Q48.
+//! chauffage sont hors de cette version. Lectures : `docs/questions/Q048.md`.
 
 /// « ρw × cw » : capacité thermique volumique de l'eau, en Wh/(L.K) (tableau 281).
 pub const RHO_CW_WH_L_K: f64 = 1.163;

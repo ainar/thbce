@@ -34,7 +34,7 @@ Fiches de documentation INIES : électricité par usage (chauffage, ECS, climati
 - `inies-energies-des.txt` : extraction des fiches « DES ».
 - Les fiches « EC » ne sont disponibles qu'en PDF.
 
-Variante applicable à Ic énergie : « RE2020 ». Les valeurs réglementaires sont fixées par l'article 10 de l'arrêté ; les fiches « [RE2020] » les reprennent à l'identique (voir `docs/questions.md`, Q5).
+Variante applicable à Ic énergie : « RE2020 ». Les valeurs réglementaires sont fixées par l'article 10 de l'arrêté ; les fiches « [RE2020] » les reprennent à l'identique (voir `docs/questions/Q005.md`).
 
 ## `meteo/` — Données météorologiques
 

@@ -15,7 +15,7 @@
 //! extérieur/air recyclé en chauffage, refroidisseurs air extérieur/eau et air extérieur/air
 //! recyclé, pompes à chaleur air extérieur/eau, air extrait/eau et air ambiant/eau en ECS. Les
 //! tableaux de coefficients ont été relus sur les pages 762 à 767, 782 à 787 et 794 à 797 de
-//! l'annexe III. Lectures : `docs/questions.md`, Q47.
+//! l'annexe III. Lectures : `docs/questions/Q047.md`.
 
 use super::calculs_generation::{Energie, Poste};
 use super::generation::{EntreesAppel, FonctionGenerateur, SortiesAppel};
