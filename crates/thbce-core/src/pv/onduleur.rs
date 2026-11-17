@@ -47,7 +47,7 @@ pub struct SortiesPasOnduleur {
 impl OnduleurResolu {
     /// Résout un onduleur. `n` et `pc_calcul_w` servent à la puissance nominale par défaut.
     pub fn nouveau(o: &OnduleurPv, n: f64, pc_calcul_w: f64) -> Self {
-        let (p_ac_nom_w, par_defaut) = match o.p_ac_nom_w {
+        let (p_ac_nom_w, defaut) = match o.p_ac_nom_w {
             Some(p) => (p, false),
             None => (p_ac_nom_defaut_w(n, pc_calcul_w), true),
         };
@@ -66,7 +66,7 @@ impl OnduleurResolu {
         };
         Self {
             p_ac_nom_w,
-            p_ac_nom_par_defaut: par_defaut,
+            p_ac_nom_par_defaut: defaut,
             courbe,
         }
     }

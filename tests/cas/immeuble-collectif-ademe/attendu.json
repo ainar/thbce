@@ -16,7 +16,7 @@
         "eclairage_parkings": { "annuel_kwh": 1971.0 }
       },
       "ascenseurs": [
-        { "id": "cabine-1", "pti_w": 253.0, "n_dem": 20610.8, "e_ti_kwh": 2199.8, "e_tm_kwh": 187.8, "e_tot_kwh": 2387.6 }
+        { "id": "cabine-1", "pti_w": 253.0, "nb_demarrages": 20610.8, "e_ti_kwh": 2199.8, "e_tm_kwh": 187.8, "e_tot_kwh": 2387.6 }
       ],
       "parkings": [
         { "id": "parking-sous-sol", "e_vent_kwh": 436.9, "e_ecl_kwh": 1971.0 }

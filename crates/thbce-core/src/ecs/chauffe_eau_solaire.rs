@@ -95,7 +95,7 @@ pub fn resoudre(
     };
     let (appoint, appoint_separe) = match &c.appoint {
         AppointCesi::Aucun => (None, false),
-        AppointCesi::SepareInstantane => (None, true),
+        AppointCesi::Separe => (None, true),
         AppointCesi::Integre(a) => {
             let f = a.f_aux.or(f_aux_kit).unwrap_or_else(|| {
                 defauts.push(defaut(
@@ -383,7 +383,7 @@ pub(crate) fn ua_s_ballon_w_k(
     match ballon.pertes {
         PertesBallon::Certifie { ua_s_w_k } => ua_s_w_k,
         PertesBallon::Justifie { ua_s_w_k } => 1.1 * ua_s_w_k,
-        PertesBallon::ParDefaut { nature } => {
+        PertesBallon::Defaut { nature } => {
             let ua = ua_s_defaut_w_k(
                 match nature {
                     NatureBallonSaisie::EffetJouleHorizontal => NatureBallon::EffetJouleHorizontal,
@@ -393,7 +393,7 @@ pub(crate) fn ua_s_ballon_w_k(
                 ballon.v_tot_l,
             );
             defauts.push(ValeurParDefaut {
-                champ: format!("{champ}.pertes.par_defaut"),
+                champ: format!("{champ}.pertes.defaut"),
                 valeur: ua,
                 regle: "Th-BCE 2020 §9.9.3.1, tableau 282 et éq. (1768) : coefficient de \
                         pertes par défaut du ballon, en W/K"
@@ -418,12 +418,12 @@ pub(crate) fn resoudre_boucle(
     };
     let a = capteurs.surface_m2;
     let (eta0, a1, a2) = match capteurs.performances {
-        PerformancesCapteurs::Certifiees {
+        PerformancesCapteurs::Certifie {
             eta0,
             a1_w_m2k,
             a2_w_m2k2,
         } => (eta0, a1_w_m2k, a2_w_m2k2),
-        PerformancesCapteurs::ParDefaut { type_capteur } => {
+        PerformancesCapteurs::Defaut { type_capteur } => {
             let p = performances_par_defaut(match type_capteur {
                 TypeCapteurSolaire::NonVitre => TypeCapteur::NonVitre,
                 TypeCapteurSolaire::Vitre => TypeCapteur::Vitre,

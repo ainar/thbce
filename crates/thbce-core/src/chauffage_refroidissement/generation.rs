@@ -731,7 +731,7 @@ impl GenerationHoraire {
             let ua = match s.ballon.pertes {
                 PertesBallon::Certifie { ua_s_w_k } => ua_s_w_k,
                 PertesBallon::Justifie { ua_s_w_k } => 1.1 * ua_s_w_k,
-                PertesBallon::ParDefaut { nature } => {
+                PertesBallon::Defaut { nature } => {
                     let ua = ua_s_defaut_w_k(
                         match nature {
                             NatureBallonSaisie::EffetJouleHorizontal => {
@@ -745,7 +745,7 @@ impl GenerationHoraire {
                         v,
                     );
                     defauts.push(defaut(
-                        "ballon.pertes.par_defaut",
+                        "ballon.pertes.defaut",
                         ua,
                         "Th-BCE 2020 §9.9.3.1, tableau 282 et éq. (1768) : coefficient de \
                          pertes par défaut du ballon, en W/K",
@@ -1920,7 +1920,7 @@ mod tests {
         let pac = GenerateurThermodynamique {
             chauffage: Some(ModePac {
                 matrice: CH_AIR_EXTERIEUR_EAU
-                    .construire(&PerformancesSaisies::PivotParDefaut { pabs_w: 2000.0 }),
+                    .construire(&PerformancesSaisies::PivotDefaut { pabs_w: 2000.0 }),
                 limites: Limites::Aucune,
                 dfou0_min: 32.0,
                 lr_contmin: 1.0,

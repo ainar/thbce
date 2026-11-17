@@ -15,7 +15,7 @@ pub struct ResultatsInstallationPv {
     /// Identifiant de l'installation.
     pub id: Id,
     /// « N » : nombre de modules.
-    pub n_modules: u32,
+    pub nb_modules: u32,
     /// Puissance crête de calcul du champ, `N × Pc` de calcul, en kWc (§12.3.3.1).
     pub puissance_crete_calcul_kwc: f64,
     /// « ηSTC » : rendement des modules en conditions STC (éq. 2366).
@@ -61,7 +61,7 @@ impl ResultatsInstallationPv {
         let c = &p.installation.capteur;
         Self {
             id: p.id.clone(),
-            n_modules: c.n as u32,
+            nb_modules: c.n as u32,
             puissance_crete_calcul_kwc: c.n * c.performances.pc_w / 1000.0,
             eta_stc: c.eta_stc,
             u1_w_m2k: c.u1_w_m2k,

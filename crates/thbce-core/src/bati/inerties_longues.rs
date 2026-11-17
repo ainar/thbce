@@ -47,10 +47,10 @@ pub const THETA_MA_INITIALE_C: f64 = 18.0;
 ///
 /// Th-BCE 2020 §5.21.3.3, tableau 54 : par défaut et très légère, `Cmq_surf` ; légère, 250 ;
 /// moyenne, 500 ; lourde, 850 ; ou valeur saisie.
-pub fn cms_surf_kj_k_m2(classe: &InertieSequentielle, cmq_surf_kj_k_m2: f64) -> f64 {
+pub fn cms_surf_kj_m2k(classe: &InertieSequentielle, cmq_surf_kj_m2k: f64) -> f64 {
     match *classe {
-        InertieSequentielle::Personnalisee { cms_surf_kj_k_m2 } => cms_surf_kj_k_m2,
-        InertieSequentielle::ParDefaut | InertieSequentielle::TresLegere => cmq_surf_kj_k_m2,
+        InertieSequentielle::Personnalisee { cms_surf_kj_m2k } => cms_surf_kj_m2k,
+        InertieSequentielle::Defaut | InertieSequentielle::TresLegere => cmq_surf_kj_m2k,
         InertieSequentielle::Legere => 250.0,
         InertieSequentielle::Moyenne => 500.0,
         InertieSequentielle::Lourde => 850.0,
@@ -60,10 +60,10 @@ pub fn cms_surf_kj_k_m2(classe: &InertieSequentielle, cmq_surf_kj_k_m2: f64) -> 
 /// « Cma_surf » : capacité thermique annuelle rapportée à la surface utile, en kJ/(K.m²).
 ///
 /// Th-BCE 2020 §5.21.3.3, éq. (316) : par défaut, `Cma_surf = Cms_surf` ; ou valeur saisie.
-pub fn cma_surf_kj_k_m2(classe: &InertieAnnuelle, cms_surf_kj_k_m2: f64) -> f64 {
+pub fn cma_surf_kj_m2k(classe: &InertieAnnuelle, cms_surf_kj_m2k: f64) -> f64 {
     match *classe {
-        InertieAnnuelle::Personnalisee { cma_surf_kj_k_m2 } => cma_surf_kj_k_m2,
-        InertieAnnuelle::ParDefaut => cms_surf_kj_k_m2,
+        InertieAnnuelle::Personnalisee { cma_surf_kj_m2k } => cma_surf_kj_m2k,
+        InertieAnnuelle::Defaut => cms_surf_kj_m2k,
     }
 }
 
@@ -107,8 +107,8 @@ impl InertiesLongues {
     /// une saisie qui les rendrait négatives ; elles sont ici bornées à zéro.
     pub fn nouvelles(a_gr_m2: f64, inertie: &Inertie) -> Self {
         let (amq_surf, cmq_surf) = inertie_quotidienne(&inertie.quotidienne);
-        let cms_surf = cms_surf_kj_k_m2(&inertie.sequentielle, cmq_surf);
-        let cma_surf = cma_surf_kj_k_m2(&inertie.annuelle, cms_surf);
+        let cms_surf = cms_surf_kj_m2k(&inertie.sequentielle, cmq_surf);
+        let cma_surf = cma_surf_kj_m2k(&inertie.annuelle, cms_surf);
         let a_mq_m2 = amq_surf * a_gr_m2;
         Self {
             delta_hg_ms_s_q_w_k: delta_hg_w_k(inertie.ams_surf_m2_m2 * a_gr_m2, a_mq_m2),
@@ -329,27 +329,24 @@ mod tests {
     #[test]
     fn classes_du_tableau_54_et_eq_316() {
         let cmq = 165.0;
+        assert_eq!(cms_surf_kj_m2k(&InertieSequentielle::Defaut, cmq), 165.0);
         assert_eq!(
-            cms_surf_kj_k_m2(&InertieSequentielle::ParDefaut, cmq),
+            cms_surf_kj_m2k(&InertieSequentielle::TresLegere, cmq),
             165.0
         );
-        assert_eq!(
-            cms_surf_kj_k_m2(&InertieSequentielle::TresLegere, cmq),
-            165.0
-        );
-        assert_eq!(cms_surf_kj_k_m2(&InertieSequentielle::Legere, cmq), 250.0);
-        assert_eq!(cms_surf_kj_k_m2(&InertieSequentielle::Moyenne, cmq), 500.0);
-        assert_eq!(cms_surf_kj_k_m2(&InertieSequentielle::Lourde, cmq), 850.0);
+        assert_eq!(cms_surf_kj_m2k(&InertieSequentielle::Legere, cmq), 250.0);
+        assert_eq!(cms_surf_kj_m2k(&InertieSequentielle::Moyenne, cmq), 500.0);
+        assert_eq!(cms_surf_kj_m2k(&InertieSequentielle::Lourde, cmq), 850.0);
         let saisie = InertieSequentielle::Personnalisee {
-            cms_surf_kj_k_m2: 321.0,
+            cms_surf_kj_m2k: 321.0,
         };
-        assert_eq!(cms_surf_kj_k_m2(&saisie, cmq), 321.0);
+        assert_eq!(cms_surf_kj_m2k(&saisie, cmq), 321.0);
         // Éq. (316) : par défaut, Cma_surf = Cms_surf.
-        assert_eq!(cma_surf_kj_k_m2(&InertieAnnuelle::ParDefaut, 500.0), 500.0);
+        assert_eq!(cma_surf_kj_m2k(&InertieAnnuelle::Defaut, 500.0), 500.0);
         let saisie = InertieAnnuelle::Personnalisee {
-            cma_surf_kj_k_m2: 1200.0,
+            cma_surf_kj_m2k: 1200.0,
         };
-        assert_eq!(cma_surf_kj_k_m2(&saisie, 500.0), 1200.0);
+        assert_eq!(cma_surf_kj_m2k(&saisie, 500.0), 1200.0);
         assert_eq!((NB_J_SEQ, NB_H_SEQ), (14, 336));
     }
 
@@ -368,7 +365,7 @@ mod tests {
                 InertieSequentielle::Moyenne,
                 1.0,
                 InertieAnnuelle::Personnalisee {
-                    cma_surf_kj_k_m2: 1000.0,
+                    cma_surf_kj_m2k: 1000.0,
                 },
                 0.5,
             ),
@@ -386,9 +383,9 @@ mod tests {
         let defaut = InertiesLongues::nouvelles(
             100.0,
             &inertie(
-                InertieSequentielle::ParDefaut,
+                InertieSequentielle::Defaut,
                 1.0,
-                InertieAnnuelle::ParDefaut,
+                InertieAnnuelle::Defaut,
                 1.0,
             ),
         );
@@ -408,7 +405,7 @@ mod tests {
             ..inertie(
                 InertieSequentielle::Legere,
                 1.0,
-                InertieAnnuelle::ParDefaut,
+                InertieAnnuelle::Defaut,
                 1.0,
             )
         };

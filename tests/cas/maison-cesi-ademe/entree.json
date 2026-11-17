@@ -192,9 +192,9 @@
               "categorie_ce1_ce2": "CE1",
               "inertie": {
                 "quotidienne": "moyenne",
-                "sequentielle": "par_defaut",
+                "sequentielle": "defaut",
                 "ams_surf_m2_m2": 2.5,
-                "annuelle": "par_defaut",
+                "annuelle": "defaut",
                 "ama_surf_m2_m2": 2.5
               },
               "parois_opaques": [
@@ -315,7 +315,7 @@
                 {
                   "id": "distribution-chauffage",
                   "fonction": "chauffage",
-                  "distribution_intergroupes": "intergroupes-chauffage",
+                  "distribution_intergroupe": "intergroupes-chauffage",
                   "reseau": "fictif"
                 }
               ],
@@ -410,7 +410,7 @@
                   "capteurs": {
                     "surface_m2": 4.0,
                     "performances": {
-                      "par_defaut": {
+                      "defaut": {
                         "type_capteur": "vitre"
                       }
                     },

@@ -192,7 +192,7 @@ pub struct ResultatsAscenseur {
     /// Identifiant de la cabine.
     pub id: Id,
     /// « Ndem » : nombre de démarrages par an (éq. 2283).
-    pub n_dem: f64,
+    pub nb_demarrages: f64,
     /// « Tmobh » : durée moyenne de déplacement par jour, en h (éq. 2292).
     pub t_mob_h: f64,
     /// « Pti » : puissance de veille cabine immobile, en W.
@@ -1235,7 +1235,7 @@ impl Resultats {
             }
             for x in &mut b.ascenseurs {
                 for v in [
-                    &mut x.n_dem,
+                    &mut x.nb_demarrages,
                     &mut x.t_mob_h,
                     &mut x.pti_w,
                     &mut x.e_tm_kwh,

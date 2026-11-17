@@ -171,7 +171,7 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
     // Capteurs certifiés plus performants.
     let certifies = variante(&maison, |v| {
         v["description"]["composants"]["capteurs"]["performances"] =
-            serde_json::json!({"certifiees": {"eta0": 0.78, "a1_w_m2k": 3.6, "a2_w_m2k2": 0.015}});
+            serde_json::json!({"certifie": {"eta0": 0.78, "a1_w_m2k": 3.6, "a2_w_m2k2": 0.015}});
     });
     let rc = brut(&certifies, &m);
     let gc = &rc.batiments[0].generations[1];
@@ -201,7 +201,7 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
 
     // Appoint séparé instantané (« Type_prod_stockage = 3 ») : la résistance de la génération
     // complète l'eau préchauffée.
-    let separe = variante(&maison, |v| v["appoint"] = "separe_instantane".into());
+    let separe = variante(&maison, |v| v["appoint"] = "separe".into());
     let rs = brut(&separe, &m);
     let gs = &rs.batiments[0].generations[1];
     let (esol_s, ap_s, pompe_s, elec_s) = bilan(gs, titre);
@@ -271,7 +271,7 @@ fn validation_des_chauffe_eau_solaires() {
     assert!(e.to_string().contains("k_theta"), "{e}");
     // Kit à appoint séparé instantané ou sans appoint : refusé (§9.23.3.2.2, ballon base seule
     // solaire avec appoint intégré).
-    for appoint in ["separe_instantane", "aucun"] {
+    for appoint in ["separe", "aucun"] {
         let p = variante(&maison, |v| {
             v["description"] = serde_json::json!({"kit": {"surface_m2": 4.0, "v_tot_l": 300.0,
                 "p_np_w": 40.0, "ac_etoile_m2": 2.4, "uc_etoile_w_m2k": 4.5, "us_w_k": 1.9,
@@ -286,7 +286,7 @@ fn validation_des_chauffe_eau_solaires() {
         );
     }
     // Appoint séparé instantané sans générateur instantané d'ECS dans la génération.
-    let mut p = variante(&maison, |v| v["appoint"] = "separe_instantane".into());
+    let mut p = variante(&maison, |v| v["appoint"] = "separe".into());
     p.batiments[0].generations[1].generateurs.clear();
     let m = messages(&p);
     assert!(

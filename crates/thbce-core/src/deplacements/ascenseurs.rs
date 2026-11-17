@@ -80,7 +80,7 @@ pub fn bv(usage_numero: u8) -> Option<f64> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResultatCabine {
     /// « Ndem » : démarrages par an (éq. 2283).
-    pub n_dem: f64,
+    pub nb_demarrages: f64,
     /// « Tmob » en s (éq. 2291).
     pub t_mob_s: f64,
     /// « Tmobh » en h/jour (éq. 2292).
@@ -232,7 +232,7 @@ pub fn calculer_cabine(
         .map(|z| a.q_kg / z.q_z_kg * z.bv_z * z.nb_z)
         .sum();
     // Éq. (2283) et (2284) : Σ X·S = 0,2.
-    let n_dem = bvnb * lec.mpass_kg / (a.q_kg * 0.2);
+    let nb_demarrages = bvnb * lec.mpass_kg / (a.q_kg * 0.2);
     let cp = a.cp.unwrap_or_else(|| {
         let c = cp_defaut(a.tech_mac);
         defaut(
@@ -247,7 +247,7 @@ pub fn calculer_cabine(
     let ch = (n + 1.0) / (n + 2.0) * COR_CH;
     let acc = ac(a.v_m_s);
     // Éq. (2291) à (2293).
-    let t_mob_s = (ch * a.h_m / a.v_m_s + a.v_m_s / acc) * n_dem;
+    let t_mob_s = (ch * a.h_m / a.v_m_s + a.v_m_s / acc) * nb_demarrages;
     let t_mob_h = t_mob_s / (365.0 * 3600.0);
     let t_immob_s = 24.0 * 365.0 * 3600.0 - t_mob_s;
     // Éq. (2294) à (2297).
@@ -297,7 +297,8 @@ pub fn calculer_cabine(
     // Éq. (2301) et (2302).
     let e_moy_j = e_moy(a, ch, lec, cp);
     let etm_wh =
-        (e_moy_j * COR_EMOBCAB * n_dem / 2.0 + E_PORTE_J * n_dem + pti_w * t_mob_s) / 3600.0;
+        (e_moy_j * COR_EMOBCAB * nb_demarrages / 2.0 + E_PORTE_J * nb_demarrages + pti_w * t_mob_s)
+            / 3600.0;
     // Éq. (2303), dont les termes en dP1 et dP2 portent la durée d'immobilité de la période
     // (Q50 point 4) : puissance Pti avant T1, Pti − dP1 jusqu'à T1 + T2, puis Pti − dP1 − dP2.
     let part = |duree_s: f64, nb_periodes: f64| {
@@ -310,7 +311,7 @@ pub fn calculer_cabine(
         let f12 = ((t1 + t2) / longueur).min(1.0);
         (dp1 * f1 + dp2 * f12 + (pti_w - dp1 - dp2)) * duree_s / 3600.0
     };
-    let eti_wh = part(t_immob_j_s, n_dem) + part(t_immob_n_s, 365.0);
+    let eti_wh = part(t_immob_j_s, nb_demarrages) + part(t_immob_n_s, 365.0);
     let etot_wh = etm_wh + eti_wh;
 
     // Éq. (2305) à (2308).
@@ -337,7 +338,7 @@ pub fn calculer_cabine(
         .collect();
 
     ResultatCabine {
-        n_dem,
+        nb_demarrages,
         t_mob_s,
         t_mob_h,
         e_moy_j,
@@ -396,7 +397,7 @@ mod tests {
         let somme: f64 = r.pcab_wh.iter().sum();
         assert!((somme - r.etot_wh).abs() < 1e-6 * r.etot_wh);
         // 20 × 1582,4 × 75 / (630 × 0,2) démarrages.
-        assert!((r.n_dem - 20.0 * 1582.4 * 75.0 / 126.0).abs() < 1e-6);
+        assert!((r.nb_demarrages - 20.0 * 1582.4 * 75.0 / 126.0).abs() < 1e-6);
         // Sans veille : Eti = Pti × durée d'immobilité.
         let attendu = 253.0 * (24.0 * 365.0 * 3600.0 - r.t_mob_s) / 3600.0;
         assert!((r.eti_wh - attendu).abs() < 1e-6 * attendu);

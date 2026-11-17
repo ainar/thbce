@@ -239,7 +239,7 @@ export interface ResultatsIndicateurs {
 }
 export interface ResultatsInstallationPv {
   id: string;
-  n_modules: number;
+  nb_modules: number;
   puissance_crete_calcul_kwc: number;
   eta_stc: number;
   u1_w_m2k: number;

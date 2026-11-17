@@ -18,10 +18,21 @@ use thbce_data::{Departement, ZoneClimatique};
 /// Identifiant textuel choisi par l'utilisateur, unique parmi les objets de même nature.
 pub type Id = String;
 
+/// Version du format d'entrée décrite par ce module (champ `version_format` d'un projet).
+pub const VERSION_FORMAT: u32 = 1;
+
 /// Niveau « projet » : données communes à tous les bâtiments (Th-BCE 2020 §5.1.1, note 1).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Projet {
+    /// Adresse du JSON Schema du format (`thbce schema`), pour l'aide à la saisie des éditeurs.
+    /// Facultative ; ignorée par le moteur.
+    #[serde(rename = "$schema", default, skip_serializing_if = "Option::is_none")]
+    pub schema: Option<String>,
+    /// Version du format d'entrée. Facultative ; si elle est donnée, elle doit valoir
+    /// [`VERSION_FORMAT`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_format: Option<u32>,
     /// Nom libre du projet.
     pub nom: String,
     /// Situation géographique.
@@ -289,7 +300,7 @@ pub struct Zone {
     /// « Nb_lgt » (§4.1.2) : nombre de logements, en logement collectif et pour les maisons
     /// accolées. Requis en logement collectif ; 1 par défaut en maison individuelle.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub nb_lgt: Option<u32>,
+    pub nb_logements: Option<u32>,
     /// « hzone » : hauteur entre le point le plus bas et le point le plus haut de la zone, en m
     /// (§5.6.2). Requise : elle fixe l'altitude des défauts d'étanchéité et des entrées d'air.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -864,7 +875,7 @@ pub enum InertieQuotidienne {
         /// « Amq_surf ».
         amq_surf_m2_m2: f64,
         /// « Cmq_surf ».
-        cmq_surf_kj_k_m2: f64,
+        cmq_surf_kj_m2k: f64,
     },
     /// 1 : très légère.
     TresLegere,
@@ -885,10 +896,10 @@ pub enum InertieSequentielle {
     /// 0 : personnalisée, saisie directe de `Cms_surf` (kJ/(K.m²)).
     Personnalisee {
         /// « Cms_surf ».
-        cms_surf_kj_k_m2: f64,
+        cms_surf_kj_m2k: f64,
     },
     /// 1 : par défaut.
-    ParDefaut,
+    Defaut,
     /// 2 : très légère.
     TresLegere,
     /// 3 : légère.
@@ -906,10 +917,10 @@ pub enum InertieAnnuelle {
     /// 0 : personnalisée, saisie directe de `Cma_surf` (kJ/(K.m²)).
     Personnalisee {
         /// « Cma_surf ».
-        cma_surf_kj_k_m2: f64,
+        cma_surf_kj_m2k: f64,
     },
     /// 1 : par défaut, même valeur que l'inertie séquentielle (éq. 316).
-    ParDefaut,
+    Defaut,
 }
 
 /// Th-BCE 2020 §3.2.2 — paramètres d'intégration d'une surface exposée au rayonnement.
@@ -1537,7 +1548,7 @@ pub struct CapteursSolaires {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum PerformancesCapteurs {
     /// Valeurs certifiées selon les normes NF EN 12975-1 et 12975-2.
-    Certifiees {
+    Certifie {
         /// « η0 » : rendement optique, de 0 à 1.
         eta0: f64,
         /// « a1 » : coefficient de pertes du premier ordre, en W/(m².K).
@@ -1546,7 +1557,7 @@ pub enum PerformancesCapteurs {
         a2_w_m2k2: f64,
     },
     /// Valeurs par défaut du tableau 293, signalées dans les résultats.
-    ParDefaut {
+    Defaut {
         /// Type de capteur.
         type_capteur: TypeCapteurSolaire,
     },
@@ -1663,7 +1674,7 @@ pub enum AppointCesi {
     /// 3 : appoint séparé instantané, en série du ballon : l'eau préchauffée est puisée
     /// (éq. 1800 à 1807) et le complément est fourni par les générateurs instantanés d'ECS de la
     /// génération.
-    SepareInstantane,
+    Separe,
 }
 
 /// Th-BCE 2020 §9.14.3.1, tableau 291 — assemblage d'un ballon de stockage d'ECS et de ses
@@ -1715,7 +1726,7 @@ pub enum PertesBallon {
     },
     /// Valeur par défaut selon la nature du ballon (tableau 282 et éq. 1768), signalée dans les
     /// résultats.
-    ParDefaut {
+    Defaut {
         /// Nature du ballon.
         nature: NatureBallonSaisie,
     },
@@ -2414,7 +2425,7 @@ pub enum PerformancesPac {
     },
     /// Valeur pivot par défaut (« Statut_val_pivot = 2 ») : la valeur utile maximale de la
     /// technologie réduite de 20 %, signalée dans les résultats.
-    PivotParDefaut {
+    PivotDefaut {
         /// « Val_Pabs » : puissance absorbée au point pivot, en kW.
         pabs_kw: f64,
     },
@@ -2550,7 +2561,7 @@ pub enum ReseauIntergroupes {
     /// (`Modpertes = 0`, éq. 905 et 914). Une installation individuelle sans branche
     /// intergroupes se décrit aussi par un réseau hydraulique de longueur nulle, sans
     /// circulateur (note du §8.9.3.5).
-    HydrauliqueIndividuels(ReseauHydrauliqueIntergroupes),
+    HydrauliqueIndividuel(ReseauHydrauliqueIntergroupes),
 }
 
 /// Th-BCE 2020 §8.9.2 et §8.10.2 — paramètres d'un réseau intergroupes hydraulique.
@@ -2676,7 +2687,7 @@ pub struct DistributionGroupe {
     /// « idfonction » : chauffage ou refroidissement.
     pub fonction: FonctionReseau,
     /// Identifiant du réseau intergroupes du bâtiment auquel le réseau est connecté.
-    pub distribution_intergroupes: Id,
+    pub distribution_intergroupe: Id,
     /// Nature du réseau (« idtype »).
     pub reseau: ReseauGroupe,
 }
@@ -2859,7 +2870,7 @@ pub enum VariationSpatiale {
         hsp_m: f64,
     },
     /// Poêle ou insert : appareil desservant un ou deux niveaux (tableau 83).
-    PoeleInsert {
+    PoeleOuInsert {
         /// Nombre de niveaux desservis : 1 ou 2.
         niveaux: u8,
     },
@@ -2921,13 +2932,13 @@ pub enum ClasseEmetteurFroid {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum VariationTemporelle {
     /// Valeur certifiée, en K (négative en froid).
-    Certifiee {
+    Certifie {
         /// Variation temporelle, en K.
         delta_theta_k: f64,
     },
     /// Valeur justifiée par un essai d'un laboratoire accrédité, en K (négative en froid) ; le
     /// moteur l'augmente de 0,5 K en chaud (la diminue de 0,5 K en froid).
-    Justifiee {
+    Justifie {
         /// Variation temporelle justifiée, en K.
         delta_theta_k: f64,
     },
@@ -2938,7 +2949,7 @@ pub enum VariationTemporelle {
         arret_total: bool,
     },
     /// Poêles et inserts (tableau 88) : valeur conventionnelle selon la régulation.
-    PoeleInsert {
+    PoeleOuInsert {
         /// Vrai avec thermostat d'ambiance, faux en régulation manuelle.
         thermostat: bool,
     },

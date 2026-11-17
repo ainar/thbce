@@ -23,7 +23,7 @@ pub struct InstallationPv {
     /// (§3.2.2).
     pub exposition: Exposition,
     /// « N » : nombre de modules du champ, au moins 1.
-    pub n_modules: u32,
+    pub nb_modules: u32,
     /// Modules : technologie, puissance crête, surface et performances (§12.3.3.1).
     pub modules: ModulesPv,
     /// « CT » : confinement thermique de la face arrière des modules (§12.3.3.2). Valeur par

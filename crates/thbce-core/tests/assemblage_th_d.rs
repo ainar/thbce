@@ -87,7 +87,7 @@ fn avec_inerties_longues(p: &Projet) -> Projet {
     i.sequentielle = InertieSequentielle::Lourde;
     i.ams_surf_m2_m2 = 1.5;
     i.annuelle = InertieAnnuelle::Personnalisee {
-        cma_surf_kj_k_m2: 2000.0,
+        cma_surf_kj_m2k: 2000.0,
     };
     i.ama_surf_m2_m2 = 1.0;
     p
@@ -381,7 +381,7 @@ fn inerties_incoherentes_signalees_par_la_validation() {
     i.quotidienne = InertieQuotidienne::TresLourde; // Cmq_surf = 370, Amq_surf = 3,5
     i.sequentielle = InertieSequentielle::Legere; // Cms_surf = 250 < 370
     i.annuelle = InertieAnnuelle::Personnalisee {
-        cma_surf_kj_k_m2: 100.0, // < 250
+        cma_surf_kj_m2k: 100.0, // < 250
     };
     i.ams_surf_m2_m2 = 4.0; // > 3,5
     i.ama_surf_m2_m2 = 3.5; // égal : ΔR nul, cas prévu par le texte

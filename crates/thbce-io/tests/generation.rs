@@ -232,7 +232,7 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
     assert!(ballon
         .valeurs_par_defaut
         .iter()
-        .any(|v| v.champ == "ballon.pertes.par_defaut"));
+        .any(|v| v.champ == "ballon.pertes.defaut"));
     // Un seul groupe : il porte toutes les consommations, par poste.
     let cg = b.zones[0].groupes[0].consommations.as_ref().unwrap();
     assert!((cg.annuel.chauffage.electricite_kwh - c.chauffage.electricite_kwh).abs() < 1e-6);

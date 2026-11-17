@@ -38,7 +38,7 @@ const SEUIL_NMAX: f64 = 1.75;
 /// - `Nadeq = Nb_lgt × Nmax` si `Nmax < 1,75`, sinon `Nb_lgt × (1,75 + 0,3·(Nmax − 1,75))`.
 ///
 /// Renvoie `None` pour les usages autres que l'habitation.
-pub fn nadeq(usage: UsageZone, a_lgt_m2: f64, nb_lgt: u32) -> Option<f64> {
+pub fn nadeq(usage: UsageZone, a_lgt_m2: f64, nb_logements: u32) -> Option<f64> {
     let (seuil_bas, seuil_haut, pente) = match usage {
         UsageZone::MaisonIndividuelle => (30.0, 70.0, 0.025),
         UsageZone::LogementCollectif => (10.0, 50.0, 0.035),
@@ -56,7 +56,7 @@ pub fn nadeq(usage: UsageZone, a_lgt_m2: f64, nb_lgt: u32) -> Option<f64> {
     } else {
         SEUIL_NMAX + 0.3 * (nmax - SEUIL_NMAX)
     };
-    Some(f64::from(nb_lgt) * par_logement)
+    Some(f64::from(nb_logements) * par_logement)
 }
 
 /// Tableau 6 : produit « × », le ET des indicateurs booléens.
@@ -155,8 +155,8 @@ pub struct ScenariosZone {
 impl ScenariosZone {
     /// Prépare les scénarios d'une zone d'habitation.
     ///
-    /// `a_gr_m2` : surface utile de chaque groupe (« Agr ») ; `nb_lgt` : nombre de logements.
-    pub fn nouveau(usage: UsageZone, a_gr_m2: &[f64], nb_lgt: u32) -> Result<Self, Erreur> {
+    /// `a_gr_m2` : surface utile de chaque groupe (« Agr ») ; `nb_logements` : nombre de logements.
+    pub fn nouveau(usage: UsageZone, a_gr_m2: &[f64], nb_logements: u32) -> Result<Self, Erreur> {
         let non_pris_en_charge = || Erreur::NonPrisEnCharge {
             chemin: "usage".to_owned(),
             element: format!(
@@ -174,8 +174,8 @@ impl ScenariosZone {
         let rat_gr = a_gr_m2.iter().map(|a| a / a_z_m2).collect();
         // Éq. (32), ou éq. (33) et (34) : le local d'habitation est le premier de l'usage.
         let a_hab = scenarios.locaux[0].rat_l * a_z_m2;
-        let nadeq =
-            nadeq(usage, a_hab / f64::from(nb_lgt), nb_lgt).ok_or_else(non_pris_en_charge)?;
+        let nadeq = nadeq(usage, a_hab / f64::from(nb_logements), nb_logements)
+            .ok_or_else(non_pris_en_charge)?;
         Ok(Self {
             usage: scenarios,
             a_z_m2,

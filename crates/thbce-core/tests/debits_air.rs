@@ -446,7 +446,7 @@ fn regles_de_saisie_de_la_zone() {
     assert_eq!(erreurs(&p), [format!("{z}.trav_zone")]);
     let mut p = projet();
     p.batiments[0].zones[0].usage = UsageZone::LogementCollectif;
-    p.batiments[0].zones[0].nb_lgt = Some(2);
+    p.batiments[0].zones[0].nb_logements = Some(2);
     p.batiments[0].zones[0].groupes[0].traversant = Some(true);
     assert_eq!(erreurs(&p), [format!("{z}.trav_zone")]);
     p.batiments[0].zones[0].trav_zone = Some(false);

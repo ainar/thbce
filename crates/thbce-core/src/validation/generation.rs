@@ -597,11 +597,8 @@ fn valider_thermodynamique(
                 );
                 r.strictement_positif(format!("{cm}.performances.pivot_declare.pabs_kw"), pabs_w);
             }
-            PerformancesSaisies::PivotParDefaut { pabs_w } => {
-                r.strictement_positif(
-                    format!("{cm}.performances.pivot_par_defaut.pabs_kw"),
-                    pabs_w,
-                );
+            PerformancesSaisies::PivotDefaut { pabs_w } => {
+                r.strictement_positif(format!("{cm}.performances.pivot_defaut.pabs_kw"), pabs_w);
             }
         }
         if let Some(f) = continu {

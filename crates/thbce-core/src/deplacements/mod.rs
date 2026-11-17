@@ -84,7 +84,7 @@ pub fn calculer(
     let mut nb_max: Vec<f64> = Vec::with_capacity(n_zones);
     for z in &bat.zones {
         let a_gr: Vec<f64> = z.groupes.iter().map(|g| g.su_m2.unwrap_or(0.0)).collect();
-        let sc = ScenariosZone::nouveau(z.usage, &a_gr, z.nb_lgt.unwrap_or(1))?;
+        let sc = ScenariosZone::nouveau(z.usage, &a_gr, z.nb_logements.unwrap_or(1))?;
         let sorties: Vec<_> = (0..NB_HEURES_AN).map(|h| sc.evaluer(h)).collect();
         uk.push(sorties.iter().map(|s| s.uk).collect());
         nb_max.push(sorties.iter().map(|s| s.n_occ).fold(0.0, f64::max));
@@ -146,7 +146,7 @@ pub fn calculer(
         }
         resultats_ascenseurs.push(ResultatsAscenseur {
             id: a.id.clone(),
-            n_dem: r.n_dem,
+            nb_demarrages: r.nb_demarrages,
             t_mob_h: r.t_mob_h,
             pti_w: r.pti_w,
             e_tm_kwh: r.etm_wh / 1000.0,

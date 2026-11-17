@@ -255,7 +255,7 @@ fn avec_inerties_longues(projet: &Projet) -> Projet {
     i.sequentielle = InertieSequentielle::Lourde;
     i.ams_surf_m2_m2 = 1.5;
     i.annuelle = InertieAnnuelle::Personnalisee {
-        cma_surf_kj_k_m2: 2000.0,
+        cma_surf_kj_m2k: 2000.0,
     };
     i.ama_surf_m2_m2 = 1.0;
     p
