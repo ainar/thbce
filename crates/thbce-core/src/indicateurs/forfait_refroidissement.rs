@@ -54,7 +54,7 @@ pub fn classe_altitude(alt_m: f64) -> usize {
 /// `seuil_haut_c_h` : `DH_max` du groupe (annexe de l'article R. 172-4, chapitre III, §IV) ;
 /// `None` s'il n'est pas connu (catégorie de contraintes extérieures non saisie), auquel cas le
 /// DH n'est pas plafonné — ce qui ne change rien tant que le DH respecte l'exigence
-/// (`docs/questions.md`, Q54). Nul pour un groupe climatisé (§13.3.3).
+/// (`docs/questions/Q054.md`). Nul pour un groupe climatisé (§13.3.3).
 pub fn cef_fr_elec_kwh_m2(
     climatise: bool,
     dh_c_h: f64,

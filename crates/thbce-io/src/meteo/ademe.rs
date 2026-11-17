@@ -5,7 +5,7 @@
 //! **Ces fichiers ne sont pas réglementaires.** Ils servent à exercer la chaîne de calcul dans
 //! la CI publique ; tout résultat obtenu avec eux porte `reglementaire = false`.
 //!
-//! ## Règles de conversion (décision Q16, `docs/questions.md`)
+//! ## Règles de conversion (décision Q16, `docs/questions/Q016.md`)
 //!
 //! Colonnes, d'après la note technique détaillée ADEME / Météo-France (§3.1 et §3.2.2) :
 //! `T2m` température de l'air à 2 m (°C), `T-1m` température du sol à 1 m (°C), `Hus` humidité

@@ -5,7 +5,7 @@
 //! immobilité (`Eti`), puis la répartit au pas horaire avec le profil de mobilité des scénarios
 //! conventionnels (`Uk`) et entre les zones desservies.
 //!
-//! Lectures retenues et variantes : `docs/questions.md`, Q50. Les variantes non exposées en
+//! Lectures retenues et variantes : `docs/questions/Q050.md`. Les variantes non exposées en
 //! entrée sont portées par [`Lectures`].
 
 use crate::entree::{Ascenseur, TechMac};

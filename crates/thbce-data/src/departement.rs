@@ -3,7 +3,7 @@
 //!
 //! Th-BCE 2020 §3.1.2 et §5.1.2 : paramètre d'intégration « département ». Le texte donne la
 //! plage « 1 à 95 », mais le tableau des températures de base (§3.1.3) et la table des zones
-//! climatiques distinguent 2A et 2B. Décision Q13 (`docs/questions.md`) : la liste valide est
+//! climatiques distinguent 2A et 2B. Décision Q13 (`docs/questions/Q013.md`) : la liste valide est
 //! 01 à 95 sans 20, plus 2A et 2B, soit 96 départements.
 
 use core::fmt;

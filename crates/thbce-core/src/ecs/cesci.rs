@@ -17,7 +17,7 @@
 //! les ballons ; un appoint mixte assure en outre le chauffage, en cascade, comme tout
 //! générateur de la génération (éq. 1991 et 2012 à 2015).
 //!
-//! Lectures : `docs/questions.md`, Q53.
+//! Lectures : `docs/questions/Q053.md`.
 
 use super::assemblage_ballon::{AssemblageBallon, BaseDuPas, EntreesAssemblage};
 use super::ballon_de_stockage::{Ballon, NB_ZONES, RHO_CW_WH_L_K};

@@ -2,7 +2,7 @@
 //! Données météorologiques horaires fournies par l'appelant.
 //!
 //! Le moteur n'embarque aucune donnée météo : les fichiers réglementaires ne peuvent être ni
-//! versionnés ni diffusés (décision Q1, `docs/questions.md`). Les lecteurs de fichiers sont
+//! versionnés ni diffusés (décision Q1, `docs/questions/Q001.md`). Les lecteurs de fichiers sont
 //! dans `thbce-io` ; tous produisent la structure unique définie ici.
 
 use schemars::JsonSchema;
