@@ -274,3 +274,143 @@ fn usage_non_soumis_avant_2026() {
     let z = partie(3, 500.0, false, C::Categorie1, B::Br1);
     assert!(exigences_partie(&z, &p, Z::H2b, 100.0).is_some());
 }
+
+// Cas recalculés à la main par la relecture de la PR #55 (valeurs en dur, pages citées).
+
+/// Médiathèque (usage 6), 1 200 m², H1a, 850 m, catégorie 3, BR2, permis de 2027 :
+/// Mbgéo « >800m » H1a 0,4 (p. 11) ; Mbbruit « Catégorie 3 » H1a 0,15 (p. 12) ; Bbio_max =
+/// 117 × 1,55 = 181,35. Mcgéo 0,5 et Mccat « Catégorie 3 » H1a 0,05 (p. 39) : facteur 1,55 ;
+/// Cep,nr_max 93 × 1,55 = 144,15, Cep_max 105 × 1,55 = 162,75, Icénergie_max 285 × 1,55 =
+/// 441,75 (p. 32). DH : « Pas de seuil » (p. 101).
+#[test]
+fn relecture_mediatheque() {
+    let p = parametres(2027, C::Categorie3, B::Br2);
+    let z = partie(6, 1200.0, false, C::Categorie3, B::Br2);
+    let e = exigences_partie(&z, &p, Z::H1a, 850.0).unwrap();
+    verifier(&e, 181.35, 162.75, 144.15, 441.75);
+    assert_eq!(
+        dh(6, C::Categorie3, Z::H1a, true),
+        Some(SeuilDh::PasDeSeuil)
+    );
+}
+
+/// Restaurant 2 repas, 7 j sur 7 (usage 15), 400 m², H3, 150 m, catégorie 1, 2026 : Mbgéo
+/// 0,1 (p. 19) ; Bbio_max 206 × 1,1 = 226,6. Mcgéo 0,1 (p. 47) : Cep,nr_max 219 × 1,1 = 240,9 ;
+/// Cep_max 446 × 1,1 = 490,6 ; Icénergie_max 570 × 1,1 = 627 ; raccordé à un réseau classé :
+/// 705 × 1,1 = 775,5 (p. 33).
+#[test]
+fn relecture_restaurant() {
+    let mut p = parametres(2026, C::Categorie1, B::Br1);
+    let z = partie(15, 400.0, false, C::Categorie1, B::Br1);
+    let e = exigences_partie(&z, &p, Z::H3, 150.0).unwrap();
+    verifier(&e, 226.6, 490.6, 240.9, 627.0);
+    p.reseau_chaleur_classe = true;
+    let z = partie(15, 400.0, true, C::Categorie1, B::Br1);
+    let e = exigences_partie(&z, &p, Z::H3, 150.0).unwrap();
+    proche(e.ic_energie_max, 775.5, "Icénergie_max");
+}
+
+/// Vestiaires seuls (usage 18), 250 m², H2c, 600 m, catégorie 1, 2028 : Mbgéo « 400m-800m »
+/// H2c 0,05 (p. 22) ; Bbio_max 225 × 1,05 = 236,25. Mcgéo 0,05 (p. 50) : Cep,nr_max 254,1,
+/// Cep_max 321,3 ; Icénergie_max raccordé 1 120 × 1,05 = 1 176, non raccordé 585 × 1,05 =
+/// 614,25 (p. 33). DH_max 1 000 (p. 103).
+#[test]
+fn relecture_vestiaires() {
+    let p = parametres(2028, C::Categorie1, B::Br1);
+    let z = partie(18, 250.0, true, C::Categorie1, B::Br1);
+    let e = exigences_partie(&z, &p, Z::H2c, 600.0).unwrap();
+    verifier(&e, 236.25, 321.3, 254.1, 1176.0);
+    let z = partie(18, 250.0, false, C::Categorie1, B::Br1);
+    let e = exigences_partie(&z, &p, Z::H2c, 600.0).unwrap();
+    proche(e.ic_energie_max, 614.25, "Icénergie_max");
+    assert_eq!(
+        dh(18, C::Categorie1, Z::H2c, false),
+        Some(SeuilDh::Maximum(1000.0))
+    );
+}
+
+/// Aérogare (usage 22), 8 000 m², H1c, 1 000 m, catégorie 3, BR3, 2026 : Mbgéo « >800m » H1c
+/// −0,05 (p. 25), Mbbruit 0 ; Bbio_max 248 × 0,95 = 235,6. Mcgéo −0,05 (p. 53), Mccat 0 :
+/// Cep,nr_max 181,45, Cep_max 240,35, Icénergie_max 260 × 0,95 = 247.
+#[test]
+fn relecture_aerogare() {
+    let p = parametres(2026, C::Categorie3, B::Br3);
+    let z = partie(22, 8000.0, false, C::Categorie3, B::Br3);
+    let e = exigences_partie(&z, &p, Z::H1c, 1000.0).unwrap();
+    verifier(&e, 235.6, 240.35, 181.45, 247.0);
+}
+
+/// Établissement sportif municipal (usage 25), 1 500 m², H2d, 200 m, catégorie 2, BR2, 2027,
+/// raccordé à un réseau classé : Mbgéo 0,55 (p. 28) ; Bbio_max 94 × 1,55 = 145,7. Mcgéo 0,4
+/// (p. 56) : Cep,nr_max 131,6, Cep_max 162,4 ; Icénergie_max des raccordés 2022-2024, 330 ×
+/// 1,4 = 462 (p. 33). DH_max catégorie 2 : 5 000 (p. 105).
+#[test]
+fn relecture_sport() {
+    let mut p = parametres(2027, C::Categorie2, B::Br2);
+    p.reseau_chaleur_classe = true;
+    let z = partie(25, 1500.0, true, C::Categorie2, B::Br2);
+    let e = exigences_partie(&z, &p, Z::H2d, 200.0).unwrap();
+    verifier(&e, 145.7, 162.4, 131.6, 462.0);
+    assert_eq!(
+        dh(25, C::Categorie2, Z::H2d, true),
+        Some(SeuilDh::Maximum(5000.0))
+    );
+}
+
+/// Bâtiment de bureaux de 3 000 m² et d'un commerce de 400 m², H2b, 100 m, catégorie 1, 2026,
+/// au prorata des `Sref` (chapitre II, V) : bureaux Bbio_max 95 − 11,5 = 83,5 (Mbsurf_tot
+/// −4,9 − 0,0022 × 3 000, p. 10), commerce 170 + 9,5 = 179,5 (p. 21) ; bâtiment
+/// (83,5 × 3 000 + 179,5 × 400)/3 400 = 94,794 117 6. Cep,nr_max 82,717 647 1 ; Cep_max
+/// 93,380 512 5 ; Icénergie_max 204,549 982 0.
+#[test]
+fn relecture_prorata_bureaux_et_commerce() {
+    let p = parametres(2026, C::Categorie1, B::Br1);
+    let parties = [
+        partie(3, 3000.0, false, C::Categorie1, B::Br1),
+        partie(17, 400.0, false, C::Categorie1, B::Br1),
+    ];
+    let (mut b, mut cnr, mut c, mut ic, mut s) = (0.0, 0.0, 0.0, 0.0, 0.0);
+    for z in &parties {
+        let e = exigences_partie(z, &p, Z::H2b, 100.0).unwrap();
+        b += e.bbio_max * z.sref_m2;
+        cnr += e.cep_nr_max * z.sref_m2;
+        c += e.cep_max * z.sref_m2;
+        ic += e.ic_energie_max * z.sref_m2;
+        s += z.sref_m2;
+    }
+    proche(b / s, 94.794_117_6, "Bbio_max");
+    proche(cnr / s, 82.717_647_1, "Cep,nr_max");
+    proche(c / s, 93.380_512_5, "Cep_max");
+    proche(ic / s, 204.549_982_0, "Icénergie_max");
+}
+
+/// Deux zones de bureaux de 300 m² : `Mbsurf_tot` sur 600 m² (chapitre II, I), soit
+/// (−4,9 − 0,0022 × 600)/95 en 2026, et non (24 − 0,06 × 300)/95.
+#[test]
+fn relecture_msurf_tot_sur_la_somme_des_zones_de_meme_usage() {
+    let p = parametres(2026, C::Categorie1, B::Br1);
+    let mut z = partie(3, 300.0, false, C::Categorie1, B::Br1);
+    z.sref_usage_m2 = 600.0;
+    let e = exigences_partie(&z, &p, Z::H2b, 100.0).unwrap();
+    proche(e.mb_surf_tot, (-4.9 - 0.0022 * 600.0) / 95.0, "Mbsurf_tot");
+    proche(e.mc_surf_tot, (6.0 - 0.008 * 600.0) / 75.0, "Mcsurf_tot");
+}
+
+/// Q69 : maison de 100 m², `HSPmoy` 3 m, H2b. Permis de 2025 : Bbio_max 63,00, Cep_max 67,5
+/// (Mcsurf_moy = (49,5 − 55)/55 = −0,1) ; permis de juillet 2026 : MbHSP = 2,9/2,5 − 1 = 0,16,
+/// McHSP = 0,08 ; Bbio_max 63 × 1,16 = 73,08, Cep_max 75 × 0,98 = 73,5.
+#[test]
+fn relecture_hauteur_sous_plafond_datee() {
+    let mut p = parametres(2025, C::Categorie1, B::Br1);
+    p.hsp_moy_m = Some(3.0);
+    let mut z = partie(1, 100.0, false, C::Categorie1, B::Br1);
+    z.nb_logements = 1;
+    let e = exigences_partie(&z, &p, Z::H2b, 100.0).unwrap();
+    proche(e.bbio_max, 63.0, "Bbio_max 2025");
+    proche(e.cep_max, 67.5, "Cep_max 2025");
+    p.annee_depot_permis = 2026;
+    p.mois_depot_permis = Some(7);
+    let e = exigences_partie(&z, &p, Z::H2b, 100.0).unwrap();
+    proche(e.bbio_max, 73.08, "Bbio_max 2026-07");
+    proche(e.cep_max, 73.5, "Cep_max 2026-07");
+}

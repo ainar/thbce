@@ -197,6 +197,28 @@ fn valider_categorie_contraintes(
     }
 }
 
+/// Une entrée au plus par zone ou par groupe : l'erreur porte sur le champ de référence
+/// (`zone`, `groupe`) et non sur un `id`.
+fn references_uniques<'a>(
+    r: &mut RapportValidation,
+    chemin: &str,
+    champ: &str,
+    refs: impl Iterator<Item = &'a String>,
+) {
+    let mut vues: Vec<&str> = Vec::new();
+    for (i, x) in refs.enumerate() {
+        if vues.contains(&x.as_str()) {
+            r.erreur(
+                format!("{chemin}[{i}].{champ}"),
+                Some(x.clone()),
+                format!("{champ} déjà décrit(e) par une autre entrée de la même liste"),
+            );
+        } else {
+            vues.push(x);
+        }
+    }
+}
+
 /// Données propres aux zones (`exigences.zones`) : zones existantes, une entrée par zone.
 fn valider_exigences_zones(
     r: &mut RapportValidation,
@@ -204,7 +226,12 @@ fn valider_exigences_zones(
     bat: &crate::entree::Batiment,
     e: &crate::entree::ParametresExigences,
 ) {
-    r.ids_uniques(&format!("{c}.zones"), e.zones.iter().map(|z| &z.zone));
+    references_uniques(
+        r,
+        &format!("{c}.zones"),
+        "zone",
+        e.zones.iter().map(|z| &z.zone),
+    );
     for (i, z) in e.zones.iter().enumerate() {
         let Some(zone) = bat.zones.iter().find(|x| x.id == z.zone) else {
             r.erreur(
@@ -214,8 +241,10 @@ fn valider_exigences_zones(
             );
             continue;
         };
-        r.ids_uniques(
+        references_uniques(
+            r,
             &format!("{c}.zones[{i}].groupes"),
+            "groupe",
             z.groupes.iter().map(|g| &g.groupe),
         );
         for (j, g) in z.groupes.iter().enumerate() {
@@ -243,13 +272,54 @@ pub(super) fn valider_exigences(
     let c = format!("{cb}.exigences");
     valider_exigences_zones(r, &c, bat, e);
     valider_categorie_contraintes(r, &c, bat, e, loc);
+    // Mois contrôlé d'abord : hors plage, les dates d'effet ne sont pas vérifiées (elles en
+    // dépendent) pour ne pas ajouter une fausse erreur de date.
+    let mois_valide = match e.mois_depot_permis {
+        Some(m) if !(1..=12).contains(&m) => {
+            r.erreur(
+                format!("{c}.mois_depot_permis"),
+                Some(m.to_string()),
+                "mois de 1 à 12 attendu",
+            );
+            false
+        }
+        Some(_) => true,
+        // Q68, décision du mainteneur du 17 novembre 2026 : le mois est obligatoire quand
+        // l'année ne suffit pas à fixer la version du texte applicable.
+        None => {
+            let tertiaire_2022 = e.annee_depot_permis == 2022
+                && bat
+                    .zones
+                    .iter()
+                    .any(|z| (3..=5).contains(&z.usage.numero()));
+            if e.annee_depot_permis == 2026 {
+                r.erreur(
+                    format!("{c}.mois_depot_permis"),
+                    None,
+                    "mois de dépôt du permis obligatoire pour un permis déposé en 2026 : trois \
+                     versions de l'annexe de l'article R. 172-4 s'y succèdent (usages 6 à 28 \
+                     soumis à compter du 1er mai 2026, modulations MbHSP et McHSP à compter du \
+                     1er juillet 2026)",
+                );
+            } else if tertiaire_2022 {
+                r.erreur(
+                    format!("{c}.mois_depot_permis"),
+                    None,
+                    "mois de dépôt du permis obligatoire pour un permis déposé en 2022 avec une \
+                     zone de bureaux ou d'enseignement : la RE2020 ne s'y applique qu'à compter \
+                     du 1er juillet 2022",
+                );
+            }
+            true
+        }
+    };
     if e.annee_depot_permis < 2022 {
         r.erreur(
             format!("{c}.annee_depot_permis"),
             Some(e.annee_depot_permis.to_string()),
             "la RE2020 s'applique aux permis de construire déposés à partir de 2022",
         );
-    } else {
+    } else if mois_valide {
         // Q68 : usages 6 à 28 soumis à partir du 1er mai 2026 (colonne « Années 2022 à 2024 »
         // marquée « - » dans le tableau `Icénergie_maxmoyen`).
         const MOIS: [&str; 12] = [
@@ -284,18 +354,11 @@ pub(super) fn valider_exigences(
             }
         }
     }
-    if let Some(m) = e.mois_depot_permis {
-        if !(1..=12).contains(&m) {
-            r.erreur(
-                format!("{c}.mois_depot_permis"),
-                Some(m.to_string()),
-                "mois de 1 à 12 attendu",
-            );
-        }
-    }
     // Q69 : `MbHSP` et `McHSP` pour les permis déposés à partir du 1er juillet 2026.
     let habitation = bat.zones.iter().any(|z| z.usage.est_habitation());
     match e.hsp_moy_m {
+        // Hors plage, c'est une erreur même quand la valeur est sans effet (permis antérieur
+        // à juillet 2026, bâtiment sans habitation) : la saisie est incohérente.
         Some(h) => r.plage(format!("{c}.hsp_moy_m"), h, 1.8, 10.0),
         None if habitation && e.depot_a_partir_de(2026, 7) => r.erreur(
             format!("{c}.hsp_moy_m"),

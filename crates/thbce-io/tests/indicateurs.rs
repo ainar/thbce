@@ -374,7 +374,7 @@ mod categorie_contraintes {
                 x.as_object_mut().unwrap().remove("hsp_moy_m");
             })
         };
-        let e = sans_hsp(2026, None);
+        let e = sans_hsp(2026, Some(7));
         assert_eq!(e.len(), 1, "{e:?}");
         assert!(e[0].contains("hsp_moy_m"), "{e:?}");
         assert!(sans_hsp(2026, Some(6)).is_empty());
@@ -471,5 +471,62 @@ mod categorie_contraintes {
             v["batiments"][0]["exigences"]["annee_depot_permis"] = 2026.into();
         });
         assert!(!e.iter().any(|m| m.contains("annee_depot_permis")), "{e:?}");
+    }
+
+    /// Relecture de la PR #55 : un mois hors plage ne produit que son erreur, sans fausse erreur
+    /// de date d'effet.
+    #[test]
+    fn mois_hors_plage_sans_fausse_erreur_de_date() {
+        for m in [0, 13] {
+            let e = variante_usage("mediatheque_bibliotheque", |v| {
+                let x = &mut v["batiments"][0]["exigences"];
+                x["annee_depot_permis"] = 2026.into();
+                x["mois_depot_permis"] = m.into();
+            });
+            assert_eq!(e.len(), 1, "{e:?}");
+            assert!(e[0].contains("mois_depot_permis"), "{e:?}");
+        }
+    }
+
+    /// Doublon dans `exigences.zones` : l'erreur porte sur `zone`.
+    #[test]
+    fn zone_decrite_deux_fois() {
+        let e = variante("maison-climat-ademe", |v| {
+            let id = v["batiments"][0]["zones"][0]["id"].clone();
+            v["batiments"][0]["exigences"]["zones"] =
+                serde_json::json!([{ "zone": id.clone() }, { "zone": id }]);
+        });
+        assert_eq!(e.len(), 1, "{e:?}");
+        assert!(
+            e[0].starts_with("batiments[0].exigences.zones[1].zone "),
+            "{e:?}"
+        );
+    }
+
+    /// Q68, décision du 17 novembre 2026 : mois obligatoire en 2026, et en 2022 avec une zone
+    /// d'usage 3 à 5 ; facultatif sinon.
+    #[test]
+    fn mois_obligatoire_en_2026_et_pour_le_tertiaire_en_2022() {
+        let annee = |a: u16| {
+            move |v: &mut serde_json::Value| {
+                v["batiments"][0]["exigences"]["annee_depot_permis"] = a.into();
+            }
+        };
+        let e = variante("maison-climat-ademe", annee(2026));
+        assert!(
+            e.iter()
+                .any(|m| m.contains("mois_depot_permis") && m.contains("1er mai 2026")),
+            "{e:?}"
+        );
+        let e = variante_usage("bureaux", annee(2022));
+        assert!(
+            e.iter()
+                .any(|m| m.contains("mois_depot_permis") && m.contains("1er juillet 2022")),
+            "{e:?}"
+        );
+        assert!(variante("maison-climat-ademe", annee(2025)).is_empty());
+        assert!(variante("maison-climat-ademe", annee(2022)).is_empty());
+        let e = variante_usage("bureaux", annee(2025));
+        assert!(!e.iter().any(|m| m.contains("mois_depot_permis")), "{e:?}");
     }
 }

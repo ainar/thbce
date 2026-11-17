@@ -10,3 +10,4 @@
 - `MbHSP` et `McHSP` ne s'appliquent qu'aux permis déposés à partir du 1er juillet 2026 (décret n° 2026-200, `Q069.md`) ; sans effet sur les exemples (hauteur sous plafond de 2,5 m).
 - `exigences.hsp_moy_m` devient facultatif : obligatoire en habitation pour un permis déposé à partir du 1er juillet 2026 (une année 2026 sans mois compte comme telle). Changement compatible pour les entrées.
 - API Rust : `indicateurs::exigences::dh_max` renvoie un `SeuilDh` (« Pas de seuil » en catégorie 3) ; `ParametresExigences` n'est plus `Copy` (il contient des listes).
+- Entrée plus stricte : `exigences.mois_depot_permis` est obligatoire pour un permis déposé en 2026, et en 2022 avec une zone de bureaux ou d'enseignement (`Q068.md`). Un fichier d'entrée daté de 2026 sans mois est désormais refusé (code 2).

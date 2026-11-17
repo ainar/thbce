@@ -1891,15 +1891,17 @@ export interface ParametresExigences {
    * §XIII) : modulations `MbHSP` et `McHSP`, introduites par le décret n° 2026-200 pour les
    * permis déposés à partir du 1er juillet 2026 (Q69). Obligatoire dans ce cas si le
    * bâtiment comprend une zone d'habitation (usages 1 et 2) ; sans effet pour les autres
-   * usages, dont `MbHSP` et `McHSP` sont nuls, et pour les permis antérieurs.
+   * usages, dont `MbHSP` et `McHSP` sont nuls, et pour les permis antérieurs ; une valeur
+   * saisie hors de la plage 1,8 à 10 m reste une erreur, même sans effet.
    */
   hsp_moy_m?: number | null;
   /**
    * Mois (1 à 12) du dépôt de la demande de permis de construire, facultatif : il départage
    * les versions de l'annexe dont la date d'effet tombe en cours d'année (Q68) : 1er juillet
    * 2022 (bureaux et enseignement), 1er mai 2026 (usages 6 à 28), 1er juillet 2026
-   * (modulations `MbHSP` et `McHSP` du décret n° 2026-200). Absent : la version en vigueur
-   * à la fin de l'année du dépôt.
+   * (modulations `MbHSP` et `McHSP` du décret n° 2026-200). **Obligatoire** pour un permis
+   * déposé en 2026, et en 2022 avec une zone d'usage 3 à 5 ; facultatif les autres années,
+   * où l'année suffit (Q68).
    */
   mois_depot_permis?: number | null;
   /**
