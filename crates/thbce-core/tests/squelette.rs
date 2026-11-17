@@ -211,8 +211,9 @@ fn les_protections_mobiles_hors_perimetre_sont_refusees() {
     );
     assert_eq!(
         r.erreurs[0].message,
-        "store vénitien non pris en charge dans cette version"
+        "store vénitien : non pris en charge par cette version (voir docs/couverture.md)"
     );
+    assert!(r.seulement_hors_perimetre());
     let pm = p.catalogue.baies[0].protection_mobile.as_mut().unwrap();
     pm.type_pm = TypePm::Volet;
     pm.gestion = GestionPm::AutomatiqueAvecDerogation;
@@ -296,24 +297,23 @@ fn un_projet_vide_est_refuse_sans_panique() {
 }
 
 #[test]
-fn un_usage_hors_perimetre_est_signale_puis_refuse_au_calcul() {
+fn un_usage_hors_perimetre_est_refuse_comme_hors_perimetre() {
     let mut p = projet();
     p.batiments[0].zones[0].usage = UsageZone::Bureaux;
     p.batiments[0].zones[0].groupes[0].su_m2 = Some(96.44);
     let r = valider(&p);
-    assert!(r.est_valide(), "{:?}", r.erreurs);
-    // Usage non calculé, et (lot 7) zone ignorée dans les exigences.
-    assert_eq!(
-        chemins(&r.avertissements),
-        ["batiments[0].zones[0].usage", "batiments[0].zones[0].usage"]
-    );
+    // Usage reconnu mais hors du périmètre de cette version : erreur marquée `hors_perimetre`.
+    assert_eq!(chemins(&r.erreurs), ["batiments[0].zones[0].usage"]);
+    assert!(r.seulement_hors_perimetre());
+    assert_eq!(r.erreurs[0].valeur.as_deref(), Some("bureaux"));
+    assert!(r.avertissements.is_empty(), "{:?}", r.avertissements);
     let e = calculer(
         &p,
         &MeteoProjet::synthetique(ZoneClimatique::H2b),
         &Options::default(),
     )
     .unwrap_err();
-    assert!(matches!(e, Erreur::NonPrisEnCharge { .. }), "{e}");
+    assert!(e.hors_perimetre(), "{e}");
     assert_eq!(UsageZone::SportPrive.numero(), 28);
 }
 

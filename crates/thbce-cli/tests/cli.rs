@@ -143,6 +143,26 @@ fn codes_de_retour() {
         "{}",
         String::from_utf8_lossy(&s.stderr)
     );
+    // `valider` sur la même entrée : correcte mais non calculable, code 3 et message explicite.
+    let s = thbce(&["valider", bureaux.to_str().unwrap()]);
+    assert_eq!(s.status.code(), Some(3));
+    let erreur = String::from_utf8_lossy(&s.stderr).into_owned();
+    assert!(
+        erreur.contains("non pris en charge par cette version (voir docs/couverture.md)"),
+        "{erreur}"
+    );
+    assert!(erreur.contains("usage = bureaux"), "{erreur}");
+    // Une erreur de saisie l'emporte sur un élément hors périmètre : code 2.
+    let mixte = fichier(
+        "mixte.json",
+        &texte
+            .replace("maison_individuelle", "bureaux")
+            .replace("\"shab_m2\": 96.44", "\"shab_m2\": -1"),
+    );
+    assert_eq!(
+        thbce(&["valider", mixte.to_str().unwrap()]).status.code(),
+        Some(2)
+    );
     // 0 : validation réussie.
     assert_eq!(thbce(&["valider", &entree()]).status.code(), Some(0));
 }
@@ -157,4 +177,67 @@ fn schema_et_version() {
     let texte = String::from_utf8_lossy(&s.stdout).into_owned();
     assert!(texte.starts_with("thbce "), "{texte}");
     assert!(texte.contains("Th-BCE 2020"), "{texte}");
+}
+
+#[test]
+fn option_version() {
+    for option in ["--version", "-V"] {
+        let s = thbce(&[option]);
+        assert_eq!(s.status.code(), Some(0));
+        let texte = String::from_utf8_lossy(&s.stdout).into_owned();
+        assert!(texte.starts_with("thbce "), "{texte}");
+        assert!(texte.contains("Th-BCE 2020"), "{texte}");
+    }
+}
+
+#[test]
+fn messages_en_francais() {
+    // Option retirée : erreur d'usage, en français.
+    let s = thbce(&["calcul", &entree(), "--meteo", "m.csv", "--horaire"]);
+    assert_eq!(s.status.code(), Some(1));
+    let e = String::from_utf8_lossy(&s.stderr).into_owned();
+    assert!(e.contains("argument inattendu : --horaire"), "{e}");
+    // Aide en français.
+    let s = thbce(&["--help"]);
+    let aide = String::from_utf8_lossy(&s.stdout).into_owned();
+    assert!(aide.contains("Utilisation : thbce"), "{aide}");
+    assert!(aide.contains("Affiche l'aide"), "{aide}");
+    // Fichier introuvable : message français, sans « No such file or directory ».
+    let s = thbce(&["valider", "inexistant.json"]);
+    let e = String::from_utf8_lossy(&s.stderr).into_owned();
+    assert!(e.contains("fichier ou dossier introuvable"), "{e}");
+    // JSON tronqué : fin de fichier inattendue, sans chemin en « ? ».
+    let texte = std::fs::read_to_string(entree()).unwrap();
+    let tronque = fichier("tronque.json", &texte[..texte.len() / 2]);
+    let s = thbce(&["valider", tronque.to_str().unwrap()]);
+    assert_eq!(s.status.code(), Some(2));
+    let e = String::from_utf8_lossy(&s.stderr).into_owned();
+    assert!(e.contains("fin de fichier inattendue"), "{e}");
+    assert!(!e.contains('?'), "{e}");
+    // Champ inconnu, une seule position.
+    let inconnu = fichier(
+        "inconnu.json",
+        &texte.replacen('{', "{\"surprise\": 1, ", 1),
+    );
+    let e = String::from_utf8_lossy(&thbce(&["valider", inconnu.to_str().unwrap()]).stderr)
+        .into_owned();
+    assert!(e.contains("champ inconnu `surprise`"), "{e}");
+    assert_eq!(e.matches("ligne").count(), 1, "{e}");
+    // Conversion météo d'un fichier qui n'est pas un classeur.
+    let s = thbce(&["meteo", "convertir", &entree(), "-o", "x.csv"]);
+    assert_eq!(s.status.code(), Some(2));
+    let e = String::from_utf8_lossy(&s.stderr).into_owned();
+    assert!(e.contains("attendu : le classeur .xlsx officiel"), "{e}");
+}
+
+#[test]
+fn altitude_bornee() {
+    let texte = std::fs::read_to_string(entree()).unwrap();
+    let v: serde_json::Value = serde_json::from_str(&texte).unwrap();
+    let mut v = v;
+    v["localisation"]["alt_m"] = 4500.into();
+    let haut = fichier("haut.json", &v.to_string());
+    let s = thbce(&["valider", haut.to_str().unwrap()]);
+    assert_eq!(s.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&s.stderr).contains("localisation.alt_m"));
 }

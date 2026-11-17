@@ -11,13 +11,17 @@
     table { border-collapse: collapse; margin-top: 1rem; }
     td, th { border: 1px solid #999; padding: .3rem .7rem; text-align: left; }
     .avertissement { background: #fff3cd; padding: .6rem .9rem; border-left: 4px solid #b58900; }
+    .respectee { color: #1a7f37; }
+    .non-respectee { color: #b42318; font-weight: 600; }
     pre { background: #f4f4f4; padding: .8rem; overflow: auto; }
   </style>
 </head>
 <body>
   <h1>thbce dans le navigateur</h1>
-  <p class="avertissement">Ce moteur n'est pas le moteur réglementaire officiel. À ce stade il ne calcule
-    que la surface de référence ; les indicateurs s'affichent « non calculé ».</p>
+  <p class="avertissement">Ce moteur n'est pas le moteur réglementaire officiel ; ses résultats ne valent
+    pas attestation de conformité à la RE2020. Il calcule Bbio, Cep, Cep,nr, Ic énergie et DH de la maison
+    individuelle ou accolée et du logement collectif, et, si l'entrée décrit les données des exigences
+    (<code>exigences</code>), les valeurs maximales et la conformité.</p>
   <p id="version">Chargement du module…</p>
 
   <label for="projet">Projet (JSON natif)</label>
@@ -66,6 +70,39 @@
           ? "Données météo réglementaires."
           : "Données météo non réglementaires : résultat non réglementaire.";
         sortie.append(statut, table);
+        // Conformité : une ligne par exigence (valeur, maximum, marge), puis le bilan.
+        for (const b of r.batiments) {
+          const ex = b.indicateurs?.exigences;
+          const titre = document.createElement("h2");
+          titre.textContent = `Conformité du bâtiment ${b.id}`;
+          sortie.append(titre);
+          if (!ex) {
+            const p = document.createElement("p");
+            p.textContent = "Exigences non calculées : l'entrée ne décrit pas les données des exigences (exigences).";
+            sortie.append(p);
+            continue;
+          }
+          const t = document.createElement("table");
+          t.innerHTML = "<tr><th>Indicateur</th><th>Valeur</th><th>Maximum</th><th>Marge</th><th>Exigence</th></tr>";
+          for (const v of ex.verifications) {
+            const ligne = t.insertRow();
+            const nom = v.groupe ? `${v.indicateur} (${v.groupe})` : v.indicateur;
+            for (const cellule of [nom, v.valeur, v.maximum, `${v.marge} (${v.marge_pct} %)`]) {
+              ligne.insertCell().textContent = cellule;
+            }
+            const etat = ligne.insertCell();
+            etat.textContent = v.respectee ? "respectée" : "non respectée";
+            etat.className = v.respectee ? "respectee" : "non-respectee";
+          }
+          const bilan = document.createElement("p");
+          bilan.className = ex.conforme ? "respectee" : "non-respectee";
+          bilan.textContent = ex.conforme
+            ? "Exigences de résultat respectées."
+            : "Exigences de résultat non respectées"
+              + (ex.indicateurs_manquants?.length ? ` (indicateurs non calculés : ${ex.indicateurs_manquants.join(", ")})` : "")
+              + ".";
+          sortie.append(t, bilan);
+        }
         for (const a of r.avertissements) {
           const p = document.createElement("p");
           p.textContent = `Avertissement : ${a}`;

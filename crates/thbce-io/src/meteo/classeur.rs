@@ -150,6 +150,13 @@ pub const AVERTISSEMENT_CSV: &str = "# Données météorologiques conventionnell
 /// donne exactement les mêmes données que lire le classeur. Le fichier produit reste soumis aux
 /// conditions d'utilisation des données d'origine.
 pub fn convertir_en_csv(octets: &[u8]) -> Result<String, ErreurMeteo> {
+    if !octets.starts_with(b"PK\x03\x04") {
+        return Err(ErreurMeteo::Classeur(
+            "le fichier n'est pas un classeur .xlsx ; attendu : le classeur .xlsx officiel \
+             (4_scenarios_meteorologiques_th-bc_th-d_re2020.xlsx)"
+                .into(),
+        ));
+    }
     let mut classeur: Xlsx<_> = Xlsx::new(Cursor::new(octets))
         .map_err(|e| ErreurMeteo::Classeur(format!("fichier .xlsx illisible : {e}")))?;
     let mut csv = String::from(AVERTISSEMENT_CSV);

@@ -93,7 +93,13 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           echo "thbce_wasm_bg.wasm : $octets octets ($gz compressé)"
       - name: Fichier de définitions TypeScript
-        run: grep -q "export function calculer" crates/thbce-wasm/pkg/thbce_wasm.d.ts
+        run: |
+          d=crates/thbce-wasm/pkg/thbce_wasm.d.ts
+          for motif in "export function calculer" "export function schemaResultats" \
+                       "export interface Projet" "export interface Resultats"; do
+            grep -q "$motif" "$d" || { echo "::error::$d ne contient pas « $motif »"; exit 1; }
+          done
+          npx -y -p typescript@5 tsc --noEmit --strict "$d"
       - name: Parité natif / wasm32-wasip1 (résultats identiques à l'octet près)
         run: |
           cargo build --release -p thbce-cli

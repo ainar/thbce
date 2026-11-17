@@ -16,7 +16,15 @@ fn ligne(s: &mut String, nature: &str, p: &Probleme) {
 pub fn en_texte(rapport: &RapportValidation) -> String {
     let mut s = String::new();
     for p in &rapport.erreurs {
-        ligne(&mut s, "erreur       ", p);
+        ligne(
+            &mut s,
+            if p.hors_perimetre {
+                "non calculé  "
+            } else {
+                "erreur       "
+            },
+            p,
+        );
     }
     for p in &rapport.avertissements {
         ligne(&mut s, "avertissement", p);
@@ -26,6 +34,8 @@ pub fn en_texte(rapport: &RapportValidation) -> String {
         "{} : {} erreur(s), {} avertissement(s)",
         if rapport.est_valide() {
             "entrée valide"
+        } else if rapport.seulement_hors_perimetre() {
+            "entrée correcte mais non calculable par cette version (voir docs/couverture.md)"
         } else {
             "entrée invalide"
         },
@@ -56,18 +66,33 @@ pub fn synthese_indicateurs(r: &thbce_core::resultats::Resultats) -> String {
         let Some(e) = b.indicateurs.as_ref().and_then(|i| i.exigences.as_ref()) else {
             continue;
         };
+        // Libellés alignés (le DH porte le nom du groupe vérifié) ; marges recalculées à partir
+        // des valeurs affichées, arrondies à une décimale, pour que l'affichage reste cohérent.
+        let libelle = |v: &thbce_core::indicateurs::resultats::VerificationExigence| match &v.groupe
+        {
+            Some(g) => format!("{} ({g})", v.indicateur),
+            None => v.indicateur.clone(),
+        };
+        let largeur = e
+            .verifications
+            .iter()
+            .map(|v| libelle(v).chars().count())
+            .max()
+            .unwrap_or(0);
         for v in &e.verifications {
+            let valeur = arrondi_1(v.valeur);
+            let maximum = arrondi_1(v.maximum);
+            let marge = arrondi_1(maximum - valeur);
+            let marge_pct = if maximum == 0.0 {
+                0.0
+            } else {
+                100.0 * marge / maximum
+            };
+            let l = libelle(v);
             let _ = writeln!(
                 s,
-                "  {:<11}{} {:>8.1} ≤ {:>8.1} : marge {:>8.1} ({:+.1} %) {}",
-                v.indicateur,
-                v.groupe
-                    .as_ref()
-                    .map_or_else(String::new, |g| format!(" ({g})")),
-                v.valeur,
-                v.maximum,
-                v.marge,
-                v.marge_pct,
+                "  {l}{} {valeur:>8.1} ≤ {maximum:>8.1} : marge {marge:>8.1} ({marge_pct:+.1} %) {}",
+                " ".repeat(largeur - l.chars().count()),
                 if v.respectee {
                     "respectée"
                 } else {
@@ -86,4 +111,14 @@ pub fn synthese_indicateurs(r: &thbce_core::resultats::Resultats) -> String {
         );
     }
     s
+}
+
+/// Arrondi à une décimale, sans « -0,0 ».
+fn arrondi_1(x: f64) -> f64 {
+    let r = (x * 10.0).round() / 10.0;
+    if r == 0.0 {
+        0.0
+    } else {
+        r
+    }
 }

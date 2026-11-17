@@ -55,6 +55,26 @@ pub struct Probleme {
     pub valeur: Option<String>,
     /// Contrainte non respectée, ou nature de l'avertissement.
     pub message: String,
+    /// Vrai si l'erreur tient à un élément ou un usage que cette version du moteur ne calcule
+    /// pas (`docs/couverture.md`), et non à une saisie fautive.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hors_perimetre: bool,
+}
+
+/// Altitude maximale admise, en m.
+pub(crate) const ALTITUDE_MAX_M: f64 = 4000.0;
+
+/// Fin des messages d'erreur des éléments et usages hors du périmètre de cette version.
+pub(crate) const HORS_VERSION: &str =
+    "non pris en charge par cette version (voir docs/couverture.md)";
+
+/// Nom d'une valeur d'énumération dans le format JSON (snake_case).
+pub(crate) fn nom_json<T: Serialize>(v: &T) -> String {
+    match serde_json::to_value(v) {
+        Ok(serde_json::Value::String(s)) => s,
+        Ok(autre) => autre.to_string(),
+        Err(_) => String::new(),
+    }
 }
 
 /// Rapport de validation d'une entrée.
@@ -72,6 +92,27 @@ impl RapportValidation {
         self.erreurs.is_empty()
     }
 
+    /// Vrai si l'entrée comporte des erreurs et qu'elles tiennent toutes à des éléments ou des
+    /// usages hors du périmètre de cette version : l'entrée est correcte mais non calculable.
+    pub fn seulement_hors_perimetre(&self) -> bool {
+        !self.erreurs.is_empty() && self.erreurs.iter().all(|e| e.hors_perimetre)
+    }
+
+    /// Élément ou usage hors du périmètre de cette version (erreur, `hors_perimetre`).
+    fn hors_perimetre(
+        &mut self,
+        chemin: impl Into<String>,
+        valeur: Option<String>,
+        element: impl std::fmt::Display,
+    ) {
+        self.erreurs.push(Probleme {
+            chemin: chemin.into(),
+            valeur,
+            message: format!("{element} : {HORS_VERSION}"),
+            hors_perimetre: true,
+        });
+    }
+
     fn erreur(
         &mut self,
         chemin: impl Into<String>,
@@ -82,6 +123,7 @@ impl RapportValidation {
             chemin: chemin.into(),
             valeur,
             message: message.into(),
+            hors_perimetre: false,
         });
     }
 
@@ -95,6 +137,7 @@ impl RapportValidation {
             chemin: chemin.into(),
             valeur,
             message: message.into(),
+            hors_perimetre: false,
         });
     }
 
@@ -165,7 +208,9 @@ pub fn valider(projet: &Projet) -> RapportValidation {
 
     // Th-BCE 2020 §3.1.2 : Alt, Dmer, Durb, minimum 0.
     let loc = &projet.localisation;
-    r.positif("localisation.alt_m".into(), loc.alt_m);
+    // Borne haute : aucun bâtiment d'habitation n'est construit en France au-delà de 4 000 m ;
+    // une valeur plus forte est une faute de saisie (unité, par exemple).
+    r.plage("localisation.alt_m".into(), loc.alt_m, 0.0, ALTITUDE_MAX_M);
     r.positif("localisation.dmer_km".into(), loc.dmer_km);
     r.positif("localisation.durb_km".into(), loc.durb_km);
     let zone_departement = ZoneClimatique::du_departement(loc.departement);
@@ -263,12 +308,12 @@ struct References<'a> {
 
 fn valider_zone(r: &mut RapportValidation, c: &str, zone: &Zone, refs: &References<'_>) {
     if !zone.usage.est_pris_en_charge() {
-        r.avertissement(
+        r.hors_perimetre(
             format!("{c}.usage"),
-            Some(format!("{:?}", zone.usage)),
+            Some(nom_json(&zone.usage)),
             format!(
-                "usage n° {} reconnu mais non calculé par cette version du moteur (seuls les \
-                 usages 1 et 2 le sont)",
+                "usage n° {} (seuls la maison individuelle ou accolée et le logement collectif \
+                 sont calculés)",
                 zone.usage.numero()
             ),
         );
@@ -944,18 +989,17 @@ fn valider_baie_type(r: &mut RapportValidation, c: &str, b: &BaieType) {
     if let Some(pm) = &b.protection_mobile {
         // Décision Q30, point 7 : pas de calcul approché pour ce que la version ne couvre pas.
         if pm.type_pm == TypePm::StoreVenitien {
-            r.erreur(
+            r.hors_perimetre(
                 format!("{c}.protection_mobile.type_pm"),
                 Some("store_venitien".to_owned()),
-                "store vénitien non pris en charge dans cette version",
+                "store vénitien",
             );
         }
         if pm.gestion == GestionPm::AutomatiqueAvecDerogation {
-            r.erreur(
+            r.hors_perimetre(
                 format!("{c}.protection_mobile.gestion"),
                 Some("automatique_avec_derogation".to_owned()),
-                "gestion automatique des protections mobiles non prise en charge dans cette \
-                 version",
+                "gestion automatique des protections mobiles",
             );
         }
         // Th-BCE 2020 §5.10.2 : facteurs et coefficient U de la baie avec la protection en place.
@@ -1235,10 +1279,6 @@ fn valider_espace_solarise(
     }
 }
 
-/// Message des systèmes et fonctions de ventilation hors de la première version.
-const HORS_PERIMETRE_VENTILATION: &str = "non pris en charge dans cette version du moteur \
-     (après v1, docs/couverture.md)";
-
 /// Th-BCE 2020 §6.2 à 6.5 : système de ventilation d'une zone d'habitation.
 fn valider_ventilation(r: &mut RapportValidation, c: &str, v: &Ventilation, zone: &Zone) {
     let bouches = || zone.groupes.iter().flat_map(|g| &g.bouches_conduits);
@@ -1314,11 +1354,7 @@ fn valider_ventilation(r: &mut RapportValidation, c: &str, v: &Ventilation, zone
                 ("surventilation_mecanique", df.surventilation_mecanique),
             ] {
                 if present == Some(true) {
-                    r.erreur(
-                        format!("{cd}.{champ}"),
-                        Some("true".into()),
-                        HORS_PERIMETRE_VENTILATION,
-                    );
+                    r.hors_perimetre(format!("{cd}.{champ}"), Some("true".into()), champ);
                 }
             }
             if let Some(e) = &df.echangeur {
@@ -1335,10 +1371,10 @@ fn valider_ventilation(r: &mut RapportValidation, c: &str, v: &Ventilation, zone
                     }
                 }
                 if e.rotatif == Some(true) {
-                    r.erreur(
+                    r.hors_perimetre(
                         format!("{ce}.rotatif"),
                         Some("true".into()),
-                        format!("échangeur rotatif {HORS_PERIMETRE_VENTILATION}"),
+                        "échangeur rotatif",
                     );
                 }
                 if let Some(t) = e.theta_s_ech_rep_lim_c {
@@ -1363,13 +1399,11 @@ fn valider_ventilation(r: &mut RapportValidation, c: &str, v: &Ventilation, zone
         }
         SystemeVentilation::NaturelleParConduits
         | SystemeVentilation::Hybride
-        | SystemeVentilation::Aeration => r.erreur(
+        | SystemeVentilation::Aeration => r.hors_perimetre(
             cs.clone(),
-            None,
-            format!(
-                "ventilation naturelle, hybride ou par ouverture des fenêtres (Th-BCE 2020 §6.6 \
-                 et §6.7) {HORS_PERIMETRE_VENTILATION}"
-            ),
+            Some(nom_json(&v.systeme)),
+            "ventilation naturelle, hybride ou par ouverture des fenêtres (Th-BCE 2020 §6.6 et \
+             §6.7)",
         ),
         SystemeVentilation::CentraleTraitementAir => r.erreur(
             cs.clone(),
@@ -1379,10 +1413,10 @@ fn valider_ventilation(r: &mut RapportValidation, c: &str, v: &Ventilation, zone
         ),
     }
     if let Some(p) = v.puits {
-        r.erreur(
+        r.hors_perimetre(
             format!("{c}.puits"),
-            Some(format!("{p:?}")),
-            format!("puits climatique ou hydraulique {HORS_PERIMETRE_VENTILATION}"),
+            Some(nom_json(&p)),
+            "puits climatique ou hydraulique",
         );
     }
 
@@ -1449,19 +1483,8 @@ fn valider_exigences(r: &mut RapportValidation, cb: &str, bat: &crate::entree::B
         0.0,
         f64::INFINITY,
     );
-    // Les exigences ne sont transcrites que pour les usages 1 et 2 (Q54). Un bâtiment sans zone
-    // d'habitation n'est pas une erreur de saisie des exigences : ses usages sont refusés par le
-    // calcul (« non pris en charge »), avec un message plus précis.
-    for (iz, z) in bat.zones.iter().enumerate() {
-        if !z.usage.est_habitation() {
-            r.avertissement(
-                format!("{cb}.zones[{iz}].usage"),
-                Some(z.usage.numero().to_string()),
-                "exigences transcrites pour les maisons et les logements collectifs seulement : \
-                 zone ignorée dans les exigences",
-            );
-        }
-    }
+    // Les exigences ne sont transcrites que pour les usages 1 et 2 (Q54) : les autres usages
+    // sont refusés par la validation de la zone (« non pris en charge par cette version »).
     let maisons = bat
         .zones
         .iter()

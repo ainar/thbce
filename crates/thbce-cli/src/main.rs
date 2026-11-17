@@ -2,30 +2,54 @@
 //! `thbce` : exécutable en ligne de commande du moteur Th-BCE 2020.
 //!
 //! Codes de retour : 0 succès ; 1 erreur d'usage ou de fichier ; 2 entrée invalide (projet ou
-//! données météo) ; 3 erreur de calcul.
+//! données météo) ; 3 entrée correcte mais hors du périmètre de cette version (élément ou usage
+//! non pris en charge, à la validation comme au calcul) ou calcul impossible.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use clap::{Parser, Subcommand};
+use clap::error::{ContextKind, ContextValue, ErrorKind};
+use clap::{ArgAction, CommandFactory, Parser, Subcommand};
 use thbce_core::{calculer, valider, Erreur, Options, VERSION_METHODE, VERSION_MOTEUR};
 use thbce_io::{json, meteo, rapport};
 
 const CODE_USAGE: u8 = 1;
 const CODE_ENTREE_INVALIDE: u8 = 2;
-const CODE_ERREUR_CALCUL: u8 = 3;
+/// Entrée correcte mais hors du périmètre de cette version, ou calcul impossible.
+const CODE_HORS_PERIMETRE: u8 = 3;
 
-/// Moteur de calcul Th-BCE 2020 (RE2020). Ce n'est pas le moteur réglementaire officiel.
+/// Gabarit de l'aide, en français.
+const GABARIT_AIDE: &str = "{about-with-newline}\nUtilisation : {usage}\n\n{all-args}{after-help}";
+
+/// Moteur de calcul Th-BCE 2020 (RE2020). Ce n'est pas le moteur réglementaire officiel et ses
+/// résultats ne valent pas attestation de conformité.
 #[derive(Parser)]
-#[command(name = "thbce", version, disable_version_flag = true)]
+#[command(
+    name = "thbce",
+    disable_version_flag = true,
+    disable_help_flag = true,
+    disable_help_subcommand = true,
+    help_template = GABARIT_AIDE,
+    subcommand_help_heading = "Commandes",
+    subcommand_value_name = "COMMANDE",
+    after_help = "Codes de retour : 0 succès ; 1 erreur d'usage ou de fichier ; 2 entrée invalide ; \
+                  3 entrée hors du périmètre de cette version ou calcul impossible."
+)]
 struct Cli {
     #[command(subcommand)]
-    commande: Commande,
+    commande: Option<Commande>,
+    /// Affiche la version du moteur et celle de la méthode implémentée.
+    #[arg(short = 'V', long = "version", action = ArgAction::SetTrue)]
+    version: bool,
+    /// Affiche l'aide.
+    #[arg(short = 'h', long = "help", action = ArgAction::Help, global = true)]
+    aide: Option<bool>,
 }
 
 #[derive(Subcommand)]
 enum Commande {
     /// Calcule les indicateurs d'un projet.
+    #[command(help_template = GABARIT_AIDE)]
     Calcul {
         /// Description du projet, au format JSON natif.
         entree: PathBuf,
@@ -36,30 +60,35 @@ enum Commande {
         /// Fichier de sortie JSON ; sortie standard par défaut.
         #[arg(short = 'o', long, value_name = "FICHIER")]
         sortie: Option<PathBuf>,
-        /// Ajoute les séries horaires aux résultats (pas encore disponible).
-        #[arg(long)]
-        horaire: bool,
         /// Restitue les valeurs en pleine précision, sans l'arrondi à une décimale du §1.3.1.
         #[arg(long)]
         sans_arrondi: bool,
     },
     /// Valide la description d'un projet sans la calculer.
+    #[command(help_template = GABARIT_AIDE)]
     Valider {
         /// Description du projet, au format JSON natif.
         entree: PathBuf,
     },
     /// Affiche le JSON Schema du format d'entrée.
+    #[command(help_template = GABARIT_AIDE)]
     Schema {
         /// Affiche le schéma des résultats au lieu de celui de l'entrée.
         #[arg(long)]
         resultats: bool,
     },
     /// Outils sur les fichiers météo.
+    #[command(
+        help_template = GABARIT_AIDE,
+        subcommand_help_heading = "Actions",
+        subcommand_value_name = "ACTION"
+    )]
     Meteo {
         #[command(subcommand)]
         action: ActionMeteo,
     },
     /// Affiche la version du moteur et celle de la méthode implémentée.
+    #[command(help_template = GABARIT_AIDE)]
     Version,
 }
 
@@ -68,6 +97,7 @@ enum ActionMeteo {
     /// Convertit le classeur météo réglementaire (.xlsx) en CSV, format lu par le module
     /// WebAssembly. Le fichier produit reste soumis aux conditions d'utilisation des données :
     /// usage limité au calcul réglementaire RE2020, diffusion interdite.
+    #[command(help_template = GABARIT_AIDE)]
     Convertir {
         /// Classeur officiel `4_scenarios_meteorologiques_th-bc_th-d_re2020.xlsx`.
         classeur: PathBuf,
@@ -80,8 +110,45 @@ enum ActionMeteo {
 /// Erreur fatale : message et code de retour.
 struct Echec(String, u8);
 
+/// Cause d'une erreur d'entrée-sortie, en français.
+fn cause_io(e: &std::io::Error) -> String {
+    use std::io::ErrorKind as K;
+    match e.kind() {
+        K::NotFound => "fichier ou dossier introuvable".into(),
+        K::PermissionDenied => "accès refusé".into(),
+        K::IsADirectory => "c'est un dossier, pas un fichier".into(),
+        K::AlreadyExists => "le fichier existe déjà".into(),
+        K::StorageFull => "espace disque insuffisant".into(),
+        _ => format!("lecture ou écriture impossible ({e})"),
+    }
+}
+
 fn lire(chemin: &Path) -> Result<Vec<u8>, Echec> {
-    std::fs::read(chemin).map_err(|e| Echec(format!("{} : {e}", chemin.display()), CODE_USAGE))
+    std::fs::read(chemin).map_err(|e| {
+        Echec(
+            format!("{} : {}", chemin.display(), cause_io(&e)),
+            CODE_USAGE,
+        )
+    })
+}
+
+fn ecrire(chemin: &Path, contenu: impl AsRef<[u8]>) -> Result<(), Echec> {
+    std::fs::write(chemin, contenu).map_err(|e| {
+        Echec(
+            format!("{} : {}", chemin.display(), cause_io(&e)),
+            CODE_USAGE,
+        )
+    })
+}
+
+/// Code de retour d'un rapport de validation qui comporte des erreurs : 3 si elles tiennent
+/// toutes au périmètre de cette version, 2 sinon.
+fn code_rapport(r: &thbce_core::validation::RapportValidation) -> u8 {
+    if r.seulement_hors_perimetre() {
+        CODE_HORS_PERIMETRE
+    } else {
+        CODE_ENTREE_INVALIDE
+    }
 }
 
 fn lire_texte(chemin: &Path) -> Result<String, Echec> {
@@ -105,21 +172,14 @@ fn executer(commande: Commande) -> Result<(), Echec> {
             entree,
             meteo: chemin_meteo,
             sortie,
-            horaire,
             sans_arrondi,
         } => {
-            if horaire {
-                return Err(Echec(
-                    "--horaire : les séries horaires ne sont pas encore disponibles".into(),
-                    CODE_USAGE,
-                ));
-            }
             let projet = lire_projet(&entree)?;
             let rapport_validation = valider(&projet);
             if !rapport_validation.est_valide() {
                 return Err(Echec(
                     rapport::en_texte(&rapport_validation),
-                    CODE_ENTREE_INVALIDE,
+                    code_rapport(&rapport_validation),
                 ));
             }
             let zone = projet.localisation.zone_climatique_retenue();
@@ -133,10 +193,10 @@ fn executer(commande: Commande) -> Result<(), Echec> {
                 arrondir: !sans_arrondi,
             };
             let resultats = calculer(&projet, &donnees, &options).map_err(|e| match e {
-                Erreur::Saisie(r) => Echec(rapport::en_texte(&r), CODE_ENTREE_INVALIDE),
+                Erreur::Saisie(r) => Echec(rapport::en_texte(&r), code_rapport(&r)),
                 Erreur::Meteo(_) => Echec(e.to_string(), CODE_ENTREE_INVALIDE),
                 Erreur::NonPrisEnCharge { .. } | Erreur::Calcul(_) => {
-                    Echec(e.to_string(), CODE_ERREUR_CALCUL)
+                    Echec(e.to_string(), CODE_HORS_PERIMETRE)
                 }
             })?;
             for a in &resultats.avertissements {
@@ -152,8 +212,7 @@ fn executer(commande: Commande) -> Result<(), Echec> {
             eprint!("{}", rapport::synthese_indicateurs(&resultats));
             let document = json::ecrire_resultats(&resultats);
             match sortie {
-                Some(chemin) => std::fs::write(&chemin, document)
-                    .map_err(|e| Echec(format!("{} : {e}", chemin.display()), CODE_USAGE))?,
+                Some(chemin) => ecrire(&chemin, document)?,
                 None => print!("{document}"),
             }
             Ok(())
@@ -166,7 +225,7 @@ fn executer(commande: Commande) -> Result<(), Echec> {
                 print!("{texte}");
                 Ok(())
             } else {
-                Err(Echec(texte, CODE_ENTREE_INVALIDE))
+                Err(Echec(texte, code_rapport(&r)))
             }
         }
         Commande::Schema { resultats } => {
@@ -189,8 +248,7 @@ fn executer(commande: Commande) -> Result<(), Echec> {
                     CODE_ENTREE_INVALIDE,
                 )
             })?;
-            std::fs::write(&sortie, csv)
-                .map_err(|e| Echec(format!("{} : {e}", sortie.display()), CODE_USAGE))?;
+            ecrire(&sortie, csv)?;
             eprintln!(
                 "{} écrit. Ces données restent réservées au calcul réglementaire RE2020 et ne doivent pas être diffusées.",
                 sortie.display()
@@ -198,11 +256,72 @@ fn executer(commande: Commande) -> Result<(), Echec> {
             Ok(())
         }
         Commande::Version => {
-            println!("thbce {VERSION_MOTEUR}");
-            println!("méthode : {VERSION_METHODE}");
-            println!("ce moteur n'est pas le moteur réglementaire officiel");
+            afficher_version();
             Ok(())
         }
+    }
+}
+
+fn afficher_version() {
+    println!("thbce {VERSION_MOTEUR}");
+    println!("méthode : {VERSION_METHODE}");
+    println!("ce moteur n'est pas le moteur réglementaire officiel");
+}
+
+/// Message d'une erreur d'analyse des arguments, en français.
+fn message_clap(e: &clap::Error) -> String {
+    let contexte = |k: ContextKind| match e.get(k) {
+        Some(ContextValue::String(s)) => s.clone(),
+        Some(ContextValue::Strings(v)) => v.join(", "),
+        Some(autre) => autre.to_string(),
+        None => String::new(),
+    };
+    let message = match e.kind() {
+        ErrorKind::UnknownArgument => {
+            format!("argument inattendu : {}", contexte(ContextKind::InvalidArg))
+        }
+        ErrorKind::InvalidSubcommand => {
+            format!(
+                "commande inconnue : {}",
+                contexte(ContextKind::InvalidSubcommand)
+            )
+        }
+        ErrorKind::MissingRequiredArgument => {
+            format!(
+                "argument obligatoire manquant : {}",
+                contexte(ContextKind::InvalidArg)
+            )
+        }
+        ErrorKind::MissingSubcommand | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => {
+            "commande manquante".into()
+        }
+        ErrorKind::InvalidValue | ErrorKind::ValueValidation => format!(
+            "valeur invalide « {} » pour {}",
+            contexte(ContextKind::InvalidValue),
+            contexte(ContextKind::InvalidArg)
+        ),
+        ErrorKind::ArgumentConflict => {
+            format!(
+                "arguments incompatibles : {}",
+                contexte(ContextKind::InvalidArg)
+            )
+        }
+        ErrorKind::TooManyValues | ErrorKind::WrongNumberOfValues => {
+            format!(
+                "nombre de valeurs incorrect pour {}",
+                contexte(ContextKind::InvalidArg)
+            )
+        }
+        _ => return e.render().to_string(),
+    };
+    let usage = contexte(ContextKind::Usage)
+        .replace("Usage:", "Utilisation :")
+        .trim()
+        .to_owned();
+    if usage.is_empty() {
+        format!("erreur : {message}\n\nAide : thbce --help")
+    } else {
+        format!("erreur : {message}\n\n{usage}\n\nAide : thbce --help")
     }
 }
 
@@ -211,15 +330,23 @@ fn main() -> ExitCode {
         Ok(cli) => cli,
         Err(e) => {
             // `--help` n'est pas une erreur ; toute autre erreur d'analyse est une erreur d'usage.
+            if e.use_stderr() {
+                eprintln!("{}", message_clap(&e));
+                return ExitCode::from(CODE_USAGE);
+            }
             let _ = e.print();
-            return if e.use_stderr() {
-                ExitCode::from(CODE_USAGE)
-            } else {
-                ExitCode::SUCCESS
-            };
+            return ExitCode::SUCCESS;
         }
     };
-    match executer(cli.commande) {
+    if cli.version {
+        afficher_version();
+        return ExitCode::SUCCESS;
+    }
+    let Some(commande) = cli.commande else {
+        let _ = Cli::command().print_help();
+        return ExitCode::from(CODE_USAGE);
+    };
+    match executer(commande) {
         Ok(()) => ExitCode::SUCCESS,
         Err(Echec(message, code)) => {
             eprintln!("{}", message.trim_end());

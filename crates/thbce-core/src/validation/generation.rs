@@ -21,8 +21,6 @@ use crate::entree::{PertesBallon, TechnologieEcsPac};
 
 use super::RapportValidation;
 
-const HORS_VERSION: &str = "non pris en charge dans cette version du moteur (docs/couverture.md)";
-
 /// Postes qu'un générateur saisi peut assurer : `[chauffage, refroidissement, ECS]`.
 pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
     match n {
@@ -135,12 +133,10 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
         }
     }
     if g.priorite == Some(TypePriorite::Alternance) {
-        r.erreur(
+        r.hors_perimetre(
             format!("{c}.priorite"),
             Some("alternance".into()),
-            format!(
-                "gestion des générateurs en alternance (Th-BCE 2020 §8.17.3.7.2.3) {HORS_VERSION}"
-            ),
+            "gestion des générateurs en alternance (Th-BCE 2020 §8.17.3.7.2.3)",
         );
     }
     if g.generateurs.is_empty()
@@ -225,28 +221,24 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
                 let (nom, quoi) = match autre {
                     NatureGenerateur::AutreGenerateurACombustion => (
                         "autre_generateur_a_combustion",
-                        "autre générateur à combustion (§8.20, après v1)",
+                        "autre générateur à combustion (§8.20)",
                     ),
                     NatureGenerateur::ThermodynamiqueGaz => (
                         "thermodynamique_gaz",
                         "générateur thermodynamique au gaz, à absorption ou à moteur (§8.24 et \
-                         §8.25, après v1)",
+                         §8.25)",
                     ),
                     NatureGenerateur::BoucleDEauOuDrv => (
                         "boucle_d_eau_ou_drv",
                         "pompe à chaleur sur boucle d'eau, thermo-frigo-pompe ou générateur DRV \
-                         (§8.15 et §8.16, après v1)",
+                         (§8.15 et §8.16)",
                     ),
                     NatureGenerateur::Cogeneration => {
-                        ("cogeneration", "système de cogénération (§8.21, après v1)")
+                        ("cogeneration", "système de cogénération (§8.21)")
                     }
-                    _ => ("pac_hybride", "pompe à chaleur hybride (après v1)"),
+                    _ => ("pac_hybride", "pompe à chaleur hybride"),
                 };
-                r.erreur(
-                    format!("{cg}.nature"),
-                    Some(nom.into()),
-                    format!("{quoi} : {HORS_VERSION}"),
-                );
+                r.hors_perimetre(format!("{cg}.nature"), Some(nom.into()), quoi);
             }
         }
         let assures = postes_assures(&x.nature);
@@ -485,13 +477,11 @@ fn valider_thermodynamique(
         );
     }
     if t.refroidissement.is_some() && t.ecs.is_some() {
-        r.erreur(
+        r.hors_perimetre(
             format!("{c}.ecs"),
             None,
-            format!(
-                "générateur produisant du froid et de l'ECS (triple service, Th-BCE 2020 \
-                 §8.23.3.2, tableau 149) {HORS_VERSION}"
-            ),
+            "générateur produisant du froid et de l'ECS (triple service, Th-BCE 2020 §8.23.3.2, \
+             tableau 149)",
         );
     }
     let (source, p_vent) = match &t.source_amont {
@@ -549,15 +539,12 @@ fn valider_thermodynamique(
                     continu: Option<FonctionnementContinu>| {
         let cm = format!("{c}.{nom}");
         let Some(grille) = grille else {
-            r.erreur(
+            r.hors_perimetre(
                 format!("{cm}.technologie"),
                 None,
-                format!(
-                    "technologie {HORS_VERSION} : seules les machines sur air (air extérieur \
-                     en chauffage et en refroidissement ; air extérieur, air extrait ou air \
-                     ambiant en ECS) sont prises en charge (Th-BCE 2020 §8.23.3.2, tableaux \
-                     145 et 147)"
-                ),
+                "technologie de pompe à chaleur autre que sur air (seules les machines sur air \
+                 extérieur en chauffage et en refroidissement, sur air extérieur, air extrait ou \
+                 air ambiant en ECS, sont calculées ; Th-BCE 2020 §8.23.3.2, tableaux 145 et 147)",
             );
             return;
         };

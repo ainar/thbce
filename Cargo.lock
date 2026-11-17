@@ -1206,6 +1206,7 @@ name = "xtask"
 version = "0.1.0"
 dependencies = [
  "calamine",
+ "serde_json",
  "thbce-core",
  "thbce-data",
  "thbce-io",

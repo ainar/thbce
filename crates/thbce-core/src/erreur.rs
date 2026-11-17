@@ -10,7 +10,9 @@ pub enum Erreur {
     #[error("entrée invalide : {} erreur(s) de saisie", .0.erreurs.len())]
     Saisie(RapportValidation),
     /// L'entrée est valide mais fait appel à une partie de la méthode non encore implémentée.
-    #[error("{chemin} : {element} n'est pas pris en charge par cette version du moteur")]
+    #[error(
+        "{chemin} : {element} : non pris en charge par cette version (voir docs/couverture.md)"
+    )]
     NonPrisEnCharge {
         /// Chemin de l'élément dans l'entrée.
         chemin: String,
@@ -24,4 +26,17 @@ pub enum Erreur {
     /// Les données météo fournies sont incomplètes ou ne correspondent pas au projet.
     #[error("données météo : {0}")]
     Meteo(String),
+}
+
+impl Erreur {
+    /// Vrai si l'erreur tient seulement à des éléments ou des usages hors du périmètre de cette
+    /// version (`NonPrisEnCharge`, ou rapport de validation dont toutes les erreurs sont
+    /// `hors_perimetre`) : l'entrée est correcte mais ne peut pas être calculée.
+    pub fn hors_perimetre(&self) -> bool {
+        match self {
+            Self::NonPrisEnCharge { .. } => true,
+            Self::Saisie(r) => r.seulement_hors_perimetre(),
+            Self::Calcul(_) | Self::Meteo(_) => false,
+        }
+    }
 }
