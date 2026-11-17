@@ -409,7 +409,7 @@ impl VentilationProjet {
     /// Simple flux par extraction et basse pression : au prorata des débits spécifiques repris
     /// (éq. 642) ; par insufflation : des débits spécifiques soufflés (éq. 644) ; double flux :
     /// des débits soufflés vus par le ventilateur (éq. 570, débits massiques lus en débits
-    /// volumiques, `docs/questions.md`, Q42).
+    /// volumiques, `docs/questions/Q042.md`).
     pub fn p_vent_groupe_w(&self, g: usize) -> f64 {
         let somme = |f: &dyn Fn(&Debits) -> f64, cond: bool| {
             let de = |i: usize| {

@@ -12,7 +12,7 @@
 //! (éq. 1972) et pertes des tuyauteries vers le volume chauffé (éq. 1973). Le rayonnement
 //! incident `Isr*` est celui de la fiche 3.2 sur le plan des capteurs, masques compris.
 //!
-//! Lectures : `docs/questions.md`, Q52.
+//! Lectures : `docs/questions/Q052.md`.
 
 use crate::bati::paroi_opaque::resoudre_masques;
 use crate::climat::environnement_proche::{
