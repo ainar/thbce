@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # Modèle de données
 
-Vue d'ensemble du format d'entrée et des résultats du moteur. **Le détail fait foi dans les JSON Schema** générés depuis les types Rust : `thbce schema` (entrée) et `thbce schema --resultats` (résultats), ou `schemaEntree()` et `schemaResultats()` dans le module WebAssembly, dont les types TypeScript `Projet` et `Resultats` sont tirés. Les types sont dans `crates/thbce-core/src/entree.rs`, `crates/thbce-core/src/pv/entree.rs` et `crates/thbce-core/src/resultats.rs`. Ce document garde la structure, les intentions et les règles de saisie que le schéma n'exprime pas. L'historique des changements du format est dans [`historique.md`](historique.md).
+Vue d'ensemble du format d'entrée et des résultats du moteur. **Le détail fait foi dans les JSON Schema** générés depuis les types Rust : `thbce schema` (entrée) et `thbce schema --resultats` (résultats), ou `schemaEntree()` et `schemaResultats()` dans le module WebAssembly, dont les types TypeScript `Projet` et `Resultats` sont tirés. Les types sont dans `crates/thbce-core/src/entree/` (un fichier par famille), `crates/thbce-core/src/pv/entree.rs` et `crates/thbce-core/src/resultats.rs`. Ce document garde la structure, les intentions et les règles de saisie que le schéma n'exprime pas. L'historique des changements du format est dans [`historique.md`](historique.md).
 
 ## Principes
 
@@ -47,7 +47,7 @@ Usages calculés : maison individuelle ou accolée (`maison_individuelle`) et lo
 
 ### Format d'entrée des systèmes de chauffage et de refroidissement (lot 6b)
 
-Implémenté au lot 6b (`crates/thbce-core/src/entree.rs`, lectures `docs/questions.md`, Q43). Les liens sont des identifiants, vérifiés par la validation :
+Implémenté au lot 6b (`crates/thbce-core/src/entree/emission_distribution.rs` et `entree/generation/`, lectures `docs/questions.md`, Q43). Les liens sont des identifiants, vérifiés par la validation :
 
 ```
 Batiment
