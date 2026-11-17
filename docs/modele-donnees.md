@@ -242,7 +242,10 @@ Batiment
                   zones?: [{ zone,                                                lot 0b (Q66)
                              categorie_contraintes_exterieures?,                  Mbbruit (cat. 3), Mccat, DH_max des groupes
                              zone_bruit?,                                         Mbbruit
-                             groupes?: [{ groupe, categorie_contraintes_exterieures }] }] }   DH_max du groupe
+                             groupes?: [{ groupe, categorie_contraintes_exterieures }] }],   DH_max du groupe
+                  extension?: { surelevation? (false),                           lot 0d (Q86) : fiche 4.4, article 50-3
+                                sref_existant_m2?,                                part de l'existant (obligatoire hors maison)
+                                sref_autres_extensions_m2? (0) } }                surface cumulée des extensions
 NatureGenerateur::PoeleOuInsert
 └── combustible_bois: buches | granules | plaquettes                              facteur d'émission (article 10), obligatoire
 ```
@@ -269,8 +272,19 @@ indicateurs
 └── exigences?        { bbio_max_pts, cep_max_kwhep_m2, cep_nr_max_kwhep_m2, ic_energie_max_kgco2_m2,
                         zones[] (valeurs moyennes et coefficients de modulation de chaque zone),
                         verifications[] { indicateur, groupe?, valeur, maximum, marge, marge_pct, respectee },
-                        conforme }
+                        conforme,
+                        regime_alternatif? { nature: construction | extension | surelevation,          lot 0d (Q86 à Q88)
+                                             famille: maison_individuelle | collectif_bureaux_enseignement
+                                                      | tertiaire_specifique_ou_industriel,
+                                             sref_consideree_m2, part_existant_pct?,
+                                             regime: complet | intermediaire | exigences_de_moyens | hors_champ | rt2012,
+                                             verifications[] (Bbio, DH : régime intermédiaire), conforme?,
+                                             indicateurs_manquants[] } }
 ```
+
+**Extensions et constructions de petite surface (lot 0d, Q86 à Q88).** Une extension (partie nouvelle d'un bâtiment existant, fiche 4.4 : partie accolée créant de nouveaux locaux, étage ajouté, combles surélevés d'au moins 1,8 m ; pas l'aménagement d'un volume existant) se décrit **seule**, comme un bâtiment, avec `exigences.extension`. Ses zones ne contiennent aucun local existant ; une paroi sur un local chauffé existant est mitoyenne et ne se saisit pas ; une paroi sur un local existant non chauffé donne sur un espace tampon. Son usage est celui de ses locaux, à défaut celui du bâtiment existant (annexe I). Équipements existants qui la desservent : valeurs initiales ou valeurs par défaut de la réglementation de l'existant, puissance nominale au prorata des besoins (à défaut, des surfaces) ; ventilation sans équipement complet : extraction compatible avec les entrées d'air, débits égaux à la somme de leurs modules, 0,25 W/(m³/h) ; perméabilité mesurée ou valeur par défaut du §5.6.3.3.3 (FA03 v2, annexe II ; Q89). Les exigences de l'article R. 172-4 sont calculées sur la `Sref` et les logements de l'extension (Q87) et restent vérifiées (`conforme`) ; `regime_alternatif` dit quel régime ouvre la surface cumulée des extensions du même bâtiment, selon l'usage principal, la part de l'existant, la nature (surélévation) et la date (article 3, II pour 2022 ; article 50-3 ; article R. 172-1, III), avec les vérifications du régime intermédiaire (Bbio et DH, `DH_max` porté à 1 400 °C.h pour une surélévation climatisée de maison en H2d ou H3, catégorie 1 ; Q88). Il est aussi restitué pour une construction neuve de moins de 50 m². Les bornes suivent l'arrêté (« inférieure à » stricte : une extension de maison de 50 m² pile relève du régime complet) ; les exigences de moyens et l'Icconstruction sont hors du moteur.
+
+**Identification de l'usage (fiches 4.2 et 4.3, Q85).** L'usage de chaque zone reste une règle de saisie : bâtiment de maison individuelle, de maisons accolées ou collectif selon la figure 11 (nombre de logements, logements superposés au-delà de 15 m² de paroi horizontale commune, porte d'entrée commune) ; bâtiments accolés (15 m² de parois mitoyennes pour les maisons, 50 m² sinon) calculés comme un bâtiment unique, chaque partie gardant son usage ; une zone par usage ; partie de moins de 150 m² et de 10 % assimilable à l'usage principal (article 2, sauf maison ; Q67) ; destinations non listées selon la FA05 v2. La validation lève des **avertissements** (jamais d'erreur) pour : zones de maison et de logements collectifs dans le même bâtiment ; bâtiment d'habitation d'au plus deux logements décrit en logements collectifs (hors extension) ; zone de maison dans un bâtiment d'usage principal non résidentiel ; vestiaires seuls avec un établissement sportif ; deux zones du même usage (hors logements collectifs).
 
 `energie` vaut `electricite`, `gaz_naturel`, `gpl`, `fioul`, `charbon`, `bois_buches`, `bois_granules`, `bois_plaquettes`, `bois` (combustible inconnu), `reseau_chaleur:<id>` ou `reseau_froid:<id>` (`autres` sans identifiant). La ligne de commande écrit une synthèse des indicateurs et de la conformité sur la sortie d'erreur (`thbce_io::rapport::synthese_indicateurs`).
 

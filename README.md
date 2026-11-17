@@ -170,7 +170,7 @@ Voir [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Limites connues
 
-- **Périmètre** : habitation seulement (maison individuelle ou accolée, logement collectif) ; les 26 autres usages sont refusés. Extensions de bâtiment non traitées.
+- **Périmètre** : habitation seulement (maison individuelle ou accolée, logement collectif) ; les 26 autres usages sont refusés. Une extension se calcule seule, avec le régime d'exigences que sa surface ouvre (article 50-3 de l'arrêté) ; ses exigences de moyens ne sont pas vérifiées.
 - **Aucune validation contre un cas de référence** (COMETH ou RSEE d'un logiciel évalué) : les lectures du texte Q8 à Q54 de [`docs/questions/`](docs/questions/README.md) restent des hypothèses ; les paramètres à tester en premier en cas d'écart y sont listés.
 - **Exigences** : valeurs transcrites pour les 28 usages (seules celles de l'habitation servent tant que les autres usages ne sont pas calculés) ; catégorie de contraintes extérieures et zone de bruit saisies pour le bâtiment, la zone ou le groupe (le moteur contrôle la catégorie selon le chapitre V de l'annexe de l'article R. 172-4, mais ne détermine pas la classe de bruit des baies) ; Icconstruction et les exigences de moyens hors du moteur.
 - **Pas de lecteur RSEE XML** : le schéma XSD n'est pas public.

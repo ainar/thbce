@@ -1192,6 +1192,36 @@ export interface Exposition {
 }
 
 /**
+ * Extension d'un bâtiment existant (arrêté du 4 août 2021, articles 3 et 50-3 ; article
+ * R. 172-1 du CCH ; FA03 v2).
+ */
+export interface ExtensionSaisie {
+  /**
+   * Somme des surfaces de référence des autres extensions du même bâtiment, non décrites
+   * dans ce calcul, en m² : « la surface considérée … est le cumul des surfaces des
+   * différentes extensions d'un même bâtiment » (article 50-3, I). Absente : 0 (seule
+   * l'extension décrite).
+   */
+  sref_autres_extensions_m2?: number;
+  /**
+   * Surface de référence des locaux existants avant travaux (y compris les locaux rénovés),
+   * en m² : SHAB ou SU selon l'usage, comme la `Sref` (FA03). Elle fixe la part de
+   * l'extension (seuils de 30 %). **Obligatoire** si l'extension comprend une zone d'usage
+   * autre que maison individuelle ; sans effet pour une extension de maison.
+   */
+  sref_existant_m2?: number | null;
+  /**
+   * Extension verticale (« surélévation ») : étage ajouté, ou combles existants aménagés
+   * en surélevant le faîtage de plus de 1,8 m (fiche 4.4). Pour un permis déposé à partir du
+   * 1er juillet 2026, les surélévations à usage autre que de maison individuelle ont leurs
+   * propres seuils (article 50-3, I, arrêté du 18 mars 2026), et le `DH_max` d'une
+   * surélévation climatisée de maison en H2d ou H3 est porté à 1 400 °C.h (article 50-3,
+   * II). Absent : extension horizontale.
+   */
+  surelevation?: boolean;
+}
+
+/**
  * Facteurs solaires et lumineux d'une baie dans un état de protection (§5.10.2).
  *
  * Trois grandeurs ont une valeur par défaut donnée par la méthode (§5.10.3.6.3) et sont
@@ -1231,6 +1261,12 @@ export interface FacteursBaie {
    */
   tlid?: number | null;
 }
+
+/**
+ * Famille d'usage des tableaux de la FA03 v2 (article R. 172-1 du CCH, I et III ; article
+ * 50-3, I) : usage principal de la partie calculée (Q86).
+ */
+export type FamilleUsage = "maison_individuelle" | "collectif_bureaux_enseignement" | "tertiaire_specifique_ou_industriel";
 
 /** Fonction d'une chaudière ou d'un réseau de chaleur (« idfougen » 1, 3 ou 4). */
 export type FonctionChaleur = "chauffage" | "ecs" | "chauffage_ecs";
@@ -1818,6 +1854,9 @@ export type NatureGenerateur = {
   reseau_de_chaleur_ou_de_froid: ReseauChaleurFroidSaisi;
 } | "autre_generateur_a_combustion" | "thermodynamique_gaz" | "boucle_d_eau_ou_drv" | "cogeneration" | "pac_hybride";
 
+/** Nature des travaux pour le choix du régime d'exigences (fiche 4.4 ; FA03 v2). */
+export type NatureTravaux = "construction" | "extension" | "surelevation";
+
 /** Th-BCE 2020 §12.4.2 — onduleur. */
 export interface OnduleurPv {
   /**
@@ -1886,6 +1925,27 @@ export interface ParametresExigences {
    * ont la leur dans `zones` (Q66).
    */
   categorie_contraintes_exterieures: CategorieContraintes;
+  /**
+   * Le bâtiment décrit est une **extension** (partie nouvelle) d'un bâtiment existant, ou
+   * une surélévation (fiche 4.4 de l'annexe III ; arrêté du 4 août 2021, articles 3, 50-2 et
+   * 50-3 ; fiche d'application FA03 v2 ; Q86 à Q88). Absent : construction neuve entière.
+   *
+   * Règles de saisie : l'extension se décrit **seule**, comme un bâtiment ; ses zones ne
+   * contiennent aucun local existant ; une paroi entre l'extension et un local chauffé de la
+   * partie existante est mitoyenne (ses deux faces donnent sur des locaux chauffés, fiche
+   * 4.2.2) et ne se saisit pas ; une paroi sur un local existant non chauffé donne sur un
+   * espace tampon. L'usage d'une extension sans locaux propres est celui du bâtiment existant
+   * (annexe I, « Usage d'une partie de bâtiment »). Les équipements de la partie existante qui
+   * la desservent se décrivent avec leurs valeurs initiales ou les valeurs par défaut de la
+   * réglementation de l'existant, leur puissance nominale au prorata des besoins (à défaut,
+   * des surfaces) desservis (FA03, annexe II).
+   *
+   * Les exigences de l'article R. 172-4 (`Bbio_max`, `Cep_max`… calculées sur la `Sref` et
+   * les logements de l'extension) restent calculées et vérifiées ; le régime d'exigences
+   * alternatives ouvert par la surface et l'usage (article 50-3) est restitué à côté
+   * (`regime_alternatif`).
+   */
+  extension?: ExtensionSaisie | null;
   /**
    * « HSPmoy » : hauteur sous plafond moyenne des locaux d'habitation, en m (chapitre I,
    * §XIII) : modulations `MbHSP` et `McHSP`, introduites par le décret n° 2026-200 pour les
@@ -2384,6 +2444,46 @@ export type RaccordementSsc = {
     delta_theta_reg_boucle_chauffage_k: number;
   };
 } | "raccorde";
+
+/** Régime d'exigences d'une extension ou d'une construction de petite surface. */
+export interface RegimeAlternatif {
+  /**
+   * Conformité aux exigences de résultat du régime que le moteur évalue : régime complet,
+   * celle des `exigences` ; régime intermédiaire, Bbio et DH (`Icconstruction` et les
+   * exigences de moyens sont hors du moteur) ; absente pour les autres régimes, qui n'ont pas
+   * d'exigence de résultat.
+   */
+  conforme?: boolean | null;
+  /** Famille d'usage retenue (usage principal de la partie calculée, Q86). */
+  famille: FamilleUsage;
+  /** Indicateurs exigés par le régime intermédiaire qui n'ont pas pu être calculés. */
+  indicateurs_manquants?: string[];
+  /** Nature des travaux. */
+  nature: NatureTravaux;
+  /**
+   * Part de la surface considérée dans la `Sref` des locaux existants, en % ; absente pour
+   * une construction et sans `sref_existant_m2`.
+   */
+  part_existant_pct?: number | null;
+  /** Régime applicable. */
+  regime: RegimeExigences;
+  /**
+   * Surface considérée, en m² : `Sref` du bâtiment calculé, plus celle des autres extensions
+   * du même bâtiment (article 50-3, I).
+   */
+  sref_consideree_m2: number;
+  /**
+   * Vérifications du régime intermédiaire (article 50-3, II) : Bbio et DH de chaque groupe ;
+   * vide pour les autres régimes.
+   */
+  verifications?: VerificationExigence[];
+}
+
+/**
+ * Régime d'exigences applicable (FA03 v2, « Que recouvrent les trois régimes des
+ * extensions ? »).
+ */
+export type RegimeExigences = "complet" | "intermediaire" | "exigences_de_moyens" | "hors_champ" | "rt2012";
 
 /** « idregul_batt » (§8.1.2). */
 export type RegulationBatterie = "debit_regule" | "temperature_constante";
@@ -3069,6 +3169,14 @@ export interface ResultatsExigences {
   ic_energie_max_kgco2_m2: number;
   /** Indicateurs exigés qui n'ont pas pu être calculés ni donc vérifiés ; vide en général. */
   indicateurs_manquants?: string[];
+  /**
+   * Régime d'exigences d'une extension ou d'une construction de petite surface (arrêté du
+   * 4 août 2021, articles 3 et 50-3 ; article R. 172-1 du CCH ; Q86 à Q88) ; absent pour une
+   * construction neuve dont la `Sref` atteint 50 m². Les exigences ci-dessus (article
+   * R. 172-4) restent calculées : les exigences alternatives « peuvent être appliquées à la
+   * place » des résultats minimaux.
+   */
+  regime_alternatif?: RegimeAlternatif | null;
   /** Vérification de chaque exigence ; le DH est vérifié pour chaque groupe. */
   verifications: VerificationExigence[];
   /** Exigences de chaque zone. */
