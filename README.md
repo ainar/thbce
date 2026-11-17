@@ -147,8 +147,11 @@ Les fonctions sont typées (`pkg/thbce_wasm.d.ts`) : les types `Projet` et `Resu
 | `xtask` | scripts reproductibles (génération des données versionnées) |
 | `tests/cas` | cas de validation ([format](tests/cas/README.md)) |
 | `docs/reference` | textes réglementaires et données sources |
+| `docs` | [guide d'architecture](docs/architecture.md), couverture, modèle de données, questions |
 
 ## Développement
+
+Pour contribuer, lire d'abord le guide d'architecture [`docs/architecture.md`](docs/architecture.md) (parcours d'un calcul, carte des modules, recettes, tests ciblés), puis [`CONTRIBUTING.md`](CONTRIBUTING.md). Tout nouveau lot met à jour la partie du guide qui le concerne.
 
 ```sh
 cargo test --workspace

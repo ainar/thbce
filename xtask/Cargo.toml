@@ -16,6 +16,7 @@ thbce-core.workspace = true
 thbce-data.workspace = true
 thbce-io = { workspace = true, features = ["classeur"] }
 serde_json.workspace = true
+toml.workspace = true
 
 [lints]
 workspace = true

@@ -1,6 +1,8 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # Contribuer
 
+**Pour commencer : [`docs/architecture.md`](docs/architecture.md)**, guide d'architecture : parcours d'un calcul (ordre exact de la boucle horaire), carte des crates et des modules, recettes pas à pas (générateur, ventilation, usage, champ d'entrée, sortie, exemple, question, équation), conventions et tests ciblés avec leurs durées. **Tout nouveau lot met à jour la partie du guide qui le concerne** (nouvelle étape, nouveau module, nouvelle recette ou exemple à imiter) ; `cargo run -p xtask -- verifier` contrôle que chaque chemin et chaque élément de code qu'il cite existe.
+
 ## Règle première : le texte fait foi
 
 Ce moteur implémente un texte réglementaire. Sa valeur tient à sa fidélité au texte.
@@ -56,6 +58,8 @@ cargo run -p xtask -- page --eq 75 --annexe ii   # annexe II (règles générale
 - Tests unitaires sur des valeurs calculées à la main à partir des formules du texte.
 - Tests de propriétés sur les invariants physiques.
 - Cas de validation dans `tests/cas/` (voir `tests/cas/README.md`).
+
+Pendant le développement, les alias de `.cargo/config.toml` lancent un module, un fichier de tests, un exemple de `tests/cas` ou un test réglementaire ignoré (`cargo t-core`, `cargo t-io`, `cargo t-cas <nom>`, `cargo t-regl <filtre>` ; voir `docs/architecture.md`, « Tests ciblés »). Ils ne remplacent pas les vérifications ci-dessous.
 
 Avant de pousser :
 
