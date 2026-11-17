@@ -147,6 +147,9 @@ fn executer(commande: Commande) -> Result<(), Echec> {
                     "avertissement : données météo non réglementaires, résultat non réglementaire"
                 );
             }
+            // Synthèse des indicateurs et de la conformité, sur la sortie d'erreur pour ne pas
+            // mêler le JSON des résultats.
+            eprint!("{}", rapport::synthese_indicateurs(&resultats));
             let document = json::ecrire_resultats(&resultats);
             match sortie {
                 Some(chemin) => std::fs::write(&chemin, document)

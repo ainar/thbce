@@ -136,6 +136,78 @@ export interface ResultatsBatiment {
   espaces_tampons?: ResultatsEspaceTampon[];
   /** Production photovoltaïque (§12) ; absente sans installation. */
   production_pv?: ResultatsProductionPv;
+  /** Indicateurs réglementaires (§13.2 à 13.4, Ic énergie, exigences) ; absents sans génération. */
+  indicateurs?: ResultatsIndicateurs;
+}
+export interface PostesElectricite {
+  chauffage_kwh: number;
+  refroidissement_kwh: number;
+  ecs_kwh: number;
+  eclairage_kwh: number;
+  auxiliaires_ventilation_kwh: number;
+  auxiliaires_distribution_kwh: number;
+  deplacements_kwh: number;
+  mobilier_kwh: number;
+}
+export interface LigneBilanEnergie {
+  poste: string;
+  energie: string;
+  cef_kwh: number;
+  coef_ep: number;
+  coef_ep_nr: number;
+  facteur_emission_kg_kwh: number | null;
+  cep_kwhep_m2: number;
+  cep_nr_kwhep_m2: number;
+  ic_energie_kgco2_m2: number | null;
+}
+export interface VerificationExigence {
+  indicateur: "bbio" | "cep" | "cep_nr" | "ic_energie" | "dh";
+  groupe?: string;
+  valeur: number;
+  maximum: number;
+  marge: number;
+  marge_pct: number;
+  respectee: boolean;
+}
+export interface ResultatsExigences {
+  bbio_max_pts: number;
+  cep_max_kwhep_m2: number;
+  cep_nr_max_kwhep_m2: number;
+  ic_energie_max_kgco2_m2: number;
+  /** Exigences et coefficients de modulation de chaque zone (voir `thbce schema --resultats`). */
+  zones: Record<string, number | string>[];
+  verifications: VerificationExigence[];
+  conforme: boolean;
+}
+export interface ResultatsIndicateurs {
+  sref_m2: number;
+  electricite_consommee: PostesElectricite;
+  electricite_importee: PostesElectricite;
+  electricite_importee_mensuel_kwh: number[];
+  production_pv?: {
+    e_prod_pv_kwh: number;
+    e_prod_pv_ac_kwh: number;
+    e_exportee_kwh: number;
+    tac_pct: number;
+    e_prod_pv_mensuel_kwh: number[];
+    e_prod_pv_ac_mensuel_kwh: number[];
+  };
+  forfaits_refroidissement?: {
+    zone: string;
+    groupe: string;
+    dh_c_h: number;
+    seuil_haut_c_h: number | null;
+    cef_kwh_m2: number;
+    cef_kwh: number;
+  }[];
+  energie_solaire_captee_kwh?: number;
+  lignes: LigneBilanEnergie[];
+  cef_kwhef_m2: number;
+  cep_kwhep_m2: number;
+  cep_nr_kwhep_m2: number;
+  ic_energie_kgco2_m2: number | null;
+  somme_f_co2: number;
+  exigences?: ResultatsExigences;
 }
 export interface ResultatsInstallationPv {
   id: string;

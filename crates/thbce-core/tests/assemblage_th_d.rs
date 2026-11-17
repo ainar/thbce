@@ -311,10 +311,11 @@ fn dh_restitue_aux_trois_niveaux() {
         .avertissements
         .iter()
         .any(|a| a.starts_with("DH calculé")));
-    assert!(brut
+    // Lot 7 : Cep et Cep,nr calculés ; plus d'avertissement « pas encore calculés ».
+    assert!(!brut
         .avertissements
         .iter()
-        .any(|a| a == "Cep, Cep,nr et Ic énergie ne sont pas encore calculés par le moteur"));
+        .any(|a| a.contains("pas encore calculés")));
     // Arrondi de restitution à une décimale (décision Q8).
     let arrondi = calculer(&p, &meteo(), &Options::default()).unwrap();
     assert_eq!(

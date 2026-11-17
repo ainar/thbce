@@ -8,9 +8,9 @@
 //! d'été DH (§13.5) ; enfin en mode Th-C (lot 6b), sur le jeu « Th-BC », pour les demandes des
 //! systèmes de chauffage et de refroidissement (§8). Les calculs emploient le même enchaînement
 //! horaire, paramétré par [`ModeCalcul`] ; les calculs Th-D et Th-C emploient la ventilation
-//! (§6.2 à 6.5) et les émetteurs (§8.1) du projet. La
-//! consommation des ventilateurs est restituée pour le Cep ; Cep, Cep,nr et Ic énergie restent
-//! à `None` jusqu'à l'implémentation des lots 6 et 7 (`docs/couverture.md`).
+//! (§6.2 à 6.5) et les émetteurs (§8.1) du projet. Les indicateurs réglementaires (Cep,
+//! Cep,nr, Ic énergie, exigences et conformité, §13.2 à 13.4) sont calculés à partir des
+//! consommations du calcul Th-C, relevées heure par heure pour l'autoconsommation (lot 7).
 
 use crate::bati::assemblage_batiment::BatimentHoraire;
 use crate::bati::assemblage_groupe::THETA_INITIALE_C;
@@ -28,7 +28,9 @@ use crate::conventions::{ModeCalcul, NB_HEURES_AN};
 use crate::ecs::distribution_ecs::{l_vc_2nd_e_defaut_m, EmetteurEcsResolu};
 use crate::entree::{Batiment, Catalogue, Groupe, Projet, UsageZone, Zone};
 use crate::erreur::Erreur;
+use crate::indicateurs::bilans_energies::{bilan, poste, ReleveElectrique};
 use crate::indicateurs::sorties_th_b::{sorties, EnergiesMensuelles};
+use crate::indicateurs::sorties_th_c::{calculer_indicateurs, EntreesIndicateurs};
 use crate::pv::global::produire;
 use crate::pv::ResultatsProductionPv;
 use crate::resultats::{
@@ -131,8 +133,6 @@ pub fn calculer(
         .iter()
         .map(|p| format!("{} : {}", p.chemin, p.message))
         .collect();
-    avertissements
-        .push("Cep, Cep,nr et Ic énergie ne sont pas encore calculés par le moteur".to_owned());
 
     let mut batiments = Vec::with_capacity(projet.batiments.len());
     for bat in &projet.batiments {
@@ -145,7 +145,17 @@ pub fn calculer(
         let th_d = simuler_batiment(bat, projet, ModeCalcul::ThD, &climat_th_d, &confort_th_d)?;
         // Mode Th-C (calcul des consommations), sur le jeu météo « Th-BC » : systèmes du projet,
         // saisons effectives, relances et générations (consommations en énergie finale).
-        let th_c = simuler_batiment(bat, projet, ModeCalcul::ThC, &climat_th_bc, &confort_th_bc)?;
+        // L'électricité consommée par poste est relevée à chaque pas de temps pour les bilans
+        // horaires du calcul des indicateurs (§13.4).
+        let mut releve = ReleveElectrique::default();
+        let th_c = simuler_batiment_avec(
+            bat,
+            projet,
+            ModeCalcul::ThC,
+            &climat_th_bc,
+            &confort_th_bc,
+            |h, b| releve.relever(h, b),
+        )?;
         // §8.29, éq. (1499), (1506) et (1513) : consommations des générations attribuées aux
         // groupes, sommées par zone puis pour le bâtiment.
         let mut cef_groupes = th_c.systemes.cumuls_cef_groupes.iter();
@@ -187,10 +197,42 @@ pub fn calculer(
                 for (z, cz) in zones.iter_mut().zip(c.zones) {
                     z.consommations_collectif = Some(cz);
                 }
+                // Éq. (2510), (2511) et (2513) : éclairage des parties communes et des
+                // parkings, ventilation des parkings, ascenseurs.
+                let [ecl_pc, asc, vent_park, ecl_park] = &c.series_batiment_wh;
+                releve.ajouter_serie(poste::ECL, ecl_pc);
+                releve.ajouter_serie(poste::DEPL, asc);
+                releve.ajouter_serie(poste::AUX_VENT, vent_park);
+                releve.ajouter_serie(poste::ECL, ecl_park);
                 (Some(c.batiment), c.ascenseurs, c.parkings)
             }
             None => (None, Vec::new(), Vec::new()),
         };
+        // Éq. (2504) : ventilateurs des centrales, de puissance constante en habitation.
+        for z in &zones {
+            if let Some(v) = &z.ventilation {
+                releve.ajouter_constante(poste::AUX_VENT, v.p_vent_w);
+            }
+        }
+        // Fiche 4.7 : usages mobiliers, pour la consommation « tous usages » (éq. 2515).
+        for z in &bat.zones {
+            releve.ajouter_serie(
+                poste::MOB,
+                &crate::indicateurs::equipements_mobiliers::consommation_horaire_wh(z)?,
+            );
+        }
+        // §12 : production sur le jeu météo « Th-BC » (comme les consommations).
+        let productions: Vec<_> = bat
+            .installations_pv
+            .iter()
+            .map(|i| produire(i, &projet.catalogue, &climat_th_bc))
+            .collect();
+        let mut prod_pv_wh = vec![0.0; if productions.is_empty() { 0 } else { NB_HEURES_AN }];
+        for p in &productions {
+            for (t, x) in prod_pv_wh.iter_mut().zip(&p.p_ond_w) {
+                *t += x;
+            }
+        }
         let c_aux_vent: Vec<f64> = zones
             .iter()
             .filter_map(|z| z.ventilation.as_ref().map(|v| v.c_aux_vent_kwh))
@@ -198,30 +240,48 @@ pub fn calculer(
         // Th-BCE 2020 §13.1.3, éq. (2378) : SREF_bat = somme des SREF_zn du bâtiment.
         let sref_m2: f64 = zones.iter().map(|z| z.sref_m2).sum();
         let bbio = sorties(&energies_bat, sref_m2);
+        let generations = resultats_generations(&th_c);
+        // §13.2 à 13.4 : indicateurs du bâtiment, dès qu'il a des générations.
+        let indicateurs = avec_generations.then(|| {
+            let bilan = bilan(&releve.horaire, &prod_pv_wh);
+            let (i, a) = calculer_indicateurs(&EntreesIndicateurs {
+                batiment: bat,
+                zone_climatique: zone,
+                alt_m: loc.alt_m,
+                zones: &zones,
+                sref_m2,
+                bbio_pts: Some(bbio.annuel.bbio_pts),
+                bilan: &bilan,
+                consommations: &consommations_bat.annuel,
+                generations: &generations,
+            });
+            avertissements.extend(a);
+            i
+        });
+        if !avec_generations {
+            avertissements.push(format!(
+                "bâtiment {} : sans génération, Cep, Cep,nr et Ic énergie ne sont pas calculés",
+                bat.id
+            ));
+        }
         batiments.push(ResultatsBatiment {
             id: bat.id.clone(),
             sref_m2,
             bbio_pts: Some(bbio.annuel.bbio_pts),
             bbio: Some(bbio),
-            cep_kwhep_m2: None,
-            cep_nr_kwhep_m2: None,
+            cep_kwhep_m2: indicateurs.as_ref().map(|i| i.cep_kwhep_m2),
+            cep_nr_kwhep_m2: indicateurs.as_ref().map(|i| i.cep_nr_kwhep_m2),
             dh_c_h: dh_le_plus_defavorable(zones.iter().filter_map(|z| z.dh_c_h)),
-            ic_energie_kgco2_m2: None,
+            ic_energie_kgco2_m2: indicateurs.as_ref().and_then(|i| i.ic_energie_kgco2_m2),
             c_aux_vent_kwh: (!c_aux_vent.is_empty()).then(|| c_aux_vent.iter().sum()),
             zones,
             distributions_intergroupes: resultats_intergroupes(&th_c),
             distributions_ecs_intergroupes: resultats_ecs_intergroupes(&th_c),
-            generations: resultats_generations(&th_c),
+            generations,
             consommations: avec_generations.then_some(consommations_bat),
-            production_pv: (!bat.installations_pv.is_empty()).then(|| {
-                // §12 : production sur le jeu météo « Th-BC » (comme les consommations).
-                let productions: Vec<_> = bat
-                    .installations_pv
-                    .iter()
-                    .map(|i| produire(i, &projet.catalogue, &climat_th_bc))
-                    .collect();
-                ResultatsProductionPv::depuis(&productions)
-            }),
+            production_pv: (!productions.is_empty())
+                .then(|| ResultatsProductionPv::depuis(&productions)),
+            indicateurs,
             consommations_collectif: conso_collectif,
             ascenseurs,
             parkings,
@@ -277,6 +337,19 @@ fn simuler_batiment(
     climat: &ClimatExterieur,
     confort: &ConfortAdaptatif,
 ) -> Result<BatimentHoraire, Erreur> {
+    simuler_batiment_avec(bat, projet, mode, climat, confort, |_, _| {})
+}
+
+/// Comme [`simuler_batiment`], en appelant `apres_le_pas(h, batiment)` à la fin de chaque pas
+/// de temps.
+fn simuler_batiment_avec(
+    bat: &Batiment,
+    projet: &Projet,
+    mode: ModeCalcul,
+    climat: &ClimatExterieur,
+    confort: &ConfortAdaptatif,
+    apres_le_pas: impl FnMut(usize, &BatimentHoraire),
+) -> Result<BatimentHoraire, Erreur> {
     // Humidité initiale de l'air des groupes : celle de l'air extérieur au premier pas de temps
     // (décision Q39 point 4).
     let omega_initiale = climat.we_kg_kg.first().copied().unwrap_or(0.0);
@@ -287,7 +360,7 @@ fn simuler_batiment(
         projet.localisation.alt_m,
         omega_initiale,
     )?;
-    calcul.simuler(climat, confort)?;
+    calcul.simuler_avec(climat, confort, apres_le_pas)?;
     Ok(calcul)
 }
 

@@ -58,10 +58,9 @@ fn calcule_les_surfaces_de_reference() {
         !arrondi.reglementaire,
         "un jeu météo synthétique n'est jamais réglementaire"
     );
-    // Le Bbio (lot 4d2) et le DH (lot 5) sont calculés ; les autres indicateurs ne le sont
-    // pas encore.
+    // Le Bbio (lot 4d2), le DH (lot 5), Cep et Cep,nr (lot 7) sont calculés.
     assert!(arrondi.batiments[0].bbio_pts.is_some_and(|b| b > 0.0));
-    assert_eq!(arrondi.batiments[0].cep_kwhep_m2, None);
+    assert!(arrondi.batiments[0].cep_kwhep_m2.is_some_and(|c| c > 0.0));
     assert!(arrondi.batiments[0].dh_c_h.is_some_and(|dh| dh >= 0.0));
 }
 
