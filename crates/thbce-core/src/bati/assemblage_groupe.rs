@@ -435,8 +435,12 @@ pub struct GroupeHoraire {
     pub id: String,
     /// Mode de calcul : Th-B (Bbio) ou Th-D (confort d'été).
     pub mode: ModeCalcul,
-    /// Vrai si l'usage de la zone est d'habitation (période de sommeil de l'éq. 2544).
+    /// Vrai si l'usage de la zone est « de type habitation » au sens du confort d'été (période
+    /// de sommeil de l'éq. 2544) : maison individuelle, logement collectif, établissement
+    /// sanitaire avec hébergement.
     pub habitation: bool,
+    /// « ihebergement » de l'usage de la zone (§4.1.3, tableau 4).
+    pub hebergement: bool,
     /// Lectures du texte employées (celles retenues, sauf pour mesurer une sensibilité).
     pub lectures: Lectures,
     /// Inerties séquentielle et annuelle (§5.21.3.3 et 5.21.3.4).
@@ -580,7 +584,8 @@ impl GroupeHoraire {
         Self {
             id: groupe.id.clone(),
             mode,
-            habitation: usage.est_habitation(),
+            habitation: usage.sommeil_confort_ete(),
+            hebergement: usage.i_hebergement(),
             lectures,
             inerties,
             a_gr_m2,

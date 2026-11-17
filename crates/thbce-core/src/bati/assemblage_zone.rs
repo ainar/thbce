@@ -171,8 +171,8 @@ impl ZoneHoraire {
             trav_zone_conventionnel(zone.usage.numero())
                 .or(zone.trav_zone)
                 .unwrap_or(true),
-            // Éq. (138) : pas de perméabilité verticale en usage d'habitation.
-            zone.usage.est_habitation(),
+            // Éq. (138) : pas de perméabilité verticale en usage d'habitation ou d'hébergement.
+            zone.usage.i_hebergement(),
             alt_m,
             zone.h_plancher_m.unwrap_or(0.0),
             zone.h_zone_m.unwrap_or(0.0),

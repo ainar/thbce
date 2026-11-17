@@ -6,9 +6,12 @@
 //! d'occupation, de ventilation et d'éclairage, la clé de répartition de l'ECS et les apports
 //! internes de chaleur et d'humidité des groupes.
 //!
-//! Périmètre : usages 1 (maison individuelle ou accolée) et 2 (logement collectif). Les autres
-//! usages demandent le nombre d'occupants de l'éq. (38) et la lecture de valeurs fractionnaires
-//! dans des indicateurs déclarés booléens (question Q27).
+//! Périmètre : les 28 usages du tableau 4. En maison individuelle ou accolée et en logement
+//! collectif, le nombre d'occupants vient des adultes équivalents (éq. 32 à 37) ; dans les
+//! autres usages, de l'occupation nominale de chaque local (éq. 38). Les grilles sont évaluées
+//! telles que le classeur les donne : les valeurs fractionnaires que quelques usages portent
+//! dans des indicateurs déclarés booléens (usages 17, 20, 23 et 24, question Q27) passent par le
+//! produit arithmétique du tableau 6 et restent à trancher quand ces usages seront ouverts.
 //!
 //! Les locaux prennent les ratios de surface par défaut du classeur (`Rat_l`).
 
@@ -107,6 +110,9 @@ pub struct SortiesZone {
     pub i_occ_gpm: f64,
     /// « Iecl » : mise en marche de l'éclairage (éq. 54).
     pub i_ecl: f64,
+    /// « iecs(j) » : faux pendant les vacances d'une zone dont l'usage est affilié à
+    /// l'enseignement, où l'éventuel réseau primaire d'ECS est arrêté (éq. 47).
+    pub i_ecs: bool,
     /// Nombre d'occupants de la zone, tous locaux confondus (éq. 37).
     pub n_occ: f64,
     /// Apports internes de chaleur des occupants de la zone, en W (somme sur les locaux de
@@ -146,16 +152,20 @@ pub struct ScenariosZone {
     pub a_z_m2: f64,
     /// « Rat_gr » : part de chaque groupe dans la surface utile de la zone (éq. 27).
     pub rat_gr: Vec<f64>,
-    /// « Nadeq » : nombre d'adultes équivalents de la zone.
+    /// « Nadeq » : nombre d'adultes équivalents de la zone (usages 1 et 2) ; 0 dans les autres
+    /// usages, où les occupants viennent de l'occupation nominale des locaux (éq. 38).
     pub nadeq: f64,
+    /// « ienseignement » de l'usage (tableau 4).
+    i_enseignement: bool,
     /// Grille hebdomadaire d'occupation pour la gestion des protections mobiles (éq. 51 et 52).
     p_occ_gpm_hebdo: [[f64; 24]; 7],
 }
 
 impl ScenariosZone {
-    /// Prépare les scénarios d'une zone d'habitation.
+    /// Prépare les scénarios d'une zone.
     ///
-    /// `a_gr_m2` : surface utile de chaque groupe (« Agr ») ; `nb_logements` : nombre de logements.
+    /// `a_gr_m2` : surface utile de chaque groupe (« Agr ») ; `nb_logements` : nombre de
+    /// logements, employé en maison individuelle ou accolée et en logement collectif seulement.
     pub fn nouveau(usage: UsageZone, a_gr_m2: &[f64], nb_logements: u32) -> Result<Self, Erreur> {
         let non_pris_en_charge = || Erreur::NonPrisEnCharge {
             chemin: "usage".to_owned(),
@@ -164,25 +174,33 @@ impl ScenariosZone {
                 usage.numero()
             ),
         };
-        if !usage.est_habitation() {
-            return Err(non_pris_en_charge());
-        }
         let scenarios =
             thbce_data::scenarios::usage(usage.numero()).ok_or_else(non_pris_en_charge)?;
         // Éq. (28) et (27).
         let a_z_m2: f64 = a_gr_m2.iter().sum();
         let rat_gr = a_gr_m2.iter().map(|a| a / a_z_m2).collect();
-        // Éq. (32), ou éq. (33) et (34) : le local d'habitation est le premier de l'usage.
-        let a_hab = scenarios.locaux[0].rat_l * a_z_m2;
-        let nadeq = nadeq(usage, a_hab / f64::from(nb_logements), nb_logements)
-            .ok_or_else(non_pris_en_charge)?;
+        let nadeq = if usage.est_habitation() {
+            // Éq. (32), ou éq. (33) et (34) : le local d'habitation est le premier de l'usage.
+            let a_hab = scenarios.locaux[0].rat_l * a_z_m2;
+            nadeq(usage, a_hab / f64::from(nb_logements), nb_logements)
+                .ok_or_else(non_pris_en_charge)?
+        } else {
+            0.0
+        };
         Ok(Self {
             usage: scenarios,
             a_z_m2,
             rat_gr,
             nadeq,
+            i_enseignement: usage.i_enseignement(),
             p_occ_gpm_hebdo: occupation_gpm(scenarios.occupation.grille_hebdo()),
         })
+    }
+
+    /// Vrai si le nombre d'occupants vient des adultes équivalents (usages 1 et 2,
+    /// §4.1.3.6.3.1) plutôt que de l'occupation nominale des locaux (§4.1.3.6.3.2).
+    fn par_adultes_equivalents(&self) -> bool {
+        self.usage.numero <= 2
     }
 
     /// Scénarios conventionnels de l'usage.
@@ -223,15 +241,31 @@ impl ScenariosZone {
             self.p_occ_gpm_hebdo[usize::from(date.jour) - 1][usize::from(date.heure) - 1];
         let i_occ_gpm = produit_consigne(occ_gpm_a, occ_gpm_s);
 
-        // Éq. (37) : occupants du local d'habitation ; les autres locaux n'en ont pas.
-        let hab = &u.locaux[0];
-        let n_occ = self.nadeq * i_occ_zone * produit(hab.occupants.scenario);
         // Éq. (41) et (43), sommées sur les locaux : Al = Az·Rat_l (éq. 29).
         let (mut q_int_w, mut w_int_kg_h) = (0.0, 0.0);
-        for l in u.locaux {
+        // Occupants, sommés sur les locaux (éq. 39 et 40).
+        let (mut n_occ, mut q_occ_w, mut w_occ_kg_h) = (0.0, 0.0, 0.0);
+        let par_adultes_equivalents = self.par_adultes_equivalents();
+        for (il, l) in u.locaux.iter().enumerate() {
             let a_l = self.a_z_m2 * l.rat_l;
             q_int_w += a_l * l.chaleur.valeur_par_unite * produit(l.chaleur.scenario);
             w_int_kg_h += a_l * l.humidite.valeur_par_unite * produit(l.humidite.scenario);
+            let n_occ_l = if par_adultes_equivalents {
+                // Éq. (37) : occupants du local d'habitation, le premier de l'usage ; les
+                // autres locaux n'en ont pas.
+                if il > 0 {
+                    continue;
+                }
+                self.nadeq * i_occ_zone * produit(l.occupants.scenario)
+            } else {
+                // Éq. (38) : `Nocc = Al·Nocc_nom·(pocc_a × pocc_s)·(tocc_a·tocc_s)`.
+                a_l * l.occupants.nombre_nominal.unwrap_or(0.0)
+                    * i_occ_zone
+                    * produit(l.occupants.scenario)
+            };
+            n_occ += n_occ_l;
+            q_occ_w += n_occ_l * l.occupants.chaleur_w;
+            w_occ_kg_h += n_occ_l * l.occupants.humidite_kg_h;
         }
 
         SortiesZone {
@@ -259,9 +293,11 @@ impl ScenariosZone {
             i_occ_zone,
             i_occ_gpm,
             i_ecl: produit(u.eclairage),
+            // Éq. (47).
+            i_ecs: !(self.i_enseignement && occ_a <= 0.0),
             n_occ,
-            q_occ_w: n_occ * hab.occupants.chaleur_w,
-            w_occ_kg_h: n_occ * hab.occupants.humidite_kg_h,
+            q_occ_w,
+            w_occ_kg_h,
             q_int_w,
             w_int_kg_h,
         }
@@ -499,13 +535,107 @@ mod tests {
         assert_eq!(gpm[9], 1.0);
     }
 
+    /// Bureaux (usage 3), 1 000 m² utiles : valeurs calculées à la main d'après le classeur
+    /// (onglet `BUR`) et l'éq. (38).
     #[test]
-    fn les_usages_hors_perimetre_sont_refuses() {
-        assert!(matches!(
-            ScenariosZone::nouveau(UsageZone::Bureaux, &[100.0], 1),
-            Err(Erreur::NonPrisEnCharge { .. })
-        ));
+    fn bureaux_un_lundi() {
+        let z = ScenariosZone::nouveau(UsageZone::Bureaux, &[600.0, 400.0], 1).unwrap();
+        assert_eq!(z.nadeq, 0.0);
+        assert!(proche(z.a_z_m2, 1000.0));
+        // 10 h–11 h légales (case 11) : zone occupée, consignes normales.
+        let s = z.evaluer(lundi(11));
+        assert_eq!((s.date.jour, s.date.heure), (1, 11));
+        assert_eq!(
+            (s.i_occ_zone, s.i_vent, s.i_ecl, s.i_vac, s.i_ecs),
+            (1.0, 1.0, 1.0, 1.0, true)
+        );
+        assert_eq!((s.theta_ii_ch_c, s.theta_ii_fr_c), (19.0, 26.0));
+        // Éq. (38), locaux du classeur : bureau standard, 604,7 m² × 0,1 occupant/m² au taux 1 ;
+        // salle de réunion, 104,7 m² × 0,42 au taux 0,5 ; circulations et sanitaires sans
+        // occupant : 60,47 + 21,987 = 82,457 occupants.
+        assert!(proche(s.n_occ, 82.457));
+        assert!(proche(s.q_occ_w, 90.0 * 82.457));
+        assert!(proche(s.w_occ_kg_h, 0.055 * 82.457));
+        // Éq. (41) : bureaux 16 W/m² au ratio 1, salle de réunion 10 W/m² au ratio 0,5 :
+        // 9 675,2 + 523,5 = 10 198,7 W.
+        assert!(proche(s.q_int_w, 10198.7));
+        // Répartition entre groupes au prorata des surfaces utiles (éq. 27, 39 et 42).
+        let g0 = z.apports_groupe(0, &s);
+        assert!(proche(g0.phi_int_occ_conv_w, 0.6 * 0.5 * s.q_occ_w));
+        assert!(proche(g0.phi_int_rad_w, 0.6 * 0.5 * s.q_int_w));
+
+        // Nuit du lundi (case 3) : inoccupée, encore en réduit de plus de 48 h après le
+        // week-end (7 °C) ; équipements au ratio 0,11111 dans les bureaux standards.
+        let nuit = z.evaluer(lundi(3));
+        assert_eq!((nuit.i_occ_zone, nuit.n_occ, nuit.i_vent), (0.0, 0.0, 0.0));
+        assert_eq!((nuit.p_ch, nuit.theta_ii_ch_c), (-1.0, 7.0));
+        assert!(proche(nuit.q_int_w, 604.7 * 16.0 * 0.11111));
+        // Nuit du mardi : réduit de moins de 48 h, 16 °C et 30 °C.
+        let mardi = z.evaluer(lundi(3) + 24);
+        assert_eq!((mardi.theta_ii_ch_c, mardi.theta_ii_fr_c), (16.0, 30.0));
+        // Samedi (jour 6), 10 h–11 h : réduit de plus de 48 h, 7 °C.
+        let samedi = z.evaluer(lundi(11) + 5 * 24);
+        assert_eq!(samedi.date.jour, 6);
+        assert_eq!((samedi.p_ch, samedi.theta_ii_ch_c), (-1.0, 7.0));
+        assert_eq!(samedi.i_occ_gpm, -1.0);
     }
+
+    /// Les 28 usages s'évaluent sur l'année : indicateurs bornés, apports positifs, occupants
+    /// nuls quand la zone est inoccupée.
+    #[test]
+    fn les_28_usages_s_evaluent() {
+        for u in &thbce_data::scenarios::USAGES {
+            let usage: UsageZone =
+                serde_json::from_value(serde_json::json!(NOMS_USAGES[usize::from(u.numero) - 1]))
+                    .unwrap();
+            assert_eq!(usage.numero(), u.numero);
+            let z = ScenariosZone::nouveau(usage, &[500.0], 5).unwrap();
+            for h in (0..8760).step_by(7) {
+                let s = z.evaluer(h);
+                assert!((0.0..=1.0).contains(&s.i_occ_zone), "{}", u.onglet);
+                assert!((0.0..=1.0).contains(&s.i_vent) && (0.0..=1.0).contains(&s.i_ecl));
+                assert!(s.n_occ >= 0.0 && s.q_int_w >= 0.0 && s.w_int_kg_h >= 0.0);
+                assert!((0.0..=1.0).contains(&s.ah), "{}", u.onglet);
+                if s.i_occ_zone == 0.0 {
+                    assert_eq!(s.n_occ, 0.0, "{}", u.onglet);
+                }
+                // Éq. (47) : l'ECS ne s'arrête que pendant les vacances de l'enseignement.
+                assert_eq!(s.i_ecs, !(usage.i_enseignement() && s.i_vac == 0.0));
+            }
+        }
+    }
+
+    /// Noms JSON des 28 usages, dans l'ordre du tableau 4.
+    const NOMS_USAGES: [&str; 28] = [
+        "maison_individuelle",
+        "logement_collectif",
+        "bureaux",
+        "enseignement_primaire",
+        "enseignement_secondaire",
+        "mediatheque_bibliotheque",
+        "universitaire",
+        "hotel012_nuit",
+        "hotel345_nuit",
+        "hotel012_jour",
+        "hotel345_jour",
+        "petite_enfance",
+        "restaurant_continu",
+        "restaurant1_repas5_jours",
+        "restaurant2_repas7_jours",
+        "restaurant2_repas6_jours",
+        "commerces",
+        "vestiaires",
+        "sanitaire_avec_hebergement",
+        "sante_nuit",
+        "sante_jour",
+        "aerogare",
+        "industrie3x8",
+        "industrie8h18h",
+        "sport_municipal_scolaire",
+        "restaurant_scolaire1_repas",
+        "restaurant_scolaire3_repas",
+        "sport_prive",
+    ];
 
     #[test]
     fn invariants_sur_l_annee() {

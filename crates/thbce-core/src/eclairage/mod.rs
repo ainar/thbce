@@ -1,11 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Éclairage : fiche `C_ECL_éclairage` (Th-BCE 2020 §7.1).
 //!
-//! Périmètre : usages d'habitation (maison individuelle ou accolée, logement collectif), pour
-//! lesquels le système d'éclairage est entièrement conventionnel (§7.1.3.6.2) : seules les
-//! caractéristiques des baies agissent sur la consommation. L'éclairement naturel intérieur est
-//! calculé pour les locaux de volume normal (baies de type 2). Les grands volumes, les modes de
-//! gestion des autres usages (tableaux 78 et 79) et le fractionnement ne sont pas pris en charge.
+//! Périmètre :
+//! - usages d'habitation (maison individuelle ou accolée, logement collectif), pour lesquels le
+//!   système d'éclairage est entièrement conventionnel (§7.1.3.6.2) : seules les
+//!   caractéristiques des baies agissent sur la consommation ;
+//! - autres usages : locaux du groupe (tableau 78), puissance conventionnelle du calcul du Bbio
+//!   (éq. 782) ou puissances du projet, modes de commande (`C1`) et de gestion selon la lumière
+//!   naturelle (`C2`, tableau 79), fractionnement, éclairage mobilier des bureaux
+//!   (§7.1.3.2.3), consommation des périphériques de gestion (éq. 787).
+//!
+//! L'éclairement naturel intérieur est calculé pour les locaux de volume normal (baies de
+//! type 2). Les grands volumes (baies de types 0 et 1 ; salles de sport, aires de production,
+//! aires de vente de plus de 300 m²) et l'éclairage d'accentuation des commerces (§7.1.3.2.2)
+//! ne sont pas pris en charge.
+
+use thbce_data::eclairage::{est_grand_volume, local as local_tableau_78, TypeLocal};
+
+use crate::entree::{GestEcl, GradEcl, LocalEclairage};
 
 /// « RgrA,AT » : ratio de la surface totale des parois du groupe à sa surface utile (§7.1.2,
 /// constantes).
@@ -175,5 +187,321 @@ impl AutonomieLumineuse {
     pub fn taux_occ_einat_sup_pct(&self) -> Option<f64> {
         let total = self.nbh_occ_einat_sup + self.nbh_occ_einat_inf;
         (total > 0).then(|| 100.0 * f64::from(self.nbh_occ_einat_sup) / f64::from(total))
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Usages autres que l'habitation (§7.1.3.1 à 7.1.3.6.1).
+// ---------------------------------------------------------------------------------------------
+
+/// « Eimin » : éclairement naturel en deçà duquel l'éclairage artificiel est indispensable, en
+/// lux (§7.1.2, constantes ; point B du tableau 79).
+pub const EI_MIN_LUX: f64 = 100.0;
+/// « Part_resid_grad » : part de la puissance résiduelle d'un gradateur (tableau 79).
+pub const PART_RESID_GRAD: f64 = 0.15;
+/// « Eff_ecl_mob » : densité de puissance de l'éclairage mobilier des bureaux, en W/m² pour
+/// 100 lux (§7.1.2 et §7.1.3.2.3).
+pub const EFF_ECL_MOB_W_M2_100LUX: f64 = 1.0;
+/// Puissance immobilière au-dessous de laquelle l'éclairage mobilier des bureaux est évalué, en
+/// W/m² (§7.1.3.2.3).
+pub const P_ECL_IMMO_SEUIL_BUREAUX_W_M2: f64 = 10.0;
+
+/// Points de référence de la gestion manuelle (`Grad_ecl = 1`), `(Einat en lux ; C2)` : A, B, G
+/// et J (tableau 79, figures 82 et 83).
+pub const POINTS_C2_MANUEL: [(f64, f64); 4] =
+    [(0.0, 1.0), (EI_MIN_LUX, 1.0), (700.0, 0.3), (2800.0, 0.0)];
+
+fn interpoler(points: &[(f64, f64)], x: f64) -> f64 {
+    if x <= points[0].0 {
+        return points[0].1;
+    }
+    for paire in points.windows(2) {
+        let ((x0, y0), (x1, y1)) = (paire[0], paire[1]);
+        if x <= x1 {
+            return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+        }
+    }
+    0.0
+}
+
+/// « Pecl_tot » conventionnelle du calcul du Bbio hors habitation, en W/m².
+///
+/// Th-BCE 2020 §7.1.3.1, éq. (782) : `Pecl_tot = 2 × Eiref/100`.
+pub fn p_ecl_tot_bbio_w_m2(e_ref_lux: f64) -> f64 {
+    2.0 * e_ref_lux / 100.0
+}
+
+/// « Pecl_tot,l » d'un local de bureaux d'une zone de bureaux, en W/m², éclairage mobilier
+/// compris.
+///
+/// Th-BCE 2020 §7.1.3.2.3 : si la puissance immobilière `Pecl_immo_projet` est inférieure à
+/// 10 W/m², l'éclairement qu'elle procure vaut `Ecl_immo_projet = 100 × Pecl_immo_projet /
+/// Eff_ecl_immo_projet` ; s'il est inférieur à l'éclairement requis `Eiproj`, l'éclairage
+/// mobilier apporte `Pecl_mob = (Eiproj − Ecl_immo_projet)/100 × Eff_ecl_mob`, avec
+/// `Eff_ecl_mob = 1 W/m²` pour 100 lux. À partir de 10 W/m², `Pecl_tot = Pecl_immo_projet`.
+pub fn p_ecl_tot_bureaux_w_m2(
+    p_ecl_immo_projet_w_m2: f64,
+    eff_ecl_immo_projet_w_m2_100lux: f64,
+    ei_proj_lux: f64,
+) -> f64 {
+    if p_ecl_immo_projet_w_m2 >= P_ECL_IMMO_SEUIL_BUREAUX_W_M2 {
+        return p_ecl_immo_projet_w_m2;
+    }
+    let ecl_immo_projet_lux = 100.0 * p_ecl_immo_projet_w_m2 / eff_ecl_immo_projet_w_m2_100lux;
+    let p_ecl_mob = if ecl_immo_projet_lux < ei_proj_lux {
+        (ei_proj_lux - ecl_immo_projet_lux) / 100.0 * EFF_ECL_MOB_W_M2_100LUX
+    } else {
+        0.0
+    };
+    p_ecl_immo_projet_w_m2 + p_ecl_mob
+}
+
+/// « C1 » d'un local : taux d'utilisation de l'éclairage en l'absence de lumière naturelle.
+///
+/// Th-BCE 2020 §7.1.3.6.1 : 1 sans commande ni détection (`Gest_ecl = 0`) ; sinon la colonne du
+/// tableau 78 du mode de commande.
+pub fn c1(gest_ecl: GestEcl, c1_tableau_78: &[f64; 4]) -> f64 {
+    match gest_ecl {
+        GestEcl::Permanent => 1.0,
+        GestEcl::InterrupteurManuel => c1_tableau_78[0],
+        GestEcl::InterrupteurEtHorloge => c1_tableau_78[1],
+        GestEcl::MarcheEtArretAutomatiques => c1_tableau_78[2],
+        GestEcl::MarcheManuelleArretAutomatique => c1_tableau_78[3],
+    }
+}
+
+/// « C2 » : dépendance de l'éclairage artificiel à la lumière naturelle, selon le mode de
+/// gestion.
+///
+/// Th-BCE 2020 §7.1.3.6.1, tableau 79 et figures 82 à 85, interpolation linéaire entre les
+/// points de référence :
+/// - `Grad_ecl = 0` : `C2 = 1` ;
+/// - 1, gestion manuelle : A (0 ; 1), B (100 ; 1), G (700 ; 0,3), J (2800 ; 0), nul au-delà ;
+/// - 2, gradation automatique : A, B, E (`Eiref` ; 0,15), H (`2·Eiref` ; 0,15), I (`2·Eiref` ;
+///   0), nul au-delà de `2·Eiref` ;
+/// - 3, allumage et extinction automatiques : 1 jusqu'à `Eiref`, nul au-delà ;
+/// - 4, extinction automatique : courbe de la gestion manuelle jusqu'à `Eiref` (le point D est
+///   sur le segment BG si `Eiref < 700`, sur le segment GJ sinon), nul au-delà.
+///
+/// Quand `Eiref` ne dépasse pas `Eimin` (100 lux : circulations et salles de réunion des
+/// bureaux, par exemple), le point E précède le point B : `C2` reste égal à 1 jusqu'à `Eimin`,
+/// « éclairement naturel minimum en deçà duquel l'éclairage artificiel est indispensable »,
+/// puis suit les points situés au-delà (lecture Q58).
+pub fn c2(grad_ecl: GradEcl, einat_lux: f64, e_ref_lux: f64) -> f64 {
+    match grad_ecl {
+        GradEcl::Aucune => 1.0,
+        GradEcl::Manuelle => interpoler(&POINTS_C2_MANUEL, einat_lux),
+        GradEcl::GradationAutomatique => {
+            if einat_lux <= EI_MIN_LUX {
+                1.0
+            } else if einat_lux <= e_ref_lux {
+                1.0 + (PART_RESID_GRAD - 1.0) * (einat_lux - EI_MIN_LUX) / (e_ref_lux - EI_MIN_LUX)
+            } else if einat_lux <= 2.0 * e_ref_lux {
+                PART_RESID_GRAD
+            } else {
+                0.0
+            }
+        }
+        GradEcl::AllumageEtExtinctionAutomatiques => {
+            if einat_lux <= e_ref_lux.max(EI_MIN_LUX) {
+                1.0
+            } else {
+                0.0
+            }
+        }
+        GradEcl::ExtinctionAutomatique => {
+            if einat_lux <= e_ref_lux.max(EI_MIN_LUX) {
+                interpoler(&POINTS_C2_MANUEL, einat_lux)
+            } else {
+                0.0
+            }
+        }
+    }
+}
+
+/// Facteur appliqué à l'éclairement naturel de la partie d'un local de volume normal qui n'a
+/// pas d'accès effectif à la lumière naturelle.
+///
+/// Th-BCE 2020 §7.1.3.6.1 : `2,5·Ratioecl_nat − 1,5` si `Ratioecl_nat > 0,7` ;
+/// `0,5·Ratioecl_nat − 0,1` si `0,2 < Ratioecl_nat ≤ 0,7` ; 0 sinon.
+pub fn facteur_einat_sans_acces(ratio_ecl_nat: f64) -> f64 {
+    if ratio_ecl_nat > 0.7 {
+        2.5 * ratio_ecl_nat - 1.5
+    } else if ratio_ecl_nat > 0.2 {
+        0.5 * ratio_ecl_nat - 0.1
+    } else {
+        0.0
+    }
+}
+
+/// « CTRLecl_einat,l » : commande de l'éclairage artificiel d'un local de volume normal selon
+/// l'éclairement naturel, en occupation.
+///
+/// Th-BCE 2020 §7.1.3.6.1 : `CTRLecl_einat = Ratioecl_nat·C2ae + (1 − Ratioecl_nat)·C2pae`. Si
+/// le local n'a aucun accès à la lumière naturelle, `C2ae = C2pae = 1`. Sinon `C2pae` se lit
+/// avec `Einat(2)` réduit par [`facteur_einat_sans_acces`] ; `C2ae` avec `Einat(2)` si la
+/// gestion est fractionnée, et vaut `C2pae` si elle ne l'est pas : « c'est la partie sans accès
+/// à l'éclairement naturel qui impose le fonctionnement de l'éclairage artificiel pour
+/// l'ensemble du local ».
+pub fn ctrl_ecl_einat(
+    grad_ecl: GradEcl,
+    fractionne: bool,
+    ratio_ecl_nat: f64,
+    einat2_lux: f64,
+    e_ref_lux: f64,
+) -> f64 {
+    if ratio_ecl_nat <= 0.0 {
+        return 1.0;
+    }
+    let c2_pae = c2(
+        grad_ecl,
+        einat2_lux * facteur_einat_sans_acces(ratio_ecl_nat),
+        e_ref_lux,
+    );
+    let c2_ae = if fractionne {
+        c2(grad_ecl, einat2_lux, e_ref_lux)
+    } else {
+        c2_pae
+    };
+    ratio_ecl_nat * c2_ae + (1.0 - ratio_ecl_nat) * c2_pae
+}
+
+/// Local d'un groupe, prêt pour le calcul de l'éclairage.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LocalResolu {
+    /// « Alocal,l » : surface du local, en m² (`Agr × Ratiolocal,l`).
+    pub a_local_m2: f64,
+    /// « Ratioécl_nat,l ».
+    pub ratio_ecl_nat: f64,
+    /// « Pecl_tot,l », en W/m².
+    pub p_ecl_tot_w_m2: f64,
+    /// « Pecl_aux,l », en W/m².
+    pub p_ecl_aux_w_m2: f64,
+    /// « C1 ».
+    pub c1: f64,
+    /// « Grad_ecl,l ».
+    pub grad_ecl: GradEcl,
+    /// Gestion fractionnée (`Fr_Grad_ecl,l = 2`).
+    pub fractionne: bool,
+    /// « Eiref », en lux.
+    pub e_ref_lux: f64,
+}
+
+/// Vrai si le système d'un local a des périphériques de gestion (§7.1.3.6 : sans détection de
+/// présence ni gestion automatique selon la lumière naturelle, `Pecl_aux = 0`).
+pub fn a_des_peripheriques_de_gestion(gest_ecl: GestEcl, grad_ecl: GradEcl) -> bool {
+    !(matches!(
+        gest_ecl,
+        GestEcl::Permanent | GestEcl::InterrupteurManuel | GestEcl::InterrupteurEtHorloge
+    ) && matches!(grad_ecl, GradEcl::Aucune | GradEcl::Manuelle))
+}
+
+impl LocalResolu {
+    /// Local dans le calcul du Bbio.
+    ///
+    /// Th-BCE 2020 §7.1.3.1, éq. (782) : `Pecl_tot = 2 × Eiref/100`, `Pecl_aux = 0`,
+    /// `Gest_ecl = 2`, `Grad_ecl = 1`, gestion non fractionnée. `None` si le tableau 78 n'a pas
+    /// ce type de local pour l'usage, ou pour un local de grand volume (non pris en charge).
+    pub fn bbio(usage: u8, l: &LocalEclairage, a_gr_m2: f64) -> Option<Self> {
+        let t = local_tableau_78(usage, l.type_local)?;
+        if est_grand_volume(usage, l.type_local) {
+            return None;
+        }
+        Some(Self {
+            a_local_m2: a_gr_m2 * l.ratio_local,
+            ratio_ecl_nat: l.ratio_ecl_nat,
+            p_ecl_tot_w_m2: p_ecl_tot_bbio_w_m2(t.e_ref_lux),
+            p_ecl_aux_w_m2: 0.0,
+            c1: c1(GestEcl::InterrupteurEtHorloge, &t.c1),
+            grad_ecl: GradEcl::Manuelle,
+            fractionne: false,
+            e_ref_lux: t.e_ref_lux,
+        })
+    }
+
+    /// Local avec le système d'éclairage du projet (§7.1.3.2), pour le calcul des
+    /// consommations. `None` si le tableau 78 n'a pas ce type de local pour l'usage, pour un
+    /// local de grand volume, ou si une donnée requise manque (cas écartés par la validation).
+    pub fn projet(usage: u8, l: &LocalEclairage, a_gr_m2: f64) -> Option<Self> {
+        let t = local_tableau_78(usage, l.type_local)?;
+        if est_grand_volume(usage, l.type_local) {
+            return None;
+        }
+        let e = &l.eclairage;
+        // §7.1.3.2.3 : éclairage mobilier des locaux de bureaux d'une zone de bureaux.
+        let p_ecl_tot_w_m2 = if est_local_de_bureaux(usage, l.type_local)
+            && e.p_ecl_tot_w_m2 < P_ECL_IMMO_SEUIL_BUREAUX_W_M2
+        {
+            p_ecl_tot_bureaux_w_m2(
+                e.p_ecl_tot_w_m2,
+                e.eff_ecl_immo_projet_w_m2_100lux?,
+                e.ei_proj_lux?,
+            )
+        } else {
+            e.p_ecl_tot_w_m2
+        };
+        Some(Self {
+            a_local_m2: a_gr_m2 * l.ratio_local,
+            ratio_ecl_nat: l.ratio_ecl_nat,
+            p_ecl_tot_w_m2,
+            p_ecl_aux_w_m2: if a_des_peripheriques_de_gestion(e.gest_ecl, e.grad_ecl) {
+                e.p_ecl_aux_w_m2.unwrap_or(0.0)
+            } else {
+                0.0
+            },
+            c1: c1(e.gest_ecl, &t.c1),
+            grad_ecl: e.grad_ecl,
+            fractionne: e.fractionne,
+            e_ref_lux: t.e_ref_lux,
+        })
+    }
+
+    /// « CECL_local,l » : consommation du local sur l'heure, en kWh.
+    ///
+    /// Th-BCE 2020 §7.1.3.6, éq. (787) :
+    /// `Max(Pecl_tot·CTRLecl_occ·CTRLecl_einat ; Pecl_aux)·Alocal/1000`, avec `CTRLecl_occ = 0`
+    /// si `IEcl = 0` et `C1` si `IEcl = 1` (éq. 788).
+    pub fn c_ecl_local_kwh(&self, i_ecl: bool, einat2_lux: f64) -> f64 {
+        let ctrl_occ = if i_ecl { self.c1 } else { 0.0 };
+        let ctrl_einat = ctrl_ecl_einat(
+            self.grad_ecl,
+            self.fractionne,
+            self.ratio_ecl_nat,
+            einat2_lux,
+            self.e_ref_lux,
+        );
+        (self.p_ecl_tot_w_m2 * ctrl_occ * ctrl_einat).max(self.p_ecl_aux_w_m2) * self.a_local_m2
+            / 1000.0
+    }
+}
+
+/// Local « de bureaux » d'une zone de bureaux, au sens du §7.1.3.2.3 : le bureau standard de
+/// l'usage 3 (lecture Q59 : les salles de réunion, circulations et sanitaires sont des « autres
+/// locaux », dont les caractéristiques sont des données d'entrée, §7.1.3.2.4).
+pub fn est_local_de_bureaux(usage: u8, type_local: TypeLocal) -> bool {
+    usage == 3 && type_local == TypeLocal::BureauStandard
+}
+
+/// « Aeclnat2 » : surface des locaux de volume normal du groupe ayant accès à la lumière
+/// naturelle, en m² (§7.1.3.3 : `Σ Agr·Ratio_local,l·Ratioecl_nat,l`).
+pub fn a_eclnat2_m2(locaux: &[LocalResolu]) -> f64 {
+    locaux.iter().map(|l| l.a_local_m2 * l.ratio_ecl_nat).sum()
+}
+
+/// Consommation d'éclairage et apports récupérables d'un groupe hors habitation.
+///
+/// Th-BCE 2020 §7.1.3.6, éq. (786) : somme des consommations des locaux (éq. 787) ; §7.1.3.7 :
+/// `FeclC = Crec_ecl_conv·CECL_GR` et `FeclR = Crec_ecl_rad·CECL_GR`, en W (puissance moyenne
+/// sur l'heure, question Q33).
+pub fn eclairage_locaux(locaux: &[LocalResolu], i_ecl: bool, einat2_lux: f64) -> EclairageGroupe {
+    let c_ecl_kwh: f64 = locaux
+        .iter()
+        .map(|l| l.c_ecl_local_kwh(i_ecl, einat2_lux))
+        .sum();
+    let puissance_w = c_ecl_kwh * 1000.0;
+    EclairageGroupe {
+        c_ecl_kwh,
+        f_ecl_c_w: C_REC_ECL_CONV * puissance_w,
+        f_ecl_r_w: C_REC_ECL_RAD * puissance_w,
     }
 }
