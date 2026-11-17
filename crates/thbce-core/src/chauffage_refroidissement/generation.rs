@@ -435,6 +435,11 @@ pub struct EntreesGeneration<'a> {
     /// Conditions de source amont de chaque générateur, dans l'ordre des générateurs ; vide si
     /// aucun n'en dépend.
     pub sources: &'a [ConditionsSource],
+    /// Climat du calcul, pour l'ensoleillement des capteurs des boucles solaires (fiche 3.2) ;
+    /// `None` : ensoleillement nul.
+    pub climat: Option<&'a crate::climat::ClimatExterieur>,
+    /// Indice du pas de temps dans l'année, de 0 à 8 759.
+    pub h: usize,
 }
 
 /// Conditions de la source amont d'un générateur thermodynamique à un pas de temps (fiche
@@ -574,6 +579,7 @@ impl GenerationHoraire {
         g: &crate::entree::Generation,
         ids_et: &[String],
         ids_zones: &[String],
+        catalogue: &crate::entree::Catalogue,
     ) -> Self {
         use crate::entree::{
             FonctionEffetJoule, GestionTemperatureGeneration, NatureGenerateur, PositionGeneration,
@@ -641,7 +647,12 @@ impl GenerationHoraire {
                 })
             })
             .collect();
-        let stockages = Self::resoudre_stockages(g, &mut generateurs, ids_et, ids_zones);
+        let mut stockages = Self::resoudre_stockages(g, &mut generateurs, ids_et, ids_zones);
+        stockages.extend(g.chauffe_eau_solaires.iter().filter_map(|c| {
+            crate::ecs::chauffe_eau_solaire::resoudre(c, catalogue, |id| {
+                generateurs.iter().position(|x| x.id == id)
+            })
+        }));
         let gestion = |x: Option<GestionTemperatureGeneration>| match x {
             Some(GestionTemperatureGeneration::Constante { theta_wm_c }) => {
                 GestionTemperature::Constante(theta_wm_c)
@@ -932,6 +943,8 @@ impl GenerationHoraire {
         // instantanés, ou est reporté.
         let mut q_fou_sto = 0.0;
         let mut phi_pertes_sto = 0.0;
+        let mut w_pompes_solaires = 0.0;
+        let mut phi_vc_boucles = 0.0;
         if e.id_encl && !self.stockages.is_empty() {
             let mut stockages = std::mem::take(&mut self.stockages);
             let theta_depart = e
@@ -941,6 +954,11 @@ impl GenerationHoraire {
                 .map(|r| r.theta_dep_c)
                 .fold(0.0, f64::max);
             for st in &mut stockages {
+                // Fiche 3.2 : ensoleillement du plan des capteurs d'une boucle solaire.
+                let isr = match (&st.solaire, e.climat) {
+                    (Some(sol), Some(climat)) => sol.capteurs.isr_w_m2(climat, e.h),
+                    _ => 0.0,
+                };
                 let s = st.pas(
                     &EntreesAssemblage {
                         q_req_ecs_wh: q_ar[2],
@@ -948,6 +966,9 @@ impl GenerationHoraire {
                         theta_depart_c: theta_depart,
                         theta_amb_c: theta_amb,
                         hleg: e.hleg,
+                        theta_ext_c: e.theta_ext_c,
+                        isr_w_m2: isr,
+                        mois,
                     },
                     &mut |i, q_req, theta_aval| {
                         self.appeler_pour_ballon(i, q_req, theta_aval, theta_amb, e)
@@ -956,6 +977,8 @@ impl GenerationHoraire {
                 q_ar[2] = s.q_rest_ecs_wh;
                 q_fou_sto += s.q_fou_ecs_wh;
                 phi_pertes_sto += s.phi_pertes_wh;
+                w_pompes_solaires += s.w_pompe_wh;
+                phi_vc_boucles += s.phi_vc_bs_wh;
             }
             self.stockages = stockages;
         }
@@ -1030,9 +1053,14 @@ impl GenerationHoraire {
         self.cumuls.phi_pertes_sto_wh += phi_pertes_sto;
         let q_ar = [q_ar[0], q_ar[1], q_ar_ecs];
         q_cef.ajouter(Poste::Ecs, Energie::Electricite, e.w_rechauf_wh);
+        // Éq. (1972) : pompes des boucles solaires d'une production d'ECS seule, au poste ECS.
+        q_cef.ajouter(Poste::Ecs, Energie::Electricite, w_pompes_solaires);
         if !self.en_volume_chauffe {
             phi_vc = 0.0;
         }
+        // Éq. (1973) : pertes des tuyauteries des boucles solaires « vers l'intérieur du
+        // bâtiment », récupérables quel que soit l'emplacement du ballon (lecture Q52).
+        phi_vc += phi_vc_boucles;
         // Éq. (1059) à (1064) : sous-dimensionnement. Les indicateurs « ne concernent que les
         // générateurs (le sous-dimensionnement des ballons de stockage est évalué séparément) » :
         // en ECS, seul compte ce que les générateurs instantanés n'ont pas fourni ; le reste dû
@@ -1582,6 +1610,8 @@ mod tests {
             theta_cw_c: 12.0,
             hleg: 12,
             sources: &[],
+            climat: None,
+            h: 0,
         }
     }
 

@@ -1277,6 +1277,196 @@ pub struct Generation {
     /// assemblage « base seule ».
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub chauffe_eau_thermodynamiques: Vec<ChauffeEauThermodynamique>,
+    /// Chauffe-eau solaires individuels (§9.14 et §9.15, kits CESI §9.23) : ballon dont le
+    /// générateur de base est une boucle solaire, avec un appoint intégré, un appoint séparé
+    /// instantané ou sans appoint. Comme les autres assemblages avec stockage, ils sont les
+    /// premiers sollicités pour l'ECS (§8.17.3.6).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub chauffe_eau_solaires: Vec<ChauffeEauSolaire>,
+}
+
+/// Chauffe-eau solaire individuel : assemblage « ballon base solaire » (§9.14, fiche 9.15),
+/// décrit composant par composant ou, pour un kit caractérisé selon la norme NF EN 12976, par
+/// les paramètres de l'outil IdCESI (§9.23).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ChauffeEauSolaire {
+    /// Identifiant, unique parmi les assemblages de la génération.
+    pub id: Id,
+    /// « Nbassemblage » : nombre de chauffe-eau identiques (au moins 1). Un générateur
+    /// d'appoint intégré désigné représente autant de générateurs identiques (`rdim`).
+    pub nb_assemblages: u32,
+    /// Orientation, inclinaison et masques du plan des capteurs (fiche 3.2).
+    pub exposition_capteurs: Exposition,
+    /// Description du chauffe-eau.
+    pub description: DescriptionCesi,
+    /// Appoint.
+    pub appoint: AppointCesi,
+}
+
+/// Description d'un chauffe-eau solaire individuel.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum DescriptionCesi {
+    /// Boucle solaire (§9.15) et ballon (§9.9) décrits séparément (produits caractérisés selon
+    /// la norme NF EN 12977, §9.23.3.1).
+    Composants {
+        /// Capteurs solaires.
+        capteurs: CapteursSolaires,
+        /// Boucle solaire.
+        boucle: BoucleSolaireSaisie,
+        /// Ballon de stockage.
+        ballon: BallonSaisi,
+    },
+    /// Kit caractérisé selon les normes NF EN 12976-2 et ISO 9459-5 (« TypeCES = 1 »),
+    /// traduit par les éq. (2263) à (2273).
+    Kit(KitCesi),
+}
+
+/// Capteurs solaires d'une boucle (tableau 292).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CapteursSolaires {
+    /// « A » : superficie d'entrée des capteurs d'un chauffe-eau, en m².
+    pub surface_m2: f64,
+    /// « η0 », « a1 », « a2 » : valeurs certifiées ou valeurs par défaut du tableau 293.
+    pub performances: PerformancesCapteurs,
+    /// « Kθ » : facteur d'angle d'incidence, de 0 à 1 (sans valeur par défaut dans le texte).
+    pub k_theta: f64,
+}
+
+/// Performances des capteurs (§9.15.3.1).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum PerformancesCapteurs {
+    /// Valeurs certifiées selon les normes NF EN 12975-1 et 12975-2.
+    Certifiees {
+        /// « η0 » : rendement optique, de 0 à 1.
+        eta0: f64,
+        /// « a1 » : coefficient de pertes du premier ordre, en W/(m².K).
+        a1_w_m2k: f64,
+        /// « a2 » : coefficient de pertes du second ordre, en W/(m².K²).
+        a2_w_m2k2: f64,
+    },
+    /// Valeurs par défaut du tableau 293, signalées dans les résultats.
+    ParDefaut {
+        /// Type de capteur.
+        type_capteur: TypeCapteurSolaire,
+    },
+}
+
+/// Type de capteur (tableau 293).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TypeCapteurSolaire {
+    /// Capteur non vitré.
+    NonVitre,
+    /// Capteur plan vitré.
+    Vitre,
+    /// Capteur à tubes sous vide.
+    Tubulaire,
+}
+
+/// Boucle solaire (tableau 292).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BoucleSolaireSaisie {
+    /// « (UA)te » : pertes des tuyauteries vers l'extérieur, en W/K.
+    pub ua_te_w_k: f64,
+    /// « (UA)ti » : pertes des tuyauteries vers l'intérieur du bâtiment, en W/K.
+    pub ua_ti_w_k: f64,
+    /// « Pnp » : puissance nominale de la pompe, en W.
+    pub p_np_w: f64,
+    /// Transfert vers le ballon : échangeur (« (UA)hx », 100 W/K par m² de capteurs par
+    /// défaut, tableau 292) ou sans échangeur (§9.15.3.1.2).
+    pub transfert: TransfertBoucle,
+    /// « Typeregul_BS » : régulation de la boucle.
+    pub regulation: RegulationBoucleSaisie,
+    /// « αp » : part de la puissance de la pompe transmise au fluide. Absente : 0,5, valeur
+    /// conventionnelle du tableau 292, signalée.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alpha_p: Option<f64>,
+    /// « ṁCp » : débit calorifique de la boucle, en W/K. Absent : 58 W/K par m² de capteurs,
+    /// valeur conventionnelle du tableau 292, signalée.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub m_cp_w_k: Option<f64>,
+    /// « hrelech_base » : hauteur relative de l'échangeur solaire à partir du bas du ballon,
+    /// de 0 à 1 (éq. 1781 à 1785). Absente : échangeur ponctuel en zone basse.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub h_rel_ech: Option<f64>,
+}
+
+/// Transfert de la boucle vers le ballon (§9.15.3.1).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum TransfertBoucle {
+    /// Échangeur dans le ballon.
+    Echangeur {
+        /// « (UA)hx », en W/K. Absent : valeur conventionnelle `100·A`, signalée.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ua_hx_w_k: Option<f64>,
+    },
+    /// Sans échangeur : le fluide de la boucle est l'eau du ballon.
+    SansEchangeur,
+}
+
+/// « Typeregul_BS » (§9.15.3.2).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum RegulationBoucleSaisie {
+    /// 0 : sur l'écart de température entre la sortie des capteurs et le ballon, avec
+    /// « Δθreg » conventionnel (1 K en habitation, éq. 1968).
+    Temperature,
+    /// 1 : sur l'ensoleillement.
+    Irradiance {
+        /// « Isrmin », en W/m². Absent : 200 W/m², valeur conventionnelle du tableau 292,
+        /// signalée.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        isr_min_w_m2: Option<f64>,
+    },
+}
+
+/// Kit CESI caractérisé selon la norme NF EN 12976 (« TypeCES = 1 », §9.23.3.2.2, tableau 308).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct KitCesi {
+    /// « A » : superficie d'entrée des capteurs, en m².
+    pub surface_m2: f64,
+    /// « Vtot » : volume du ballon, en L.
+    pub v_tot_l: f64,
+    /// « Pnp » : puissance nominale de la pompe, en W.
+    pub p_np_w: f64,
+    /// « AC* » : superficie de captage équivalente, en m².
+    pub ac_etoile_m2: f64,
+    /// « UC* » : coefficient de pertes de captage rapporté à `AC*`, en W/(m².K).
+    pub uc_etoile_w_m2k: f64,
+    /// « US » : coefficient de pertes de stockage, en W/K.
+    pub us_w_k: f64,
+    /// « faux » : fraction effective du ballon concernée par l'appoint, strictement entre 0 et
+    /// 1 (requise avec un appoint intégré, sans objet sinon).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub f_aux: Option<f64>,
+    /// « θmax » : température maximale du ballon, en °C (de 55 à 100).
+    pub theta_max_c: f64,
+    /// « Kθ » : facteur d'angle d'incidence, sortie de l'outil IdCESI. Absent : 0,8, la valeur
+    /// qui redonne la superficie de captage équivalente `AC*` avec `η0 = AC*/(0,8·A)`
+    /// (éq. 2266 ; lecture Q52), signalée.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub k_theta: Option<f64>,
+}
+
+/// Appoint d'un chauffe-eau solaire (« Type_prod_stockage », §9.14.2).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum AppointCesi {
+    /// 0 : ballon base sans appoint.
+    Aucun,
+    /// 1 : appoint intégré au ballon.
+    Integre(AppointBallon),
+    /// 3 : appoint séparé instantané, en série du ballon : l'eau préchauffée est puisée
+    /// (éq. 1800 à 1807) et le complément est fourni par les générateurs instantanés d'ECS de la
+    /// génération.
+    SepareInstantane,
 }
 
 /// Th-BCE 2020 §9.14.3.1, tableau 291 — assemblage d'un ballon de stockage d'ECS et de ses

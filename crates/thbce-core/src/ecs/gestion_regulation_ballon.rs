@@ -97,6 +97,58 @@ pub fn boucle_puisage(
     }
 }
 
+/// Boucle itérative de puisage d'un assemblage à appoint séparé instantané
+/// (« Type_prod_stockage = 3 », §9.10.3.1.2, éq. 1800 à 1807, relues sur l'image de la
+/// p. 1106).
+///
+/// Tant que la zone supérieure est au moins à la température de départ attendue, le puisage
+/// est celui des autres assemblages. Sinon, si elle est plus chaude que l'eau entrante, l'eau
+/// préchauffée est puisée avec l'écart de température constant `θcons,sortie − θentrant` : le
+/// volume est celui qu'il faudrait à la température attendue et l'énergie puisée, plus faible,
+/// laisse un reste fourni par l'appoint instantané ; la boucle s'arrête alors.
+pub fn boucle_puisage_appoint_separe(
+    ballon: &mut Ballon,
+    q_w_sto_unit_wh: f64,
+    theta_entrant_c: f64,
+    theta_cons_sortie_c: f64,
+    nb_iter: usize,
+) -> Puisage {
+    let mut reste = q_w_sto_unit_wh;
+    let mut v_total = 0.0;
+    for _ in 0..nb_iter {
+        if reste <= 0.0 {
+            break;
+        }
+        let theta_p = ballon.theta_c[NB_ZONES - 1];
+        let (v_p, fin) = if theta_p >= theta_cons_sortie_c && theta_p > theta_entrant_c {
+            // Éq. (1801) et (1805).
+            let v = (reste / (RHO_CW_WH_L_K * (theta_p - theta_entrant_c))).min(ballon.v_z_min_l());
+            (v, false)
+        } else if theta_p > theta_entrant_c {
+            // Éq. (1802) et (1806).
+            let v = (reste / (RHO_CW_WH_L_K * (theta_cons_sortie_c - theta_entrant_c)))
+                .min(ballon.v_z_min_l());
+            (v, true)
+        } else {
+            // Éq. (1803) et (1807).
+            break;
+        };
+        reste -= RHO_CW_WH_L_K * v_p * (theta_p - theta_entrant_c);
+        if reste < 1e-9 {
+            reste = 0.0;
+        }
+        v_total += v_p;
+        ballon.puiser(v_p, theta_entrant_c);
+        if fin {
+            break;
+        }
+    }
+    Puisage {
+        v_p_l: v_total,
+        q_report_wh: reste,
+    }
+}
+
 /// « iactive » : enclenchement d'un générateur par son thermostat (éq. 1813 et 1814).
 ///
 /// Le générateur s'enclenche s'il y a eu puisage, si la zone de la sonde est passée sous
@@ -177,6 +229,29 @@ mod tests {
         // Zone haute trop froide dès le départ : rien n'est puisé.
         let mut b = Ballon::nouveau(200.0, 0.0, None, 90.0);
         let p = boucle_puisage(&mut b, 500.0, 15.0, 53.0, 4);
+        assert_eq!((p.v_p_l, p.q_report_wh), (0.0, 500.0));
+    }
+
+    #[test]
+    fn puisage_avec_appoint_separe_instantane() {
+        // Ballon à 55 °C : puisage ordinaire (éq. 1801).
+        let mut b = Ballon::nouveau(200.0, 0.0, None, 90.0);
+        b.fixer_temperature(55.0);
+        let p = boucle_puisage_appoint_separe(&mut b, 1163.0, 15.0, 53.0, 4);
+        assert!((p.v_p_l - 25.0).abs() < 1e-9);
+        assert_eq!(p.q_report_wh, 0.0);
+        // Ballon préchauffé à 35 °C, sous les 53 °C attendus (éq. 1802) : le volume est calculé
+        // avec 53 − 15 = 38 K, 1 000/(1,163 × 38) = 22,63 L, et l'énergie puisée avec 20 K ;
+        // le reste, 1 000 × (1 − 20/38) = 473,7 Wh, va à l'appoint instantané.
+        let mut b = Ballon::nouveau(200.0, 0.0, None, 90.0);
+        b.fixer_temperature(35.0);
+        let p = boucle_puisage_appoint_separe(&mut b, 1000.0, 15.0, 53.0, 4);
+        assert!((p.v_p_l - 1000.0 / (1.163 * 38.0)).abs() < 1e-9);
+        assert!((p.q_report_wh - 1000.0 * (1.0 - 20.0 / 38.0)).abs() < 1e-9);
+        // Eau du ballon à la température de l'eau froide : rien n'est puisé (éq. 1803).
+        let mut b = Ballon::nouveau(200.0, 0.0, None, 90.0);
+        b.fixer_temperature(15.0);
+        let p = boucle_puisage_appoint_separe(&mut b, 500.0, 15.0, 53.0, 4);
         assert_eq!((p.v_p_l, p.q_report_wh), (0.0, 500.0));
     }
 

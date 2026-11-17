@@ -267,7 +267,7 @@ impl BatimentHoraire {
         let systemes = if mode == ModeCalcul::ThB {
             SystemesBatiment::default()
         } else {
-            let mut s = SystemesBatiment::nouveaux(bat, &mut zones);
+            let mut s = SystemesBatiment::nouveaux(bat, catalogue, &mut zones);
             s.recuperation = mode != ModeCalcul::ThD || lectures.recuperation_th_d;
             s
         };
@@ -314,13 +314,8 @@ impl BatimentHoraire {
             z.pas_avec_espaces_tampons(h, climat, confort, &self.coefficients)?;
         }
         if self.mode != ModeCalcul::ThB {
-            self.systemes.pas(
-                h,
-                &mut self.zones,
-                climat.te_c[h],
-                climat.teau_c[h],
-                &self.coefficients,
-            );
+            self.systemes
+                .pas(h, &mut self.zones, climat, &self.coefficients);
         }
         Ok(())
     }
@@ -353,7 +348,11 @@ impl BatimentHoraire {
 impl SystemesBatiment {
     /// Résout les réseaux intergroupes et les générations du bâtiment et lie les systèmes des
     /// groupes. Références vérifiées par la validation.
-    fn nouveaux(bat: &crate::entree::Batiment, zones: &mut [ZoneHoraire]) -> Self {
+    fn nouveaux(
+        bat: &crate::entree::Batiment,
+        catalogue: &Catalogue,
+        zones: &mut [ZoneHoraire],
+    ) -> Self {
         let generations: Vec<String> = bat.generations.iter().map(|g| g.id.clone()).collect();
         let ids_et: Vec<String> = bat.espaces_tampons.iter().map(|e| e.id.clone()).collect();
         let permanent = bat
@@ -365,7 +364,7 @@ impl SystemesBatiment {
         let mut generations_horaires: Vec<GenerationHoraire> = bat
             .generations
             .iter()
-            .map(|g| GenerationHoraire::resoudre(g, &ids_et, &ids_zones))
+            .map(|g| GenerationHoraire::resoudre(g, &ids_et, &ids_zones, catalogue))
             .collect();
         let et_generation = bat
             .generations
@@ -641,10 +640,10 @@ impl SystemesBatiment {
         &mut self,
         h: usize,
         zones: &mut [ZoneHoraire],
-        theta_ext_c: f64,
-        theta_cw_c: f64,
+        climat: &ClimatExterieur,
         espaces_tampons: &[CoefficientsEt],
     ) {
+        let (theta_ext_c, theta_cw_c) = (climat.te_c[h], climat.teau_c[h]);
         let mois = usize::from(date_scenario(h).mois) - 1;
         let groupes: Vec<_> = zones.iter().flat_map(|z| z.groupes.iter()).collect();
         let mut aval = Vec::new();
@@ -829,6 +828,8 @@ impl SystemesBatiment {
                     theta_cw_c,
                     hleg: hleg(h),
                     sources: &sources,
+                    climat: Some(climat),
+                    h,
                 },
                 mois,
             );

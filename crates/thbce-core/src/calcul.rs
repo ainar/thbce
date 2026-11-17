@@ -33,12 +33,13 @@ use crate::pv::global::produire;
 use crate::pv::ResultatsProductionPv;
 use crate::resultats::{
     Consommations, ConsommationsPostes, PeriodeConfortAdaptatif, Resultats, ResultatsBaie,
-    ResultatsBatiment, ResultatsClimat, ResultatsConfort, ResultatsConfortEte, ResultatsDebitsBbio,
-    ResultatsDistributionGroupe, ResultatsEcsEmetteur, ResultatsEcsIntergroupe, ResultatsEmetteur,
-    ResultatsEnveloppe, ResultatsEspaceTampon, ResultatsEspaceTamponMode, ResultatsGenerateur,
-    ResultatsGeneration, ResultatsGroupe, ResultatsIdCet, ResultatsIntergroupes, ResultatsSaisons,
-    ResultatsStockage, ResultatsSystemesGroupe, ResultatsVentilationGroupe,
-    ResultatsVentilationMode, ResultatsVentilationZone, ResultatsZone, ValeurParDefaut,
+    ResultatsBatiment, ResultatsBoucleSolaire, ResultatsClimat, ResultatsConfort,
+    ResultatsConfortEte, ResultatsDebitsBbio, ResultatsDistributionGroupe, ResultatsEcsEmetteur,
+    ResultatsEcsIntergroupe, ResultatsEmetteur, ResultatsEnveloppe, ResultatsEspaceTampon,
+    ResultatsEspaceTamponMode, ResultatsGenerateur, ResultatsGeneration, ResultatsGroupe,
+    ResultatsIdCet, ResultatsIntergroupes, ResultatsSaisons, ResultatsStockage,
+    ResultatsSystemesGroupe, ResultatsVentilationGroupe, ResultatsVentilationMode,
+    ResultatsVentilationZone, ResultatsZone, ValeurParDefaut,
 };
 use crate::validation::valider;
 use crate::ventilation::bouche_conduit::debits_specifiques_bbio_groupe;
@@ -772,6 +773,23 @@ fn resultats_generations(b: &BatimentHoraire) -> Vec<ResultatsGeneration> {
                             theta_haut_min_c: k.theta_haut_min_c,
                             nbh_temp_insuff_max: k.nbh_temp_insuff_max,
                             nbh_report_e: k.nbh_report_e,
+                            solaire: s.solaire.as_ref().map(|b| {
+                                let c = &b.cumuls;
+                                ResultatsBoucleSolaire {
+                                    e_sol_kwh: c.e_sol_wh() * s.nb / 1000.0,
+                                    e_sol_mensuel_kwh: c
+                                        .e_sol_mensuel_wh
+                                        .iter()
+                                        .map(|x| x * s.nb / 1000.0)
+                                        .collect(),
+                                    w_pompe_kwh: c.e_aux_wh * s.nb / 1000.0,
+                                    pertes_vc_kwh: c.phi_vc_wh * s.nb / 1000.0,
+                                    isr_kwh_m2: c.isr_wh_m2 / 1000.0,
+                                    a_capteurs_m2: b.boucle.a_m2,
+                                    nbh_marche: c.nbh_marche,
+                                    ecretement_kwh: s.ballon.ecretement_wh * s.nb / 1000.0,
+                                }
+                            }),
                             idcet: s.identification.map(|i| ResultatsIdCet {
                                 ua_s_w_k: i.triplet.ua_s_w_k,
                                 cop_pivot: i.triplet.cop_pivot,
