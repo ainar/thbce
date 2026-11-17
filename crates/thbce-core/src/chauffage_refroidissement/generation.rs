@@ -25,6 +25,7 @@ use super::reseau_de_chaleur_et_de_froid::ReseauChaleurFroid;
 use super::sources_amont::SourceAmontGenerateur;
 use super::thermodynamique_elec::GenerateurThermodynamique;
 use crate::ecs::assemblage_ballon::{AssemblageBallon, EntreesAssemblage};
+use crate::ecs::cesci::{EntreesCollectif, ProductionCollective};
 use crate::resultats::ValeurParDefaut;
 
 /// « θamb_ch » : température d'ambiance conventionnelle en chauffage, en °C (tableau 110).
@@ -409,6 +410,10 @@ pub struct ReseauVu {
     /// « Ratsurf_dess » : part de la surface desservie par la génération pour ce poste (éq. 990
     /// à 992).
     pub rat_surf_dess: f64,
+    /// « φpertes_vc_prim-e + φpertes_hvc_prim-e » : pertes d'un réseau d'ECS intergroupe
+    /// comprises dans `q_sys_wh`, en Wh (nulles sinon) ; déduites du ballon central d'un
+    /// CESCAI (éq. 2076).
+    pub phi_pertes_prim_wh: f64,
 }
 
 /// Entrées d'une génération à un pas de temps.
@@ -529,6 +534,9 @@ pub struct GenerationHoraire {
     pub generateurs: Vec<GenerateurHoraire>,
     /// Assemblages avec ballon de stockage d'ECS (§9.14), premiers sollicités en ECS.
     pub stockages: Vec<AssemblageBallon>,
+    /// Productions solaires collectives à appoints décentralisés (CESCI et CESCAI, fiches
+    /// 9.16 et 9.17), premières sollicitées en ECS.
+    pub collectifs: Vec<ProductionCollective>,
     /// État.
     pub etat: EtatGeneration,
     /// Cumuls annuels.
@@ -550,6 +558,7 @@ impl GenerationHoraire {
             theta_dist_fr_min_c: None,
             generateurs,
             stockages: Vec::new(),
+            collectifs: Vec::new(),
             etat: EtatGeneration::default(),
             cumuls: CumulsGeneration::default(),
             sorties: SortiesGeneration::default(),
@@ -658,6 +667,15 @@ impl GenerationHoraire {
                 generateurs.iter().position(|x| x.id == id)
             })
         }));
+        let collectifs = g
+            .chauffe_eau_solaires_collectifs
+            .iter()
+            .filter_map(|c| {
+                crate::ecs::chauffe_eau_solaire::resoudre_collectif(c, catalogue, |id| {
+                    generateurs.iter().position(|x| x.id == id)
+                })
+            })
+            .collect();
         let gestion = |x: Option<GestionTemperatureGeneration>| match x {
             Some(GestionTemperatureGeneration::Constante { theta_wm_c }) => {
                 GestionTemperature::Constante(theta_wm_c)
@@ -673,6 +691,7 @@ impl GenerationHoraire {
             gestion_ch: gestion(g.gestion_temperature_chauffage),
             gestion_fr: gestion(g.gestion_temperature_refroidissement),
             stockages,
+            collectifs,
             ..Self::nouvelle(g.id.clone(), generateurs)
         }
     }
@@ -860,20 +879,27 @@ impl GenerationHoraire {
         // En ECS, les générateurs de base et d'appoint d'un ballon sont pilotés par leur
         // assemblage (§8.17.3.4) : ils ne comptent pas parmi les générateurs instantanés.
         let pilote = |i: usize| {
-            self.stockages.iter().any(|s| {
-                let du_ballon =
-                    s.base.generateur == i || s.appoint.is_some_and(|a| a.generateur == i);
-                match poste {
-                    Poste::Ecs => du_ballon,
-                    // L'appoint raccordé d'un système solaire combiné assure aussi le chauffage
-                    // pour le compte de l'assemblage (éq. 2150).
-                    Poste::Chauffage => {
-                        s.ssc.is_some_and(|p| p.raccorde)
-                            && s.appoint.is_some_and(|a| a.generateur == i)
+            let collectif = poste == Poste::Ecs
+                && self.collectifs.iter().any(|c| {
+                    c.ensembles
+                        .iter()
+                        .any(|a| a.appoint.is_some_and(|x| x.generateur == i))
+                });
+            collectif
+                || self.stockages.iter().any(|s| {
+                    let du_ballon =
+                        s.base.generateur == i || s.appoint.is_some_and(|a| a.generateur == i);
+                    match poste {
+                        Poste::Ecs => du_ballon,
+                        // L'appoint raccordé d'un système solaire combiné assure aussi le chauffage
+                        // pour le compte de l'assemblage (éq. 2150).
+                        Poste::Chauffage => {
+                            s.ssc.is_some_and(|p| p.raccorde)
+                                && s.appoint.is_some_and(|a| a.generateur == i)
+                        }
+                        Poste::Refroidissement => false,
                     }
-                    Poste::Refroidissement => false,
-                }
-            })
+                })
         };
         let mut v: Vec<usize> = (0..self.generateurs.len())
             .filter(|&i| self.generateurs[i].modele.fonction().assure(poste) && !pilote(i))
@@ -1018,6 +1044,49 @@ impl GenerationHoraire {
             }
             self.stockages = stockages;
         }
+        // Fiches 9.16 et 9.17 : productions solaires collectives à appoints décentralisés,
+        // premières sollicitées pour l'ECS ; un appoint séparé instantané reçoit le reste
+        // (éq. 2010) comme générateur instantané d'ECS de la génération.
+        let mut phi_pertes_dec_vc = 0.0;
+        if e.id_encl && !self.collectifs.is_empty() {
+            let mut collectifs = std::mem::take(&mut self.collectifs);
+            let ecs = || e.reseaux.iter().filter(|r| r.poste == Poste::Ecs);
+            let theta_depart = ecs().map(|r| r.theta_dep_c).fold(0.0, f64::max);
+            let theta_moy_prim = ecs().map(|r| r.theta_moy_c).fold(0.0, f64::max);
+            let phi_pertes_prim: f64 = ecs().map(|r| r.phi_pertes_prim_wh).sum();
+            for c in &mut collectifs {
+                let isr = e
+                    .climat
+                    .map_or(0.0, |climat| c.boucle.capteurs.isr_w_m2(climat, e.h));
+                let s = c.pas(
+                    &EntreesCollectif {
+                        q_req_ecs_wh: q_ar[2],
+                        phi_pertes_prim_wh: phi_pertes_prim,
+                        theta_moy_prim_c: theta_moy_prim,
+                        theta_cw_c: e.theta_cw_c,
+                        theta_depart_c: theta_depart,
+                        theta_amb_c: theta_amb,
+                        // Éq. (2074) : ballons individuels d'un CESCAI en volume chauffé, à
+                        // température constante.
+                        theta_amb_dec_c: THETA_AMB_CH_C,
+                        hleg: e.hleg,
+                        theta_ext_c: e.theta_ext_c,
+                        isr_w_m2: isr,
+                        mois,
+                    },
+                    &mut |i, poste, q_req, theta_aval| {
+                        self.appeler_pour_ballon(i, poste, q_req, theta_aval, theta_amb, e)
+                    },
+                );
+                q_ar[2] = s.q_rest_ecs_wh;
+                q_fou_sto += s.q_fou_ecs_wh;
+                phi_pertes_sto += s.phi_pertes_wh;
+                phi_pertes_dec_vc += s.phi_pertes_dec_vc_wh;
+                w_pompes_solaires += s.w_pompe_wh;
+                phi_vc_boucles += s.phi_vc_bs_wh;
+            }
+            self.collectifs = collectifs;
+        }
         for poste in [Poste::Ecs, Poste::Refroidissement, Poste::Chauffage] {
             let p = poste.indice();
             let actif = match poste {
@@ -1103,6 +1172,9 @@ impl GenerationHoraire {
         // Éq. (1973) : pertes des tuyauteries des boucles solaires « vers l'intérieur du
         // bâtiment », récupérables quel que soit l'emplacement du ballon (lecture Q52).
         phi_vc += phi_vc_boucles;
+        // Éq. (2114) : ballons individuels d'un CESCAI, toujours en volume chauffé.
+        phi_vc += phi_pertes_dec_vc;
+        self.cumuls.phi_pertes_sto_wh += phi_pertes_dec_vc;
         // Éq. (1059) à (1064) : sous-dimensionnement. Les indicateurs « ne concernent que les
         // générateurs (le sous-dimensionnement des ballons de stockage est évalué séparément) » :
         // en ECS, seul compte ce que les générateurs instantanés n'ont pas fourni ; le reste dû
@@ -1662,6 +1734,7 @@ mod tests {
             theta_i_aval_eq_c: 19.0,
             relance: false,
             rat_surf_dess: 1.0,
+            phi_pertes_prim_wh: 0.0,
         }
     }
 

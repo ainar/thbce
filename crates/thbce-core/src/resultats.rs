@@ -453,6 +453,10 @@ pub struct ResultatsGeneration {
     /// Assemblages avec ballon de stockage d'ECS (§9.14) ; absent sans ballon.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub stockages: Vec<ResultatsStockage>,
+    /// Productions solaires collectives à appoints décentralisés (CESCI, CESCAI) ; absent sans
+    /// production.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub solaires_collectifs: Vec<ResultatsSolaireCollectif>,
 }
 
 /// Assemblage avec ballon de stockage d'ECS, calcul Th-C (§9.9, §9.10 et §9.14).
@@ -507,6 +511,110 @@ pub struct ResultatsStockage {
     /// Valeurs par défaut de la méthode appliquées à l'assemblage.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+}
+
+/// Production solaire collective à appoints décentralisés (CESCI ou CESCAI, fiches 9.16 et
+/// 9.17), calcul Th-C.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsSolaireCollectif {
+    /// Identifiant de la production.
+    pub id: Id,
+    /// « Type_PCAD ».
+    pub type_pcad: crate::entree::TypePcad,
+    /// Boucle solaire collective (« Esol_tot^BS », « Eef_aux_tot^BS ») ; l'énergie solaire va
+    /// aux ballons individuels (CESCI) ou au ballon central (CESCAI).
+    pub solaire: ResultatsBoucleSolaire,
+    /// Ensembles de ballons individuels, pour tous les ballons de chaque ensemble ; l'énergie
+    /// injectée en zone basse (boucle solaire ou réseau intergroupe) est `q_fou_sto_base_kwh`,
+    /// celle des appoints intégrés `q_fou_sto_ap_kwh`.
+    pub ensembles: Vec<ResultatsStockage>,
+    /// Ballon central d'un CESCAI : `q_fou_sto_base_kwh` est l'énergie solaire,
+    /// `q_fou_ecs_kwh` l'énergie fournie au réseau intergroupe (ballons individuels et pertes
+    /// du réseau déduites).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ballon_central: Option<ResultatsStockage>,
+    /// CESCAI : énergie fournie aux ballons individuels par le réseau intergroupe, en kWh
+    /// (Σ « Qfou_ens^B », éq. 2078).
+    #[serde(default)]
+    pub q_fou_reseau_kwh: f64,
+    /// CESCAI : pertes du réseau intergroupe déduites du ballon central, en kWh (éq. 2080).
+    #[serde(default)]
+    pub pertes_reseau_deduites_kwh: f64,
+    /// CESCAI : pertes du réseau intergroupe que le ballon central, trop peu chargé, n'a pas
+    /// couvertes, en kWh (lecture Q53).
+    #[serde(default)]
+    pub pertes_reseau_non_couvertes_kwh: f64,
+}
+
+impl ResultatsStockage {
+    /// Arrondit les valeurs restituées (Q8).
+    pub fn arrondir(&mut self) {
+        let a = arrondir_restitution;
+        let s = self;
+        for x in [
+            &mut s.q_fou_ecs_kwh,
+            &mut s.q_fou_sto_base_kwh,
+            &mut s.q_fou_sto_ap_kwh,
+            &mut s.pertes_kwh,
+            &mut s.v_puise_l,
+            &mut s.theta_haut_min_c,
+        ] {
+            *x = a(*x);
+        }
+        if let Some(x) = &mut s.ssc {
+            x.q_puise_ch_kwh = a(x.q_puise_ch_kwh);
+            x.q_fou_ch_appoint_kwh = a(x.q_fou_ch_appoint_kwh);
+        }
+        if let Some(b) = &mut s.solaire {
+            for x in [
+                &mut b.e_sol_kwh,
+                &mut b.w_pompe_kwh,
+                &mut b.pertes_vc_kwh,
+                &mut b.isr_kwh_m2,
+                &mut b.ecretement_kwh,
+            ] {
+                *x = a(*x);
+            }
+            for x in &mut b.e_sol_mensuel_kwh {
+                *x = a(*x);
+            }
+        }
+        if let Some(i) = &mut s.idcet {
+            // Paramètres identifiés restitués avec quatre décimales.
+            for x in [&mut i.ua_s_w_k, &mut i.cop_pivot, &mut i.pabs_pivot_kw] {
+                *x = (*x * 1e4).round() / 1e4;
+            }
+        }
+    }
+}
+
+impl ResultatsSolaireCollectif {
+    /// Arrondit les valeurs restituées (Q8).
+    pub fn arrondir(&mut self) {
+        let a = arrondir_restitution;
+        for x in [
+            &mut self.solaire.e_sol_kwh,
+            &mut self.solaire.w_pompe_kwh,
+            &mut self.solaire.pertes_vc_kwh,
+            &mut self.solaire.isr_kwh_m2,
+            &mut self.solaire.ecretement_kwh,
+            &mut self.q_fou_reseau_kwh,
+            &mut self.pertes_reseau_deduites_kwh,
+            &mut self.pertes_reseau_non_couvertes_kwh,
+        ] {
+            *x = a(*x);
+        }
+        for x in &mut self.solaire.e_sol_mensuel_kwh {
+            *x = a(*x);
+        }
+        for s in self
+            .ensembles
+            .iter_mut()
+            .chain(self.ballon_central.iter_mut())
+        {
+            s.arrondir();
+        }
+    }
 }
 
 /// Boucle solaire d'un chauffe-eau solaire, calcul Th-C (§9.15 ; sorties « Esol_tot^BS » et
@@ -1156,40 +1264,10 @@ impl Resultats {
                 }
                 g.consommations.arrondir();
                 for s in &mut g.stockages {
-                    for x in [
-                        &mut s.q_fou_ecs_kwh,
-                        &mut s.q_fou_sto_base_kwh,
-                        &mut s.q_fou_sto_ap_kwh,
-                        &mut s.pertes_kwh,
-                        &mut s.v_puise_l,
-                        &mut s.theta_haut_min_c,
-                    ] {
-                        *x = a(*x);
-                    }
-                    if let Some(x) = &mut s.ssc {
-                        x.q_puise_ch_kwh = a(x.q_puise_ch_kwh);
-                        x.q_fou_ch_appoint_kwh = a(x.q_fou_ch_appoint_kwh);
-                    }
-                    if let Some(b) = &mut s.solaire {
-                        for x in [
-                            &mut b.e_sol_kwh,
-                            &mut b.w_pompe_kwh,
-                            &mut b.pertes_vc_kwh,
-                            &mut b.isr_kwh_m2,
-                            &mut b.ecretement_kwh,
-                        ] {
-                            *x = a(*x);
-                        }
-                        for x in &mut b.e_sol_mensuel_kwh {
-                            *x = a(*x);
-                        }
-                    }
-                    if let Some(i) = &mut s.idcet {
-                        // Paramètres identifiés restitués avec quatre décimales.
-                        for x in [&mut i.ua_s_w_k, &mut i.cop_pivot, &mut i.pabs_pivot_kw] {
-                            *x = (*x * 1e4).round() / 1e4;
-                        }
-                    }
+                    s.arrondir();
+                }
+                for c in &mut g.solaires_collectifs {
+                    c.arrondir();
                 }
                 for x in &mut g.generateurs {
                     x.q_fou_ch_kwh = a(x.q_fou_ch_kwh);

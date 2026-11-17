@@ -744,6 +744,7 @@ impl SystemesBatiment {
                     theta_i_aval_eq_c: s.theta_i_aval_eq_c,
                     relance: s.relance,
                     rat_surf_dess: self.rat_surf_dess[k],
+                    phi_pertes_prim_wh: 0.0,
                 });
                 origines.push(Origine::Reseau(k));
             }
@@ -763,6 +764,14 @@ impl SystemesBatiment {
                     theta_i_aval_eq_c: 0.0,
                     relance: false,
                     rat_surf_dess: self.rat_surf_dess_ecs[k],
+                    // Pertes comprises dans la demande (éq. 1752 : réseau bouclé sans
+                    // réchauffeur).
+                    phi_pertes_prim_wh: match &d.reseau {
+                        ReseauEcsIntergroupe::Boucle(b) if !b.rechauffeur => {
+                            s.phi_pertes_vc_wh + s.phi_pertes_hvc_wh
+                        }
+                        _ => 0.0,
+                    },
                 });
                 origines.push(Origine::Ecs(k));
             }
@@ -782,6 +791,7 @@ impl SystemesBatiment {
                     relance: false,
                     // Sans demande, la sécurité antigel ne pèse pas dans les répartitions.
                     rat_surf_dess: 0.0,
+                    phi_pertes_prim_wh: 0.0,
                 });
                 origines.push(Origine::Antigel(iz));
             }

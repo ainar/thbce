@@ -5,7 +5,8 @@ use crate::ecs::gestion_regulation_ballon::THETA_C_ECS_C;
 use crate::entree::{
     AppointCesi, BallonSaisi, Batiment, BoucleSolaireSaisie, CapteursSolaires, DescriptionCesi,
     FonctionEffetJoule, FonctionReseau, Generation, NatureGenerateur, PerformancesCapteurs,
-    PertesBallon, RaccordementSsc, RegulationBoucleSaisie, ReseauGroupe, TransfertBoucle,
+    PertesBallon, RaccordementSsc, RegulationBoucleSaisie, ReseauEcsIntergroupe, ReseauGroupe,
+    TransfertBoucle, TypePcad,
 };
 
 use super::generation::postes_assures;
@@ -311,6 +312,8 @@ fn valider_generation(
         }
         pilotes.push(&a.generateur);
     }
+    let mut pilotes: Vec<String> = pilotes.iter().map(|x| (*x).to_owned()).collect();
+    valider_collectifs(r, c, g, bat, refs, &mut pilotes);
 }
 
 fn valider_composants(
@@ -319,6 +322,16 @@ fn valider_composants(
     capteurs: &CapteursSolaires,
     boucle: &BoucleSolaireSaisie,
     ballon: &BallonSaisi,
+) {
+    valider_boucle(r, cd, capteurs, boucle);
+    valider_ballon(r, &format!("{cd}.ballon"), ballon);
+}
+
+fn valider_boucle(
+    r: &mut RapportValidation,
+    cd: &str,
+    capteurs: &CapteursSolaires,
+    boucle: &BoucleSolaireSaisie,
 ) {
     r.strictement_positif(format!("{cd}.capteurs.surface_m2"), capteurs.surface_m2);
     if let PerformancesCapteurs::Certifiees {
@@ -363,15 +376,264 @@ fn valider_composants(
     if let Some(h) = boucle.h_rel_ech {
         r.plage(format!("{cd}.boucle.h_rel_ech"), h, 0.0, 1.0);
     }
-    r.strictement_positif(format!("{cd}.ballon.v_tot_l"), ballon.v_tot_l);
+}
+
+fn valider_ballon(r: &mut RapportValidation, cb: &str, ballon: &BallonSaisi) {
+    r.strictement_positif(format!("{cb}.v_tot_l"), ballon.v_tot_l);
     if let PertesBallon::Certifie { ua_s_w_k } | PertesBallon::Justifie { ua_s_w_k } = ballon.pertes
     {
-        r.strictement_positif(format!("{cd}.ballon.pertes.ua_s_w_k"), ua_s_w_k);
+        r.strictement_positif(format!("{cb}.pertes.ua_s_w_k"), ua_s_w_k);
     }
     r.plage(
-        format!("{cd}.ballon.theta_max_c"),
+        format!("{cb}.theta_max_c"),
         ballon.theta_max_c,
         THETA_C_ECS_C,
         100.0,
     );
+}
+
+/// Productions solaires collectives à appoints décentralisés (fiches 9.16 et 9.17).
+fn valider_collectifs(
+    r: &mut RapportValidation,
+    c: &str,
+    g: &Generation,
+    bat: &Batiment,
+    refs: &References<'_>,
+    pilotes: &mut Vec<String>,
+) {
+    if g.chauffe_eau_solaires_collectifs.is_empty() {
+        return;
+    }
+    if g.chauffe_eau_solaires_collectifs.len() > 1 {
+        r.erreur(
+            format!("{c}.chauffe_eau_solaires_collectifs"),
+            None,
+            "une génération porte au plus une production solaire collective, qui assure toute son \
+             ECS (Th-BCE 2020 §9.16.3 : le CESCI « a exactement le même rôle qu'un objet \
+             génération »)",
+        );
+    }
+    if !(g.stockages.is_empty()
+        && g.chauffe_eau_thermodynamiques.is_empty()
+        && g.chauffe_eau_solaires.is_empty()
+        && g.systemes_solaires_combines.is_empty())
+    {
+        r.erreur(
+            format!("{c}.chauffe_eau_solaires_collectifs"),
+            None,
+            "une génération pourvue d'une production solaire collective n'a pas d'autre \
+             assemblage avec ballon : ses ballons individuels assurent toute l'ECS",
+        );
+    }
+    let reseaux = |f: FonctionReseau| {
+        bat.distributions_intergroupes
+            .iter()
+            .any(|d| d.generation == g.id && d.fonction == f)
+    };
+    let ecs: Vec<&ReseauEcsIntergroupe> = bat
+        .distributions_ecs_intergroupes
+        .iter()
+        .filter(|d| d.generation == g.id)
+        .map(|d| &d.reseau)
+        .collect();
+    for (k, x) in g.chauffe_eau_solaires_collectifs.iter().enumerate() {
+        let cc = format!("{c}.chauffe_eau_solaires_collectifs[{k}]");
+        if g.generateurs.iter().any(|y| y.id == x.id) {
+            r.erreur(
+                format!("{cc}.id"),
+                Some(x.id.clone()),
+                "identifiant déjà porté par un générateur de la génération",
+            );
+        }
+        let cescai = x.type_pcad == TypePcad::Cescai;
+        // Éq. (1975) : pas de refroidissement ; éq. (2063) et (2064) : un CESCAI n'assure que
+        // l'ECS.
+        if reseaux(FonctionReseau::Refroidissement)
+            || (cescai && reseaux(FonctionReseau::Chauffage))
+        {
+            r.erreur(
+                cc.clone(),
+                None,
+                if cescai {
+                    "un CESCAI n'assure que l'ECS : sa génération n'alimente aucun réseau de \
+                     chauffage ni de refroidissement (Th-BCE 2020 §9.17.3, éq. 2063 et 2064)"
+                } else {
+                    "les appoints d'un CESCI ne peuvent assurer le refroidissement : sa \
+                     génération n'alimente aucun réseau de refroidissement (Th-BCE 2020 \
+                     §9.16.3, éq. 1975)"
+                },
+            );
+        }
+        // Réseau d'ECS intergroupe : aucun pour un CESCI (les distributions du groupe sont
+        // reliées à l'assemblage, §9.16.3) ; bouclé, sans réchauffeur, pour un CESCAI
+        // (§9.17.3.2, deuxième étape).
+        let ok_reseau = !ecs.is_empty()
+            && ecs.iter().all(|d| match d {
+                ReseauEcsIntergroupe::Aucun => !cescai,
+                ReseauEcsIntergroupe::Boucle(b) => cescai && !b.rechauffeur,
+                ReseauEcsIntergroupe::Trace(_) => false,
+            });
+        if !ok_reseau {
+            r.erreur(
+                cc.clone(),
+                None,
+                if cescai {
+                    "un CESCAI distribue l'ECS par un réseau intergroupe bouclé (`boucle`, sans \
+                     réchauffeur de boucle) (Th-BCE 2020 §9.17.3.2 ; lecture Q53)"
+                } else {
+                    "un CESCI dessert directement les distributions du groupe : réseau d'ECS \
+                     intergroupe `aucun` (Th-BCE 2020 §9.16.3)"
+                },
+            );
+        }
+        valider_exposition(
+            r,
+            &format!("{cc}.exposition_capteurs"),
+            &x.exposition_capteurs,
+            refs,
+        );
+        r.plage(
+            format!("{cc}.exposition_capteurs.inclinaison_deg"),
+            x.exposition_capteurs.inclinaison_deg,
+            0.0,
+            90.0,
+        );
+        valider_boucle(r, &cc, &x.capteurs, &x.boucle);
+        // Éq. (1981) : boucle d'un CESCI régulée sur l'ensoleillement.
+        if !cescai
+            && !matches!(
+                x.boucle.regulation,
+                RegulationBoucleSaisie::Irradiance { .. }
+            )
+        {
+            r.erreur(
+                format!("{cc}.boucle.regulation"),
+                Some("temperature".into()),
+                "la boucle solaire d'un CESCI est régulée sur l'ensoleillement (« Typeregul_BS = \
+                 1 », Th-BCE 2020 §9.16.3, éq. 1981)",
+            );
+        }
+        if x.boucle.h_rel_ech.is_some() {
+            r.erreur(
+                format!("{cc}.boucle.h_rel_ech"),
+                None,
+                "échangeurs solaires ponctuels en zone basse des ballons (éq. 1980 et 2066) : \
+                 `h_rel_ech` sans objet",
+            );
+        }
+        match (&x.ballon_central, cescai) {
+            (Some(b), true) => valider_ballon(r, &format!("{cc}.ballon_central"), b),
+            (None, true) => r.erreur(
+                format!("{cc}.ballon_central"),
+                None,
+                "ballon central requis pour un CESCAI (Th-BCE 2020 §9.17.3, éq. 2065)",
+            ),
+            (Some(_), false) => r.erreur(
+                format!("{cc}.ballon_central"),
+                None,
+                "ballon central sans objet pour un CESCI",
+            ),
+            (None, false) => {}
+        }
+        if x.ensembles.is_empty() {
+            r.erreur(
+                format!("{cc}.ensembles"),
+                None,
+                "au moins un ensemble de ballons individuels",
+            );
+        }
+        r.ids_uniques(
+            &format!("{cc}.ensembles"),
+            x.ensembles.iter().map(|e| &e.id),
+        );
+        for (j, en) in x.ensembles.iter().enumerate() {
+            let ce = format!("{cc}.ensembles[{j}]");
+            if en.nb_ballons == 0 {
+                r.erreur(
+                    format!("{ce}.nb_ballons"),
+                    Some("0".into()),
+                    "au moins un ballon",
+                );
+            }
+            valider_ballon(r, &format!("{ce}.ballon"), &en.ballon);
+            let separe = x.type_pcad == TypePcad::CesciAppointSepare;
+            match (&en.appoint, separe) {
+                (Some(_), true) => r.erreur(
+                    format!("{ce}.appoint"),
+                    None,
+                    "appoint intégré sans objet pour un CESCI à appoint séparé : les générateurs \
+                     instantanés d'ECS de la génération assurent l'appoint (éq. 1979 et 2010)",
+                ),
+                (None, false) => r.erreur(
+                    format!("{ce}.appoint"),
+                    None,
+                    "appoint intégré requis (éq. 1979 et 2065)",
+                ),
+                (None, true) => {}
+                (Some(a), false) => {
+                    let ca = format!("{ce}.appoint");
+                    for (champ, z) in [("z_ap", a.z_ap), ("z_reg", a.z_reg)] {
+                        if !(1..=4).contains(&z) {
+                            r.erreur(
+                                format!("{ca}.{champ}"),
+                                Some(z.to_string()),
+                                "numéro de zone du ballon de 1 (bas) à 4 (haut) (Th-BCE 2020 \
+                                 §9.9.2)",
+                            );
+                        }
+                    }
+                    if let Some(f) = a.f_aux {
+                        if !(f > 0.0 && f < 1.0) {
+                            r.erreur(
+                                format!("{ca}.f_aux"),
+                                Some(f.to_string()),
+                                "« faux » strictement compris entre 0 et 1 (Th-BCE 2020 \
+                                 §9.9.3.1)",
+                            );
+                        }
+                    }
+                    if let Some(d) = a.delta_theta_k {
+                        r.plage(format!("{ca}.delta_theta_k"), d, 0.0, 20.0);
+                    }
+                    let y = g.generateurs.iter().find(|y| y.id == a.generateur);
+                    let nature_ok = y.is_some_and(|y| {
+                        postes_assures(&y.nature)[2]
+                            && matches!(
+                                y.nature,
+                                NatureGenerateur::EffetJoule(_) | NatureGenerateur::Chaudiere(_)
+                            )
+                    });
+                    if !nature_ok || pilotes.contains(&a.generateur) {
+                        r.erreur(
+                            format!("{ca}.generateur"),
+                            Some(a.generateur.clone()),
+                            "l'appoint intégré d'un ballon individuel est un générateur de la \
+                             génération assurant l'ECS, propre à l'ensemble : effet Joule de \
+                             fonction `ecs` ou chaudière (les générateurs thermodynamiques \
+                             d'appoint sont hors de cette version)",
+                        );
+                    } else if y.is_some_and(|y| y.rdim != en.nb_ballons) {
+                        r.erreur(
+                            format!("{ce}.nb_ballons"),
+                            Some(en.nb_ballons.to_string()),
+                            "le nombre de ballons de l'ensemble est le nombre de générateurs \
+                             d'appoint identiques (`rdim` du générateur désigné, §9.16.3.4.2.1)",
+                        );
+                    }
+                    pilotes.push(a.generateur.clone());
+                }
+            }
+        }
+        if x.type_pcad == TypePcad::CesciAppointSepare {
+            let instantane = g.generateurs.iter().any(|y| postes_assures(&y.nature)[2]);
+            if !instantane {
+                r.erreur(
+                    format!("{cc}.type_pcad"),
+                    Some("cesci_appoint_separe".into()),
+                    "un CESCI à appoint séparé instantané demande un générateur instantané d'ECS \
+                     dans la génération (éq. 2010)",
+                );
+            }
+        }
+    }
 }
