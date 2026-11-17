@@ -91,7 +91,7 @@ Dans `calcul/mod.rs::calculer`, pour chaque bâtiment :
 3. Postes du logement collectif et des parkings (§7.2, §10.1, §10.3, §10.4) : `deplacements/mod.rs::calculer` ; ventilateurs, mobilier (§4.7, `indicateurs/equipements_mobiliers.rs`) ajoutés au relevé horaire.
 4. Production photovoltaïque (§12) : `pv/global.rs::produire`, sur le jeu « Th-BC ».
 5. Bbio : `indicateurs/sorties_th_b.rs::sorties` (§13.1, `SREF` éq. 2375 à 2378).
-6. Indicateurs, si le bâtiment a des générations : bilan électrique horaire et autoconsommation `indicateurs/bilans_energies.rs::bilan` (§13.4), puis `indicateurs/sorties_th_c.rs::calculer_indicateurs` : forfait de refroidissement (`indicateurs/forfait_refroidissement.rs`, §13.3), lignes par poste et par énergie, Cep, Cep,nr (coefficients de `crates/thbce-data/src/energies.rs`), Ic énergie (pondération dynamique, `crates/thbce-data/src/ponderation_dynamique.rs`), exigences et conformité (`indicateurs/exigences.rs::exigences_partie`, `dh_max`). Lectures : Q54.
+6. Indicateurs, si le bâtiment a des générations : bilan électrique horaire et autoconsommation `indicateurs/bilans_energies.rs::bilan` (§13.4), puis `indicateurs/sorties_th_c.rs::calculer_indicateurs` : forfait de refroidissement (`indicateurs/forfait_refroidissement.rs`, §13.3), lignes par poste et par énergie, Cep, Cep,nr (coefficients de `crates/thbce-data/src/energies.rs`), Ic énergie (pondération dynamique, `crates/thbce-data/src/ponderation_dynamique.rs`), exigences et conformité (`indicateurs/exigences.rs::exigences_partie`, `dh_max` ; valeurs des usages 3 à 28 dans `indicateurs/exigences_usages.rs`, catégorie et classe de bruit héritées groupe → zone → bâtiment par `ParametresExigences::categorie_groupe`, `categorie_zone`, `zone_bruit_zone`). Lectures : Q54, Q65 à Q69.
 7. Restitution (`resultats/mod.rs::Resultats`) puis arrondi à une décimale (§1.3.1, décision Q8) : `Resultats::arrondir`, qui applique `conventions.rs::arrondir_restitution` à chaque grandeur ; le calcul interne reste en pleine précision (`Options { arrondir: false }`, `--sans-arrondi`).
 
 ## 2. Carte des crates et des modules
@@ -178,7 +178,7 @@ Exemple à imiter : les bureaux (usage 3, lot 0a), premier usage non résidentie
    - caractère traversant : `bati/surventilation.rs::traversant_conventionnel` ✔, `ventilation/debits_air_cep.rs::trav_zone_conventionnel` ✔ ;
    - ECS : `ecs/besoins_ecs.rs::rat_douches_bains` ✔, `ecs/distribution_ecs.rs::nb_bouchons` ✔, longueurs par défaut (`ecs/distribution_ecs.rs`) ;
    - ascenseurs et parkings (`deplacements/mod.rs`, `deplacements/ascenseurs.rs::bv`) : logement collectif seulement ;
-   - exigences (`indicateurs/exigences.rs`) et forfait de refroidissement (`indicateurs/forfait_refroidissement.rs::coef_kwh_fr_par_dh` ✔).
+   - exigences ✔ (`indicateurs/exigences_usages.rs`, Q65 ; rien à ajouter, sauf si l'usage a une modulation propre) et forfait de refroidissement (`indicateurs/forfait_refroidissement.rs::coef_kwh_fr_par_dh` ✔).
 3. Validation : quelques lignes par famille (`validation/batiment.rs`, `validation/eclairage.rs`, `validation/ventilation.rs`, `validation/systemes.rs`, `validation/collectif.rs`, `validation/exigences.rs`). Pour tout repérer : `grep -rn "est_habitation\|est_pris_en_charge\|LogementCollectif\|MaisonIndividuelle\|usage.numero()" crates/thbce-core/src`.
 4. Tests : `crates/thbce-io/tests/tertiaire.rs` (bout en bout, sens des effets, refus), exemple `tests/cas/bureaux-simple-flux-ademe`.
 

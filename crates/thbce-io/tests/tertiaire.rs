@@ -88,8 +88,21 @@ fn les_bureaux_se_calculent_de_bout_en_bout() {
     let ecl: Vec<_> = i.lignes.iter().filter(|l| l.poste == "eclairage").collect();
     assert_eq!(ecl.len(), 1);
     assert_eq!(ecl[0].facteur_emission_kg_kwh, Some(0.064));
-    // Sans `exigences` : ni maximum ni conformité.
-    assert!(i.exigences.is_none());
+    // Exigences de l'usage 3 (lot 0b) : maximums et conformité évalués.
+    let ex = i.exigences.as_ref().unwrap();
+    assert!(ex.bbio_max_pts > 0.0 && ex.cep_max_kwhep_m2 > 0.0);
+    assert_eq!(ex.conforme, ex.verifications.iter().all(|v| v.respectee));
+    for v in &ex.verifications {
+        println!("{v:?}");
+    }
+    println!(
+        "Bbio_max {:.2} ; Cep_max {:.2} ; Cep,nr_max {:.2} ; Ic_max {:.2} ; conforme {}",
+        ex.bbio_max_pts,
+        ex.cep_max_kwhep_m2,
+        ex.cep_nr_max_kwhep_m2,
+        ex.ic_energie_max_kgco2_m2,
+        ex.conforme
+    );
     // ECS : tableau 277, 1,25 L par m² et par semaine sur 1 000 m² ; corr-e = (1 − 0,05) ×
     // (1 − 0,5 × 0,05) (mitigeurs économes, douches, Ratdouches-bains = 50 % en bureaux).
     let e = &z.groupes[0].systemes.as_ref().unwrap().ecs[0];
@@ -223,12 +236,20 @@ fn refus() {
     };
     let z = "batiments[0].zones[0]";
 
-    // Les autres usages non résidentiels restent hors périmètre.
+    // Les autres usages non résidentiels restent hors périmètre, et seulement cela (usage 4).
     let mut p = bureaux();
     p.batiments[0].zones[0].usage = UsageZone::EnseignementPrimaire;
     let (c, hors) = chemins(&p);
     assert!(c.contains(&format!("{z}.usage")), "{c:?}");
-    assert!(hors || c.len() > 1);
+    assert!(hors, "{c:?}");
+    // De même les commerces (usage 17) : une saisie correcte hors habitation d'un usage non
+    // ouvert est hors périmètre (code 3), pas une erreur de saisie.
+    let mut p = bureaux();
+    p.batiments[0].zones[0].usage = UsageZone::Commerces;
+    // Sans `exigences` : un permis de 2025 ne soumet pas les commerces à la RE2020 (Q68).
+    p.batiments[0].exigences = None;
+    let (c, hors) = chemins(&p);
+    assert!(c.contains(&format!("{z}.usage")) && hors, "{c:?}");
 
     // Double flux en non résidentiel : hors périmètre.
     let mut p = bureaux();
@@ -338,38 +359,68 @@ fn refus() {
     assert_eq!(chemins(&p).0, ["batiments[0].zones[0].groupes[0].locaux"]);
 }
 
-/// Avec des `exigences` saisies mais sans exigences transcrites pour l'usage, la conformité
-/// n'est pas évaluée : pas de maximum nul, pas de fausse conformité.
+/// Calculs à la main du relecteur du lot sur l'exemple, indépendants du code.
 #[test]
-fn sans_exigences_de_l_usage_la_conformite_n_est_pas_evaluee() {
-    let immeuble = json::lire_projet(
-        &std::fs::read_to_string(racine().join("tests/cas/immeuble-collectif-ademe/entree.json"))
-            .unwrap(),
-    )
-    .unwrap();
+fn calculs_a_la_main_du_relecteur() {
+    // Ventilateurs : 900 W pendant les heures d'occupation de l'année conventionnelle, 90 W
+    // le reste du temps (éq. 636 et 637) : 2 902,5 kWh, pour la zone comme pour son groupe.
+    let r = calcul(&bureaux());
+    let z = &r.batiments[0].zones[0];
+    let v = z.ventilation.as_ref().unwrap();
+    assert!(
+        (v.c_aux_vent_kwh - 2902.5).abs() < 1e-6,
+        "{}",
+        v.c_aux_vent_kwh
+    );
+    let g = z.groupes[0].ventilation.as_ref().unwrap();
+    assert!(
+        (g.c_aux_vent_kwh - 2902.5).abs() < 1e-6,
+        "{}",
+        g.c_aux_vent_kwh
+    );
+    // Débits spécifiques du projet vus du groupe : 4 191,89 m³/h en occupation (restitués).
+    assert!(
+        (g.q_spec_repris_m3_h + 4191.89).abs() < 5e-3,
+        "{}",
+        g.q_spec_repris_m3_h
+    );
+
+    // Débits d'inoccupation tous nuls mais puissance d'inoccupation saisie : la somme des
+    // groupes reste celle de la zone (Q60, point 6).
     let mut p = bureaux();
-    p.batiments[0].exigences = immeuble.batiments[0].exigences;
-    if !valider(&p).est_valide() {
-        // La validation des exigences d'un bâtiment tertiaire relève du lot 0b.
-        return;
+    for b in &mut p.batiments[0].zones[0].groupes[0].bouches_conduits {
+        b.q_spec_inocc_m3_h = Some(0.0);
     }
     let r = calcul(&p);
-    let i = r.batiments[0].indicateurs.as_ref().unwrap();
-    if thbce_core::indicateurs::exigences::dh_max(
-        3,
-        immeuble.batiments[0]
-            .exigences
-            .unwrap()
-            .categorie_contraintes_exterieures,
-        thbce_data::ZoneClimatique::H2b,
-        false,
-        1000.0,
-    )
-    .is_none()
-    {
-        assert!(i.exigences.is_none());
-        assert!(r.avertissements.iter().any(|a| a.contains("non évaluées")));
+    let z = &r.batiments[0].zones[0];
+    let zone = z.ventilation.as_ref().unwrap().c_aux_vent_kwh;
+    let groupes: f64 = z
+        .groupes
+        .iter()
+        .filter_map(|g| g.ventilation.as_ref())
+        .map(|g| g.c_aux_vent_kwh)
+        .sum();
+    assert!(
+        (zone - 2902.5).abs() < 1e-6 && (groupes - zone).abs() < 1e-6,
+        "{zone} {groupes}"
+    );
+
+    // Aucun local n'a accès à la lumière naturelle : l'éclairage ne dépend plus du climat.
+    // Th-C : 12 333,42 kWh par an ; Bbio : 14,770 kWh/m².
+    let mut p = bureaux();
+    for l in &mut p.batiments[0].zones[0].groupes[0].locaux {
+        l.ratio_ecl_nat = 0.0;
     }
+    let r = calcul(&p);
+    let b = &r.batiments[0];
+    let i = b.indicateurs.as_ref().unwrap();
+    assert!(
+        (i.electricite_consommee.eclairage_kwh - 12333.42).abs() < 5e-3,
+        "{}",
+        i.electricite_consommee.eclairage_kwh
+    );
+    let b_ecl = b.bbio.as_ref().unwrap().annuel.b_ecl_kwh_m2;
+    assert!((b_ecl - 14.770).abs() < 5e-4, "{b_ecl}");
 }
 
 fn meteo_reglementaire(p: &Projet) -> MeteoProjet {
@@ -396,6 +447,18 @@ fn bureaux_sur_meteo_reglementaire() {
     assert!(proche(cep, CEP), "Cep {cep}");
     assert!(proche(cep_nr, CEP), "Cep,nr {cep_nr}");
     assert!(proche(ic, IC), "Ic énergie {ic}");
+    // Exigences (permis de 2025, catégorie 1, BR1) : seul l'Ic énergie dépasse son maximum.
+    let i = r.batiments[0].indicateurs.as_ref().unwrap();
+    let ex = i.exigences.as_ref().unwrap();
+    let non_respectees: Vec<&str> = ex
+        .verifications
+        .iter()
+        .filter(|v| !v.respectee)
+        .map(|v| v.indicateur.as_str())
+        .collect();
+    println!("réglementaire : non respectées {non_respectees:?}");
+    assert_eq!(non_respectees, ["ic_energie"]);
+    assert!(!ex.conforme);
 }
 
 /// Valeurs phares attendues sur la météo réglementaire (lot 0a, 17 novembre 2026).

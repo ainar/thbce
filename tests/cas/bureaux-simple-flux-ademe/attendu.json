@@ -22,6 +22,13 @@
       },
       "indicateurs": {
         "cef_kwhef_m2": 46.1,
+        "exigences": {
+          "bbio_max_pts": 87.9,
+          "cep_max_kwhep_m2": 82.7,
+          "cep_nr_max_kwhep_m2": 73.0,
+          "ic_energie_max_kgco2_m2": 194.7,
+          "conforme": false
+        },
         "electricite_consommee": {
           "chauffage_kwh": 164.4,
           "ecs_kwh": 3192.7,

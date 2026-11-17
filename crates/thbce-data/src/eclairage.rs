@@ -6,7 +6,10 @@
 //! par usage de zone et par type de local. Le texte renvoie à ce tableau tantôt sous le numéro
 //! 78, tantôt sous le numéro 79.
 //!
-//! Transcription relue sur les images des pages 488 à 491 (usages 3 à 28).
+//! Transcription relue sur les images des pages 488 à 491 (usages 3 à 28). Une première
+//! version du fichier portait 200 lux au lieu de 150 pour les sanitaires collectifs de l'usage 9
+//! et la circulation de l'usage 22 (arrondi à l'écriture du fichier) : corrigé à la relecture
+//! de la PR, et des cellules de plusieurs usages sont désormais vérifiées en dur par les tests.
 //! Les valeurs sont reprises telles qu'imprimées, y compris celles qui surprennent (salle de
 //! réunion des bureaux à 50 lux, salle de repos de l'enseignement primaire à 0,60 puis 0,75).
 //! Deux cellules de l'usage 18 sont imprimées « 0?75 » et « 0?7 » : lues 0,75 et 0,70, comme
@@ -112,165 +115,165 @@ const fn l(usage: u8, local: TypeLocal, c1: [f64; 4], e_ref_lux: f64) -> LocalEc
 #[rustfmt::skip]
 pub static TABLEAU_78: [LocalEclairage; 134] = [
     // Usage 3.
-    l(3, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 5e+02),
-    l(3, TypeLocal::SalleReunion, [0.7, 0.65, 0.6, 0.5], 5e+01),
-    l(3, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 1e+02),
-    l(3, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 2e+02),
+    l(3, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 500.0),
+    l(3, TypeLocal::SalleReunion, [0.7, 0.65, 0.6, 0.5], 50.0),
+    l(3, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 100.0),
+    l(3, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 200.0),
     // Usage 4.
-    l(4, TypeLocal::SalleClasse, [0.95, 0.9, 0.85, 0.75], 3e+02),
-    l(4, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 5e+02),
-    l(4, TypeLocal::SalleReunion, [0.8, 0.75, 0.7, 0.6], 3e+02),
-    l(4, TypeLocal::SalleRepos, [0.6, 0.75, 0.7, 0.6], 3e+02),
-    l(4, TypeLocal::CirculationAccueil, [0.6, 0.55, 0.5, 0.4], 1e+02),
-    l(4, TypeLocal::SanitairesVestiaires, [0.7, 0.65, 0.6, 0.5], 2e+02),
+    l(4, TypeLocal::SalleClasse, [0.95, 0.9, 0.85, 0.75], 300.0),
+    l(4, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 500.0),
+    l(4, TypeLocal::SalleReunion, [0.8, 0.75, 0.7, 0.6], 300.0),
+    l(4, TypeLocal::SalleRepos, [0.6, 0.75, 0.7, 0.6], 300.0),
+    l(4, TypeLocal::CirculationAccueil, [0.6, 0.55, 0.5, 0.4], 100.0),
+    l(4, TypeLocal::SanitairesVestiaires, [0.7, 0.65, 0.6, 0.5], 200.0),
     // Usage 5.
-    l(5, TypeLocal::SalleClasse, [0.95, 0.9, 0.85, 0.75], 3e+02),
-    l(5, TypeLocal::SalleReunion, [0.8, 0.75, 0.7, 0.6], 3e+02),
-    l(5, TypeLocal::SalleEnseignementInformatique, [0.95, 0.9, 0.85, 0.75], 3e+02),
-    l(5, TypeLocal::SalleConference, [0.8, 0.75, 0.7, 0.6], 3e+02),
-    l(5, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 5e+02),
-    l(5, TypeLocal::CentreDocumentation, [0.8, 0.75, 0.7, 0.6], 5e+02),
-    l(5, TypeLocal::SalleProfesseurs, [0.8, 0.75, 0.7, 0.6], 3e+02),
-    l(5, TypeLocal::CirculationAccueil, [0.6, 0.55, 0.5, 0.4], 1e+02),
-    l(5, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 2e+02),
+    l(5, TypeLocal::SalleClasse, [0.95, 0.9, 0.85, 0.75], 300.0),
+    l(5, TypeLocal::SalleReunion, [0.8, 0.75, 0.7, 0.6], 300.0),
+    l(5, TypeLocal::SalleEnseignementInformatique, [0.95, 0.9, 0.85, 0.75], 300.0),
+    l(5, TypeLocal::SalleConference, [0.8, 0.75, 0.7, 0.6], 300.0),
+    l(5, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 500.0),
+    l(5, TypeLocal::CentreDocumentation, [0.8, 0.75, 0.7, 0.6], 500.0),
+    l(5, TypeLocal::SalleProfesseurs, [0.8, 0.75, 0.7, 0.6], 300.0),
+    l(5, TypeLocal::CirculationAccueil, [0.6, 0.55, 0.5, 0.4], 100.0),
+    l(5, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 200.0),
     // Usage 6.
-    l(6, TypeLocal::SalleMultiFonctions, [0.8, 0.75, 0.7, 0.6], 3e+02),
-    l(6, TypeLocal::CentreDocumentation, [0.8, 0.75, 0.7, 0.6], 5e+02),
-    l(6, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 2e+02),
-    l(6, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 5e+02),
-    l(6, TypeLocal::SalleReunion, [0.8, 0.75, 0.7, 0.6], 3e+02),
-    l(6, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 1e+02),
-    l(6, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 2e+02),
+    l(6, TypeLocal::SalleMultiFonctions, [0.8, 0.75, 0.7, 0.6], 300.0),
+    l(6, TypeLocal::CentreDocumentation, [0.8, 0.75, 0.7, 0.6], 500.0),
+    l(6, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 200.0),
+    l(6, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 500.0),
+    l(6, TypeLocal::SalleReunion, [0.8, 0.75, 0.7, 0.6], 300.0),
+    l(6, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 100.0),
+    l(6, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 200.0),
     // Usage 7.
-    l(7, TypeLocal::SalleClasse, [0.95, 0.9, 0.85, 0.75], 3e+02),
-    l(7, TypeLocal::SalleConference, [0.8, 0.75, 0.7, 0.6], 3e+02),
-    l(7, TypeLocal::SalleEnseignementInformatique, [0.95, 0.9, 0.85, 0.75], 3e+02),
-    l(7, TypeLocal::CentreDocumentation, [0.8, 0.75, 0.7, 0.6], 5e+02),
-    l(7, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 5e+02),
-    l(7, TypeLocal::SalleReunion, [0.8, 0.75, 0.7, 0.6], 3e+02),
-    l(7, TypeLocal::CirculationAccueil, [0.6, 0.55, 0.5, 0.4], 1e+02),
-    l(7, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 2e+02),
+    l(7, TypeLocal::SalleClasse, [0.95, 0.9, 0.85, 0.75], 300.0),
+    l(7, TypeLocal::SalleConference, [0.8, 0.75, 0.7, 0.6], 300.0),
+    l(7, TypeLocal::SalleEnseignementInformatique, [0.95, 0.9, 0.85, 0.75], 300.0),
+    l(7, TypeLocal::CentreDocumentation, [0.8, 0.75, 0.7, 0.6], 500.0),
+    l(7, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 500.0),
+    l(7, TypeLocal::SalleReunion, [0.8, 0.75, 0.7, 0.6], 300.0),
+    l(7, TypeLocal::CirculationAccueil, [0.6, 0.55, 0.5, 0.4], 100.0),
+    l(7, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 200.0),
     // Usage 8.
-    l(8, TypeLocal::ChambreSansCuisine, [0.6, 0.55, 0.5, 0.4], 7e+01),
-    l(8, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(8, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 2e+02),
-    l(8, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 1e+02),
+    l(8, TypeLocal::ChambreSansCuisine, [0.6, 0.55, 0.5, 0.4], 70.0),
+    l(8, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(8, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 200.0),
+    l(8, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 100.0),
     // Usage 9.
-    l(9, TypeLocal::ChambreSansCuisine, [0.6, 0.55, 0.5, 0.4], 7e+01),
-    l(9, TypeLocal::SanitairesCollectifs, [1.0, 0.95, 0.9, 0.8], 2e+02),
-    l(9, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 2e+02),
-    l(9, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 1e+02),
+    l(9, TypeLocal::ChambreSansCuisine, [0.6, 0.55, 0.5, 0.4], 70.0),
+    l(9, TypeLocal::SanitairesCollectifs, [1.0, 0.95, 0.9, 0.8], 150.0),
+    l(9, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 200.0),
+    l(9, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 100.0),
     // Usage 10.
-    l(10, TypeLocal::BureauStandard, [0.8, 0.75, 0.7, 0.6], 5e+02),
-    l(10, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(10, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 1e+02),
-    l(10, TypeLocal::SallePetitsDejeuners, [1.0, 1.0, 1.0, 1.0], 2e+02),
+    l(10, TypeLocal::BureauStandard, [0.8, 0.75, 0.7, 0.6], 500.0),
+    l(10, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(10, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 100.0),
+    l(10, TypeLocal::SallePetitsDejeuners, [1.0, 1.0, 1.0, 1.0], 200.0),
     // Usage 11.
-    l(11, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 5e+02),
-    l(11, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(11, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 1e+02),
-    l(11, TypeLocal::Bar, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(11, TypeLocal::SallePetitsDejeuners, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(11, TypeLocal::SalleSeminairesReunion, [0.8, 0.75, 0.7, 0.6], 5e+02),
+    l(11, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 500.0),
+    l(11, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(11, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 100.0),
+    l(11, TypeLocal::Bar, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(11, TypeLocal::SallePetitsDejeuners, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(11, TypeLocal::SalleSeminairesReunion, [0.8, 0.75, 0.7, 0.6], 500.0),
     // Usage 12.
-    l(12, TypeLocal::SalleJeux, [0.95, 0.9, 0.85, 0.75], 3e+02),
-    l(12, TypeLocal::SalleRepos, [0.8, 0.75, 0.7, 0.6], 3e+02),
-    l(12, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 5e+02),
-    l(12, TypeLocal::SalleReunion, [0.8, 0.75, 0.7, 0.6], 5e+02),
-    l(12, TypeLocal::CirculationAccueil, [0.6, 0.55, 0.5, 0.4], 1e+02),
-    l(12, TypeLocal::SanitairesVestiaires, [0.7, 0.65, 0.6, 0.5], 2e+02),
+    l(12, TypeLocal::SalleJeux, [0.95, 0.9, 0.85, 0.75], 300.0),
+    l(12, TypeLocal::SalleRepos, [0.8, 0.75, 0.7, 0.6], 300.0),
+    l(12, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 500.0),
+    l(12, TypeLocal::SalleReunion, [0.8, 0.75, 0.7, 0.6], 500.0),
+    l(12, TypeLocal::CirculationAccueil, [0.6, 0.55, 0.5, 0.4], 100.0),
+    l(12, TypeLocal::SanitairesVestiaires, [0.7, 0.65, 0.6, 0.5], 200.0),
     // Usage 13.
-    l(13, TypeLocal::SalleRestaurant, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(13, TypeLocal::Cuisine, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(13, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 2e+02),
+    l(13, TypeLocal::SalleRestaurant, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(13, TypeLocal::Cuisine, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(13, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 200.0),
     // Usage 14.
-    l(14, TypeLocal::SalleRestaurant, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(14, TypeLocal::Cuisine, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(14, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 2e+02),
+    l(14, TypeLocal::SalleRestaurant, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(14, TypeLocal::Cuisine, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(14, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 200.0),
     // Usage 15.
-    l(15, TypeLocal::SalleRestaurant, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(15, TypeLocal::Cuisine, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(15, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 2e+02),
+    l(15, TypeLocal::SalleRestaurant, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(15, TypeLocal::Cuisine, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(15, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 200.0),
     // Usage 16.
-    l(16, TypeLocal::SalleRestaurant, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(16, TypeLocal::Cuisine, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(16, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 2e+02),
+    l(16, TypeLocal::SalleRestaurant, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(16, TypeLocal::Cuisine, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(16, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 200.0),
     // Usage 17.
-    l(17, TypeLocal::AireVenteInferieure300, [1.0, 1.0, 1.0, 1.0], 3e+02),
-    l(17, TypeLocal::AireVenteSuperieure300, [1.0, 1.0, 1.0, 1.0], 3e+02),
-    l(17, TypeLocal::CirculationAccueil, [1.0, 1.0, 1.0, 1.0], 3e+02),
-    l(17, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(17, TypeLocal::DouchesCollectives, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(17, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 2e+02),
+    l(17, TypeLocal::AireVenteInferieure300, [1.0, 1.0, 1.0, 1.0], 300.0),
+    l(17, TypeLocal::AireVenteSuperieure300, [1.0, 1.0, 1.0, 1.0], 300.0),
+    l(17, TypeLocal::CirculationAccueil, [1.0, 1.0, 1.0, 1.0], 300.0),
+    l(17, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(17, TypeLocal::DouchesCollectives, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(17, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 200.0),
     // Usage 18.
-    l(18, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 1e+02),
-    l(18, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(18, TypeLocal::DouchesCollectives, [0.7, 0.65, 0.6, 0.5], 2e+02),
+    l(18, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 100.0),
+    l(18, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(18, TypeLocal::DouchesCollectives, [0.7, 0.65, 0.6, 0.5], 200.0),
     // Usage 19.
-    l(19, TypeLocal::ChambreSansCuisine, [1.0, 1.0, 1.0, 1.0], 7e+01),
-    l(19, TypeLocal::CirculationAccueil, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(19, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 2e+02),
-    l(19, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(19, TypeLocal::SalleCommune, [0.8, 0.75, 0.7, 0.6], 5e+02),
-    l(19, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 5e+02),
+    l(19, TypeLocal::ChambreSansCuisine, [1.0, 1.0, 1.0, 1.0], 70.0),
+    l(19, TypeLocal::CirculationAccueil, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(19, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 200.0),
+    l(19, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(19, TypeLocal::SalleCommune, [0.8, 0.75, 0.7, 0.6], 500.0),
+    l(19, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 500.0),
     // Usage 20.
-    l(20, TypeLocal::ChambreSansCuisine, [1.0, 1.0, 1.0, 1.0], 7e+01),
-    l(20, TypeLocal::DouchesCollectives, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(20, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(20, TypeLocal::CirculationAccueil, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(20, TypeLocal::LocauxSoinsOffices, [1.0, 1.0, 1.0, 1.0], 5e+02),
-    l(20, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 5e+02),
-    l(20, TypeLocal::SalleAttenteConsultation, [1.0, 1.0, 1.0, 1.0], 5e+02),
-    l(20, TypeLocal::AireProduction, [1.0, 0.95, 0.9, 0.8], 5e+02),
+    l(20, TypeLocal::ChambreSansCuisine, [1.0, 1.0, 1.0, 1.0], 70.0),
+    l(20, TypeLocal::DouchesCollectives, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(20, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(20, TypeLocal::CirculationAccueil, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(20, TypeLocal::LocauxSoinsOffices, [1.0, 1.0, 1.0, 1.0], 500.0),
+    l(20, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 500.0),
+    l(20, TypeLocal::SalleAttenteConsultation, [1.0, 1.0, 1.0, 1.0], 500.0),
+    l(20, TypeLocal::AireProduction, [1.0, 0.95, 0.9, 0.8], 500.0),
     // Usage 21.
-    l(21, TypeLocal::AireProduction, [1.0, 0.95, 0.9, 0.8], 5e+02),
-    l(21, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(21, TypeLocal::CirculationAccueil, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(21, TypeLocal::DouchesCollectives, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(21, TypeLocal::SalleAttenteConsultation, [1.0, 1.0, 1.0, 1.0], 5e+02),
-    l(21, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 5e+02),
-    l(21, TypeLocal::SalleReunion, [0.7, 0.65, 0.6, 0.5], 5e+02),
+    l(21, TypeLocal::AireProduction, [1.0, 0.95, 0.9, 0.8], 500.0),
+    l(21, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(21, TypeLocal::CirculationAccueil, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(21, TypeLocal::DouchesCollectives, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(21, TypeLocal::SalleAttenteConsultation, [1.0, 1.0, 1.0, 1.0], 500.0),
+    l(21, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 500.0),
+    l(21, TypeLocal::SalleReunion, [0.7, 0.65, 0.6, 0.5], 500.0),
     // Usage 22.
-    l(22, TypeLocal::EspaceVoyageurs, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(22, TypeLocal::CirculationAccueil, [1.0, 0.75, 0.7, 0.6], 2e+02),
-    l(22, TypeLocal::Commerces, [1.0, 1.0, 1.0, 1.0], 3e+02),
-    l(22, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 5e+02),
-    l(22, TypeLocal::InspectionFiltrage, [1.0, 1.0, 1.0, 1.0], 5e+02),
-    l(22, TypeLocal::SanitairesVestiaires, [0.7, 0.65, 0.6, 0.5], 2e+02),
+    l(22, TypeLocal::EspaceVoyageurs, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(22, TypeLocal::CirculationAccueil, [1.0, 0.75, 0.7, 0.6], 150.0),
+    l(22, TypeLocal::Commerces, [1.0, 1.0, 1.0, 1.0], 300.0),
+    l(22, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 500.0),
+    l(22, TypeLocal::InspectionFiltrage, [1.0, 1.0, 1.0, 1.0], 500.0),
+    l(22, TypeLocal::SanitairesVestiaires, [0.7, 0.65, 0.6, 0.5], 200.0),
     // Usage 23.
-    l(23, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 5e+02),
-    l(23, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 1e+02),
-    l(23, TypeLocal::AireProduction, [1.0, 1.0, 1.0, 1.0], 3e+02),
-    l(23, TypeLocal::SanitairesVestiaires, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(23, TypeLocal::DouchesCollectives, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(23, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 2e+02),
+    l(23, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 500.0),
+    l(23, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 100.0),
+    l(23, TypeLocal::AireProduction, [1.0, 1.0, 1.0, 1.0], 300.0),
+    l(23, TypeLocal::SanitairesVestiaires, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(23, TypeLocal::DouchesCollectives, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(23, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 200.0),
     // Usage 24.
-    l(24, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 5e+02),
-    l(24, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 1e+02),
-    l(24, TypeLocal::AireProduction, [1.0, 1.0, 1.0, 1.0], 3e+02),
-    l(24, TypeLocal::SanitairesVestiaires, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(24, TypeLocal::DouchesCollectives, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(24, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 2e+02),
+    l(24, TypeLocal::BureauStandard, [0.9, 0.85, 0.8, 0.7], 500.0),
+    l(24, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 100.0),
+    l(24, TypeLocal::AireProduction, [1.0, 1.0, 1.0, 1.0], 300.0),
+    l(24, TypeLocal::SanitairesVestiaires, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(24, TypeLocal::DouchesCollectives, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(24, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 200.0),
     // Usage 25.
-    l(25, TypeLocal::SalleSport, [0.9, 0.85, 0.8, 0.7], 3e+02),
-    l(25, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 1e+02),
-    l(25, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(25, TypeLocal::DouchesCollectives, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(25, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 2e+02),
+    l(25, TypeLocal::SalleSport, [0.9, 0.85, 0.8, 0.7], 300.0),
+    l(25, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 100.0),
+    l(25, TypeLocal::SanitairesCollectifs, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(25, TypeLocal::DouchesCollectives, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(25, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 200.0),
     // Usage 26.
-    l(26, TypeLocal::SalleRestaurant, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(26, TypeLocal::Cuisine, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(26, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 2e+02),
+    l(26, TypeLocal::SalleRestaurant, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(26, TypeLocal::Cuisine, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(26, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 200.0),
     // Usage 27.
-    l(27, TypeLocal::SalleRestaurant, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(27, TypeLocal::Cuisine, [1.0, 1.0, 1.0, 1.0], 2e+02),
-    l(27, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 2e+02),
+    l(27, TypeLocal::SalleRestaurant, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(27, TypeLocal::Cuisine, [1.0, 1.0, 1.0, 1.0], 200.0),
+    l(27, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 200.0),
     // Usage 28.
-    l(28, TypeLocal::SalleSport, [0.9, 0.85, 0.8, 0.7], 3e+02),
-    l(28, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 1e+02),
-    l(28, TypeLocal::SanitairesVestiaires, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(28, TypeLocal::DouchesCollectives, [0.7, 0.65, 0.6, 0.5], 2e+02),
-    l(28, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 2e+02),
+    l(28, TypeLocal::SalleSport, [0.9, 0.85, 0.8, 0.7], 300.0),
+    l(28, TypeLocal::CirculationAccueil, [0.8, 0.75, 0.7, 0.6], 100.0),
+    l(28, TypeLocal::SanitairesVestiaires, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(28, TypeLocal::DouchesCollectives, [0.7, 0.65, 0.6, 0.5], 200.0),
+    l(28, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 200.0),
 ];
 
 /// Ligne du tableau 78 d'un type de local dans un usage ; `None` si l'usage n'a pas ce type de
@@ -317,6 +320,96 @@ mod tests {
         assert_eq!(locaux(3).count(), 4);
         assert!(local(3, TypeLocal::SalleClasse).is_none());
         assert!(local(1, TypeLocal::BureauStandard).is_none());
+    }
+
+    /// Échantillon de cellules d'autres usages, relues sur les images des pages 488 à 491.
+    #[test]
+    fn tableau_78_echantillon() {
+        let cas: [(u8, TypeLocal, [f64; 4], f64); 14] = [
+            (4, TypeLocal::SalleRepos, [0.60, 0.75, 0.70, 0.60], 300.0),
+            (
+                5,
+                TypeLocal::CentreDocumentation,
+                [0.80, 0.75, 0.70, 0.60],
+                500.0,
+            ),
+            (6, TypeLocal::LocalService, [0.06, 0.05, 0.04, 0.02], 200.0),
+            (
+                8,
+                TypeLocal::ChambreSansCuisine,
+                [0.60, 0.55, 0.50, 0.40],
+                70.0,
+            ),
+            (
+                9,
+                TypeLocal::SanitairesCollectifs,
+                [1.00, 0.95, 0.90, 0.80],
+                150.0,
+            ),
+            (
+                9,
+                TypeLocal::ChambreSansCuisine,
+                [0.60, 0.55, 0.50, 0.40],
+                70.0,
+            ),
+            (
+                10,
+                TypeLocal::BureauStandard,
+                [0.80, 0.75, 0.70, 0.60],
+                500.0,
+            ),
+            (12, TypeLocal::SalleReunion, [0.80, 0.75, 0.70, 0.60], 500.0),
+            (
+                17,
+                TypeLocal::CirculationAccueil,
+                [1.0, 1.0, 1.0, 1.0],
+                300.0,
+            ),
+            (
+                19,
+                TypeLocal::ChambreSansCuisine,
+                [1.0, 1.0, 1.0, 1.0],
+                70.0,
+            ),
+            (
+                20,
+                TypeLocal::AireProduction,
+                [1.00, 0.95, 0.90, 0.80],
+                500.0,
+            ),
+            (
+                22,
+                TypeLocal::CirculationAccueil,
+                [1.00, 0.75, 0.70, 0.60],
+                150.0,
+            ),
+            (22, TypeLocal::EspaceVoyageurs, [1.0, 1.0, 1.0, 1.0], 200.0),
+            (28, TypeLocal::SalleSport, [0.90, 0.85, 0.80, 0.70], 300.0),
+        ];
+        for (usage, type_local, c1, e_ref) in cas {
+            let l = local(usage, type_local).unwrap();
+            assert_eq!(
+                (l.c1, l.e_ref_lux),
+                (c1, e_ref),
+                "usage {usage}, {type_local:?}"
+            );
+        }
+        // Éclairements de référence présents dans le tableau : 50, 70, 100, 150, 200, 300 et
+        // 500 lux, et eux seuls.
+        for l in &TABLEAU_78 {
+            assert!(
+                [50.0, 70.0, 100.0, 150.0, 200.0, 300.0, 500.0].contains(&l.e_ref_lux),
+                "usage {} : {}",
+                l.usage,
+                l.e_ref_lux
+            );
+        }
+        assert_eq!(
+            TABLEAU_78.iter().filter(|l| l.e_ref_lux == 150.0).count(),
+            2
+        );
+        assert_eq!(TABLEAU_78.iter().filter(|l| l.e_ref_lux == 50.0).count(), 1);
+        assert_eq!(TABLEAU_78.iter().filter(|l| l.e_ref_lux == 70.0).count(), 4);
     }
 
     #[test]

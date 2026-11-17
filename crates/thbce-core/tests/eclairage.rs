@@ -202,19 +202,27 @@ mod tertiaire {
             c2(GradEcl::ExtinctionAutomatique, 1400.0, 1400.0),
             0.2
         ));
-        // Eiref ≤ Eimin (circulation, 100 lux ; salle de réunion des bureaux, 50 lux) : 1
-        // jusqu'à 100 lux (lecture Q58).
+        // Eiref ≤ Eimin (circulation, 100 lux ; salle de réunion des bureaux, 50 lux), lecture
+        // Q58. Gradation : 1 jusqu'à 100 lux, puis les points au-delà.
         assert_eq!(c2(GradEcl::GradationAutomatique, 80.0, 50.0), 1.0);
         assert_eq!(c2(GradEcl::GradationAutomatique, 101.0, 50.0), 0.0);
         assert!(proche(
             c2(GradEcl::GradationAutomatique, 150.0, 100.0),
             0.15
         ));
+        // Gestions 3 et 4 : « pour Einat > EiRef, C2 = 0 », y compris sous 100 lux.
         assert_eq!(
-            c2(GradEcl::AllumageEtExtinctionAutomatiques, 80.0, 50.0),
+            c2(GradEcl::AllumageEtExtinctionAutomatiques, 50.0, 50.0),
             1.0
         );
-        assert_eq!(c2(GradEcl::ExtinctionAutomatique, 120.0, 50.0), 0.0);
+        assert_eq!(
+            c2(GradEcl::AllumageEtExtinctionAutomatiques, 80.0, 50.0),
+            0.0
+        );
+        assert_eq!(c2(GradEcl::ExtinctionAutomatique, 40.0, 50.0), 1.0);
+        assert_eq!(c2(GradEcl::ExtinctionAutomatique, 80.0, 50.0), 0.0);
+        assert_eq!(c2(GradEcl::ExtinctionAutomatique, 100.0, 100.0), 1.0);
+        assert_eq!(c2(GradEcl::ExtinctionAutomatique, 120.0, 100.0), 0.0);
     }
 
     #[test]
@@ -321,5 +329,67 @@ mod tertiaire {
                               "grad_ecl": "manuelle", "fractionne": false}}"#,
         );
         assert!(LocalResolu::bbio(25, &sport, 100.0).is_none());
+    }
+
+    /// Les quatre locaux de l'exemple `bureaux-simple-flux-ademe` (groupe de 1 000 m²), valeurs
+    /// calculées à la main par le relecteur du lot, indépendamment du code.
+    #[test]
+    fn locaux_de_l_exemple_de_bureaux_a_la_main() {
+        let locaux = [
+            local(
+                r#"{"id": "bureaux", "type_local": "bureau_standard", "ratio_local": 0.6,
+                    "ratio_ecl_nat": 0.8,
+                    "eclairage": {"p_ecl_tot_w_m2": 6, "p_ecl_aux_w_m2": 0.2,
+                                  "gest_ecl": "marche_manuelle_arret_automatique",
+                                  "grad_ecl": "gradation_automatique", "fractionne": true,
+                                  "eff_ecl_immo_projet_w_m2_100lux": 1.5, "ei_proj_lux": 500}}"#,
+            ),
+            local(
+                r#"{"id": "reunion", "type_local": "salle_reunion", "ratio_local": 0.1,
+                    "ratio_ecl_nat": 0.8,
+                    "eclairage": {"p_ecl_tot_w_m2": 8, "gest_ecl": "interrupteur_manuel",
+                                  "grad_ecl": "manuelle", "fractionne": false}}"#,
+            ),
+            local(
+                r#"{"id": "circulations", "type_local": "circulation_accueil",
+                    "ratio_local": 0.26, "ratio_ecl_nat": 0.2,
+                    "eclairage": {"p_ecl_tot_w_m2": 4, "p_ecl_aux_w_m2": 0.1,
+                                  "gest_ecl": "marche_et_arret_automatiques",
+                                  "grad_ecl": "manuelle", "fractionne": false}}"#,
+            ),
+            local(
+                r#"{"id": "sanitaires", "type_local": "sanitaires_collectifs",
+                    "ratio_local": 0.04, "ratio_ecl_nat": 0,
+                    "eclairage": {"p_ecl_tot_w_m2": 6, "p_ecl_aux_w_m2": 0.1,
+                                  "gest_ecl": "marche_et_arret_automatiques",
+                                  "grad_ecl": "aucune", "fractionne": false}}"#,
+            ),
+        ];
+        let projet: Vec<LocalResolu> = locaux
+            .iter()
+            .map(|l| LocalResolu::projet(3, l, 1000.0).unwrap())
+            .collect();
+        let bbio: Vec<LocalResolu> = locaux
+            .iter()
+            .map(|l| LocalResolu::bbio(3, l, 1000.0).unwrap())
+            .collect();
+        let pres = |a: f64, b: f64| (a - b).abs() < 5e-7;
+        // Une heure d'occupation sans lumière naturelle, puis une heure d'inoccupation.
+        let (c, b) = (
+            eclairage_locaux(&projet, true, 0.0).c_ecl_kwh,
+            eclairage_locaux(&bbio, true, 0.0).c_ecl_kwh,
+        );
+        assert!(pres(c, 4.372) && pres(b, 5.659), "{c} {b}");
+        let (c, b) = (
+            eclairage_locaux(&projet, false, 0.0).c_ecl_kwh,
+            eclairage_locaux(&bbio, false, 0.0).c_ecl_kwh,
+        );
+        assert!(pres(c, 0.150) && b == 0.0, "{c} {b}");
+        // Une heure d'occupation avec Einat(2) = 400 lux.
+        let (c, b) = (
+            eclairage_locaux(&projet, true, 400.0).c_ecl_kwh,
+            eclairage_locaux(&bbio, true, 400.0).c_ecl_kwh,
+        );
+        assert!(pres(c, 2.682317) && pres(b, 5.056417), "{c} {b}");
     }
 }

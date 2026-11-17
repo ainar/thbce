@@ -518,19 +518,32 @@ impl VentilationProjet {
     /// Puissance des ventilateurs attribuée à un groupe selon `Ivent`, en W (éq. 642 et 644 :
     /// « en résidentiel et en non résidentiel », au prorata des débits spécifiques du pas de
     /// temps).
+    ///
+    /// Si tous les débits de l'inoccupation sont nuls alors que la puissance d'inoccupation ne
+    /// l'est pas, le prorata n'est pas défini : la puissance est répartie au prorata des débits
+    /// de l'occupation, pour que la somme des groupes reste la consommation du système
+    /// (`docs/questions/Q060.md`).
     pub fn p_vent_groupe_selon_w(&self, g: usize, i_vent: bool) -> f64 {
         let (p_rep, p_sou) = self.p_vent_selon(i_vent);
         let p_vent_w = p_rep + p_sou;
         let somme = |f: &dyn Fn(&Debits) -> f64, cond: bool| {
-            let de = |i: usize| {
-                if cond {
-                    self.debits_cond_groupe_selon(i, i_vent)
-                } else {
-                    self.debits_groupe_selon(i, i_vent)
-                }
+            let pour = |etat: bool| {
+                let de = |i: usize| {
+                    if cond {
+                        self.debits_cond_groupe_selon(i, etat)
+                    } else {
+                        self.debits_groupe_selon(i, etat)
+                    }
+                };
+                let total: f64 = (0..self.nb_groupes).map(|i| f(&de(i))).sum();
+                (f(&de(g)), total)
             };
-            let total: f64 = (0..self.nb_groupes).map(|i| f(&de(i))).sum();
-            (f(&de(g)), total)
+            let (q, total) = pour(i_vent);
+            if total == 0.0 && !i_vent {
+                pour(true)
+            } else {
+                (q, total)
+            }
         };
         match self.nature {
             NatureSysteme::SimpleFluxExtraction | NatureSysteme::BassePression => {

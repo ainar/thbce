@@ -1,0 +1,279 @@
+                RE2020
+          Fiche d’application :
+   Exclusions d’application pour les
+       bâtiments dits « tertiaires
+ spécifiques » et industriels/artisanaux
+
+ Date                 Modification                         Version
+
+ 01/10/2026           Création                             1
+
+
+
+Préambule
+Cette fiche d’application a pour objectif de faciliter la compréhension du champ
+d’application de la réglementation environnementale 2020 (RE2020) aux bâtiments
+dits « tertiaires spécifiques » et industriels / artisanaux. Elle précise notamment les
+conditions d’exclusion prévues aux III et IV de l’article R. 172-1 du code de la
+construction et de l’habitation (CCH).
+
+Pour mémoire, une fiche d’application constitue un outil de documentation et n’a
+aucune portée juridique. Les textes officiels faisant foi sont ceux parus au Journal
+Officiel.
+
+
+
+
+1/8
+Que disent les textes ?
+
+Article R 172-1 du Code de la Construction et de l’Habitation (CCH)
+
+« III − Les dispositions de la présente section s'appliquent à la construction de
+bâtiments ou parties de bâtiments, qui font l'objet d'une demande de permis de
+construire ou d'une déclaration préalable déposée à compter du 1 er mai 2026, et
+figurant dans la liste suivante :
+      1° Médiathèques et bibliothèques ;
+      2° Bâtiments d'enseignements atypiques ;
+      3° Bâtiments universitaires d'enseignement et de recherche ;
+      4° Hôtels ;
+      5° Etablissements d'accueil de la petite enfance ;
+      6° Restaurants ;
+      7° Commerces ;
+      8° Vestiaires seuls ;
+      9° Etablissements sanitaires avec hébergements ;
+      10° Etablissements de santé ;
+      11° Aérogares ;
+      12° Bâtiments à usage industriel et artisanal ;
+      13° Etablissements sportifs.
+
+Ces dispositions ne s’appliquent pas à :
+     1° La construction de bâtiments ou de parties de bâtiments qui, en raison de
+     contraintes spécifiques liées à leur usage, doivent garantir des conditions
+     particulières de température, d'hygrométrie ou de qualité de l'air et nécessitant,
+     de ce fait, des règles particulières ;
+     2° La construction temporaire de bâtiments ou de parties de bâtiments
+     mentionnés à l'article R.* 421-5 du code de l'urbanisme ou implantés pour une
+     durée n'excédant pas deux ans ;
+     3° La construction ou l'extension de bâtiments d'une surface inférieure à 50 m² ;
+     4° L'extension de bâtiments d'une surface cumulativement inférieure à 150 m² et
+     inférieure à 30 % de la surface des locaux existants.
+
+IV. - La présente section ne s'applique pas en Guadeloupe, en Guyane, en Martinique,
+à La Réunion et à Mayotte. »
+
+
+
+
+2/8
+Exclusion d’application prévue au 1° du III du R. 172-
+1 du CCH
+
+Eléments de compréhension
+
+La réglementation formule l’exemption d’application de la RE2020 aux constructions
+de bâtiments ou de parties de bâtiment, qui « en raison de contraintes spécifiques liées
+à leur usage, doivent garantir des conditions particulières de température, d'hygrométrie
+ou de qualité de l'air et nécessitant, de ce fait, des règles particulières ».
+
+Une telle formulation vise dans le langage courant les bâtiments, les parties de
+bâtiment ou encore les locaux dits à usage de « process ». Un local à usage de process
+est un local dont les fonctions de chauffage, de climatisation, ou encore de ventilation
+ne répondent qu’à des besoins spécifiques et exclusifs liés aux processus de
+fabrication ou de conservation de produits ou tout autre utilisation imposant des
+conditions particulières de température, d’hygrométrie, ou de qualité d’air Dans de
+tels locaux, les systèmes de chauffage, de climatisation ou de ventilation ne sont pas
+conçus pour assurer une ambiance confortable pour les occupants : on les qualifie
+d’équipement / de système de process.
+
+Attention : Les parties de bâtiment et les locaux dits à usage de « process » relèvent
+de règles de saisies de l’analyse en cycle de vie (ACV) spécifiques. Ces règles sont
+précisés dans la fiche d’application « Périmètre des locaux intégrés à l’ACV »
+disponible sur le site RT-RE bâtiment.
+
+
+
+
+3/8
+Logigramme explicitant les limites d’application de la RE2020 prévues au 1° du III du
+R. 172-1 du CCH
+
+
+
+
+4/8
+En pratique dans les calculs
+
+      -   Aucun calcul n’est à effectuer sur un bâtiment entièrement dédié au process.
+
+      -   Les locaux entièrement dédiés au process, situés dans un bâtiment, sont exclus
+          du calcul du Bbio, du Cep, du Cep,nr, du DH. Par ailleurs, ces locaux ne sont pas
+          comptabilisés dans la surface de référence du bâtiment. En mirroir, les autres
+          locaux (sans process) sont bien soumis à la RE2020.
+
+      -   Lorsqu’un local demeure soumis à la RE2020 mais comporte des équipements
+          exclusivement dédiés au process, ces équipements ne sont pas pris en compte
+          dans le calcul (puissances, consommations, débits de renouvellement d’air et
+          apports internes de ces équipements). Ainsi, la description des équipements
+          dans le calcul réglementaire, y compris l’ACV, doit être adaptée afin de ne pas
+          faire apparaître les équipements (ou la part de ceux-ci) dédiés au process.
+
+
+
+Exemples et cas particuliers
+Dans les exemples ci-dessous, les numéros de cas associés renvoient au schéma de la
+page précédente.
+
+ Type de bâtiment                 La RE2020 s’applique-t-elle ?
+
+                                  Les bâtiments industriels sont soumis à la RE2020 de
+                                  manière générale.
+
+                                  Chaque local du bâtiment devra être examiné
+ Bâtiments industriels            séparément afin de déterminer :
+ chauffés ou refroidis               - S’il est à usage de process (cas n°3),
+                                     - Ou s’il existe des équipements de process (à
+                                        exclure des calculs) dans un local soumis à la
+                                        réglementation (cas n°2),
+                                     - Ou s’il relève du cas n°1 (pas de process).
+
+                                  Si le lieu est destiné exclusivement à un processus de
+ Lieu de travail à
+                                  fabrication nécessitant un système de chauffage ou
+ occupation courante et
+                                  de climatisation associé à ce processus de
+ chauffé ou refroidis
+                                  fabrication, la RE2020 ne s’applique pas (cas n°3).
+ Exemples : atelier, hall
+                                  Si le lieu est destiné à abriter des personnes pour des
+ d’entretien de véhicules,
+                                  travaux courants ne nécessitant pas des systèmes
+ hall de montage d’avions
+                                  particuliers de chauffage ou de climatisation, la
+ ou d’engins.
+                                  RE2020 s’applique. (cas n°1 ou cas n°2).
+
+5/8
+Type de bâtiment             La RE2020 s’applique-t-elle ?
+
+                             Si le chauffage ou la climatisation sont exclusivement
+Bâtiments destinés au        ou essentiellement dédiés à la fonction de stockage,
+stockage des biens et        la RE2020 ne s’applique pas (cas n°3).
+denrées.
+                             Dans le cas contraire, la RE2020 s’applique (cas n°1).
+
+                             Si la serre ou la jardinerie n’est pas chauffée ou
+                             refroidie, la RE2020 ne s’applique pas (cas n°3).
+
+Espaces de production ou     En revanche, si elle est chauffée ou climatisée, deux
+de vente de plante           configurations sont possibles :
+                                - Cela est fait exclusivement pour la production
+Exemples : serres et
+                                    horticole. La RE2020 ne s’applique pas (cas
+jardineries
+                                    n°3) ;
+                                - Dans le cas contraire, la RE2020 s’applique (cas
+                                    n°2).
+
+Lieux de passage du public
+chauffés ou refroidis        La RE2020 s’applique à l’exception des espaces non
+                             cloisonnés. Par exemple, on peut citer les espaces de
+Exemples : halls             circulation des halls de gares, qui sont ouverts sur
+commerciaux, grands          l’extérieur pour les départs et arrivées des trains.
+magasins, gares
+
+                             On entend ici par cuisines centrales, des locaux
+                             industriels servant uniquement à la fabrication de
+Cuisines centrales           plats, sans service de restauration associé. Ces locaux
+                             sont exclus du calcul au titre de locaux à usage de
+                             process (cas n°3).
+
+                             Les postes de cuisson professionnels disposent de
+                             systèmes de ventilation dédiés. Ceux-ci sont à
+                             considérer comme des équipements de process et
+                             sont à écarter de la RE2020.
+
+Cuisines professionnelles    En revanche, le local « cuisine » reste bien soumis à la
+                             RE2020. La saisie des systèmes de ventilation doit
+                             alors être adaptée afin d’assurer une bonne qualité
+                             d’air intérieur pour les occupants (clients et cuisiniers,
+                             notamment) du bâtiment (cas n°2), à l’exclusion des
+                             débits exlusivement liés au process de cuisson.
+
+
+
+6/8
+Type de bâtiment            La RE2020 s’applique-t-elle ?
+
+                            Il s’agit d’un local à usage de process (conditions
+Plateaux techniques des
+                            particulières de température, d’hygrométrie ou de
+bâtiments hospitaliers
+                            qualité de l’air). Il est exclu de la RE2020.
+
+                            Une véranda n’étant pas équipée de système de
+                            chauffage, la RE2020 ne s’applique pas (cas n°3).
+Espaces sans système de
+chauffage                   Elle peut néanmoins être prise en compte dans la
+                            modélisation énergétique en tant qu’espace tampon
+Exemple : véranda
+                            solarisé permettant de valoriser les apports solaires
+                            liés à ces espaces.
+
+                            Ce point ne concerne pas les piscinces municipales
+                            ou équivalents (hors RE2020).
+Piscine intégrée dans un
+                            Dans le cas d’une piscine située dans un local dédié
+bâtiment soumis à la
+                            et isolé du reste du bâtiment, celui-ci est exclu du
+RE2020
+                            calcul pour la partie énergie (cas n°3).
+Exemple : piscine d’un
+                            Dans le cas contraire, l’enveloppe du local est à
+hôtel, piscine intérieure
+                            intégrer au calcul de déperditions ; la zone est
+d’une maison individuelle
+                            intégrée au calcul réglementaire hors process (cas
+                            n°2). Cela peut donc avoir un impact sur les débits de
+                            ventilation ou encore les équipements.
+
+                            Compte tenu de la grande variabilité d’occupation
+                            des tribunes (occupation ponctuelle), le calcul
+                            réglementaire doit être réalisé de manière adaptée.
+Gymnases avec tribunes
+                            Les débits de renouvellement d’air associés aux
+                            tribunes sont à exclure du calcul, et les puissances de
+                            ventilateur doivent être adaptées au nouveau débit.
+
+
+
+
+7/8
+Autres exclusions d’application
+Les constructions de bâtiments ou de parties de bâtiment dont l’usage est dit
+« tertiaire spécifique » ou est « industriel et artisanal », ne sont pas soumises à la
+RE2020 si celles-ci respectent l’une des conditions suivantes :
+
+      1. Elles ont lieu dans un département ou une région d’outre-mer (Guadeloupe,
+         Guyane, Martinique, La Réunion ou Mayotte) ;
+
+      2. Elles sont qualifiées de « temporaires ». Au sens de la RE2020, il s’agit :
+         - Des constructions implantées pour une durée n'excédant pas deux ans ;
+         - Des classes démontables installées dans les établissements d’enseignement
+             ou universitaires pour pallier les insuffisances temporaires de capacités
+             d'accueil à l’occasion d’un chantier de travaux dans l’établissement ;
+         - Des constructions temporaires directement nécessaires à la conduite des
+             travaux ainsi que les installations liées à la commercialisation d'un bâtiment
+             en cours de construction ;
+
+      3. Elles ont une Sref inférieure ou égale à 50 m² ;
+
+      4. S’il s’agit d’extensions (dont les surrélévations), elles ont une Sref
+         cumulativement inférieure ou égale à 150 m² et inférieure ou égale à 30 % de la
+         surface du bâtiment existant.
+
+
+
+
+8/8
+

@@ -4,13 +4,16 @@
 //! version documentaire du site RT-RE bâtiment pour les permis déposés à partir du 1er juillet
 //! 2026 ; tableaux relus sur les images des p. 6 à 9, 30 à 37 et 100).
 //!
-//! Seuls les usages de la première version sont transcrits : maisons individuelles ou accolées
-//! (usage 1) et logements collectifs (usage 2). Les catégories de contraintes extérieures et les
-//! zones de bruit (chapitre V, `docs/reference/texte/annexe-r172-4-chapitre-5.txt`) sont
-//! saisies ; la validation refuse les catégories que la partie II du chapitre V exclut.
+//! Les usages 1 (maisons individuelles ou accolées) et 2 (logements collectifs) sont calculés
+//! ici ; les valeurs des usages 3 à 28 sont dans [`super::exigences_usages`] (Q65). Les
+//! catégories de contraintes extérieures et les zones de bruit (chapitre V,
+//! `docs/reference/texte/annexe-r172-4-chapitre-5.txt`) sont saisies pour le bâtiment ou pour
+//! chaque zone ; la validation refuse les catégories que la partie II du chapitre V exclut
+//! (Q54, point 14, et Q66).
 
 use thbce_data::ZoneClimatique;
 
+use super::exigences_usages::{donnees_usage, periode, DonneesUsage};
 use crate::entree::{CategorieContraintes, ParametresExigences, ZoneBruit};
 
 /// Classe d'altitude des tableaux `Mbgéo` et `Mcgéo`, de 0 à 2, à la lettre de l'annexe :
@@ -29,7 +32,7 @@ pub fn classe_altitude(alt_m: f64) -> usize {
 /// Description d'une zone (partie de bâtiment d'un usage) pour la fixation des exigences.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PartieBatiment {
-    /// Numéro d'usage (1 ou 2).
+    /// Numéro d'usage (1 à 28).
     pub usage: u8,
     /// « Sref » de la zone, en m².
     pub sref_m2: f64,
@@ -40,12 +43,37 @@ pub struct PartieBatiment {
     pub sref_usage_m2: f64,
     /// Bâtiment raccordé à un réseau de chaleur urbain.
     pub raccorde_rcu: bool,
+    /// Catégorie de contraintes extérieures de la zone (celle du bâtiment ou celle saisie pour
+    /// la zone).
+    pub categorie: CategorieContraintes,
+    /// Classe d'exposition au bruit de la zone.
+    pub zone_bruit: ZoneBruit,
+}
+
+/// « DH_max » d'un groupe : valeur maximale, ou « Pas de seuil » (catégorie 3).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SeuilDh {
+    /// `DH_max`, en °C.h.
+    Maximum(f64),
+    /// « Pas de seuil » : catégorie 3, aucune exigence sur le DH.
+    PasDeSeuil,
+}
+
+impl SeuilDh {
+    /// Valeur maximale ; `None` sans seuil.
+    pub fn maximum(self) -> Option<f64> {
+        match self {
+            Self::Maximum(x) => Some(x),
+            Self::PasDeSeuil => None,
+        }
+    }
 }
 
 /// Coefficients et valeurs des exigences d'une zone.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct ExigencesPartie {
-    /// « Smoylgt » : surface moyenne des logements, en m² (chapitre I, §XI).
+    /// « Smoylgt » : surface moyenne des logements, en m² (chapitre I, §XI) ; 0 hors
+    /// habitation.
     pub smoy_lgt_m2: f64,
     /// « Bbio_maxmoyen », en points.
     pub bbio_max_moyen: f64,
@@ -181,13 +209,18 @@ fn ecart_hsp(hsp_moy_m: f64) -> f64 {
     }
 }
 
-/// Exigences d'une zone d'usage 1 ou 2 ; `None` pour un autre usage.
+/// Exigences d'une zone (chapitre II, I et II ; chapitre III, I et II) ; `None` pour un numéro
+/// d'usage inconnu ou un usage que la RE2020 ne vise pas l'année du dépôt du permis (Q68 : la
+/// validation le refuse).
 pub fn exigences_partie(
     z: &PartieBatiment,
     p: &ParametresExigences,
     zone: ZoneClimatique,
     alt_m: f64,
 ) -> Option<ExigencesPartie> {
+    if let Some(d) = donnees_usage(z.usage) {
+        return exigences_partie_autre_usage(d, z, p, zone, alt_m);
+    }
     if !matches!(z.usage, 1 | 2) {
         return None;
     }
@@ -199,7 +232,7 @@ pub fn exigences_partie(
         sref
     };
     let col = colonne(zone);
-    let cat2 = p.categorie_contraintes_exterieures == CategorieContraintes::Categorie2;
+    let cat2 = z.categorie == CategorieContraintes::Categorie2;
     let combles = if maison && sref > 0.0 {
         0.4 * p.s_combles_m2 / sref
     } else {
@@ -228,14 +261,20 @@ pub fn exigences_partie(
     } else {
         0.0
     };
-    let mb_bruit = if p.zone_bruit == ZoneBruit::Br1 {
+    let mb_bruit = if z.zone_bruit == ZoneBruit::Br1 {
         0.0
     } else if maison {
         [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.1][col]
     } else {
         [0.0, 0.0, 0.1, 0.0, 0.0, 0.1, 0.2, 0.2][col]
     };
-    let e = ecart_hsp(p.hsp_moy_m);
+    // `MbHSP` et `McHSP` (décret n° 2026-200) valent pour les permis déposés à partir du 1er
+    // juillet 2026 (Q69) ; `HSPmoy` est alors obligatoire en habitation (validation).
+    let e = if p.depot_a_partir_de(2026, 7) {
+        p.hsp_moy_m.map_or(0.0, ecart_hsp)
+    } else {
+        0.0
+    };
     let mb_hsp = if maison {
         if sref <= 150.0 {
             e
@@ -307,23 +346,134 @@ pub fn exigences_partie(
     })
 }
 
-/// « DH_max = DH_maxcat » d'un groupe (chapitre II, IV, et chapitre III, IV), en °C.h.
+/// Exigences d'une zone d'usage 3 à 28 (chapitre III, I et II, valeurs de
+/// [`super::exigences_usages`]) : `Mbcombles`, `Mbsurf_moy`, `MbHSP`, `Mccombles`,
+/// `Mcsurf_moy` et `McHSP` sont nuls ; `Mbbruit` se lit sur la ligne « Catégorie 3 » pour une
+/// zone de catégorie 3, sur la ligne de sa classe de bruit sinon (Q66) ; `Mbsurf_tot` et
+/// `Mcsurf_tot` sur la somme des `Sref` des zones de même usage (Q67).
+fn exigences_partie_autre_usage(
+    d: &DonneesUsage,
+    z: &PartieBatiment,
+    p: &ParametresExigences,
+    zone: ZoneClimatique,
+    alt_m: f64,
+) -> Option<ExigencesPartie> {
+    let ic_moy = ic_energie_max_moyen_autre_usage(d, p, z.raccorde_rcu)?;
+    let col = colonne(zone);
+    let alt = classe_altitude(alt_m);
+    let annee = p.annee_depot_permis;
+    let classe = z.raccorde_rcu && p.reseau_chaleur_classe;
+    let ligne_cat = match z.categorie {
+        CategorieContraintes::Categorie1 => 0,
+        CategorieContraintes::Categorie2 => 1,
+        CategorieContraintes::Categorie3 => 2,
+    };
+    let ligne_bruit = match (z.categorie, z.zone_bruit) {
+        (CategorieContraintes::Categorie3, _) => 2,
+        (_, ZoneBruit::Br1) => 0,
+        _ => 1,
+    };
+
+    // I. Bbio_max (chapitre II, I).
+    let bbio_moy = d.bbio_max_moyen;
+    let mb_geo = d.mb_geo[alt][col];
+    let mb_surf_tot = d
+        .mb_surf_tot
+        .valeur(z.sref_usage_m2, bbio_moy, annee, classe);
+    let mb_bruit = d.mb_bruit[ligne_bruit][col];
+    let bbio_max = bbio_moy * (1.0 + mb_geo + mb_surf_tot + mb_bruit);
+
+    // II. Cep,nr_max, Cep_max et Icénergie_max (chapitre II, II) : les modulations selon la
+    // surface sont rapportées à `Cep,nr_maxmoyen` dans les trois exigences, comme l'écrit le
+    // texte (Q54, point 10).
+    let cep_nr_moy = d.cep_nr_max_moyen;
+    let mc_geo = d.mc_geo[alt][col];
+    let mc_surf_tot = d
+        .mc_surf_tot
+        .valeur(z.sref_usage_m2, cep_nr_moy, annee, classe);
+    let mc_cat = d.mc_cat[ligne_cat][col];
+    let m = 1.0 + mc_geo + mc_surf_tot + mc_cat;
+    Some(ExigencesPartie {
+        smoy_lgt_m2: 0.0,
+        bbio_max_moyen: bbio_moy,
+        mb_geo,
+        mb_combles: 0.0,
+        mb_surf_moy: 0.0,
+        mb_surf_tot,
+        mb_bruit,
+        mb_hsp: 0.0,
+        bbio_max,
+        cep_nr_max_moyen: cep_nr_moy,
+        cep_max_moyen: d.cep_max_moyen,
+        ic_energie_max_moyen: ic_moy,
+        mc_geo,
+        mc_combles: 0.0,
+        mc_surf_moy: 0.0,
+        mc_surf_tot,
+        mc_cat,
+        mc_hsp: 0.0,
+        cep_nr_max: cep_nr_moy * m,
+        cep_max: d.cep_max_moyen * m,
+        ic_energie_max: ic_moy * m,
+    })
+}
+
+/// « Icénergie_maxmoyen » d'un usage 3 à 28 (chapitre III, II), en kg éq. CO2/m² ; `None` pour
+/// une période marquée « - » (usage non soumis à la RE2020 cette année-là, Q68). Un réseau
+/// classé (article L. 712-1 du code de l'énergie) donne, pour un permis déposé jusqu'en 2027,
+/// la valeur des parties raccordées des années 2022 à 2024 ; les industries (usages 23 et 24),
+/// sans ligne « raccordés », prennent celle des autres cas.
+fn ic_energie_max_moyen_autre_usage(
+    d: &DonneesUsage,
+    p: &ParametresExigences,
+    raccorde_rcu: bool,
+) -> Option<f64> {
+    let per = periode(p.annee_depot_permis);
+    match (raccorde_rcu, d.ic_rcu) {
+        (true, Some(rcu)) => Some(if p.reseau_chaleur_classe && p.annee_depot_permis <= 2027 {
+            rcu[0]
+        } else {
+            rcu[per]
+        }),
+        _ => d.ic_autres[per],
+    }
+}
+
+/// « DH_max = DH_maxcat » d'un groupe (chapitre II, IV, et chapitre III, IV).
 ///
-/// `climatise` : groupe climatisé (`iclim`) ; `smoy_lgt_m2` : surface moyenne des logements de
-/// sa zone. `None` pour un usage autre que 1 et 2.
+/// `categorie` : catégorie de contraintes extérieures de la zone du groupe (Q66) ; `climatise` :
+/// groupe climatisé (`iclim`) ; `smoy_lgt_m2` : surface moyenne des logements de sa zone
+/// (usage 2). `None` pour un usage inconnu ou une catégorie que l'usage n'admet pas (catégorie
+/// 3 hors des usages du chapitre V, refusée par la validation).
 pub fn dh_max(
     usage: u8,
     categorie: CategorieContraintes,
     zone: ZoneClimatique,
     climatise: bool,
     smoy_lgt_m2: f64,
-) -> Option<f64> {
-    let cat2 = categorie == CategorieContraintes::Categorie2;
+) -> Option<SeuilDh> {
+    use CategorieContraintes as C;
+    if let Some(d) = donnees_usage(usage) {
+        return match categorie {
+            C::Categorie3 => d.categorie_3.then_some(SeuilDh::PasDeSeuil),
+            C::Categorie2 => Some(SeuilDh::Maximum(d.dh_max[2])),
+            C::Categorie1 => Some(SeuilDh::Maximum(if climatise && zone_chaude(zone) {
+                d.dh_max[1]
+            } else {
+                d.dh_max[0]
+            })),
+        };
+    }
+    let cat2 = match categorie {
+        C::Categorie1 => false,
+        C::Categorie2 => true,
+        C::Categorie3 => return None,
+    };
     match usage {
-        1 => Some(if cat2 { 1850.0 } else { 1250.0 }),
+        1 => Some(SeuilDh::Maximum(if cat2 { 1850.0 } else { 1250.0 })),
         2 => {
             let s = smoy_lgt_m2;
-            Some(if cat2 {
+            Some(SeuilDh::Maximum(if cat2 {
                 if s <= 20.0 {
                     2600.0
                 } else if s <= 60.0 {
@@ -341,7 +491,7 @@ pub fn dh_max(
                 }
             } else {
                 1250.0
-            })
+            }))
         }
         _ => None,
     }
@@ -357,10 +507,12 @@ mod tests {
             categorie_contraintes_exterieures: CategorieContraintes::Categorie1,
             zone_bruit: ZoneBruit::Br1,
             annee_depot_permis: 2022,
-            hsp_moy_m: 2.5,
+            hsp_moy_m: Some(2.5),
             s_combles_m2: 0.0,
             reseau_chaleur_classe: false,
             parcelle_raccordement_gaz: false,
+            zones: Vec::new(),
+            mois_depot_permis: None,
         }
     }
 
@@ -374,6 +526,8 @@ mod tests {
             nb_logements: 1,
             sref_usage_m2: 100.0,
             raccorde_rcu: false,
+            categorie: CategorieContraintes::Categorie1,
+            zone_bruit: ZoneBruit::Br1,
         };
         let e = exigences_partie(&z, &parametres(), ZoneClimatique::H2b, 100.0).unwrap();
         assert!((e.bbio_max - 63.0).abs() < 1e-9);
@@ -395,7 +549,8 @@ mod tests {
     #[test]
     fn hauteur_sous_plafond_bruit_et_categorie() {
         let mut p = parametres();
-        p.hsp_moy_m = 3.2;
+        p.annee_depot_permis = 2026;
+        p.hsp_moy_m = Some(3.2);
         p.zone_bruit = ZoneBruit::Br2;
         p.categorie_contraintes_exterieures = CategorieContraintes::Categorie2;
         let z = PartieBatiment {
@@ -404,6 +559,8 @@ mod tests {
             nb_logements: 1,
             sref_usage_m2: 120.0,
             raccorde_rcu: false,
+            categorie: p.categorie_contraintes_exterieures,
+            zone_bruit: p.zone_bruit,
         };
         let e = exigences_partie(&z, &p, ZoneClimatique::H3, 100.0).unwrap();
         // MIN(3,2 ; 2,9)/2,5 − 1 = 0,16.
@@ -419,8 +576,19 @@ mod tests {
                 false,
                 120.0
             ),
-            Some(1850.0)
+            Some(SeuilDh::Maximum(1850.0))
         );
+        // Q69 : pas de modulation selon la hauteur sous plafond avant juillet 2026.
+        p.annee_depot_permis = 2025;
+        let e = exigences_partie(&z, &p, ZoneClimatique::H3, 100.0).unwrap();
+        assert_eq!((e.mb_hsp, e.mc_hsp), (0.0, 0.0));
+        p.annee_depot_permis = 2026;
+        p.mois_depot_permis = Some(6);
+        let e = exigences_partie(&z, &p, ZoneClimatique::H3, 100.0).unwrap();
+        assert_eq!((e.mb_hsp, e.mc_hsp), (0.0, 0.0));
+        p.mois_depot_permis = Some(7);
+        let e = exigences_partie(&z, &p, ZoneClimatique::H3, 100.0).unwrap();
+        assert!((e.mb_hsp - 0.16).abs() < 1e-12);
     }
 
     #[test]
@@ -431,6 +599,8 @@ mod tests {
             nb_logements: 12,
             sref_usage_m2: 780.0,
             raccorde_rcu: false,
+            categorie: CategorieContraintes::Categorie1,
+            zone_bruit: ZoneBruit::Br1,
         };
         let e = exigences_partie(&z, &parametres(), ZoneClimatique::H2b, 100.0).unwrap();
         // Smoylgt = 65 m² : Mbsurf_moy = (−6 + 6,5)/65 ; Mbsurf_tot = (19,5 − 11,7)/65.
@@ -441,13 +611,23 @@ mod tests {
         assert!((e.cep_max - 85.0 * m).abs() < 1e-9);
         assert!((e.ic_energie_max - 560.0 * m).abs() < 1e-9);
         let c1 = CategorieContraintes::Categorie1;
-        assert_eq!(dh_max(2, c1, ZoneClimatique::H2b, true, 65.0), Some(1250.0));
-        assert_eq!(dh_max(2, c1, ZoneClimatique::H3, true, 40.0), Some(1500.0));
+        assert_eq!(
+            dh_max(2, c1, ZoneClimatique::H2b, true, 65.0),
+            Some(SeuilDh::Maximum(1250.0))
+        );
+        assert_eq!(
+            dh_max(2, c1, ZoneClimatique::H3, true, 40.0),
+            Some(SeuilDh::Maximum(1500.0))
+        );
         let c2 = CategorieContraintes::Categorie2;
         assert_eq!(
             dh_max(2, c2, ZoneClimatique::H2b, false, 40.0),
-            Some(2350.0)
+            Some(SeuilDh::Maximum(2350.0))
         );
+        // Catégorie 3 : impossible en habitation.
+        let c3 = CategorieContraintes::Categorie3;
+        assert_eq!(dh_max(2, c3, ZoneClimatique::H3, true, 40.0), None);
+        assert_eq!(dh_max(1, c3, ZoneClimatique::H3, true, 40.0), None);
     }
 
     /// Valeurs recalculées à la main par la relecture indépendante du lot 7.
@@ -462,6 +642,8 @@ mod tests {
             nb_logements: 1,
             sref_usage_m2: 96.44,
             raccorde_rcu: rcu,
+            categorie: CategorieContraintes::Categorie1,
+            zone_bruit: ZoneBruit::Br1,
         };
         let z = ZoneClimatique::H2b;
         let e = exigences_partie(&maison(false), &p, z, 100.0).unwrap();
@@ -503,6 +685,8 @@ mod tests {
             nb_logements: 12,
             sref_usage_m2: 720.0,
             raccorde_rcu: rcu,
+            categorie: CategorieContraintes::Categorie1,
+            zone_bruit: ZoneBruit::Br1,
         };
         p.annee_depot_permis = 2025;
         let e = exigences_partie(&immeuble(false), &p, z, 100.0).unwrap();

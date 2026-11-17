@@ -485,6 +485,9 @@ fn simple_flux_non_residentiel_a_la_main() {
         v.debits_cond_groupe_selon(0, false).q_rep_m3_h,
         -(345.0 + fuites),
     );
+    // Les mêmes, en chiffres : fuites de 193,2245 m³/h.
+    assert!((occ.q_rep_m3_h + 3249.918396).abs() < 1e-6);
+    assert!((inocc.q_rep_m3_h + 489.918396).abs() < 1e-6);
     // `debits_groupe` restitue l'occupation.
     assert_eq!(v.debits_groupe(0), occ);
     // Éq. (636) et (637) : puissance d'occupation ou d'inoccupation ; éq. (642) : un seul
@@ -518,6 +521,24 @@ fn simple_flux_non_residentiel_a_la_main() {
     // Ventilation arrêtée en inoccupation : débit nul, donc dP = 0 et fuites nulles (éq. 419).
     assert_eq!(v.debits_groupe_selon(0, false).q_rep_m3_h, 0.0);
     assert_eq!(v.debits_cond_groupe_selon(0, false).q_rep_m3_h, 0.0);
+    // La puissance d'inoccupation (90 W) reste attribuée au groupe, au prorata des débits de
+    // l'occupation, faute de débit en inoccupation (Q60) : la somme des groupes est celle du
+    // système.
+    proche(v.p_vent_groupe_selon_w(0, false), 90.0);
+
+    // Réseau de l'exemple `bureaux-simple-flux-ademe`, sans classe d'étanchéité (2,5 fois la
+    // classe A, signalé) : valeurs du relecteur du lot, calculées à la main. Les fuites sont
+    // celles de 250 Pa dans les deux états (tableau 60) : 1 086,89 m³/h vus du groupe.
+    let mut p = zone_de_bureaux(Some(0.9), 300.0);
+    zone_mut(&mut p)
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .reseau
+        .classe_etancheite = None;
+    let v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
+    assert!((v.debits_groupe_selon(0, true).q_rep_m3_h + 4191.89).abs() < 5e-3);
+    assert!((v.debits_groupe_selon(0, false).q_rep_m3_h + 1431.89).abs() < 5e-3);
 }
 
 /// Le pas de temps d'un simple flux par extraction suit l'indicateur de ventilation : débit

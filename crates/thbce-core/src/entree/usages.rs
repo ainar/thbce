@@ -82,6 +82,29 @@ impl UsageZone {
         matches!(self, Self::MaisonIndividuelle | Self::LogementCollectif)
     }
 
+    /// Usage pour lequel une partie de bâtiment peut être de catégorie de contraintes
+    /// extérieures 3 (annexe de l'article R. 172-4, chapitre V, partie II ; Q66) : bureaux,
+    /// hôtels, restaurants (scolaires compris), commerces, petite enfance, bâtiments
+    /// universitaires et d'enseignements atypiques, médiathèques et bibliothèques, santé
+    /// (partie jour), aérogares. Ce sont aussi les usages dont le tableau `DH_maxcat` a une
+    /// colonne « Catégorie 3 ».
+    pub fn admet_categorie_3(self) -> bool {
+        matches!(self.numero(), 3 | 6..=17 | 21 | 22 | 26 | 27)
+    }
+
+    /// Année et mois à partir desquels une demande de permis de construire est soumise à la
+    /// RE2020 pour cet usage (article R. 172-1 du CCH, Q68) : 1er janvier 2022 pour
+    /// l'habitation, 1er juillet 2022 pour les bureaux et l'enseignement, 1er mai 2026 pour les
+    /// autres usages (décret n° 2026-16 du 15 janvier 2026 ; colonne « Années 2022 à 2024 »
+    /// marquée « - » dans le tableau `Icénergie_maxmoyen`).
+    pub fn debut_re2020(self) -> (u16, u8) {
+        match self.numero() {
+            1 | 2 => (2022, 1),
+            3..=5 => (2022, 7),
+            _ => (2026, 5),
+        }
+    }
+
     /// Usage calculé par la version courante du moteur : habitation (décision Q4) et bureaux
     /// (lot 0a).
     pub fn est_pris_en_charge(self) -> bool {

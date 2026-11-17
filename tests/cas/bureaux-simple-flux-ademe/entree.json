@@ -438,7 +438,12 @@
           "generation": "chauffe-eau",
           "reseau": "aucun"
         }
-      ]
+      ],
+      "exigences": {
+        "categorie_contraintes_exterieures": "categorie_1",
+        "zone_bruit": "br1",
+        "annee_depot_permis": 2025
+      }
     }
   ]
 }

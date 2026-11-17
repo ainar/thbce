@@ -246,7 +246,7 @@ Groupe.emetteurs_ecs[]           nu? au lieu de nb_logements                  §
 - **ECS.** `nu` est le nombre d'unités du tableau 277 (m² de surface utile) ; absent, c'est `rat_em × su_m2`. Un bâtiment de bureaux sans production d'ECS se décrit avec la production conventionnelle de la fiche 9.24 (chauffe-eau électriques de 15 L, un par niveau et par tranche de 750 m² au-delà de 750 m², appareils `douche_seule`).
 - **Protections mobiles.** Volets et stores enroulables à gestion manuelle, avec les matrices de la famille « bureau ».
 - **Ascenseurs et parkings** : réservés au logement collectif dans cette version.
-- **Résultats.** `zones[].nadeq` est absent ; `ecs[].nadeq` d'un émetteur porte `Nu` ; l'éclairage entre dans l'Ic énergie au facteur « bâtiment tertiaire » de l'article 10 ; sans exigences transcrites pour l'usage, `indicateurs.exigences` est absent (avertissement).
+- **Résultats.** `zones[].nadeq` est absent ; `ecs[].nadeq` d'un émetteur porte `Nu` ; l'éclairage entre dans l'Ic énergie au facteur « bâtiment tertiaire » de l'article 10 ; `indicateurs.exigences` suit les exigences de l'usage (lot 0b).
 
 ## Indicateurs réglementaires et exigences (lot 7)
 
@@ -258,16 +258,21 @@ Champs facultatifs, **non incompatibles** (`docs/questions/Q054.md`) :
 Batiment
 └── exigences?  { categorie_contraintes_exterieures: categorie_1 | categorie_2 | categorie_3,  chap. V, partie II (saisie, contrôlée)
                   zone_bruit: br1 | br2 | br3,                                    chap. V, partie I (saisie) ; Mbbruit
-                  annee_depot_permis (≥ 2022),                                    Icénergie_maxmoyen
-                  hsp_moy_m (1,8 à 10),                                           MbHSP, McHSP
+                  annee_depot_permis (≥ 2022),                                    Icénergie_maxmoyen, dates d'effet (Q68)
+                  mois_depot_permis? (1 à 12),                                    obligatoire en 2026, et en 2022 avec un usage 3 à 5 (Q68, Q69)
+                  hsp_moy_m? (1,8 à 10),                                          MbHSP, McHSP (habitation, permis ≥ 07/2026)
                   s_combles_m2? (0),                                              Mbcombles, Mccombles (maisons)
                   reseau_chaleur_classe? (false),                                 Icénergie_maxmoyen jusqu'en 2027
-                  parcelle_raccordement_gaz? (false) }                            Icénergie_maxmoyen = 280 (maisons, ≤ 2023)
+                  parcelle_raccordement_gaz? (false),                             Icénergie_maxmoyen = 280 (maisons, ≤ 2023)
+                  zones?: [{ zone,                                                lot 0b (Q66)
+                             categorie_contraintes_exterieures?,                  Mbbruit (cat. 3), Mccat, DH_max des groupes
+                             zone_bruit?,                                         Mbbruit
+                             groupes?: [{ groupe, categorie_contraintes_exterieures }] }] }   DH_max du groupe
 NatureGenerateur::PoeleOuInsert
 └── combustible_bois: buches | granules | plaquettes                              facteur d'émission (article 10), obligatoire
 ```
 
-Le raccordement à un réseau de chaleur urbain se déduit des générations (sous-station de réseau de chaleur). Le GPL (`chaudiere.gpl`), le combustible bois des chaudières (`combustible_bois`) et l'identifiant du réseau de l'annexe 7 (`identifiant_reseau`) servent aux coefficients de conversion. La catégorie 3 est refusée en habitation ; la catégorie 2 l'est si un groupe d'habitation n'est pas climatisé, hors des zones H2d et H3, à 400 m d'altitude ou plus, ou en BR1 (chapitre V, partie II ; Q54, point 14). Sans `exigences`, les indicateurs sont calculés mais ni les exigences ni la conformité, et le forfait de refroidissement n'est pas plafonné au seuil haut. `combustible_bois` est obligatoire sur un poêle ou un insert (changement incompatible, relecture du lot 7). `conforme` n'est jamais vrai si un indicateur exigé manque (`indicateurs_manquants`).
+Le raccordement à un réseau de chaleur urbain se déduit des générations (sous-station de réseau de chaleur). Le GPL (`chaudiere.gpl`), le combustible bois des chaudières (`combustible_bois`) et l'identifiant du réseau de l'annexe 7 (`identifiant_reseau`) servent aux coefficients de conversion. Catégorie héritée groupe → zone → bâtiment, classe de bruit zone → bâtiment (Q66). Un `hsp_moy_m` hors de 1,8 à 10 m est une erreur même quand il est sans effet. La catégorie 3 est refusée en habitation et pour les usages que le chapitre V ne cite pas (enseignement, vestiaires, sanitaires, santé partie nuit, industries, sports) ; la catégorie 2 l'est si un groupe d'habitation n'est pas climatisé, hors des zones H2d et H3, à 400 m d'altitude ou plus, ou en BR1 (chapitre V, partie II ; Q54, point 14). Sans `exigences`, les indicateurs sont calculés mais ni les exigences ni la conformité, et le forfait de refroidissement n'est pas plafonné au seuil haut. `combustible_bois` est obligatoire sur un poêle ou un insert (changement incompatible, relecture du lot 7). `conforme` n'est jamais vrai si un indicateur exigé manque (`indicateurs_manquants`).
 
 ### Résultats
 
