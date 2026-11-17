@@ -4,8 +4,13 @@ name = "thbce-cli"
 description = "Exécutable en ligne de commande du moteur Th-BCE 2020"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license = "GPL-3.0-or-later"
 repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
 authors.workspace = true
 publish = false
 

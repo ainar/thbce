@@ -4,6 +4,8 @@
   "batiments": [
     {
       "id": "immeuble",
+      "bbio_pts": 40.8,
+      "dh_c_h": 1641.9,
       "cep_kwhep_m2": 174.8,
       "cep_nr_kwhep_m2": 174.8,
       "ic_energie_kgco2_m2": 215.0,

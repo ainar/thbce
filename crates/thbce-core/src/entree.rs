@@ -133,11 +133,30 @@ pub struct Batiment {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ParametresExigences {
-    /// Catégorie de contraintes extérieures du bâtiment (chapitre V de l'annexe, absent du
-    /// dépôt : la catégorie est saisie). Elle module `Cep_max`, `Cep,nr_max` et
-    /// `Icénergie_max` (`Mccat`) et fixe `DH_max`.
+    /// Catégorie de contraintes extérieures du bâtiment (chapitre V de l'annexe, partie II).
+    /// Elle module `Cep_max`, `Cep,nr_max` et `Icénergie_max` (`Mccat`) et fixe `DH_max`.
+    ///
+    /// Un local est de catégorie 2 si, cumulativement, il est climatisé, ses baies sont exposées
+    /// au bruit BR2 ou BR3 et le bâtiment est construit en zone H2d ou H3 à moins de 400 m
+    /// d'altitude ; une zone est de catégorie 2 si tous ses locaux autres qu'à occupation
+    /// passagère le sont. La catégorie 3 est réservée à des usages non résidentiels. La
+    /// validation refuse une catégorie que ces règles excluent ; la catégorie reste saisie, faute
+    /// de description des locaux dans l'entrée.
     pub categorie_contraintes_exterieures: CategorieContraintes,
-    /// Zone de bruit (chapitre V de l'annexe) : module `Bbio_max` (`Mbbruit`).
+    /// Classe d'exposition au bruit du bâtiment (chapitre V de l'annexe, partie I) : module
+    /// `Bbio_max` (`Mbbruit`). Saisie : elle dépend des infrastructures voisines et du plan
+    /// d'exposition au bruit.
+    ///
+    /// Règle de détermination : la classe de chaque baie (BR1, BR2 ou BR3) se lit dans les
+    /// tableaux de la partie I selon la catégorie des infrastructures de transports terrestres
+    /// voisines (arrêté préfectoral, article R. 571-38 du code de l'environnement), leur distance
+    /// à la façade et la vue qu'en a la baie (directe, partielle, masquée par des obstacles peu
+    /// ou très protecteurs, arrière), et selon la zone du plan d'exposition au bruit de
+    /// l'aérodrome (zones A à C : BR3 ; D : BR2 ; hors zone : BR1) ; la classe la plus
+    /// défavorable est retenue ; au-delà de la distance maximale de prise en compte (700, 500,
+    /// 250, 100 ou 30 m selon la catégorie 1 à 5) et hors plan d'exposition, toutes les baies
+    /// sont BR1. Une partie de bâtiment est BR3 si toutes ses baies le sont, BR2 si toutes sont
+    /// BR2 ou BR3 et l'une au moins BR2, BR1 sinon.
     pub zone_bruit: ZoneBruit,
     /// Année de dépôt de la demande de permis de construire (2022 ou après) : fixe
     /// `Icénergie_maxmoyen`. Les dérogations datées du texte sont appliquées à l'année : « avant
@@ -175,6 +194,10 @@ pub enum CategorieContraintes {
     /// Catégorie 2.
     #[serde(rename = "categorie_2")]
     Categorie2,
+    /// Catégorie 3 : locaux climatisés de certains usages non résidentiels (bureaux, hôtels,
+    /// commerces…). Reconnue pour être refusée explicitement en habitation.
+    #[serde(rename = "categorie_3")]
+    Categorie3,
 }
 
 /// Zone de bruit (annexe de l'article R. 172-4, chapitre V).

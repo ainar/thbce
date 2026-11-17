@@ -15,13 +15,15 @@ Ce document suit, fiche par fiche, l'état d'implémentation de la méthode dans
 | partiel | une partie des équations de la fiche est codée |
 | implémenté | toutes les équations de la fiche sont codées et testées unitairement |
 | validé | résultats conformes aux cas de référence dans la tolérance |
+| limite annoncée | fiche du périmètre que la version 0.1 ne couvre pas, ou seulement par une saisie de l'utilisateur ; listée dans les limites du README |
+| sans objet | fiche qui ne s'applique pas aux usages de la version 0.1 |
 
 Tant qu'aucun cas de référence n'est disponible, aucune fiche ne peut dépasser le statut « implémenté ».
 
 ## Périmètre de la première version (validé le 16 novembre 2026)
 
 - Usages : maison individuelle ou accolée (usage 1) et logement collectif (usage 2).
-- Second lot : espaces tampons (4b).
+- Espaces tampons (lot 4b) compris.
 - Hors première version : Titres V du chapitre 16.
 - Tout composant hors périmètre est reconnu à la lecture et produit une erreur « non pris en charge ».
 
@@ -43,9 +45,9 @@ Tant qu'aucun cas de référence n'est disponible, aucune fiche ne peut dépasse
 | 7b | Solaire thermique | 7 | 81 |
 | 7 | Indicateurs : Cep, Cep,nr, bilans, usages mobiliers, Ic énergie ; exigences (annexe de l'article R. 172-4) | 5 | 36 |
 | après v1 | Systèmes non retenus dans l'ordre validé | 26 | 359 |
-| hors lot 1 | Titres V | 24 | 445 |
+| hors version 0.1 | Titres V | 24 | 445 |
 
-Les lots 6a à 6e, 7a et 7b suivent l'ordre fixé par le mainteneur ; le lot 6e vient en dernier dans le lot 6, avant la production photovoltaïque, et fait partie de la première version (décision Q18). Le rattachement fiche par fiche a été fait d'après les titres pour les fiches de systèmes non encore lues ; il sera ajusté à leur lecture.
+Les lots 6a à 6e, 7a et 7b suivent l'ordre fixé par le mainteneur ; le lot 6e vient en dernier dans le lot 6, avant la production photovoltaïque, et fait partie de la première version (décision Q18).
 
 Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la saisie et ne contiennent pas d'algorithme horaire. Elles se traduisent par des règles de validation dans `thbce-io`.
 
@@ -64,7 +66,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | A3 §3.1.3, tableau des températures de base | Température de base par département | `data/src/temperature_base/`, table générée par `xtask` | implémenté |
 | Scénarios conventionnels (classeur du 29 avril 2026) | 28 onglets, un par usage | `data/src/scenarios/`, table générée par `xtask` (187 grilles hebdomadaires et 29 grilles annuelles distinctes) | converti et recoupé avec le tableau de synthèse pour les usages 1 à 3 |
 | Annexe VI | Contenu du RSEE, au niveau des chapitres seulement | insuffisant pour écrire un lecteur XML (décision Q3) | en attente de fichiers d'exemple |
-| Annexe de l'article R. 172-4 du CCH, chapitres I à III | Valeurs des exigences et coefficients de modulation (Bbio_max, Cep_max, Cep,nr_max, Icénergie_max, DH_max) | `core/src/indicateurs/exigences.rs` (lot 7) | implémenté pour les usages 1 et 2 ; catégorie de contraintes extérieures et zone de bruit saisies (chapitre V absent du dépôt) ; Icconstruction hors du moteur ; autres usages non transcrits (Q54) |
+| Annexe de l'article R. 172-4 du CCH, chapitres I à III et V | Valeurs des exigences et coefficients de modulation (Bbio_max, Cep_max, Cep,nr_max, Icénergie_max, DH_max) | `core/src/indicateurs/exigences.rs` (lot 7) | implémenté pour les usages 1 et 2 ; catégorie de contraintes extérieures et zone de bruit saisies, catégorie contrôlée selon le chapitre V, partie II (versionné : `docs/reference/texte/annexe-r172-4-chapitre-5.txt`) ; Icconstruction hors du moteur ; autres usages non transcrits (Q54) |
 | Règles Th-Bat 2020 | Détermination des données d'entrée (U, Ψ, inertie, facteurs solaires) | hors moteur : ces grandeurs sont des entrées | — |
 
 ## Annexe III, fiche par fiche
@@ -95,18 +97,18 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
 | 4.1 | C_EIN_Scénarios conventionnels | 52–63 | 4 | `core/src/scenarios/scenarios_conventionnels.rs` | implémenté pour les usages 1 et 2 : éq. (27) à (55), calendrier dans `climat/calendrier.rs` ; autres usages non pris en charge |
-| 4.2 | FA_Maison_individuelle_Logement_Collectif | 64–68 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
-| 4.3 | FA_Comment identifier l’usage d’un bâtiment et l’exigence associée | 69–69 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
-| 4.4 | FA_Extension_de_bâtiment | 70–70 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
+| 4.2 | FA_Maison_individuelle_Logement_Collectif | 64–68 | 2 | `io : règles de saisie (fiche d’application)` | limite annoncée de la version 0.1 : règles de détermination de l'usage (maison individuelle ou accolée, logement collectif : logements accolés ou superposés, porte d'entrée commune) appliquées par l'utilisateur à la saisie de `usage` ; le moteur, qui ne décrit pas les logements un à un, ne peut pas les vérifier |
+| 4.3 | FA_Comment identifier l’usage d’un bâtiment et l’exigence associée | 69–69 | 2 | `io : règles de saisie (fiche d’application)` | limite annoncée de la version 0.1 : usage saisi par zone ; les exigences suivent l'usage saisi (fiche 4.7 et annexe de l'article R. 172-4, Q54) ; usages autres que 1 et 2 refusés |
+| 4.4 | FA_Extension_de_bâtiment | 70–70 | 2 | `io : règles de saisie (fiche d’application)` | limite annoncée de la version 0.1 : extensions de bâtiment non traitées ; le moteur calcule un bâtiment neuf entier |
 | 4.5 | C_Ein_Indicateurs de confort | 71–79 | 4 | `core/src/confort/indicateurs_confort.rs` | implémenté : éq. (56) à (65) ; `θrm` (éq. 57) reprise du climat ; facteur des écarts d'inconfort chaud lu comme une coquille (Q38) ; branché sur le calcul Th-B |
-| 4.6 | C_Ein_Détermination des saisons | 80–94 | 4 | `core/src/scenarios/saisons.rs` | partiel : saisons propres (éq. 67 à 92) ; en Bbio, autorisations effectives égales aux autorisations propres, sans égard pour `iclim` (éq. 91) ; lectures Q35 ; branché sur les calculs Th-B et Th-D, bascule après le pas de temps de 9 h légales (Q39) ; en Th-D, règles des éq. (76), (77), (80), (88) et (90), l'autorisation propre de refroidir suivant la procédure sans égard pour `iclim` (Q40) ; autorisations effectives du calcul des consommations au lot 6 |
+| 4.6 | C_Ein_Détermination des saisons | 80–94 | 4 | `core/src/scenarios/saisons.rs` | partiel : saisons propres (éq. 67 à 92) ; en Bbio, autorisations effectives égales aux autorisations propres, sans égard pour `iclim` (éq. 91) ; lectures Q35 ; branché sur les calculs Th-B et Th-D, bascule après le pas de temps de 9 h légales (Q39) ; en Th-D, règles des éq. (76), (77), (80), (88) et (90), l'autorisation propre de refroidir suivant la procédure sans égard pour `iclim` (Q40) ; autorisations effectives du calcul des consommations, avec `iclim`, branchées au lot 6 (`saisons_th_c`) |
 | 4.7 | C_EIN_calcul des consommations electriques des équipements mobiliers | 95–96 | 7 | `core/src/indicateurs/equipements_mobiliers.rs` | implémenté : éq. (93) à (95), apports internes hors occupants des scénarios ; employés par l'autoconsommation (§13.4) |
 
 ### 5. Bati (p. 97–320)
 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
-| 5.1 | S3_BAT-Assemblage_Batiment | 98–103 | 4 | `core/src/bati/assemblage_batiment.rs` | partiel : enchaînement horaire du bâtiment en modes Th-B et Th-D, espaces tampons puis zones à chaque pas de temps (figure 15) ; restent : systèmes et productions du bâtiment (lots 6 et 7) |
+| 5.1 | S3_BAT-Assemblage_Batiment | 98–103 | 4 | `core/src/bati/assemblage_batiment.rs` | partiel : enchaînement horaire du bâtiment en modes Th-B et Th-D, espaces tampons puis zones à chaque pas de temps (figure 15) ; systèmes et productions du bâtiment branchés aux lots 6 et 7 |
 | 5.2 | S1-Bat-Assemblage des espaces tampons | 104–107 | 4b | `core/src/bati/espace_tampon/assemblage.rs` | implémenté : figure 15 ; environnement proche des parois de l'espace tampon, gestion (solarisé seulement), espace tampon ; entrées des groupes au pas `h−1` ; branché sur les calculs Th-B et Th-D ; lectures Q41 |
 | 5.3 | Gestion/Régulation des espaces tampons solarisés | 108–117 | 4b | `core/src/bati/espace_tampon/gestion_solarise.rs` | implémenté : éq. (96) à (105), tableaux 16 à 18, figures 16 et 17 ; `Ventc_lim` sans valeur dans le texte, branche de fermeture de l'éq. (104) mal imprimée, `Partouv_et_inocc` inemployé (Q41) |
 | 5.4 | Espaces tampons | 118–127 | 4b | `core/src/bati/espace_tampon/espace_tampon.rs` | implémenté : éq. (106) à (129) ; `Φrejet` des générateurs thermodynamiques d'ECS sur air ambiant transmis par les générations (lot 6c, Q48) ; lectures Q41 |
@@ -116,7 +118,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 5.8 | S1_BAT_assemblage_baies | 173–178 | 4 | `core/src/bati/baie.rs` | implémenté : étapes 1 à 4 de l'assemblage dans `assemblage_groupe.rs` ; coefficients des espaces tampons, `btherm,i,b = 1` quand l'espace tampon est surventilé |
 | 5.9 | C_BAT_Gestion_protections_mobiles | 179–218 | 4 | `core/src/bati/protection_mobile.rs`, `data/src/protections_mobiles.rs` | partiel : gestion manuelle des volets et stores enroulables pour les usages 1 et 2, seconde protection, règles Th-D (éq. 175 à 178, 181, 183, 188, 189, 192, 193, 198 à 204) ; matrices vérifiées sur les figures du JO (`docs/reference/arrete/figures/`) ; gestion automatique classée **après v1** (Q31) ; stores vénitiens après v1 (Q30) ; branché sur les calculs Th-B et Th-D (tableau 34 et éq. 201 à 204 en période de confort adaptatif), jour de l'éq. (175) à minuit légal (Q39) |
 | 5.10 | C_BAT_Baie vitrée | 219–244 | 4 | `core/src/bati/baie.rs` | partiel : éq. (206) à (211), (214), (219) à (238) hors `Aouvmax` ; stores vénitiens (§5.10.3.6.2) classés **après v1** (décision Q30) ; valeurs par défaut des éq. (215), (216) et (218) appliquées et signalées dans les résultats ; espaces tampons : `btherm`, `bsolaire`, `becl`, `Ftvc = 0` (`BaieResolue::flux_reduit`) |
-| 5.11 | FA_Classement_au_bruit_d’une_baie | 245–250 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
+| 5.11 | FA_Classement_au_bruit_d’une_baie | 245–250 | 2 | `io : règles de saisie (fiche d’application)` | limite annoncée de la version 0.1 : classe d'exposition au bruit saisie pour le bâtiment (`exigences.zone_bruit`), sa règle de détermination (annexe de l'article R. 172-4, chapitre V, partie I) étant rappelée dans le JSON Schema ; pas de classement baie par baie |
 | 5.12 | C_BAT_Perméabilité_des_PM | 251–254 | 4 | `core/src/bati/protection_mobile.rs` | implémenté : tableau 40 et éq. (239) ; employé par la fiche 5.13 |
 | 5.13 | C_BAT_Surventilation naturelle par ouverture des baies pour le confort thermique | 255–271 | 4 | `core/src/bati/surventilation.rs` | partiel : gestion manuelle et règles Th-B (éq. 240 à 245), surface équivalente (éq. 248 à 250), débits (éq. 251 à 256), tableaux 42 à 44 ; hystérésis et comportement de nuit selon les décisions Q32 ; gestion automatique non prise en charge ; branché sur les calculs Th-B et Th-D ; `Δθconf_adapt` nul en Th-B (Q39), calculé par la fiche 13.5 en Th-D (éq. 2546) |
 | 5.14 | C_BAT_ensemble_baies | 272–280 | 4 | `core/src/bati/baie.rs` | implémenté : éq. (257) à (282) |
@@ -157,7 +159,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
 | 8.1 | C-Emi-Systèmes Emissions du groupe en chaud et en froid | 504–529 | 4, 6b | `core/src/chauffage_refroidissement/emission.rs`, `emetteurs.rs`, `systemes_groupe.rs` | partiel : émission équivalente conventionnelle du Bbio (§8.1.3.1, éq. 800 à 810, 824 à 827, lectures Q38) ; émetteurs du projet (lot 6b) : tableaux 82 à 88, éq. 795 à 799, consignes de relance et détection de présence (éq. 800), énergies par émetteur avec pertes au dos (éq. 810), ventilateurs locaux (éq. 811 à 816), batteries froides (éq. 817 à 823), énergie latente (éq. 828) ; branché sur les calculs Th-C et Th-D (lectures Q43) ; brasseurs d'air après v1 |
-| 8.2 | FA_Emissions_mixte_et_composite | 530–542 | 6b | `io : règles de saisie (fiche d’application)` | partiel : règles de saisie traduites en validation (émetteurs, `Rats`, `Ratt`, somme des `Rat` au plus 1) ; configurations particulières (émissions composites, poêles et inserts gaz) à documenter avec la génération (lots 6c, 6d) |
+| 8.2 | FA_Emissions_mixte_et_composite | 530–542 | 6b | `io : règles de saisie (fiche d’application)` | partiel : règles de saisie traduites en validation (émetteurs, `Rats`, `Ratt`, somme des `Rat` au plus 1) ; configurations particulières : poêles et inserts au bois traités au lot 6d (variations du tableau 88) ; poêles et inserts au gaz (autres générateurs à combustion, §8.20) hors version 0.1 |
 | 8.3 | C_Emi_Bilan hydrique | 543–550 | 4, 6b | `core/src/chauffage_refroidissement/bilan_hydrique.rs` | implémenté : calcul du Bbio sans déshumidification (éq. 830, 831, 834) ; calcul des consommations avec déshumidification sur les batteries froides (éq. 832, 833, 835 à 838, lectures Q43) |
 | 8.4 | C_Ein_Détermination des saisons de fonctionnement des systèmes de chaud et de froid | 551–555 | 6b | `core/src/chauffage_refroidissement/saisons_fonctionnement.rs` | implémenté : éq. (839) à (841), autorisations effectives recalculées à la bascule des saisons propres (Q43 point 2) ; CTA après v1 (éq. 843) |
 | 8.5 | C_Ein_Programmation des relances des systèmes | 556–561 | 6b | `core/src/chauffage_refroidissement/relances.rs` | implémenté : tableaux 92 et 93, éq. (844) à (848) ; CTA après v1 (éq. 849) ; lectures Q43 |
@@ -184,7 +186,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 8.26 | C_Gen_Sources amont des générateurs thermodynamiques | 912–929 | 6c | `core/src/chauffage_refroidissement/sources_amont.rs`, `bati/assemblage_batiment.rs` | partiel : sources sur air — température amont (éq. 1405 à 1407), auxiliaires amont des machines gainées (éq. 1441 à 1443, 1452), puissance limite d'une source sur air extrait (éq. 1453 à 1457) ; lectures Q47 ; sources sur eau (captage, nappe, tours de refroidissement, boucles d'eau ; éq. 1408 à 1440, 1444 à 1451) **après v1** |
 | 8.27 | C_Gen_Sources amont des générateurs thermodynamiques de type sol | 930–934 | après v1 | `core/src/chauffage_refroidissement/sources_amont_des_generateurs_thermodynamiques.rs` | non commencé |
 | 8.28 | C_gen_Réseau de chaleur et de froid | 935–940 | 6d | `core/src/chauffage_refroidissement/reseau_de_chaleur_et_de_froid.rs` | implémenté : sous-stations de réseaux de chaleur (chauffage, ECS, les deux) et de froid, éq. (1467) à (1483), tableaux 247 et 248 ; lecture Q49 de l'éq. (1473) ; données d'émission et d'EnR&R (annexe 7) extraites, usage au lot 7 |
-| 8.29 | C_GEN_Calculs génération | 941–962 | 6c | `core/src/chauffage_refroidissement/calculs_generation.rs`, `core/src/calcul.rs` | partiel : matrice des consommations en énergie finale (tableau 252), répartition par groupe (éq. 1484 à 1486), cumuls mensuels et annuels par générateur, génération et groupe (éq. 1494 à 1514), énergies fournies et efficacités annuelles (éq. 1521, 1525 et 1526), auxiliaires (éq. 1527 et 1528), heures par taux de charge (éq. 1522 à 1524), consommations par énergie (éq. 1529 à 1558) ; restent : conversions en énergie primaire (tableau 251, lot 7), cogénération et boucles solaires (éq. 1492, 1493, 1515 à 1520) |
+| 8.29 | C_GEN_Calculs génération | 941–962 | 6c | `core/src/chauffage_refroidissement/calculs_generation.rs`, `core/src/calcul.rs` | partiel : matrice des consommations en énergie finale (tableau 252), répartition par groupe (éq. 1484 à 1486), cumuls mensuels et annuels par générateur, génération et groupe (éq. 1494 à 1514), énergies fournies et efficacités annuelles (éq. 1521, 1525 et 1526), auxiliaires (éq. 1527 et 1528), heures par taux de charge (éq. 1522 à 1524), consommations par énergie (éq. 1529 à 1558) ; conversions en énergie primaire faites au lot 7 (fiche 13.2, articles 9 et 10) ; production des cogénérations (éq. 1492, 1493, 1515 à 1519) et générateurs sur boucle d'eau (éq. 1490 et 1491) hors version 0.1 ; énergie des boucles solaires restituée par les stockages (lot 7b) |
 | 8.30 | C_GEN_Echangeur_Geocooling | 963–970 | après v1 | `core/src/chauffage_refroidissement/echangeur_geocooling.rs` | non commencé |
 | 8.31 | C_Sys_Rafraichissement par geocooling (en groupe non-climatisé) | 971–988 | après v1 | `core/src/chauffage_refroidissement/rafraichissement_par_geocooling_en_groupe.rs` | non commencé |
 | 8.32 | C_BAT_Fonctionnement/gestion/régulation des brasseurs d’air | 989–1002 | après v1 | `core/src/chauffage_refroidissement/fonctionnement_gestion_regulation_des_brasseurs.rs` | non commencé |
@@ -198,11 +200,11 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 9.2 | S3_BAT_production_stockage_ECS_(dé)centralisée | 1025–1030 | 6c | `bati/assemblage_batiment.rs`, `core/src/chauffage_refroidissement/generation.rs` | implémenté : assemblage émission, besoins, distributions, gestion/régulation de la génération et générateur avec stockage (figure 180) |
 | 9.3 | S3_BAT_production_ECS_centralisée_appoints_décentralisés | 1031–1036 | après v1 | `core/src/ecs/production_ecs_centralisee_appoints_decentralises.rs` | non commencé |
 | 9.4 | S3_BAT_production_mixte | 1037–1041 | après v1 | `core/src/ecs/production_mixte.rs` | non commencé |
-| 9.5 | C_EMI_Emission_ECS | 1042–1048 | 6b | `core/src/ecs/emission_ecs.rs` | implémenté pour l'habitation : éq. (1673) à (1679) ; lectures Q45 |
+| 9.5 | C_EMI_Emission_ECS | 1042–1048 | 6b | `core/src/ecs/besoins_ecs.rs` | implémenté pour l'habitation : éq. (1673) à (1679) ; lectures Q45 |
 | 9.6 | C_EIN_besoins_ECS | 1049–1066 | 6b | `core/src/ecs/besoins_ecs.rs` | implémenté pour l'habitation, sans récupération sur les eaux grises (fiche 9.21, après v1, refusée par la validation) : éq. (1680) à (1694) ; lectures Q45 |
-| 9.7 | C_DIS_Distribution_ECS_du_groupe | 1067–1073 | 6b | `core/src/ecs/distribution_ecs_du_groupe.rs` | implémenté : éq. (1729) à (1734) ; lectures Q45 |
-| 9.8 | C_DIS_Distribution_ECS_intergroupe | 1074–1085 | 6b | `core/src/ecs/distribution_ecs_intergroupe.rs` | implémenté : éq. (1735) à (1765), sans production centralisée à appoints décentralisés (éq. 1741, après v1) ; lectures Q45 |
-| 9.9 | C_STO_Ballon_de_stockage | 1086–1099 | 6c | `core/src/ecs/ballon_de_stockage.rs` | partiel : zones et pertes (éq. 1766 à 1771, tableau 282), puisage par effet piston (éq. 1772, 1773 et 1776), mélange (éq. 1778 et 1779), température vue par l'échangeur (éq. 1781 à 1785), injection (éq. 1786) ; lectures Q48 ; restent : échangeur interne côté distribution (éq. 1777), piquages haut et bas (éq. 1787 à 1789), ballon solaire (tableau 283, lot 7b) |
+| 9.7 | C_DIS_Distribution_ECS_du_groupe | 1067–1073 | 6b | `core/src/ecs/distribution_ecs.rs` | implémenté : éq. (1729) à (1734) ; lectures Q45 |
+| 9.8 | C_DIS_Distribution_ECS_intergroupe | 1074–1085 | 6b | `core/src/ecs/distribution_ecs.rs` | implémenté : éq. (1735) à (1765), départ du réseau intergroupe à la zone haute du ballon central d'une production centralisée à appoints décentralisés (éq. 1741) au lot 7c (Q53, point 5) ; lectures Q45 |
+| 9.9 | C_STO_Ballon_de_stockage | 1086–1099 | 6c | `core/src/ecs/ballon_de_stockage.rs` | partiel : zones et pertes (éq. 1766 à 1771, tableau 282), puisage par effet piston (éq. 1772, 1773 et 1776), mélange (éq. 1778 et 1779), température vue par l'échangeur (éq. 1781 à 1785), injection (éq. 1786) ; lectures Q48 ; ballon solaire (tableau 283) au lot 7b ; échangeur interne côté distribution (éq. 1777) et piquages haut et bas (éq. 1787 à 1789) hors version 0.1 |
 | 9.10 | C_STO_gestion_régulation_ballon | 1100–1113 | 6c | `core/src/ecs/gestion_regulation_ballon.rs` | partiel : boucle de puisage d'ECS (éq. 1791 à 1799), programmation (éq. 1810 à 1812), enclenchement (éq. 1813 et 1814), énergie requise (éq. 1815) ; lectures Q48 ; restent : échangeurs côté distribution (éq. 1808 et 1809), gestion optimisée de l'appoint (éq. 1816 à 1824) ; lot 7b : puisage à appoint séparé instantané (éq. 1800 à 1807), Q52 |
 | 9.11 | C_STO_échangeur_ballon | 1114–1123 | après v1 | `core/src/ecs/echangeur_ballon.rs` | non commencé |
 | 9.12 | C_STO_Accumulateur_ECS en eau technique | 1124–1146 | après v1 | `core/src/ecs/accumulateur_ecs_en_eau_technique.rs` | non commencé |
@@ -217,7 +219,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 9.21 | C_BAT_Récupérateur de chaleur sur les eaux grises | 1241–1268 | après v1 | `core/src/ecs/recuperateur_de_chaleur_sur_les.rs` | non commencé |
 | 9.22 | PR1_IdCET_ Saisie des chauffe-eau thermodynamiques à compression électrique | 1269–1289 | 6c | `core/src/ecs/idcet.rs` | implémenté pour les sources sur air : conditions de l'essai (éq. 2225 à 2237), étapes C, D et E (éq. 2238 à 2245), identification par Nelder-Mead (éq. 2246 à 2249), entrées Th-BCE déduites (éq. 2250 à 2262) ; lectures Q48 (redémarrages déterministes, seuil ε) ; source sur eau après v1 |
 | 9.23 | PR2_IdCESI_ Saisie des chauffe-eau solaires individuels (Kit CESI) | 1290–1293 | 7b | `core/src/ecs/chauffe_eau_solaire.rs` | implémenté : paramètres d'un kit caractérisé selon la norme NF EN 12976 (éq. 2263 à 2273) ; `Kθ` requis, sortie d'IdCESI (Q52 point 1) ; kit à appoint intégré seulement (§9.23.3.2.2), refusé sans appoint ou à appoint séparé |
-| 9.24 | FA_Bâtiments non équipés de production d’eau chaude sanitaire | 1294–1294 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
+| 9.24 | FA_Bâtiments non équipés de production d’eau chaude sanitaire | 1294–1294 | 2 | `io : règles de saisie (fiche d’application)` | sans objet en version 0.1 : la fiche ne vaut que pour des usages tertiaires (§9.24.2) ; en habitation, l'entrée décrit la production d'ECS du projet |
 
 ### 10. Deplacement des occupants à l’intérieur du bâtiment (p. 1295–1332)
 
@@ -252,7 +254,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 13.3 | C_Sn_Methode_Th_C_Forfait de consommations de refroidissement | 1379–1385 | 7 | `core/src/indicateurs/forfait_refroidissement.rs` | implémenté : éq. (2493) à (2496), tableaux 334 à 336 ; seuil haut `DH_max` du groupe (annexe de l'article R. 172-4, chapitre III, §IV) ; lectures Q54 |
 | 13.4 | C_Calc_Bilans_Energies_Consommees_et_importées | 1386–1395 | 7 | `core/src/indicateurs/bilans_energies.rs` | implémenté au niveau du bâtiment : consommations horaires d'électricité par poste (éq. 2497 à 2519, relevées pendant le calcul Th-C), production photovoltaïque (éq. 2523, 2524, 2526), autoconsommation, taux et importations (éq. 2527 à 2530, 2535, 2537) ; sans cogénération ni PV de parcelle (hors de la version) ; niveau zone (éq. 2532 à 2534, 2536) non restitué ; lectures Q54 |
 | 13.5 | C_BAT_Confort_d’été | 1396–1403 | 5 | `core/src/confort/confort_ete.rs` | implémenté hors systèmes modifiant la sensation thermique (`Δθcorr_syst = 0`) : éq. (2543) à (2551), usages d'habitation ; DH par groupe, groupe le plus défavorable au niveau de la zone et du bâtiment ; calculé avec la ventilation du projet (lot 6a, Q42) et les systèmes du projet : émetteurs, distributions, ECS et pertes récupérables (lot 6b, Q43 à Q45) |
-| 13.6 | C_CALC_Indicateurs pédagogiques en fonction du nombre d’occupants | 1404–1406 | 7 | `core/src/indicateurs/indicateurs_pedagogiques.rs` | non commencé : le nombre d'occupants (pièces principales des logements, tableau 342) n'est pas saisi (Q54) |
+| 13.6 | C_CALC_Indicateurs pédagogiques en fonction du nombre d’occupants | 1404–1406 | 7 | — | limite annoncée de la version 0.1, non restituée : le nombre d'occupants (pièces principales des logements, tableau 342) n'est pas saisi (Q54) |
 
 ### 14. Glossaire (p. 1407–1408)
 
@@ -268,27 +270,27 @@ Renvoi vers le fichier externe des scénarios conventionnels (voir question Q2) 
 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
-| 16.1 | C_BAT_Fenetres parietodynamiques Ridoret | 1410–1416 | hors lot 1 | `core/src/titres_v/fenetres_parietodynamiques_ridoret.rs` | non commencé |
-| 16.2 | C_GEN_Conduit echangeur Poujoulat sur appareil indépendant de chauffage à bois | 1417–1428 | hors lot 1 | `core/src/titres_v/conduit_echangeur_poujoulat_sur_appareil.rs` | non commencé |
-| 16.3 | C_GEN_PAC_Triple service air-eau/air T.One Aldes et Triple C Hitachi | 1429–1429 | hors lot 1 | `core/src/titres_v/pac_triple_service_air_eau.rs` | non commencé |
-| 16.4 | FA_PAC_hybrides electriques gaz | 1430–1436 | hors lot 1 | `core/src/titres_v/pac_hybrides_electriques_gaz.rs` | non commencé |
-| 16.5 | C_GEN_THERMODYNAMIQUE_Elec_PAC_CO2 | 1437–1447 | hors lot 1 | `core/src/titres_v/thermodynamique_elec_pac_co2.rs` | non commencé |
-| 16.6 | _Gen_Thermodynamique_Elec_DoubleService_Air_Extrait_Eau_NIBE | 1448–1472 | hors lot 1 | `core/src/titres_v/gen_thermodynamique_elec_doubleservice_air.rs` | non commencé |
-| 16.7 | C_Gen_Source_Amont_NIBE | 1473–1480 | hors lot 1 | `core/src/titres_v/source_amont_nibe.rs` | non commencé |
-| 16.8 | C_Dist_Distribution_Intergroupe_Mixte_MTA | 1481–1525 | hors lot 1 | `core/src/titres_v/distribution_intergroupe_mixte_mta.rs` | non commencé |
-| 16.9 | C_Dist_Distribution_Intergroupe_ECS_MTA | 1526–1541 | hors lot 1 | `core/src/titres_v/distribution_intergroupe_ecs_mta.rs` | non commencé |
-| 16.10 | C_GEN_THERMODYNAMIQUE_heliopac | 1542–1576 | hors lot 1 | `core/src/titres_v/thermodynamique_heliopac.rs` | non commencé |
-| 16.11 | C_GEN_pompe a chaleur multifonction Acquarevia+ | 1577–1589 | hors lot 1 | `core/src/titres_v/pompe_a_chaleur_multifonction_acquarevia.rs` | non commencé |
-| 16.12 | C_GEN_AUER Chauffe eau thermodynamique_Edel Eau | 1590–1605 | hors lot 1 | `core/src/titres_v/auer_chauffe_eau_thermodynamique_edel.rs` | non commencé |
-| 16.13 | C_GEN_PAC_sur_eaux_grises | 1606–1662 | hors lot 1 | `core/src/titres_v/pac_sur_eaux_grises.rs` | non commencé |
-| 16.14 | C_GEN_Radiateur numérique Q.rad | 1663–1670 | hors lot 1 | `core/src/titres_v/radiateur_numerique_q_rad.rs` | non commencé |
-| 16.15 | C_GEN_ Chaudière numérique et rechauffeur de boucle QB1 | 1671–1678 | hors lot 1 | `core/src/titres_v/chaudiere_numerique_et_rechauffeur_de.rs` | non commencé |
-| 16.16 | C_GEN_Appoint thermodynamique (ECS et double service) | 1679–1692 | hors lot 1 | `core/src/titres_v/appoint_thermodynamique_ecs_et_double.rs` | non commencé |
-| 16.17 | C_MTA_AUER_LOGIX | 1693–1700 | hors lot 1 | `core/src/titres_v/auer_logix.rs` | non commencé |
-| 16.18 | C_VEN_VMC_Thermodynamique_double_flux | 1701–1735 | hors lot 1 | `core/src/titres_v/vmc_thermodynamique_double_flux.rs` | non commencé |
-| 16.19 | C_GEN_GECO_PKOM4 Classic | 1736–1757 | hors lot 1 | `core/src/titres_v/geco_pkom4_classic.rs` | non commencé |
-| 16.20 | C_GEN_Prechauffage de l’air insufflé dans le bâtiment par systemes SYSTOVI R-Sun, R-VOLT | 1758–1783 | hors lot 1 | `core/src/titres_v/prechauffage_de_l_air_insuffle.rs` | non commencé |
-| 16.21 | C_GEN_THERMODYNAMIQUE_YACK_BIONIC | 1784–1817 | hors lot 1 | `core/src/titres_v/thermodynamique_yack_bionic.rs` | non commencé |
-| 16.22 | C_GEN_TWIDO production ECS photovoltaïque | 1818–1824 | hors lot 1 | `core/src/titres_v/twido_production_ecs_photovoltaique.rs` | non commencé |
-| 16.23 | C_GEN_Récupération_de_chaleur_sur_chambres_froides_BOOSTHERM | 1825–1835 | hors lot 1 | `core/src/titres_v/recuperation_de_chaleur_sur_chambres.rs` | non commencé |
-| 16.24 | C_GEN_Récupération_de_chaleur_sur_installations_frigorifiques_RIDEL_Energy | 1836–1854 | hors lot 1 | `core/src/titres_v/recuperation_de_chaleur_sur_installations.rs` | non commencé |
+| 16.1 | C_BAT_Fenetres parietodynamiques Ridoret | 1410–1416 | hors version 0.1 | `core/src/titres_v/fenetres_parietodynamiques_ridoret.rs` | non commencé |
+| 16.2 | C_GEN_Conduit echangeur Poujoulat sur appareil indépendant de chauffage à bois | 1417–1428 | hors version 0.1 | `core/src/titres_v/conduit_echangeur_poujoulat_sur_appareil.rs` | non commencé |
+| 16.3 | C_GEN_PAC_Triple service air-eau/air T.One Aldes et Triple C Hitachi | 1429–1429 | hors version 0.1 | `core/src/titres_v/pac_triple_service_air_eau.rs` | non commencé |
+| 16.4 | FA_PAC_hybrides electriques gaz | 1430–1436 | hors version 0.1 | `core/src/titres_v/pac_hybrides_electriques_gaz.rs` | non commencé |
+| 16.5 | C_GEN_THERMODYNAMIQUE_Elec_PAC_CO2 | 1437–1447 | hors version 0.1 | `core/src/titres_v/thermodynamique_elec_pac_co2.rs` | non commencé |
+| 16.6 | _Gen_Thermodynamique_Elec_DoubleService_Air_Extrait_Eau_NIBE | 1448–1472 | hors version 0.1 | `core/src/titres_v/gen_thermodynamique_elec_doubleservice_air.rs` | non commencé |
+| 16.7 | C_Gen_Source_Amont_NIBE | 1473–1480 | hors version 0.1 | `core/src/titres_v/source_amont_nibe.rs` | non commencé |
+| 16.8 | C_Dist_Distribution_Intergroupe_Mixte_MTA | 1481–1525 | hors version 0.1 | `core/src/titres_v/distribution_intergroupe_mixte_mta.rs` | non commencé |
+| 16.9 | C_Dist_Distribution_Intergroupe_ECS_MTA | 1526–1541 | hors version 0.1 | `core/src/titres_v/distribution_intergroupe_ecs_mta.rs` | non commencé |
+| 16.10 | C_GEN_THERMODYNAMIQUE_heliopac | 1542–1576 | hors version 0.1 | `core/src/titres_v/thermodynamique_heliopac.rs` | non commencé |
+| 16.11 | C_GEN_pompe a chaleur multifonction Acquarevia+ | 1577–1589 | hors version 0.1 | `core/src/titres_v/pompe_a_chaleur_multifonction_acquarevia.rs` | non commencé |
+| 16.12 | C_GEN_AUER Chauffe eau thermodynamique_Edel Eau | 1590–1605 | hors version 0.1 | `core/src/titres_v/auer_chauffe_eau_thermodynamique_edel.rs` | non commencé |
+| 16.13 | C_GEN_PAC_sur_eaux_grises | 1606–1662 | hors version 0.1 | `core/src/titres_v/pac_sur_eaux_grises.rs` | non commencé |
+| 16.14 | C_GEN_Radiateur numérique Q.rad | 1663–1670 | hors version 0.1 | `core/src/titres_v/radiateur_numerique_q_rad.rs` | non commencé |
+| 16.15 | C_GEN_ Chaudière numérique et rechauffeur de boucle QB1 | 1671–1678 | hors version 0.1 | `core/src/titres_v/chaudiere_numerique_et_rechauffeur_de.rs` | non commencé |
+| 16.16 | C_GEN_Appoint thermodynamique (ECS et double service) | 1679–1692 | hors version 0.1 | `core/src/titres_v/appoint_thermodynamique_ecs_et_double.rs` | non commencé |
+| 16.17 | C_MTA_AUER_LOGIX | 1693–1700 | hors version 0.1 | `core/src/titres_v/auer_logix.rs` | non commencé |
+| 16.18 | C_VEN_VMC_Thermodynamique_double_flux | 1701–1735 | hors version 0.1 | `core/src/titres_v/vmc_thermodynamique_double_flux.rs` | non commencé |
+| 16.19 | C_GEN_GECO_PKOM4 Classic | 1736–1757 | hors version 0.1 | `core/src/titres_v/geco_pkom4_classic.rs` | non commencé |
+| 16.20 | C_GEN_Prechauffage de l’air insufflé dans le bâtiment par systemes SYSTOVI R-Sun, R-VOLT | 1758–1783 | hors version 0.1 | `core/src/titres_v/prechauffage_de_l_air_insuffle.rs` | non commencé |
+| 16.21 | C_GEN_THERMODYNAMIQUE_YACK_BIONIC | 1784–1817 | hors version 0.1 | `core/src/titres_v/thermodynamique_yack_bionic.rs` | non commencé |
+| 16.22 | C_GEN_TWIDO production ECS photovoltaïque | 1818–1824 | hors version 0.1 | `core/src/titres_v/twido_production_ecs_photovoltaique.rs` | non commencé |
+| 16.23 | C_GEN_Récupération_de_chaleur_sur_chambres_froides_BOOSTHERM | 1825–1835 | hors version 0.1 | `core/src/titres_v/recuperation_de_chaleur_sur_chambres.rs` | non commencé |
+| 16.24 | C_GEN_Récupération_de_chaleur_sur_installations_frigorifiques_RIDEL_Energy | 1836–1854 | hors version 0.1 | `core/src/titres_v/recuperation_de_chaleur_sur_installations.rs` | non commencé |

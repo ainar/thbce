@@ -2,6 +2,8 @@
   "batiments": [
     {
       "id": "maison",
+      "bbio_pts": 63.8,
+      "dh_c_h": 1555.1,
       "cep_kwhep_m2": 122.4,
       "cep_nr_kwhep_m2": 122.4,
       "ic_energie_kgco2_m2": 152.4,

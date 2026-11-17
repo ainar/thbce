@@ -192,7 +192,7 @@ impl FacteursResolus {
     /// - éq. (218) : `Tlid = 0`.
     ///
     /// Le texte donne la valeur par défaut du facteur global et renvoie aux règles Th-S pour sa
-    /// décomposition en `Sw1`, `Sw2` et `Sw3` : voir [`repartir_facteur_global`] (hypothèse du
+    /// décomposition en `Sw1`, `Sw2` et `Sw3` : voir `repartir_facteur_global` (hypothèse du
     /// mainteneur, décision Q30). Avec protection mobile, les composantes « -c » sont donc
     /// égales aux composantes « -e ».
     ///

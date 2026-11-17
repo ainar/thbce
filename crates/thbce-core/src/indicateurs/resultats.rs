@@ -239,9 +239,9 @@ pub struct ResultatsExigences {
 pub struct ResultatsIndicateurs {
     /// « SREF_bat », en m².
     pub sref_m2: f64,
-    /// Électricité consommée par poste (« O_Cef_cons_[poste]_elec_annuel »), en kWh.
+    /// Électricité consommée par poste (« O_Cef_cons_\[poste\]_elec_annuel »), en kWh.
     pub electricite_consommee: PostesElectricite,
-    /// Électricité importée par poste (« O_Cef_imp_[poste]_elec_annuel »), en kWh : la part
+    /// Électricité importée par poste (« O_Cef_imp_\[poste\]_elec_annuel »), en kWh : la part
     /// autoconsommée de la production locale est déduite heure par heure (éq. 2535).
     pub electricite_importee: PostesElectricite,
     /// Électricité importée hors usages mobiliers, par mois des scénarios, en kWh (le forfait

@@ -6,8 +6,15 @@ members = ["crates/*", "xtask"]
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
+# Version minimale de Rust : celle qu'exigent calamine, zip et proptest ; vérifiée par la CI
+# (tâche « Version minimale de Rust »).
+rust-version = "1.88"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/ainar/thbce"
+homepage = "https://github.com/ainar/thbce"
+readme = "README.md"
+keywords = ["re2020", "th-bce", "thermique", "batiment", "energie"]
+categories = ["science", "command-line-utilities", "wasm"]
 authors = ["Contributeurs du projet thbce"]
 
 [workspace.dependencies]

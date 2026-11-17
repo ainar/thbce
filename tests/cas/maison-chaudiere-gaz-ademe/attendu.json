@@ -9,6 +9,8 @@
     {
       "id": "maison",
       "sref_m2": 96.4,
+      "bbio_pts": 63.8,
+      "dh_c_h": 1670.0,
       "zones": [
         {
           "id": "logement",

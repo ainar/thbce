@@ -33,7 +33,7 @@ const RS_HORIZONTALE_DESCENDANT: f64 = 0.21;
 /// (horizontale, flux descendant). On en tire `Uvert = 1/(Rth + 0,17)`,
 /// `Uhoriz,asc = 1/(Rth + 0,14)` et `Uhoriz,des = 1/(Rth + 0,21)`, puis, selon l'inclinaison β
 /// (éq. 294) : `Uhoriz,asc` jusqu'à 30° ; interpolation linéaire de 30 à 60° ; `Uvert` de 60 à
-/// 120° ; interpolation linéaire de 120 à 150° ([`u_entre_beta_3_et_beta_4`], décision Q29) ;
+/// 120° ; interpolation linéaire de 120 à 150° (`u_entre_beta_3_et_beta_4`, décision Q29) ;
 /// `Uhoriz,des` au-delà.
 pub fn u_k_beta(u_k_w_m2k: f64, incl_k: PositionParoi, beta_deg: f64) -> f64 {
     let rs_reference = match incl_k {
