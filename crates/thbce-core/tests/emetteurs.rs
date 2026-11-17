@@ -45,7 +45,7 @@ fn plancher() -> EmetteurResolu {
         r#"{"id": "plancher",
             "chauffage": {"type_emetteur": "plancher_chauffant",
               "variation_spatiale": {"classe": {"classe": "A", "hsp_m": 2.5}},
-              "variation_temporelle": {"certifiee": {"delta_theta_k": 0.5}},
+              "variation_temporelle": {"certifie": {"delta_theta_k": 0.5}},
               "effet_joule": false, "rats": 0.6, "ratt": 1.0, "distribution": "d"},
             "pertes_au_dos": {"r_i_m2k_w": 0.15, "u_e_w_m2k": 0.2}}"#,
     )
@@ -81,7 +81,7 @@ fn tableaux_82_84_et_87() {
         -1.8
     );
     assert_eq!(
-        delta_theta_vt_k(&VariationTemporelle::Justifiee { delta_theta_k: 0.4 }, true),
+        delta_theta_vt_k(&VariationTemporelle::Justifie { delta_theta_k: 0.4 }, true),
         0.9
     );
 }

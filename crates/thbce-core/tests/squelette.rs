@@ -271,7 +271,7 @@ fn regles_de_saisie_de_la_surventilation_naturelle() {
     // Logement collectif : le caractère traversant se saisit.
     let mut p = projet();
     p.batiments[0].zones[0].usage = UsageZone::LogementCollectif;
-    p.batiments[0].zones[0].nb_lgt = Some(2);
+    p.batiments[0].zones[0].nb_logements = Some(2);
     // Caractère traversant au sens des conditions d'hiver (§5.6.3.1.3) : hors du sujet.
     p.batiments[0].zones[0].trav_zone = Some(true);
     assert_eq!(
@@ -356,14 +356,14 @@ fn la_surface_utile_et_le_nombre_de_logements_sont_exiges() {
     p.batiments[0].zones[0].trav_zone = Some(false);
     assert_eq!(
         chemins(&valider(&p).erreurs),
-        ["batiments[0].zones[0].nb_lgt"]
+        ["batiments[0].zones[0].nb_logements"]
     );
-    p.batiments[0].zones[0].nb_lgt = Some(0);
+    p.batiments[0].zones[0].nb_logements = Some(0);
     assert_eq!(
         chemins(&valider(&p).erreurs),
-        ["batiments[0].zones[0].nb_lgt"]
+        ["batiments[0].zones[0].nb_logements"]
     );
-    p.batiments[0].zones[0].nb_lgt = Some(2);
+    p.batiments[0].zones[0].nb_logements = Some(2);
     assert!(valider(&p).est_valide());
 }
 
@@ -374,4 +374,16 @@ fn les_adultes_equivalents_figurent_dans_les_resultats() {
     let r = calculer(&projet(), &meteo, &Options { arrondir: false }).unwrap();
     let nadeq = r.batiments[0].zones[0].nadeq.unwrap();
     assert!((nadeq - 1.9483).abs() < 1e-12, "{nadeq}");
+}
+
+#[test]
+fn schema_et_version_du_format_sont_facultatifs() {
+    let mut v: serde_json::Value = serde_json::from_str(ENTREE).unwrap();
+    v["$schema"] = "https://example.org/thbce-entree.schema.json".into();
+    v["version_format"] = 1.into();
+    let p: Projet = serde_json::from_value(v.clone()).unwrap();
+    assert!(valider(&p).est_valide());
+    v["version_format"] = 2.into();
+    let p: Projet = serde_json::from_value(v).unwrap();
+    assert_eq!(chemins(&valider(&p).erreurs), ["version_format"]);
 }

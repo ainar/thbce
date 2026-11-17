@@ -25,7 +25,7 @@
         "installations": [
           {
             "id": "toiture-sud",
-            "n_modules": 8,
+            "nb_modules": 8,
             "puissance_crete_calcul_kwc": 3.0,
             "eta_stc": 0.214,
             "u1_w_m2k": 10.855,

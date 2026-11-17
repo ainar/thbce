@@ -115,10 +115,10 @@ pub fn p_em_conv_fr(t: TypeEmetteurFroid) -> f64 {
 pub fn delta_theta_vt_k(v: &VariationTemporelle, chaud: bool) -> f64 {
     let signe = if chaud { 1.0 } else { -1.0 };
     match *v {
-        VariationTemporelle::Certifiee { delta_theta_k } => delta_theta_k,
-        VariationTemporelle::Justifiee { delta_theta_k } => delta_theta_k + signe * 0.5,
+        VariationTemporelle::Certifie { delta_theta_k } => delta_theta_k,
+        VariationTemporelle::Justifie { delta_theta_k } => delta_theta_k + signe * 0.5,
         VariationTemporelle::Defaut { arret_total } => signe * if arret_total { 1.8 } else { 2.0 },
-        VariationTemporelle::PoeleInsert { thermostat } => {
+        VariationTemporelle::PoeleOuInsert { thermostat } => {
             if thermostat {
                 2.0
             } else {
@@ -185,7 +185,7 @@ impl EmetteurResolu {
                 VariationSpatiale::Classe { classe, hsp_m } => {
                     delta_theta_vs_ch_classe_k(classe, hsp_m)
                 }
-                VariationSpatiale::PoeleInsert { niveaux } => delta_theta_vs_poele_k(niveaux),
+                VariationSpatiale::PoeleOuInsert { niveaux } => delta_theta_vs_poele_k(niveaux),
                 VariationSpatiale::Valeur { delta_theta_k } => delta_theta_k,
             },
             delta_theta_vt_k: delta_theta_vt_k(&c.variation_temporelle, true),

@@ -27,10 +27,10 @@ pub(super) fn valider_installations_pv(
             0.0,
             90.0,
         );
-        if i.n_modules < 1 {
+        if i.nb_modules < 1 {
             r.erreur(
-                format!("{c}.n_modules"),
-                Some(i.n_modules.to_string()),
+                format!("{c}.nb_modules"),
+                Some(i.nb_modules.to_string()),
                 "au moins un module (Th-BCE 2020 §12.3.2)",
             );
         }

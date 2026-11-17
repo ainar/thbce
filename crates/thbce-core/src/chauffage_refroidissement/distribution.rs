@@ -238,7 +238,7 @@ impl DistributionGroupeResolue {
         Self {
             id: d.id.clone(),
             fonction: d.fonction,
-            intergroupes: intergroupes(&d.distribution_intergroupes).unwrap_or(0),
+            intergroupes: intergroupes(&d.distribution_intergroupe).unwrap_or(0),
             espace_tampon: match &d.reseau {
                 ReseauGroupe::Hydraulique(h) => {
                     h.espace_tampon.as_deref().and_then(espaces_tampons)
@@ -359,7 +359,7 @@ impl DistributionIntergroupesResolue {
     ) -> Self {
         let espace_tampon = match &d.reseau {
             ReseauIntergroupes::HydrauliqueCollectif(h)
-            | ReseauIntergroupes::HydrauliqueIndividuels(h) => {
+            | ReseauIntergroupes::HydrauliqueIndividuel(h) => {
                 h.espace_tampon.as_deref().and_then(espaces_tampons)
             }
             ReseauIntergroupes::Fictif => None,
@@ -414,7 +414,7 @@ impl DistributionIntergroupesResolue {
                 ..SortiesDistributionIntergroupes::default()
             },
             ReseauIntergroupes::HydrauliqueCollectif(h)
-            | ReseauIntergroupes::HydrauliqueIndividuels(h) => {
+            | ReseauIntergroupes::HydrauliqueIndividuel(h) => {
                 let collectif = matches!(self.reseau, ReseauIntergroupes::HydrauliqueCollectif(_));
                 let (theta_amb, q_ds) = match self.fonction {
                     FonctionReseau::Chauffage => (THETA_AMB_CH_C, q_ch),

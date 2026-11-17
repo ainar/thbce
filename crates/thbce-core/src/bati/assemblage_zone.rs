@@ -133,7 +133,7 @@ impl ZoneHoraire {
             .iter()
             .map(|g| g.su_m2.unwrap_or(0.0))
             .collect();
-        let scenarios = ScenariosZone::nouveau(zone.usage, &a_gr, zone.nb_lgt.unwrap_or(1))?;
+        let scenarios = ScenariosZone::nouveau(zone.usage, &a_gr, zone.nb_logements.unwrap_or(1))?;
         let nbh_occ_ref = nbh_occ_ref(scenarios.usage().occupation.grille_hebdo());
         let q4pa = zone.q4pa_surf_m3_h_m2.unwrap_or(0.0);
         let mut groupes: Vec<GroupeHoraire> = zone

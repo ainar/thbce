@@ -51,8 +51,8 @@ pub fn inertie_quotidienne(classe: &InertieQuotidienne) -> (f64, f64) {
     match *classe {
         InertieQuotidienne::Personnalisee {
             amq_surf_m2_m2,
-            cmq_surf_kj_k_m2,
-        } => (amq_surf_m2_m2, cmq_surf_kj_k_m2),
+            cmq_surf_kj_m2k,
+        } => (amq_surf_m2_m2, cmq_surf_kj_m2k),
         InertieQuotidienne::TresLegere => (2.5, 80.0),
         InertieQuotidienne::Legere => (2.5, 110.0),
         InertieQuotidienne::Moyenne => (2.5, 165.0),

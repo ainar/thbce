@@ -154,7 +154,7 @@ impl Colonne {
     }
 
     /// Vecteur d'une colonne quand aucun générateur ne le précise.
-    fn par_defaut(self, froid: bool) -> VecteurConnu {
+    fn defaut(self, froid: bool) -> VecteurConnu {
         match self {
             Self::Gaz => VecteurConnu::nouveau("gaz_naturel", Vecteur::GazNaturel),
             Self::Fioul => VecteurConnu::nouveau("fioul", Vecteur::Fioul),
@@ -190,7 +190,7 @@ fn vecteur_generateur(nature: &NatureGenerateur, col: Colonne, froid: bool) -> V
             }),
             Colonne::Reseau,
         ) => reseau_froid(identifiant_reseau.as_deref()),
-        _ => col.par_defaut(froid),
+        _ => col.defaut(froid),
     }
 }
 
@@ -216,7 +216,7 @@ fn repartir(
                 continue;
             }
             let v = g.generateurs.iter().find(|x| x.id == r.id).map_or_else(
-                || col.par_defaut(froid),
+                || col.defaut(froid),
                 |x| vecteur_generateur(&x.nature, col, froid),
             );
             match parts.iter_mut().find(|(w, _)| *w == v) {
@@ -227,7 +227,7 @@ fn repartir(
     }
     let somme: f64 = parts.iter().map(|(_, q)| q).sum();
     if somme <= 0.0 {
-        return vec![(col.par_defaut(froid), total_kwh)];
+        return vec![(col.defaut(froid), total_kwh)];
     }
     parts
         .into_iter()
@@ -275,7 +275,7 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
             let p = PartieBatiment {
                 usage: z.usage.numero(),
                 sref_m2: r.sref_m2,
-                nb_lgt: z.nb_lgt.unwrap_or(1),
+                nb_logements: z.nb_logements.unwrap_or(1),
                 sref_usage_m2: sref_usage(z.usage),
                 raccorde_rcu: rcu,
             };

@@ -13,7 +13,7 @@ use thbce_data::ZoneClimatique;
 use crate::bati::assemblage_groupe::EnveloppeResolue;
 use crate::bati::baie::{u_baie, EnsembleBaies, EtatBaie, REDUCTION_SW_SP_C};
 use crate::bati::comportement_thermique::{inertie_quotidienne, GroupeThermique};
-use crate::bati::inerties_longues::{cma_surf_kj_k_m2, cms_surf_kj_k_m2};
+use crate::bati::inerties_longues::{cma_surf_kj_m2k, cms_surf_kj_m2k};
 use crate::bati::paroi_opaque::EnsembleParois;
 use crate::bati::surventilation::traversant_conventionnel;
 use crate::entree::{
@@ -150,6 +150,19 @@ impl RapportValidation {
 pub fn valider(projet: &Projet) -> RapportValidation {
     let mut r = RapportValidation::default();
 
+    if let Some(v) = projet.version_format {
+        if v != crate::entree::VERSION_FORMAT {
+            r.erreur(
+                "version_format",
+                Some(v.to_string()),
+                format!(
+                    "version du format d'entrée inconnue : cette version du moteur lit la version {}",
+                    crate::entree::VERSION_FORMAT
+                ),
+            );
+        }
+    }
+
     // Th-BCE 2020 §3.1.2 : Alt, Dmer, Durb, minimum 0.
     let loc = &projet.localisation;
     r.positif("localisation.alt_m".into(), loc.alt_m);
@@ -262,14 +275,14 @@ fn valider_zone(r: &mut RapportValidation, c: &str, zone: &Zone, refs: &Referenc
     }
     // Th-BCE 2020 §4.1.3, éq. (34) : le nombre de logements est nécessaire en logement collectif.
     // En maison individuelle, il vaut 1 s'il n'est pas saisi (maisons accolées : à saisir).
-    match (zone.usage, zone.nb_lgt) {
+    match (zone.usage, zone.nb_logements) {
         (_, Some(0)) => r.erreur(
-            format!("{c}.nb_lgt"),
+            format!("{c}.nb_logements"),
             Some("0".into()),
             "doit être supérieur ou égal à 1",
         ),
         (crate::entree::UsageZone::LogementCollectif, None) => r.erreur(
-            format!("{c}.nb_lgt"),
+            format!("{c}.nb_logements"),
             None,
             "nombre de logements requis en logement collectif (Th-BCE 2020 §4.1.3, éq. 34)",
         ),
@@ -659,23 +672,17 @@ fn valider_bouche_conduit(r: &mut RapportValidation, c: &str, b: &BoucheConduit)
 fn valider_inertie(r: &mut RapportValidation, c: &str, i: &Inertie) {
     if let InertieQuotidienne::Personnalisee {
         amq_surf_m2_m2,
-        cmq_surf_kj_k_m2,
+        cmq_surf_kj_m2k,
     } = i.quotidienne
     {
         r.positif(format!("{c}.quotidienne.amq_surf_m2_m2"), amq_surf_m2_m2);
-        r.positif(
-            format!("{c}.quotidienne.cmq_surf_kj_k_m2"),
-            cmq_surf_kj_k_m2,
-        );
+        r.positif(format!("{c}.quotidienne.cmq_surf_kj_m2k"), cmq_surf_kj_m2k);
     }
-    if let InertieSequentielle::Personnalisee { cms_surf_kj_k_m2 } = i.sequentielle {
-        r.positif(
-            format!("{c}.sequentielle.cms_surf_kj_k_m2"),
-            cms_surf_kj_k_m2,
-        );
+    if let InertieSequentielle::Personnalisee { cms_surf_kj_m2k } = i.sequentielle {
+        r.positif(format!("{c}.sequentielle.cms_surf_kj_m2k"), cms_surf_kj_m2k);
     }
-    if let InertieAnnuelle::Personnalisee { cma_surf_kj_k_m2 } = i.annuelle {
-        r.positif(format!("{c}.annuelle.cma_surf_kj_k_m2"), cma_surf_kj_k_m2);
+    if let InertieAnnuelle::Personnalisee { cma_surf_kj_m2k } = i.annuelle {
+        r.positif(format!("{c}.annuelle.cma_surf_kj_m2k"), cma_surf_kj_m2k);
     }
     r.positif(format!("{c}.ams_surf_m2_m2"), i.ams_surf_m2_m2);
     r.positif(format!("{c}.ama_surf_m2_m2"), i.ama_surf_m2_m2);
@@ -685,8 +692,8 @@ fn valider_inertie(r: &mut RapportValidation, c: &str, i: &Inertie) {
     // pas de sens. Une saisie qui y contrevient est signalée ; le calcul Th-D prend alors la
     // capacité ou la conductance nulle (`bati::inerties_longues`).
     let (amq_surf, cmq_surf) = inertie_quotidienne(&i.quotidienne);
-    let cms_surf = cms_surf_kj_k_m2(&i.sequentielle, cmq_surf);
-    let cma_surf = cma_surf_kj_k_m2(&i.annuelle, cms_surf);
+    let cms_surf = cms_surf_kj_m2k(&i.sequentielle, cmq_surf);
+    let cma_surf = cma_surf_kj_m2k(&i.annuelle, cms_surf);
     if cms_surf < cmq_surf {
         r.avertissement(
             format!("{c}.sequentielle"),

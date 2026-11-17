@@ -28,7 +28,7 @@ impl InstallationResolue {
     /// Résout une installation saisie.
     pub fn nouvelle(i: &InstallationPv) -> Self {
         let capteur = CapteurPv::nouveau(
-            f64::from(i.n_modules),
+            f64::from(i.nb_modules),
             i.modules.technologie,
             &i.modules.performances,
             i.modules.s_m2,

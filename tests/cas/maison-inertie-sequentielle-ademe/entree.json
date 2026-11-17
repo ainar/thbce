@@ -194,7 +194,7 @@
                 "quotidienne": "moyenne",
                 "sequentielle": "lourde",
                 "ams_surf_m2_m2": 1.5,
-                "annuelle": "par_defaut",
+                "annuelle": "defaut",
                 "ama_surf_m2_m2": 2.5
               },
               "parois_opaques": [
@@ -315,7 +315,7 @@
                 {
                   "id": "distribution-chauffage",
                   "fonction": "chauffage",
-                  "distribution_intergroupes": "intergroupes-chauffage",
+                  "distribution_intergroupe": "intergroupes-chauffage",
                   "reseau": "fictif"
                 }
               ],
@@ -404,7 +404,7 @@
               "ballon": {
                 "v_tot_l": 200,
                 "pertes": {
-                  "par_defaut": {
+                  "defaut": {
                     "nature": "effet_joule_vertical"
                   }
                 },

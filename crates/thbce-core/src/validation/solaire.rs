@@ -103,7 +103,7 @@ fn valider_generation(
                         Some(
                             match x.appoint {
                                 AppointCesi::Aucun => "aucun",
-                                _ => "separe_instantane",
+                                _ => "separe",
                             }
                             .into(),
                         ),
@@ -136,7 +136,7 @@ fn valider_generation(
         }
         match &x.appoint {
             AppointCesi::Aucun => {}
-            AppointCesi::SepareInstantane => {
+            AppointCesi::Separe => {
                 // L'appoint séparé instantané est un générateur instantané d'ECS de la
                 // génération (§9.14.1, « Type_prod_stockage = 3 »).
                 let instantane = g
@@ -146,7 +146,7 @@ fn valider_generation(
                 if !instantane {
                     r.erreur(
                         format!("{cc}.appoint"),
-                        Some("separe_instantane".into()),
+                        Some("separe".into()),
                         "un appoint séparé instantané demande un générateur instantané d'ECS dans \
                          la génération (non piloté par un ballon)",
                     );
@@ -213,7 +213,7 @@ fn valider_generation(
             d.fonction == FonctionReseau::Chauffage
                 && matches!(&d.reseau, ReseauGroupe::Hydraulique(h) if h.theta_dep_dim_c.is_some())
                 && bat.distributions_intergroupes.iter().any(|di| {
-                    di.id == d.distribution_intergroupes
+                    di.id == d.distribution_intergroupe
                         && di.generation == g.id
                         && di.fonction == FonctionReseau::Chauffage
                 })
@@ -334,13 +334,13 @@ fn valider_boucle(
     boucle: &BoucleSolaireSaisie,
 ) {
     r.strictement_positif(format!("{cd}.capteurs.surface_m2"), capteurs.surface_m2);
-    if let PerformancesCapteurs::Certifiees {
+    if let PerformancesCapteurs::Certifie {
         eta0,
         a1_w_m2k,
         a2_w_m2k2,
     } = capteurs.performances
     {
-        let cp = format!("{cd}.capteurs.performances.certifiees");
+        let cp = format!("{cd}.capteurs.performances.certifie");
         r.plage(format!("{cp}.eta0"), eta0, 0.0, 1.0);
         r.positif(format!("{cp}.a1_w_m2k"), a1_w_m2k);
         r.positif(format!("{cp}.a2_w_m2k2"), a2_w_m2k2);

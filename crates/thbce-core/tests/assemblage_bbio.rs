@@ -208,7 +208,7 @@ fn deux_groupes_dans_une_zone_de_logement_collectif() {
     let mut p = projet();
     let zone = &mut p.batiments[0].zones[0];
     zone.usage = UsageZone::LogementCollectif;
-    zone.nb_lgt = Some(2);
+    zone.nb_logements = Some(2);
     zone.trav_zone = Some(true);
     zone.groupes[0].traversant = Some(true);
     let mut g2 = zone.groupes[0].clone();

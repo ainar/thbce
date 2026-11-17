@@ -33,7 +33,7 @@ pub struct PartieBatiment {
     /// « Sref » de la zone, en m².
     pub sref_m2: f64,
     /// « NL » : nombre de logements de la zone.
-    pub nb_lgt: u32,
+    pub nb_logements: u32,
     /// Somme des « Sref » des zones du bâtiment de même usage, en m² (`Mbsurf_tot`,
     /// `Mcsurf_tot` : chapitre II, I et II).
     pub sref_usage_m2: f64,
@@ -192,8 +192,8 @@ pub fn exigences_partie(
     }
     let maison = z.usage == 1;
     let sref = z.sref_m2;
-    let s = if z.nb_lgt > 0 {
-        sref / f64::from(z.nb_lgt)
+    let s = if z.nb_logements > 0 {
+        sref / f64::from(z.nb_logements)
     } else {
         sref
     };
@@ -370,7 +370,7 @@ mod tests {
         let z = PartieBatiment {
             usage: 1,
             sref_m2: 100.0,
-            nb_lgt: 1,
+            nb_logements: 1,
             sref_usage_m2: 100.0,
             raccorde_rcu: false,
         };
@@ -400,7 +400,7 @@ mod tests {
         let z = PartieBatiment {
             usage: 1,
             sref_m2: 120.0,
-            nb_lgt: 1,
+            nb_logements: 1,
             sref_usage_m2: 120.0,
             raccorde_rcu: false,
         };
@@ -427,7 +427,7 @@ mod tests {
         let z = PartieBatiment {
             usage: 2,
             sref_m2: 780.0,
-            nb_lgt: 12,
+            nb_logements: 12,
             sref_usage_m2: 780.0,
             raccorde_rcu: false,
         };
@@ -458,7 +458,7 @@ mod tests {
         let maison = |rcu: bool| PartieBatiment {
             usage: 1,
             sref_m2: 96.44,
-            nb_lgt: 1,
+            nb_logements: 1,
             sref_usage_m2: 96.44,
             raccorde_rcu: rcu,
         };
@@ -499,7 +499,7 @@ mod tests {
         let immeuble = |rcu: bool| PartieBatiment {
             usage: 2,
             sref_m2: 720.0,
-            nb_lgt: 12,
+            nb_logements: 12,
             sref_usage_m2: 720.0,
             raccorde_rcu: rcu,
         };

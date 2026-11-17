@@ -83,7 +83,7 @@ fn parametres_du_modele() {
     );
     let perso = InertieQuotidienne::Personnalisee {
         amq_surf_m2_m2: 2.8,
-        cmq_surf_kj_k_m2: 200.0,
+        cmq_surf_kj_m2k: 200.0,
     };
     assert_eq!(inertie_quotidienne(&perso), (2.8, 200.0));
     // his = 2,5 + 1,2 × 5,5 = 9,1 W/(m².K). Pour 100 m² : Atparois = 450 m² ; Amq = 250 m² ;

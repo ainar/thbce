@@ -201,7 +201,7 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
         c["type_pcad"] = "cescai".into();
         c["boucle"]["regulation"] = "temperature".into();
         c["ballon_central"] = serde_json::json!({"v_tot_l": 900.0,
-            "pertes": {"par_defaut": {"nature": "autre"}}, "theta_max_c": 90.0});
+            "pertes": {"defaut": {"nature": "autre"}}, "theta_max_c": 90.0});
         v["distributions_ecs_intergroupes"][0]["reseau"] = serde_json::json!({"boucle": {
             "l_vc_m": 40.0, "l_hvc_m": 0.0, "u_w_mk": 0.25, "rechauffeur": false,
             "p_circ_w": 60.0}});

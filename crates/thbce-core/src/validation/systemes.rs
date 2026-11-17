@@ -26,7 +26,7 @@ pub(super) fn valider_systemes_batiment(r: &mut RapportValidation, cb: &str, bat
     );
     for (i, d) in bat.distributions_intergroupes.iter().enumerate() {
         if let ReseauIntergroupes::HydrauliqueCollectif(h)
-        | ReseauIntergroupes::HydrauliqueIndividuels(h) = &d.reseau
+        | ReseauIntergroupes::HydrauliqueIndividuel(h) = &d.reseau
         {
             let ch = format!("{cb}.distributions_intergroupes[{i}].reseau");
             for (nom, x) in [
@@ -160,11 +160,11 @@ fn valider_systemes_groupe(r: &mut RapportValidation, c: &str, g: &Groupe, bat: 
         match bat
             .distributions_intergroupes
             .iter()
-            .find(|dp| dp.id == d.distribution_intergroupes)
+            .find(|dp| dp.id == d.distribution_intergroupe)
         {
             None => r.erreur(
-                format!("{cd}.distribution_intergroupes"),
-                Some(d.distribution_intergroupes.clone()),
+                format!("{cd}.distribution_intergroupe"),
+                Some(d.distribution_intergroupe.clone()),
                 "réseau intergroupes inconnu du bâtiment",
             ),
             Some(dp) => {
@@ -183,7 +183,7 @@ fn valider_systemes_groupe(r: &mut RapportValidation, c: &str, g: &Groupe, bat: 
                         | (
                             ReseauGroupe::Hydraulique(_),
                             ReseauIntergroupes::HydrauliqueCollectif(_)
-                                | ReseauIntergroupes::HydrauliqueIndividuels(_)
+                                | ReseauIntergroupes::HydrauliqueIndividuel(_)
                         )
                 );
                 if !types_compatibles {
@@ -281,10 +281,10 @@ fn valider_emetteur(r: &mut RapportValidation, ce: &str, e: &Emetteur, g: &Group
             VariationSpatiale::Classe { hsp_m, .. } => {
                 r.strictement_positif(format!("{cc}.variation_spatiale.classe.hsp_m"), hsp_m);
             }
-            VariationSpatiale::PoeleInsert { niveaux } => {
+            VariationSpatiale::PoeleOuInsert { niveaux } => {
                 if !(1..=2).contains(&niveaux) {
                     r.erreur(
-                        format!("{cc}.variation_spatiale.poele_insert.niveaux"),
+                        format!("{cc}.variation_spatiale.poele_ou_insert.niveaux"),
                         Some(niveaux.to_string()),
                         "1 ou 2 niveaux desservis (Th-BCE 2020 §8.1.3.1.2, tableau 83)",
                     );
@@ -301,14 +301,14 @@ fn valider_emetteur(r: &mut RapportValidation, ce: &str, e: &Emetteur, g: &Group
         // effet Joule, à 0,4 K pour les autres émetteurs de chauffage.
         let min = if ch.effet_joule { 0.2 } else { 0.4 };
         match ch.variation_temporelle {
-            VariationTemporelle::Certifiee { delta_theta_k }
-            | VariationTemporelle::Justifiee { delta_theta_k } => r.plage(
+            VariationTemporelle::Certifie { delta_theta_k }
+            | VariationTemporelle::Justifie { delta_theta_k } => r.plage(
                 format!("{cc}.variation_temporelle"),
                 delta_theta_k,
                 min,
                 f64::INFINITY,
             ),
-            VariationTemporelle::Defaut { .. } | VariationTemporelle::PoeleInsert { .. } => {}
+            VariationTemporelle::Defaut { .. } | VariationTemporelle::PoeleOuInsert { .. } => {}
         }
     }
     if let Some(fr) = &e.refroidissement {
@@ -327,14 +327,14 @@ fn valider_emetteur(r: &mut RapportValidation, ce: &str, e: &Emetteur, g: &Group
         // §8.1.3.1.5 : « Elle ne peut être supérieure à (−0,4 K) pour les émetteurs de
         // refroidissement. »
         match fr.variation_temporelle {
-            VariationTemporelle::Certifiee { delta_theta_k }
-            | VariationTemporelle::Justifiee { delta_theta_k } => r.plage(
+            VariationTemporelle::Certifie { delta_theta_k }
+            | VariationTemporelle::Justifie { delta_theta_k } => r.plage(
                 format!("{cf}.variation_temporelle"),
                 delta_theta_k,
                 f64::NEG_INFINITY,
                 -0.4,
             ),
-            VariationTemporelle::PoeleInsert { .. } => r.erreur(
+            VariationTemporelle::PoeleOuInsert { .. } => r.erreur(
                 format!("{cf}.variation_temporelle"),
                 None,
                 "la valeur des poêles et inserts (tableau 88) ne vaut qu'en chauffage",

@@ -7,6 +7,26 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consolidée au 19 mars 2026.
 
+### Modifié (contrat d'entrée de la version 1.0)
+
+- **Format d'entrée, changement incompatible** : noms unifiés avant la version 1.0. Une entrée écrite pour une version antérieure se met à jour par ces seuls renommages :
+
+  | Avant | Après |
+  |---|---|
+  | `zones[].nb_lgt` | `zones[].nb_logements` (comme `emetteurs_ecs[].nb_logements`) |
+  | `distributions[].distribution_intergroupes` | `distributions[].distribution_intergroupe` (une seule référence) |
+  | `installations_pv[].n_modules` | `installations_pv[].nb_modules` (aussi dans les résultats) |
+  | émetteurs : `variation_spatiale.poele_insert`, `variation_temporelle.poele_insert` | `poele_ou_insert`, comme la nature de générateur |
+  | `appoint: "separe_instantane"` (chauffe-eau solaire individuel) | `appoint: "separe"`, comme `type_pcad: "cesci_appoint_separe"` |
+  | statuts `certifiee`, `justifiee` (`variation_temporelle`), `certifiees` (`capteurs.performances`) | `certifie`, `justifie` |
+  | `par_defaut` (`capteurs.performances`, `ballon.pertes`, inerties séquentielle et annuelle) | `defaut` |
+  | `pivot_par_defaut` (performances d'une PAC) | `pivot_defaut` |
+  | `cms_surf_kj_k_m2`, `cma_surf_kj_k_m2`, `cmq_surf_kj_k_m2` | `cms_surf_kj_m2k`, `cma_surf_kj_m2k`, `cmq_surf_kj_m2k` (unité écrite comme `u_k_w_m2k`) |
+  | `distributions_intergroupes[].reseau.hydraulique_individuels` | `hydraulique_individuel`, comme `hydraulique_collectif` |
+
+  Les statuts de justification n'emploient plus qu'un jeu de valeurs : `certifie`, `justifie`, `declare`, `defaut`. Résultats : `ascenseurs[].n_dem` devient `nb_demarrages`.
+- **Format d'entrée, ajout non incompatible** : `$schema` (adresse du JSON Schema, ignorée par le moteur) et `version_format` (facultatif ; s'il est donné, il doit valoir 1) à la racine.
+
 ### Ajouté
 
 - **Lot 7, indicateurs réglementaires** (fiches 13.2 à 13.4 et 4.7 de l'annexe III, articles 9 à 11 de l'arrêté, annexe II §4.3.2, annexe de l'article R. 172-4 du CCH) : électricité consommée heure par heure par poste, usages mobiliers compris ; autoconsommation de la production photovoltaïque et électricité importée ; forfait de consommation de refroidissement des groupes non climatisés ; quantités importées par poste et par énergie (GPL distinct du gaz naturel, bois selon le combustible, réseaux de chaleur et de froid de l'annexe 7) ; **Cep, Cep,nr et Ic énergie** (pondération dynamique de l'article 11) ; **exigences** `Bbio_max`, `Cep_max`, `Cep,nr_max`, `Icénergie_max` et `DH_max` avec leurs modulations, et **conformité** (valeur, maximum, marge) pour les maisons et les logements collectifs. Coefficients dans `thbce_data::energies`. Résultats : `batiments[].cep_kwhep_m2`, `cep_nr_kwhep_m2`, `ic_energie_kgco2_m2` calculés dès que le bâtiment a des générations ; détail dans `batiments[].indicateurs` (JSON Schema, module WebAssembly) ; la ligne de commande écrit une synthèse sur la sortie d'erreur. Format d'entrée : `batiments[].exigences`, facultatif et **non incompatible** (catégorie de contraintes extérieures, zone de bruit, année de dépôt du permis, hauteur sous plafond moyenne, combles aménagés, réseau classé, dérogation gaz) et `poele_ou_insert.combustible_bois`, **obligatoire** (changement incompatible pour les poêles et inserts, relecture du lot 7 ; il fixe le facteur d'émission du bois). `conforme` n'est jamais vrai si un indicateur exigé n'a pas pu être calculé (`exigences.indicateurs_manquants`) ; classes d'altitude des exigences à la lettre de l'annexe (400 m en deuxième classe). Les productions solaires collectives (CESCI, CESCAI) entrent dans les indicateurs ; exemple `immeuble-cesci-ademe` complété. Maison d'exemple, H2b, météo réglementaire : Cep = Cep,nr = 145,8 kWhep/(m².an) (maximum 70,2), Ic énergie 182,3 kg éq. CO2/m² (maximum 149,7) ; variante à pompe à chaleur et plancher chauffant : Cep 56,2, Cep,nr 56,2 (maximum 51,5), Ic 68,2. L'avertissement « Cep, Cep,nr et Ic énergie ne sont pas encore calculés » est retiré. Exemples de `tests/cas/` complétés (`exigences`, combustible du poêle). Lectures : Q54.

@@ -291,7 +291,7 @@ pub enum PerformancesSaisies {
         pabs_w: f64,
     },
     /// « Statut_données_PC = 2 » et « Statut_val_pivot = 2 » : valeur pivot par défaut.
-    PivotParDefaut {
+    PivotDefaut {
         /// « Val_Pabs » : puissance absorbée au point pivot, en W.
         pabs_w: f64,
     },
@@ -422,7 +422,7 @@ impl Grille {
                 perf[pi][pj] = (0.8 * performance).min(self.val_util_max);
                 pabs[pi][pj] = *pabs_w;
             }
-            PerformancesSaisies::PivotParDefaut { pabs_w } => {
+            PerformancesSaisies::PivotDefaut { pabs_w } => {
                 perf[pi][pj] = 0.8 * self.val_util_max;
                 pabs[pi][pj] = *pabs_w;
             }
@@ -932,7 +932,7 @@ pub fn performances_saisies(p: &crate::entree::PerformancesPac) -> PerformancesS
             performance: *performance,
             pabs_w: 1000.0 * pabs_kw,
         },
-        P::PivotParDefaut { pabs_kw } => PerformancesSaisies::PivotParDefaut {
+        P::PivotDefaut { pabs_kw } => PerformancesSaisies::PivotDefaut {
             pabs_w: 1000.0 * pabs_kw,
         },
     }
@@ -1054,9 +1054,9 @@ impl GenerateurThermodynamique {
              lim: Option<LimitesPac>,
              dfou0: f64,
              continu: Option<crate::entree::FonctionnementContinu>| {
-                if matches!(performances, PerformancesPac::PivotParDefaut { .. }) {
+                if matches!(performances, PerformancesPac::PivotDefaut { .. }) {
                     defauts.push(ValeurParDefaut {
-                        champ: format!("{nom}.performances.pivot_par_defaut"),
+                        champ: format!("{nom}.performances.pivot_defaut"),
                         valeur: 0.8 * grille.val_util_max,
                         regle: "Th-BCE 2020 §8.23.3.1 : valeur pivot par défaut, la valeur utile \
                             maximale de la technologie réduite de 20 %"
@@ -1162,8 +1162,8 @@ mod tests {
     #[test]
     fn matrice_par_defaut_air_eau() {
         // Valeur pivot par défaut : 0,8 × 3,5 = 2,8 ; 2 kW absorbés au point pivot.
-        let m = CH_AIR_EXTERIEUR_EAU
-            .construire(&PerformancesSaisies::PivotParDefaut { pabs_w: 2000.0 });
+        let m =
+            CH_AIR_EXTERIEUR_EAU.construire(&PerformancesSaisies::PivotDefaut { pabs_w: 2000.0 });
         assert_eq!(m.perf[1][3], 0.8 * 3.5);
         // Colonne du pivot (éq. 1239) : 23,5 °C : × 1,10 ; 42,5 : × 0,8 ; 51 : × 0,8² ; 60 : ×
         // 0,8³.
@@ -1244,7 +1244,7 @@ mod tests {
     #[test]
     fn grande_puissance() {
         // 150 kW au point pivot : Cnnam_COP(−7, 7) = 0,60 (tableau 151).
-        let m = CH_AIR_EXTERIEUR_EAU.construire(&PerformancesSaisies::PivotParDefaut {
+        let m = CH_AIR_EXTERIEUR_EAU.construire(&PerformancesSaisies::PivotDefaut {
             pabs_w: 150_000.0 / 2.8,
         });
         proche(m.perf[1][1], 2.8 * 0.6);
@@ -1253,7 +1253,7 @@ mod tests {
 
     #[test]
     fn autres_grilles() {
-        let defaut = PerformancesSaisies::PivotParDefaut { pabs_w: 1000.0 };
+        let defaut = PerformancesSaisies::PivotDefaut { pabs_w: 1000.0 };
         // Air / air en chauffage : pivot à 20 °C intérieur et 7 °C extérieur.
         let m = CH_AIR_EXTERIEUR_AIR_RECYCLE.construire(&defaut);
         proche(m.perf[3][3], 2.8);
@@ -1300,8 +1300,8 @@ mod tests {
 
     #[test]
     fn interpolation_des_cop() {
-        let m = CH_AIR_EXTERIEUR_EAU
-            .construire(&PerformancesSaisies::PivotParDefaut { pabs_w: 2000.0 });
+        let m =
+            CH_AIR_EXTERIEUR_EAU.construire(&PerformancesSaisies::PivotDefaut { pabs_w: 2000.0 });
         // Aux nœuds de la matrice.
         let (pabs, cop) = m.pleine_charge(7.0, 32.5);
         proche(pabs, 2000.0);
@@ -1325,8 +1325,8 @@ mod tests {
     }
 
     fn pac(compresseur: FonctionnementCompresseur) -> GenerateurThermodynamique {
-        let matrice = CH_AIR_EXTERIEUR_EAU
-            .construire(&PerformancesSaisies::PivotParDefaut { pabs_w: 2000.0 });
+        let matrice =
+            CH_AIR_EXTERIEUR_EAU.construire(&PerformancesSaisies::PivotDefaut { pabs_w: 2000.0 });
         GenerateurThermodynamique {
             chauffage: Some(ModePac {
                 matrice,
@@ -1467,7 +1467,7 @@ mod tests {
         // Refroidissement : le rejet est la somme du froid produit et du travail du
         // compresseur (éq. 1334).
         let matrice = FR_AIR_EXTERIEUR_AIR_RECYCLE
-            .construire(&PerformancesSaisies::PivotParDefaut { pabs_w: 1000.0 });
+            .construire(&PerformancesSaisies::PivotDefaut { pabs_w: 1000.0 });
         let clim = GenerateurThermodynamique {
             chauffage: None,
             refroidissement: Some(ModePac {
@@ -1505,7 +1505,7 @@ mod tests {
         let mut g = pac(FonctionnementCompresseur::ToutOuRien);
         g.ecs = Some(ModePac {
             matrice: ECS_AIR_EXTERIEUR_EAU
-                .construire(&PerformancesSaisies::PivotParDefaut { pabs_w: 2000.0 }),
+                .construire(&PerformancesSaisies::PivotDefaut { pabs_w: 2000.0 }),
             limites: Limites::Aucune,
             dfou0_min: DFOU0_ECS_MIN,
             lr_contmin: 1.0,
@@ -1546,7 +1546,7 @@ mod tests {
             refroidissement: None,
             ecs: Some(ModePac {
                 matrice: ECS_AIR_EXTRAIT_EAU
-                    .construire(&PerformancesSaisies::PivotParDefaut { pabs_w: 500.0 }),
+                    .construire(&PerformancesSaisies::PivotDefaut { pabs_w: 500.0 }),
                 limites: Limites::Aucune,
                 dfou0_min: DFOU0_ECS_MIN,
                 lr_contmin: 1.0,
