@@ -63,7 +63,7 @@ fn valide_et_signale_les_erreurs() {
 
 #[wasm_bindgen_test]
 fn un_usage_hors_perimetre_est_non_pris_en_charge() {
-    let bureaux = ENTREE.replace("maison_individuelle", "bureaux");
+    let bureaux = ENTREE.replace("maison_individuelle", "enseignement_primaire");
     let r = thbce_wasm::valider(JsValue::from_str(&bureaux)).unwrap();
     assert_eq!(champ(&r, "valide"), JsValue::FALSE);
     assert_eq!(champ(&r, "hors_perimetre"), JsValue::TRUE);

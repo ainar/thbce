@@ -7,7 +7,7 @@ Moteur de calcul de la méthode **Th-BCE 2020**, la méthode réglementaire de l
 
 ## État
 
-Version **0.1.0**. Le moteur calcule, au pas horaire sur une année, la **maison individuelle ou accolée** et le **logement collectif** :
+Version **0.1.0**. Le moteur calcule, au pas horaire sur une année, la **maison individuelle ou accolée**, le **logement collectif** et, depuis le lot 0a (non publié), les **bureaux** :
 
 - **Bbio** (calcul Th-B), **DH** (confort d'été, calcul Th-D sur la météo à séquence caniculaire), consommations par poste et par énergie (calcul Th-C), **Cep**, **Cep,nr** et **Ic énergie** (pondération dynamique de l'article 11) ;
 - si l'entrée décrit les données de l'annexe de l'article R. 172-4 du CCH (`exigences`), les **exigences maximales** (Bbio_max, Cep_max, Cep,nr_max, Icénergie_max, DH_max et leurs modulations) et la **conformité** ;
@@ -61,7 +61,7 @@ thbce --version
 
 ## Exemple complet
 
-Le dépôt contient quinze exemples d'entrée dans [`tests/cas/`](tests/cas/) et un fichier météo ouvert (ADEME / Météo-France, non réglementaire) :
+Le dépôt contient seize exemples d'entrée dans [`tests/cas/`](tests/cas/) et un fichier météo ouvert (ADEME / Météo-France, non réglementaire) :
 
 ```sh
 thbce valider tests/cas/maison-climat-ademe/entree.json
@@ -170,7 +170,7 @@ Voir [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Limites connues
 
-- **Périmètre** : habitation seulement (maison individuelle ou accolée, logement collectif) ; les 26 autres usages sont refusés. Extensions de bâtiment non traitées.
+- **Périmètre** : maison individuelle ou accolée, logement collectif et bureaux ; les 25 autres usages sont refusés. En bureaux : ventilation simple flux seulement (double flux et centrales de traitement d'air refusés), locaux d'éclairage de volume normal, ni ascenseurs ni parkings, exigences non évaluées tant qu'elles ne sont pas transcrites. Extensions de bâtiment non traitées.
 - **Aucune validation contre un cas de référence** (COMETH ou RSEE d'un logiciel évalué) : les lectures du texte Q8 à Q54 de [`docs/questions/`](docs/questions/README.md) restent des hypothèses ; les paramètres à tester en premier en cas d'écart y sont listés.
 - **Exigences** : catégorie de contraintes extérieures et zone de bruit saisies (le moteur contrôle la catégorie selon le chapitre V de l'annexe de l'article R. 172-4, mais ne détermine pas la classe de bruit des baies) ; Icconstruction et les exigences de moyens hors du moteur.
 - **Pas de lecteur RSEE XML** : le schéma XSD n'est pas public.

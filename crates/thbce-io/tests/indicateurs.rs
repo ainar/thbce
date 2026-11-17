@@ -57,6 +57,11 @@ fn meteo_ademe(p: &Projet) -> MeteoProjet {
     .unwrap()
 }
 
+/// Exemples sans `exigences` saisies.
+fn sans_exigences(nom: &str) -> bool {
+    nom.starts_with("bureaux-")
+}
+
 /// Bilans et propriétés communs à tous les cas.
 fn verifier(nom: &str, r: &Resultats) {
     for b in &r.batiments {
@@ -111,10 +116,12 @@ fn verifier(nom: &str, r: &Resultats) {
                 assert!((pv.e_prod_pv_ac_kwh + pv.e_exportee_kwh - pv.e_prod_pv_kwh).abs() < 1e-6);
             }
         }
-        let e = i
-            .exigences
-            .as_ref()
-            .unwrap_or_else(|| panic!("{nom} : exigences"));
+        // Les exemples d'habitation saisissent tous leurs `exigences` ; l'exemple de bureaux
+        // n'en a pas (exigences de l'usage 3 : lot 0b).
+        let Some(e) = i.exigences.as_ref() else {
+            assert!(sans_exigences(nom), "{nom} : exigences");
+            continue;
+        };
         assert!(e.cep_max_kwhep_m2 > 0.0 && e.ic_energie_max_kgco2_m2 > 0.0);
         assert_eq!(e.conforme, e.verifications.iter().all(|v| v.respectee));
     }
@@ -161,7 +168,24 @@ fn indicateurs_de_tous_les_cas_meteo_reglementaire() {
         verifier(&nom, &r);
         for b in &r.batiments {
             let i = b.indicateurs.as_ref().unwrap();
-            let e = i.exigences.as_ref().unwrap();
+            let Some(e) = i.exigences.as_ref() else {
+                assert!(sans_exigences(&nom), "{nom} : exigences");
+                println!(
+                    "{:<36} {:>6.1} {:>6} {:>7.1} {:>7} {:>7.1} {:>7} {:>7.1} {:>7} {:>8.1} {:>6}",
+                    nom,
+                    b.bbio_pts.unwrap(),
+                    "-",
+                    i.cep_kwhep_m2,
+                    "-",
+                    i.cep_nr_kwhep_m2,
+                    "-",
+                    i.ic_energie_kgco2_m2.unwrap(),
+                    "-",
+                    b.dh_c_h.unwrap(),
+                    "-"
+                );
+                continue;
+            };
             // Valeurs recalculées à la main par la relecture indépendante, à partir des
             // consommations par poste.
             let attendu = match nom.as_str() {
