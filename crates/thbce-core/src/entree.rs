@@ -1537,15 +1537,12 @@ pub enum NatureGenerateur {
     /// Type 503 : générateur thermodynamique à compression électrique (pompe à chaleur,
     /// climatiseur, refroidisseur ; §8.23).
     ThermodynamiqueElectrique(Box<ThermodynamiqueElectriqueSaisi>),
-    /// Types 100 à 102, 200, 201 et 400 : chaudière au gaz, au fioul ou au bois (§8.19, lot
-    /// 6d) : non prise en charge dans cette version.
-    Chaudiere,
-    /// Types 403 et 404 : poêle ou insert (§8.22, lot 6d) : non pris en charge dans cette
-    /// version.
-    PoeleOuInsert,
-    /// Types 600 et 601 : réseau de chaleur ou de froid (§8.28, lot 6d) : non pris en charge
-    /// dans cette version.
-    ReseauDeChaleurOuDeFroid,
+    /// Types 100 à 102, 200, 201 et 400 : chaudière au gaz, au fioul ou au bois (§8.19).
+    Chaudiere(Box<ChaudiereSaisie>),
+    /// Types 403 et 404 : poêle ou insert à bois (§8.22).
+    PoeleOuInsert(PoeleSaisi),
+    /// Types 600 et 601 : sous-station d'un réseau de chaleur ou de froid (§8.28).
+    ReseauDeChaleurOuDeFroid(ReseauChaleurFroidSaisi),
     /// Types 103 à 109 : radiateurs, chauffe-eau et accumulateurs au gaz, générateurs d'air
     /// chaud, tubes et panneaux radiants (§8.20) : hors de la première version.
     AutreGenerateurACombustion,
@@ -1560,6 +1557,217 @@ pub enum NatureGenerateur {
     /// Pompe à chaleur hybride (association d'une pompe à chaleur et d'une chaudière dans un
     /// même produit) : hors de la première version.
     PacHybride,
+}
+
+/// Déclinaison d'une chaudière (§8.19.3.1, tableau 115).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TypeChaudiereSaisi {
+    /// Type 100 : chaudière standard au gaz.
+    GazStandard,
+    /// Type 101 : chaudière basse température au gaz (traitée comme une chaudière standard,
+    /// le tableau 115 n'a pas de ligne propre : Q49).
+    GazBasseTemperature,
+    /// Type 102 : chaudière à condensation au gaz.
+    GazCondensation,
+    /// Type 200 : chaudière standard au fioul.
+    FioulStandard,
+    /// Type 201 : chaudière à condensation au fioul.
+    FioulCondensation,
+    /// Type 400 : chaudière au bois (`combustible_bois` requis).
+    Bois,
+}
+
+/// « TypeCombustibleBois » (§8.19.2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CombustibleBoisSaisi {
+    /// 1 : bûches.
+    Buches,
+    /// 2 : granulés.
+    Granules,
+    /// 3 : plaquettes.
+    Plaquettes,
+}
+
+/// « Alim_Chaudière_Bois » (§8.19.2, tableau 119).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AlimentationBoisSaisie {
+    /// 0 : chargement manuel, tirage naturel.
+    ManuelTirageNaturel,
+    /// 1 : chargement manuel, air pulsé.
+    ManuelAirPulse,
+    /// 2 : chargement automatique, tirage naturel.
+    AutomatiqueTirageNaturel,
+    /// 3 : chargement automatique, air pulsé.
+    AutomatiqueAirPulse,
+}
+
+/// Fonction d'une chaudière ou d'un réseau de chaleur (« idfougen » 1, 3 ou 4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FonctionChaleur {
+    /// 1 : chauffage.
+    Chauffage,
+    /// 3 : ECS.
+    Ecs,
+    /// 4 : chauffage et ECS.
+    ChauffageEcs,
+}
+
+/// Statut des rendements d'une chaudière (§8.19.3.1) : une valeur certifiée est employée telle
+/// quelle, une valeur justifiée est réduite de 10 %, une valeur déclarée de 20 %.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum StatutRendementChaudiere {
+    /// Certifié (NF EN ISO/CEI 17065).
+    Certifie,
+    /// Justifié par un essai (NF EN ISO/CEI 17025) : réduction de 10 %.
+    Justifie,
+    /// Déclaré par le fabricant : réduction de 20 %.
+    Declare,
+}
+
+/// Rendements d'une chaudière sur PCS : `R_pn`, `R_pint` et `Pint`.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RendementsChaudiere {
+    /// Statut des deux rendements.
+    pub statut: StatutRendementChaudiere,
+    /// « R_pn » : rendement sur PCS à la puissance nominale en régime haute température, en %.
+    pub r_pn_pct: f64,
+    /// « R_pint » : rendement sur PCS à 30 % de charge en régime basse température, en %.
+    pub r_pint_pct: f64,
+    /// « Pint » : puissance thermique utile à 30 % de charge, en kW. Absent : 30 % de `Pn_gen`
+    /// (valeur par défaut signalée).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_int_kw: Option<f64>,
+}
+
+/// Auxiliaires d'une chaudière, en W ; chaque valeur absente prend sa valeur par défaut
+/// (éq. 1075 à 1077), signalée dans les résultats.
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AuxiliairesChaudiere {
+    /// « Waux_nom » : puissance électrique absorbée à pleine charge.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub w_aux_nom_w: Option<f64>,
+    /// « Waux_int » : puissance électrique absorbée à charge intermédiaire.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub w_aux_int_w: Option<f64>,
+    /// « Wveille » : puissance électrique absorbée à charge nulle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub w_veille_w: Option<f64>,
+}
+
+/// « idpertes_parois » (§8.19.3.5, tableau 121).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PertesParoisChaudiere {
+    /// 1 : absence de ventilateur ou autre dispositif de circulation d'air ou de fumées
+    /// (`p_Qp.g_arret` = 0,50).
+    SansVentilateur,
+    /// 2 : présence d'un ventilateur (0,75).
+    AvecVentilateur,
+    /// 3 : présence d'un clapet sur le conduit de fumées (1).
+    AvecClapet,
+}
+
+/// Th-BCE 2020 §8.19.2, tableau 114 — chaudière au gaz, au fioul ou au bois. La position de la
+/// génération (`position`) fixe « idpos_gen ».
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ChaudiereSaisie {
+    /// Déclinaison de la chaudière.
+    pub type_chaudiere: TypeChaudiereSaisi,
+    /// « TypeCombustibleBois » : requis pour une chaudière au bois.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub combustible_bois: Option<CombustibleBoisSaisi>,
+    /// Gaz de pétrole liquéfié (PCSI de 1,09 au lieu de 1,11, tableau 116) ; gaz naturel
+    /// sinon. Le lot 7 devra distinguer les deux pour les coefficients de conversion.
+    #[serde(default)]
+    pub gpl: bool,
+    /// « Id_fou_gen » : fonction du générateur.
+    pub fonction: FonctionChaleur,
+    /// « Pn_gen » : puissance thermique utile nominale en régime haute température, en kW.
+    pub pn_gen_kw: f64,
+    /// Rendements mesurés ; absents : valeurs par défaut (éq. 1072 et 1073).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rendements: Option<RendementsChaudiere>,
+    /// « Alim_Chaudière_Bois » : requis pour une chaudière au bois dont les auxiliaires sont
+    /// par défaut.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alimentation_bois: Option<AlimentationBoisSaisie>,
+    /// Auxiliaires.
+    #[serde(default)]
+    pub auxiliaires: AuxiliairesChaudiere,
+    /// « Q_po_30 » : pertes thermiques en régime stabilisé pour un écart de 30 K, en W ; absent :
+    /// valeur par défaut (éq. 1074).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub q_po_30_w: Option<f64>,
+    /// « idpertes_parois ».
+    pub pertes_parois: PertesParoisChaudiere,
+}
+
+/// Th-BCE 2020 §8.22.2, tableau 141 — poêle ou insert à bois (chauffage seul).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PoeleSaisi {
+    /// « Pngen » : puissance nominale d'un appareil, en kW (de 0 exclu à 100).
+    pub pn_gen_kw: f64,
+    /// « ηH,sys,n » : rendement moyen selon la norme de l'appareil, en %.
+    pub eta_pct: f64,
+    /// « Paux,vent » : puissance du ventilateur, en W (0 sans ventilateur).
+    pub p_aux_vent_w: f64,
+}
+
+/// Type d'un réseau de chaleur (§8.28.3.1, tableaux 247 et 248).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TypeReseauChaleurSaisi {
+    /// Eau chaude basse température (primaire à 105 °C).
+    EauChaudeBasseTemperature,
+    /// Eau chaude haute température (150 °C).
+    EauChaudeHauteTemperature,
+    /// Vapeur basse pression (110 °C).
+    VapeurBassePression,
+    /// Vapeur haute pression (180 °C).
+    VapeurHautePression,
+}
+
+/// Th-BCE 2020 §8.28.2, tableau 246 — sous-station d'un réseau de chaleur (type 600) ou de
+/// froid (type 601).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum ReseauChaleurFroidSaisi {
+    /// Réseau de chaleur.
+    Chaleur {
+        /// Identifiant du réseau dans l'annexe 7 de l'arrêté du 15 septembre 2006 (quatre
+        /// chiffres suivis de « C »), qui donne le facteur d'émission et le taux d'énergie
+        /// renouvelable et de récupération (lot 7). Absent : lignes « autres réseaux de
+        /// chaleur » de l'annexe.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        identifiant_reseau: Option<String>,
+        /// « idfougen » : chauffage, ECS ou les deux.
+        fonction: FonctionChaleur,
+        /// Type de réseau.
+        type_reseau: TypeReseauChaleurSaisi,
+        /// Classe d'isolation (EN ISO 12241) du réseau secondaire, de 1 à 4 ; le primaire est
+        /// isolé d'une classe de plus (§8.28.3.1).
+        classe_isolation_secondaire: u8,
+        /// « PEss » : puissance d'échange d'une sous-station dans les conditions nominales, en
+        /// kW.
+        p_ess_kw: f64,
+    },
+    /// Réseau de froid (refroidissement seul, pertes de sous-station nulles : éq. 1483).
+    Froid {
+        /// Identifiant du réseau dans l'annexe 7 (quatre chiffres suivis de « F »).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        identifiant_reseau: Option<String>,
+        /// « PEss » : puissance d'échange d'une sous-station, en kW.
+        p_ess_kw: f64,
+    },
 }
 
 /// Th-BCE 2020 §8.18.2, tableau 112 — générateur direct à effet Joule.
