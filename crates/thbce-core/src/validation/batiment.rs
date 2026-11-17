@@ -23,8 +23,9 @@ pub(super) fn valider_zone(r: &mut RapportValidation, c: &str, zone: &Zone, refs
             format!("{c}.usage"),
             Some(nom_json(&zone.usage)),
             format!(
-                "usage n° {} (seuls la maison individuelle ou accolée, le logement collectif et \
-                 les bureaux sont calculés)",
+                "usage n° {} (sont calculés : maison individuelle ou accolée, logement \
+                 collectif, bureaux, enseignement primaire et secondaire, médiathèques et \
+                 bibliothèques, bâtiments universitaires, petite enfance)",
                 zone.usage.numero()
             ),
         );

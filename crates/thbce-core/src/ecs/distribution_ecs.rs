@@ -153,6 +153,26 @@ pub fn alerte_temperature(theta_2nd_e_c: f64) -> bool {
     theta_2nd_e_c < THETA_UW_C
 }
 
+/// « idencl-e(j) » (§9.8.3.2, éq. 1736) : le réseau intergroupe fonctionne dès que l'une des
+/// distributions du groupe qui lui sont reliées est en fonctionnement, c'est-à-dire dès que
+/// l'indicateur `iecs(j)` (éq. 47) de la zone de l'une d'elles vaut 1.
+pub fn id_encl(i_ecs_aval: impl IntoIterator<Item = bool>) -> bool {
+    i_ecs_aval.into_iter().any(|i| i)
+}
+
+/// « Wcirc_prim-e » (§9.8.3.3.4, éq. 1747 et 1748), en Wh pour un pas d'une heure : `Pcirc-e`,
+/// sauf si les circulateurs sont arrêtés pendant les vacances (« Typegest_circ-e = 1 ») et que
+/// le réseau est arrêté (`idencl-e(j) = 0`). Sans saisie, fonctionnement permanent
+/// (« Typegest_circ-e = 0 » ; la validation exige la saisie pour une boucle qui dessert une
+/// zone d'enseignement).
+pub fn w_circ_prim_wh(b: &crate::entree::BoucleEcs, id_encl: bool) -> f64 {
+    if b.arret_circulateurs_vacances == Some(true) && !id_encl {
+        0.0
+    } else {
+        b.p_circ_w
+    }
+}
+
 /// Sorties d'une distribution d'ECS intergroupe à un pas de temps.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct SortiesDistributionEcsIntergroupe {
@@ -251,8 +271,9 @@ pub fn pas_intergroupe_selon_depart(
             } else {
                 (vc, hvc)
             };
-            // Éq. (1746) à (1749) : circulateurs permanents hors enseignement.
-            let w_aux = b.p_circ_w;
+            // Éq. (1747) à (1749) : circulateurs arrêtés quand la génération d'ECS est arrêtée
+            // (vacances des zones d'enseignement) si « Typegest_circ-e = 1 », permanents sinon.
+            let w_aux = w_circ_prim_wh(b, id_encl);
             let w_rechauf = if b.rechauffeur { vc + hvc } else { 0.0 };
             // Éq. (1752).
             let q = if b.rechauffeur {
@@ -308,6 +329,10 @@ pub struct EmetteurEcsResolu {
     pub theta_2nd_defaut: bool,
     /// Sorties du dernier pas de temps.
     pub sorties: SortiesDistributionEcsGroupe,
+    /// « iecs(j) » de la zone au dernier pas de temps (éq. 47) : faux pendant les vacances
+    /// d'une zone d'enseignement, où la distribution intergroupe qui la dessert est arrêtée
+    /// (éq. 1736) si aucune autre distribution reliée ne fonctionne.
+    pub i_ecs: bool,
     /// Cumuls annuels : `Qw`, `Qw_bruts`, `Qw_2nd-e`, pertes en et hors volume chauffé, en Wh.
     pub cumuls: CumulsEcs,
 }
@@ -350,19 +375,24 @@ impl EmetteurEcsResolu {
             l_vc_defaut: e.distribution.l_vc_m.is_none(),
             theta_2nd_defaut: e.distribution.theta_2nd_e_c.is_none(),
             sorties: SortiesDistributionEcsGroupe::default(),
+            i_ecs: true,
             cumuls: CumulsEcs::default(),
         })
     }
 
-    /// Pas de temps : besoins (éq. 1693 et 1694) et distribution du groupe (éq. 1731 à 1734).
+    /// Pas de temps : besoins (éq. 1693 et 1694) et distribution du groupe (éq. 1731 à 1734) ;
+    /// `i_ecs` : « iecs(j) » de la zone (éq. 47), transmis à la distribution intergroupe
+    /// (éq. 1736). Les besoins et la distribution du groupe n'en dépendent pas (lecture Q71).
     pub fn pas(
         &mut self,
         ah: f64,
+        i_ecs: bool,
         theta_cw_c: f64,
         theta_i_c: f64,
         theta_ext_c: f64,
         b_therm: f64,
     ) {
+        self.i_ecs = i_ecs;
         let q_w = self.besoins.q_w_wh(ah, theta_cw_c);
         self.sorties = self.distribution.pas(q_w, theta_i_c, theta_ext_c, b_therm);
         let c = &mut self.cumuls;

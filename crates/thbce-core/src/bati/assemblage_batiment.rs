@@ -687,9 +687,19 @@ impl SystemesBatiment {
             }
             self.sorties[k] = s;
         }
-        // §9.8 : distributions d'ECS intergroupes ; génération d'ECS en fonctionnement toute
-        // l'année (« idencl-e(j) = 1 », éq. 1736 ; lecture Q45).
+        // §9.8 : distributions d'ECS intergroupes ; réseau en fonctionnement dès qu'une
+        // distribution du groupe reliée fonctionne (« idencl-e(j) », éq. 1736), c'est-à-dire
+        // toute l'année hors des vacances des zones d'enseignement (éq. 47 ; lectures Q45 et
+        // Q71).
         for (k, d) in self.ecs.iter().enumerate() {
+            let id_encl = crate::ecs::distribution_ecs::id_encl(
+                groupes
+                    .iter()
+                    .filter_map(|g| g.systemes.as_ref())
+                    .flat_map(|sy| sy.ecs.iter())
+                    .filter(|e| e.intergroupe == k)
+                    .map(|e| e.i_ecs),
+            );
             let aval: Vec<(f64, f64)> = groupes
                 .iter()
                 .filter_map(|g| g.systemes.as_ref())
@@ -710,7 +720,7 @@ impl SystemesBatiment {
             let s = pas_intergroupe_selon_depart(
                 &d.reseau,
                 &aval,
-                true,
+                id_encl,
                 theta_cw_c,
                 theta_ext_c,
                 b_therm,
