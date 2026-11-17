@@ -7,6 +7,11 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consolidée au 19 mars 2026.
 
+### Ajouté
+
+- **Lot 6d** : chaudières au gaz, au fioul et au bois (fiche 8.19), poêles et inserts à bois (8.22), sous-stations de réseaux de chaleur et de froid (8.28), branchés dans la génération (cascade, sans priorité, ECS instantanée ou par ballon chauffé par la chaudière). Les consommations sont écrites dans les colonnes gaz, fioul, bois et réseau de la matrice par poste et par énergie (en kWh PCI), les auxiliaires en électricité. Table de l'annexe 7 de l'arrêté du 15 septembre 2006 (identifiant, facteur d'émission, taux d'EnR&R) extraite par `cargo run -p xtask -- reseaux-chaleur`. Exemples : `maison-chaudiere-gaz-ademe`, `maison-poele-granules-ademe`, `maison-reseau-chaleur-ademe`. Lectures : Q49 ; Q46 à Q48 validées.
+- **Format d'entrée, changement incompatible pour les trois natures concernées** : `chaudiere`, `poele_ou_insert` et `reseau_de_chaleur_ou_de_froid`, jusqu'ici des valeurs sans contenu refusées, portent désormais leurs paramètres (voir `docs/modele-donnees.md`). Les autres entrées sont inchangées ; `SortiesAppel` porte `q_cef_aux_elec_wh` (API Rust).
+
 ### Modifié
 
 - **Exemples** : la maison d'exemple et ses variantes produisent leur ECS par un ballon électrique de 200 L (2 123,3 kWh d'électricité sur la météo réglementaire en H2b, dont 631,6 kWh de pertes) ; la variante à plancher chauffant par un chauffe-eau thermodynamique sur air extérieur (766,2 kWh). **DH de la maison d'exemple : 1 042,9 °C.h** (992,7 auparavant), les pertes du ballon placé en volume chauffé étant récupérées ; Bbio inchangé, 59,7 points.
