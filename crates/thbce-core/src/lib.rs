@@ -20,6 +20,7 @@ pub mod chauffage_refroidissement;
 pub mod climat;
 pub mod confort;
 pub mod conventions;
+pub mod deplacements;
 pub mod eclairage;
 pub mod ecs;
 pub mod entree;

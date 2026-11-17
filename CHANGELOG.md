@@ -7,6 +7,10 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consolidée au 19 mars 2026.
 
+### Ajouté
+
+- **Lot 6e, logement collectif** : éclairage des parties communes (§7.2), ascenseurs (§10.1), ventilation (§10.3) et éclairage (§10.4) des parkings. Résultats `consommations_collectif` par zone et par bâtiment (quatre postes d'électricité distincts, annuels et mensuels), `ascenseurs[]` et `parkings[]`. Aucun apport interne (Q50). Format d'entrée compatible : `ascenseurs[]` et `parkings[]` facultatifs dans un bâtiment (`docs/modele-donnees.md`). Nouvel exemple `tests/cas/immeuble-collectif-ademe` (12 logements : Bbio 31,8 points, DH 1 039,6 °C.h sur la météo réglementaire en H2b). API Rust : module `deplacements`, `eclairage::parties_communes`.
+
 ### Modifié
 
 - **Exemples** : la maison d'exemple et ses variantes produisent leur ECS par un ballon électrique de 200 L (2 123,3 kWh d'électricité sur la météo réglementaire en H2b, dont 631,6 kWh de pertes) ; la variante à plancher chauffant par un chauffe-eau thermodynamique sur air extérieur (766,2 kWh). **DH de la maison d'exemple : 1 042,9 °C.h** (992,7 auparavant), les pertes du ballon placé en volume chauffé étant récupérées ; Bbio inchangé, 59,7 points.

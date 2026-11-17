@@ -173,6 +173,23 @@ pub fn calculer(
             zones.push(resultats_zone);
         }
         avertissements.extend(avertissements_generations(&bat.id, &th_c));
+        // Lot 6e : postes propres au logement collectif et aux parkings (§7.2, §10.1, §10.3 et
+        // §10.4), calculés d'après les scénarios et la saisie.
+        let sref_zones: Vec<f64> = zones.iter().map(|z| z.sref_m2).collect();
+        let collectif = crate::deplacements::calculer(
+            bat,
+            &sref_zones,
+            &crate::deplacements::ascenseurs::Lectures::default(),
+        )?;
+        let (conso_collectif, ascenseurs, parkings) = match collectif {
+            Some(c) => {
+                for (z, cz) in zones.iter_mut().zip(c.zones) {
+                    z.consommations_collectif = Some(cz);
+                }
+                (Some(c.batiment), c.ascenseurs, c.parkings)
+            }
+            None => (None, Vec::new(), Vec::new()),
+        };
         let c_aux_vent: Vec<f64> = zones
             .iter()
             .filter_map(|z| z.ventilation.as_ref().map(|v| v.c_aux_vent_kwh))
@@ -204,6 +221,9 @@ pub fn calculer(
                     .collect();
                 ResultatsProductionPv::depuis(&productions)
             }),
+            consommations_collectif: conso_collectif,
+            ascenseurs,
+            parkings,
             espaces_tampons: th_b
                 .espaces_tampons
                 .iter()
@@ -393,6 +413,7 @@ fn restituer_zone(
                 valeurs_par_defaut: v.valeurs_par_defaut.clone(),
             }),
             consommations: None,
+            consommations_collectif: None,
             groupes,
         },
         energies_zone,

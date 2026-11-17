@@ -1,0 +1,33 @@
+{
+  "reglementaire": false,
+  "climat": { "zone_climatique": "H2b" },
+  "batiments": [
+    {
+      "id": "immeuble",
+      "sref_m2": 720.0,
+      "consommations_collectif": {
+        "eclairage_parties_communes": { "annuel_kwh": 824.3, "annuel_kwh_m2": 1.1 },
+        "ascenseurs": { "annuel_kwh": 2387.6 },
+        "ventilation_parkings": { "annuel_kwh": 436.9 },
+        "eclairage_parkings": { "annuel_kwh": 1971.0 }
+      },
+      "ascenseurs": [
+        { "id": "cabine-1", "pti_w": 253.0, "n_dem": 20610.8, "e_ti_kwh": 2199.8, "e_tm_kwh": 187.8, "e_tot_kwh": 2387.6 }
+      ],
+      "parkings": [
+        { "id": "parking-sous-sol", "e_vent_kwh": 436.9, "e_ecl_kwh": 1971.0 }
+      ],
+      "zones": [
+        {
+          "id": "logements",
+          "consommations_collectif": {
+            "eclairage_parties_communes": { "annuel_kwh": 824.3 },
+            "ascenseurs": { "annuel_kwh": 2387.6 },
+            "ventilation_parkings": { "annuel_kwh": 436.9 },
+            "eclairage_parkings": { "annuel_kwh": 1971.0 }
+          }
+        }
+      ]
+    }
+  ]
+}
