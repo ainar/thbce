@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Contrôle du guide d'architecture `docs/architecture.md` : chaque chemin qu'il cite existe, et
-//! chaque élément de code qu'il désigne par `fichier.rs::Element` y est défini.
+//! Contrôle du guide d'architecture `docs/architecture.md` : chaque chemin qu'il cite existe,
+//! chaque élément désigné par `fichier.rs::Element` y est défini, et chaque `Type::element`
+//! cité sans fichier est défini dans les sources.
 //!
 //! Sont contrôlés les fragments de code en ligne (entre accents graves, hors blocs de code) qui
 //! ressemblent à un chemin — sans espace, avec une barre oblique — et les cibles des liens
-//! Markdown relatifs. Un fragment contenant `<`, `*`, `{` ou `…` est un gabarit et n'est pas
+//! Markdown relatifs ; un fragment `Type::element` sans fichier doit être défini (chaque
+//! segment) quelque part dans `crates/` ou `xtask/`. Un fragment contenant `<`, `*`, `{` ou `…` est un gabarit et n'est pas
 //! contrôlé, pas plus qu'un fichier produit sous `target/`. Un chemin se résout depuis la racine
 //! du dépôt, puis depuis `crates/thbce-core/src/` (forme courte des modules du moteur). Pour
 //! `chemin.rs::A::b`, le fichier doit définir `b` (`fn`, `struct`, `enum`, `const`, `static`,
@@ -87,10 +89,50 @@ fn definit(source: &str, nom: &str) -> bool {
                 r.starts_with(nom)
                     && !r[nom.len()..].starts_with(|c: char| c.is_alphanumeric() || c == '_')
             })
-        }) || (t.starts_with(nom)
-            && t[nom.len()..].starts_with(['(', ' ', ',', '{'])
-            && t.chars().next().is_some_and(char::is_uppercase))
+        }) || (t.starts_with(nom) && {
+            let suite = &t[nom.len()..];
+            // Variante d'énumération (`Nom(`, `Nom {`, `Nom,`) ou champ (`nom: T`).
+            (suite.starts_with(['(', ' ', ',', '{'])
+                && t.chars().next().is_some_and(char::is_uppercase))
+                || suite.starts_with(':') && !suite.starts_with("::")
+        })
     })
+}
+
+/// Élément de code sans fichier, `Type::element` (segments identifiants, `()` final admis).
+fn est_element(s: &str) -> bool {
+    let s = s.trim_end_matches("()");
+    // Commence par un type (majuscule) : `libm::pow` ou `f64::powf` sont externes.
+    s.starts_with(|c: char| c.is_ascii_uppercase())
+        && s.contains("::")
+        && s.split("::").all(|seg| {
+            !seg.is_empty() && seg.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        })
+}
+
+/// Sources Rust du dépôt (`crates/` et `xtask/`), concaténées.
+fn sources_rust(base: &Path) -> String {
+    fn parcourir(d: &Path, tout: &mut String) {
+        let Ok(lecture) = std::fs::read_dir(d) else {
+            return;
+        };
+        let mut chemins: Vec<PathBuf> = lecture.flatten().map(|e| e.path()).collect();
+        chemins.sort();
+        for p in chemins {
+            if p.is_dir() {
+                parcourir(&p, tout);
+            } else if p.extension().is_some_and(|e| e == "rs") {
+                if let Ok(t) = std::fs::read_to_string(&p) {
+                    tout.push_str(&t);
+                    tout.push('\n');
+                }
+            }
+        }
+    }
+    let mut tout = String::new();
+    parcourir(&base.join("crates"), &mut tout);
+    parcourir(&base.join("xtask/src"), &mut tout);
+    tout
 }
 
 fn verifier_reference(base: &Path, docs: &Path, r: &str, lien: bool) -> Result<(), String> {
@@ -134,7 +176,20 @@ pub fn commande() -> Result<(), String> {
     let docs = base.join("docs");
     let mut erreurs = Vec::new();
     let mut n = 0;
+    let sources = sources_rust(&base);
     for (ligne, r, lien) in references(&texte) {
+        if !lien && est_element(&r) {
+            n += 1;
+            let r = r.trim_end_matches("()");
+            for seg in r.split("::").filter(|s| *s != "crate" && *s != "self") {
+                if !definit(&sources, seg) {
+                    erreurs.push(format!(
+                        "{GUIDE}:{ligne} : « {seg} » (de « {r} ») n'est défini nulle part dans crates/ ni xtask/"
+                    ));
+                }
+            }
+            continue;
+        }
         if !lien && !est_chemin(&r) {
             continue;
         }
@@ -181,5 +236,15 @@ mod tests {
         assert!(definit(s, "Poele"));
         assert!(!definit(s, "calcul"));
         assert!(!definit(s, "Chaudiere"));
+        assert!(definit(
+            "    pub recuperation_th_d: bool,\n",
+            "recuperation_th_d"
+        ));
+        assert!(est_element("BatimentHoraire::pas"));
+        assert!(est_element("Resultats::arrondir()"));
+        assert!(!est_element("calcul/mod.rs::calculer"));
+        assert!(!est_element("libm::pow"));
+        assert!(!est_element("Type::élément"));
+        assert!(!est_element("Options { arrondir: false }"));
     }
 }

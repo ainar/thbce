@@ -3,7 +3,7 @@
 
 Pour qui arrive sur le dépôt avec un lot à faire : où passe un calcul, où ajouter quoi, comment tester vite. Les règles de fond (le texte fait foi, ne rien inventer, citer) sont dans [`CONTRIBUTING.md`](../CONTRIBUTING.md) ; l'avancement fiche par fiche dans [`couverture.md`](couverture.md) ; le format dans [`modele-donnees.md`](modele-donnees.md) ; les lectures tranchées dans [`questions/`](questions/README.md).
 
-Les chemins courts (`calcul/mod.rs`) désignent `crates/thbce-core/src/…`. **Tout lot qui modifie l'architecture décrite ici (nouvelle étape de la boucle horaire, nouveau module, nouvelle recette) met à jour la partie du guide qui le concerne** ; `cargo run -p xtask -- verifier` contrôle que chaque chemin et chaque élément cité ici existe (`xtask/src/architecture.rs`).
+Les chemins courts (`calcul/mod.rs`) désignent `crates/thbce-core/src/…`. **Tout lot qui modifie l'architecture décrite ici (nouvelle étape de la boucle horaire, nouveau module, nouvelle recette) met à jour la partie du guide qui le concerne** ; `cargo run -p xtask -- verifier` contrôle que chaque chemin, chaque `fichier.rs::Élément` et chaque `Type::élément` cités ici existent (`xtask/src/architecture.rs`) ; les noms seuls (fonction sans type ni fichier) ne sont pas contrôlés.
 
 ## 1. Parcours d'un calcul
 
@@ -54,7 +54,7 @@ Point d'entrée unique : `calcul/mod.rs::calculer` (projet, météo, options →
 9. Relances (§8.5, Th-C seulement) : `chauffage_refroidissement/relances.rs`.
 10. Émission (§8.1) : `chauffage_refroidissement/emission.rs::emission_avec_relance` ; émetteur équivalent conventionnel en Th-B, émetteurs du projet en Th-C et Th-D (`chauffage_refroidissement/emetteurs.rs`).
 11. Énergies requises par émetteur et ventilateurs locaux (§8.1.3.7 et 8.1.3.8) : `chauffage_refroidissement/systemes_groupe.rs::SystemesGroupe::emettre`.
-12. Bilan hydrique (§8.3) : `chauffage_refroidissement/bilan_hydrique.rs::bilan_th_c` (Th-C, déshumidification) ou `omega_fin_bbio_kg_kg` ; puis distributions du groupe (§8.6 à 8.8), `SystemesGroupe::distribuer`.
+12. Bilan hydrique (§8.3) et distributions du groupe (§8.6 à 8.8), dans cet ordre selon le mode : en Th-C, `chauffage_refroidissement/bilan_hydrique.rs::bilan_th_c` (déshumidification sur les batteries froides) **puis** `SystemesGroupe::distribuer`, qui reçoit l'énergie latente (éq. 828) ; en Th-B et Th-D, `SystemesGroupe::distribuer` (s'il y a des systèmes) **puis** `chauffage_refroidissement/bilan_hydrique.rs::omega_fin_bbio_kg_kg`.
 13. ECS du groupe (§9.5 à 9.7) : `SystemesGroupe::pas_ecs` (`ecs/besoins_ecs.rs`, `ecs/distribution_ecs.rs`).
 14. Bilan d'énergie du groupe (`cumuler_bilan`), confort d'été en Th-D (`confort/confort_ete.rs::PasConfortEte`, §13.5), cumuls mensuels des besoins (§13.1.3).
 15. Saisons (§4.6) : `scenarios/saisons.rs` (cumul du jour, bascule à 9 h légales), puis état pour le pas suivant.
@@ -63,7 +63,7 @@ Point d'entrée unique : `calcul/mod.rs::calculer` (projet, météo, options →
 
 1. Distributions intergroupes de chauffage et de refroidissement (§8.9 et 8.10) : `DistributionIntergroupesResolue::pas`.
 2. Distributions intergroupes d'ECS (§9.8) : `ecs/distribution_ecs.rs::pas_intergroupe_selon_depart`.
-3. Générations (§8.14 et §8.17) : conditions des sources amont (§8.26), puis `chauffage_refroidissement/generation/gestion.rs::pas`. Dans la génération : demandes avec report (éq. 993 à 1016), températures de fonctionnement, **stockages d'abord** pour l'ECS (ballons `ecs/assemblage_ballon.rs`, solaire `ecs/boucle_solaire.rs`, productions collectives `ecs/cesci.rs` ; systèmes solaires combinés aussi pour le chauffage), puis générateurs instantanés dans l'ordre ECS, refroidissement, chauffage (lecture Q46), chaque générateur par `chauffage_refroidissement/generation/generateurs.rs::appel` ; auxiliaires amont (§8.17.3.8) ; matrice des consommations `chauffage_refroidissement/calculs_generation.rs::MatriceCef` (§8.17.3.9, tableau 252) ; cumuls (§8.29).
+3. Générations (§8.14 et §8.17). Chaque génération reçoit les demandes de ses réseaux de chauffage, de refroidissement et d'ECS, **et l'énergie de la sécurité antigel des doubles flux qui la désignent** (§8.11.3, éq. 939 et 952 ; lecture Q46, vue comme un réseau de chauffage sur air, `Origine::Antigel`) ; conditions des sources amont (§8.26 : `match` sur `SourceAmont` qui remplit `ConditionsSource`), puis `chauffage_refroidissement/generation/gestion.rs::pas`. Dans la génération : demandes avec report (éq. 993 à 1016), températures de fonctionnement, **stockages d'abord** pour l'ECS (ballons `ecs/assemblage_ballon.rs`, solaire `ecs/boucle_solaire.rs`, productions collectives `ecs/cesci.rs` ; systèmes solaires combinés aussi pour le chauffage), puis générateurs instantanés dans l'ordre ECS, refroidissement, chauffage (lecture Q46), chaque générateur par `chauffage_refroidissement/generation/generateurs.rs::appel` ; auxiliaires amont (§8.17.3.8) ; matrice des consommations `chauffage_refroidissement/calculs_generation.rs::MatriceCef` (§8.17.3.9, tableau 252) ; cumuls (§8.29).
 4. Chaleur puisée dans les espaces tampons (éq. 109) ; attribution des consommations aux groupes (éq. 1484 à 1486, `cumuls_cef_groupes`).
 5. Pertes et consommations récupérables (§11.1) : `pertes/pertes_recuperables.rs::recuperation_wh`, injectées dans le modèle thermique **au pas suivant**, en Th-C et en Th-D (lecture Q45, `Lectures::recuperation_th_d`).
 6. À la bascule des saisons, nouvelles autorisations effectives (§8.4, `chauffage_refroidissement/saisons_fonctionnement.rs`).
@@ -135,14 +135,26 @@ Chaque recette se termine par : tests ciblés (§5), fragment `changelog.d/<lot>
 Exemple à imiter : le poêle ou insert à bois (§8.22, lot 6d).
 
 1. Saisie : variante de `entree/generation/mod.rs::NatureGenerateur` et type dans un fichier de famille (`entree/generation/combustion.rs::PoeleSaisi`).
-2. Validation : `validation/generation/mod.rs::postes_assures` (postes assurés) et branche dans `validation/generation/mod.rs::valider_generation`, contrôles dans un fichier de famille (`validation/generation/combustion.rs::valider_poele`). Selon les postes assurés, les règles de montage qui nomment des natures de générateurs : `validation/ecs.rs` (ballons, chauffe-eau thermodynamiques) et `validation/solaire.rs` (appoints des chauffe-eau solaires).
+2. Validation : `validation/generation/mod.rs::postes_assures` (postes assurés) et branche dans `validation/generation/mod.rs::valider_generation`. **Attention** au contrôle du fluide aval dans `valider_generation` (§8.17.3.1) : `match &x.nature { Chaudiere | ReseauDeChaleurOuDeFroid => true, PoeleOuInsert => false, _ => continue }` ; un nouveau générateur qui n'y est pas ajouté échappe en silence au contrôle de cohérence avec les réseaux hydrauliques ou sur air. Puis contrôles dans un fichier de famille (`validation/generation/combustion.rs::valider_poele`). Selon les postes assurés, les règles de montage qui nomment des natures de générateurs : `validation/ecs.rs` (ballons, chauffe-eau thermodynamiques) et `validation/solaire.rs` (appoints des chauffe-eau solaires).
 3. Modèle : un fichier par fiche dans `chauffage_refroidissement/` (`chauffage_refroidissement/poeles_et_inserts.rs::Poele`), qui répond au contrat `EntreesAppel` → `SortiesAppel` de `chauffage_refroidissement/generation/mod.rs` (figure 112).
 4. Branchement : variante de `chauffage_refroidissement/generation/generateurs.rs::Generateur` et ses quatre branches (`fonction`, `pn_gen_tot_w`, `appel`, `fin_de_pas` s'il garde l'état d'un pas) ; aiguillage de la nature dans `chauffage_refroidissement/generation/resolution.rs::resoudre` (valeurs par défaut signalées ici).
 5. Énergie pour Cep, Cep,nr et Ic : `indicateurs/sorties_th_c.rs::vecteur_generateur` (correspondance nature × colonne de la matrice : gaz, GPL, bois, réseau de chaleur ou de froid) et `indicateurs/sorties_th_c.rs::raccorde_rcu` pour un réseau de chaleur.
 6. Résultats : seulement s'il a des sorties propres (`resultats/generation.rs`, `calcul/generation.rs`).
-7. Tests : à la main dans le fichier du modèle (`chauffage_refroidissement/poeles_et_inserts.rs`, test `poele_a_la_main`), bout en bout `crates/thbce-io/tests/combustion.rs` (dont un test ignoré sur la météo réglementaire), exemple `tests/cas/maison-poele-granules-ademe`.
+7. Format : `cargo run -p xtask -- typescript` (nouvelle variante de `nature` dans `crates/thbce-wasm/src/types.d.ts`) et `docs/modele-donnees.md` (natures de générateurs).
+8. Tests : à la main dans le fichier du modèle (`chauffage_refroidissement/poeles_et_inserts.rs`, test `poele_a_la_main`), bout en bout `crates/thbce-io/tests/combustion.rs` (dont un test ignoré sur la météo réglementaire), exemple `tests/cas/maison-poele-granules-ademe`.
 
-### 3.2 Ajouter un système de ventilation
+### 3.2 Étendre un générateur existant : nouvelle source amont
+
+Cas type : pompe à chaleur sur sol ou sur eau (§8.26, aujourd'hui seules les sources sur air sont saisies). Pas d'exemple complet à imiter ; suivre la source « air extrait » (éq. 1407 et 1454), la plus récente.
+
+1. Saisie : variante de `entree/generation/thermodynamique.rs::SourceAmontSaisie` (partagée par les PAC et les chauffe-eau thermodynamiques, `entree/ecs.rs`).
+2. Modèle : `chauffage_refroidissement/sources_amont.rs` (`SourceAmont`, températures amont, auxiliaires, puissance échangeable).
+3. Résolution de la saisie : `chauffage_refroidissement/thermodynamique_elec.rs` (PAC) et `ecs/idcet.rs` (chauffe-eau thermodynamiques), qui traduisent `SourceAmontSaisie` en `SourceAmont`.
+4. Conditions horaires : le `match` sur `SourceAmont` qui remplit `ConditionsSource` dans `SystemesBatiment::pas` (`bati/assemblage_batiment.rs`, étape « générations ») ; une source sans branche n'y est pas calculée.
+5. Validation : `validation/generation/thermodynamique.rs` (PAC) et `validation/ecs.rs` (chauffe-eau thermodynamiques : `match` sur la source et ses références).
+6. `cargo run -p xtask -- typescript`, `docs/modele-donnees.md`, tests (`crates/thbce-io/tests/generation.rs`), exemple dans `tests/cas`.
+
+### 3.3 Ajouter un système de ventilation
 
 Exemple à imiter : le double flux (§6.3, lot 6a). Variante existante de `entree/ventilation.rs::SystemeVentilation` (les systèmes refusés y sont déjà : rendre l'élément calculable, puis retirer son refus `hors_perimetre` dans `validation/ventilation.rs`).
 
@@ -153,16 +165,16 @@ Exemple à imiter : le double flux (§6.3, lot 6a). Variante existante de `entre
 5. Résultats : `resultats/ventilation.rs`, restitués dans `calcul/batiment.rs::restituer_zone` et `calcul/ventilation.rs`.
 6. Tests : `crates/thbce-core/tests/ventilation_projet.rs`, `crates/thbce-io/tests/ventilation.rs`, exemple `tests/cas/maison-double-flux-ademe`.
 
-### 3.3 Ajouter un usage
+### 3.4 Ajouter un usage
 
-Aucun usage non résidentiel n'est encore calculé ; l'exemple à imiter est l'ajout du logement collectif (usage 2) à côté de la maison (usage 1).
+Aucun usage non résidentiel n'est encore calculé ; l'exemple à imiter est l'ajout du logement collectif (usage 2) à côté de la maison (usage 1). **Ordre conseillé** : saisie et validation propres à l'usage d'abord, l'usage restant refusé (`hors_perimetre`, code 3) ; calcul et tests ensuite ; le refus ne se lève qu'en dernier, dans `est_pris_en_charge`, quand tout est calculé, restitué et testé. Les scénarios des 28 usages sont déjà transcrits : `crates/thbce-data/src/scenarios/table.rs` est généré depuis le classeur de `docs/reference/scenarios/` par `cargo run -p xtask -- scenarios` (ne jamais l'éditer à la main ; `xtask verifier` le contrôle). **Questions à ouvrir** (`docs/questions/`) pour un usage non résidentiel, au moins : règles codées jusqu'ici sous l'hypothèse de l'habitation (à repérer avec la recherche du point 3), éclairage hors habitation (§7.1, système d'éclairage saisi), surfaces de référence et exigences propres à l'usage (annexe de l'article R. 172-4), valeurs par défaut absentes du texte pour cet usage.
 
 1. `entree/usages.rs::UsageZone::est_pris_en_charge` (les 28 variantes existent déjà ; `est_habitation` sépare les règles résidentielles).
 2. Tables par usage : scénarios de `crates/thbce-data/src/scenarios/` (générés par `cargo run -p xtask -- scenarios`) et constantes par usage de `scenarios/scenarios_conventionnels.rs` ; éclairage (`eclairage/mod.rs`, `eclairage/parties_communes.rs`) ; typologie du réseau de ventilation (`ventilation/ventilation_projet.rs::VentilationProjet::nouvelle`) ; ascenseurs et parkings (`deplacements/mod.rs`) ; longueurs de distribution d'ECS par défaut (`calcul/ecs.rs`, `ecs/distribution_ecs.rs`) ; exigences (`indicateurs/exigences.rs`) et forfait de refroidissement (`indicateurs/forfait_refroidissement.rs::coef_kwh_fr_par_dh`) ; surfaces de référence (`calcul/batiment.rs`).
 3. Validation : quelques lignes par famille (`validation/batiment.rs`, `validation/ventilation.rs`, `validation/systemes.rs`, `validation/collectif.rs`, `validation/exigences.rs`). Pour tout repérer : `grep -rn "est_habitation\|est_pris_en_charge\|LogementCollectif\|MaisonIndividuelle\|usage.numero()" crates/thbce-core/src`.
 4. Tests : `crates/thbce-io/tests/collectif.rs`, exemple `tests/cas/immeuble-collectif-ademe`.
 
-### 3.4 Ajouter un champ d'entrée
+### 3.5 Ajouter un champ d'entrée
 
 Exemple à imiter : `eclairage.p_installee_w` des parkings (facultatif, valeur par défaut des éq. 2349 et 2350).
 
@@ -172,7 +184,7 @@ Exemple à imiter : `eclairage.p_installee_w` des parkings (facultatif, valeur p
 4. `cargo run -p xtask -- typescript` (régénère `crates/thbce-wasm/src/types.d.ts`) ; `thbce schema` donne le JSON Schema.
 5. `docs/modele-donnees.md` (arborescence), un exemple de `tests/cas/` qui l'emploie, test à la main (`deplacements/parkings.rs`, test `eclairage_interieur_habitat_toute_l_annee`), fragment changelog.
 
-### 3.5 Ajouter une sortie
+### 3.6 Ajouter une sortie
 
 Exemple à imiter : `nbh_bypass` et `q_ag_kwh` de la ventilation (`resultats/ventilation.rs::ResultatsVentilationMode`).
 
@@ -181,7 +193,7 @@ Exemple à imiter : `nbh_bypass` et `q_ag_kwh` de la ventilation (`resultats/ven
 3. Arrondi : ajouter le champ réel à `Resultats::arrondir` ou à la méthode `arrondir` de sa structure (un oubli laisse la valeur en pleine précision).
 4. `cargo run -p xtask -- typescript`, `docs/modele-donnees.md`, fragment changelog ; la valeur peut entrer dans un `attendu.json`.
 
-### 3.6 Ajouter un exemple dans `tests/cas`
+### 3.7 Ajouter un exemple dans `tests/cas`
 
 Format : [`tests/cas/README.md`](../tests/cas/README.md). Exemple à imiter : `tests/cas/maison-poele-granules-ademe` (variante de la maison d'exemple).
 
@@ -190,11 +202,11 @@ Format : [`tests/cas/README.md`](../tests/cas/README.md). Exemple à imiter : `t
 3. `cargo t-cas <nom>` affiche la synthèse des indicateurs ; reporter dans `attendu.json` les valeurs arrondies à comparer (Bbio, DH, Cep, Cep,nr, Ic énergie, sorties propres au lot). `cargo t-cas <nom>` doit ensuite répondre « conforme ».
 4. Valeurs phares sur la météo réglementaire : dans un test `#[ignore]` (par exemple `crates/thbce-io/tests/indicateurs.rs`, test `indicateurs_de_tous_les_cas_meteo_reglementaire`, qui calcule tous les exemples) ; nombres annuels seulement, jamais de série horaire.
 
-### 3.7 Écrire une question
+### 3.8 Écrire une question
 
 Règle complète : [`questions/README.md`](questions/README.md). Un fichier `docs/questions/Q<nnn>.md` par question, numéro dans la plage du lot, en-tête `numero`/`sujet`/`statut`, rubriques de `docs/questions/Q054.md`. Dans le code : la lecture retenue isolée dans une fonction (ou une variante d'énumération de lecture, comme `bati/assemblage_groupe.rs::Lectures`) qui renvoie à `docs/questions/Q<nnn>.md`. Puis `cargo run -p xtask -- questions` (régénère `docs/questions/ETAT.md`, à ne jamais éditer à la main).
 
-### 3.8 Lire une équation
+### 3.9 Lire une équation
 
 1. Localiser : `grep '^1238,' docs/reference/index/annexe-iii-equations.csv` → page 763, fiche 8.23 (colonnes décrites dans `CONTRIBUTING.md`) ; fiches et plages de pages dans `docs/reference/index/annexe-iii-fiches.csv` ; numéros douteux dans `docs/reference/index/anomalies.md`.
 2. Lire l'image : `cargo run -p xtask -- page --eq 1238` écrit `target/pages/annexe-iii-p0763.png` (aussi `page <N>`, `--tableau`, `--figure`, `--annexe ii`) ; lire l'image, jamais seulement l'extraction texte de `docs/reference/texte/`.
