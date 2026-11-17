@@ -169,6 +169,27 @@ fn indicateurs_de_tous_les_cas_meteo_reglementaire() {
                 "maison-chaudiere-gaz-ademe" => Some((85.41, 591.07)),
                 _ => None,
             };
+            // Valeurs phares de la version 1.0.0 (arrondies à une décimale), garde-fou contre une
+            // régression : Bbio, DH, Cep et Ic énergie de la maison d'exemple, Bbio et DH de
+            // l'immeuble d'exemple.
+            let phares = match nom.as_str() {
+                "maison-climat-ademe" => Some((59.7, 1042.9, Some((145.8, 182.3)))),
+                "immeuble-collectif-ademe" => Some((31.8, 1039.6, None)),
+                _ => None,
+            };
+            let a_une_decimale = |x: f64| (x * 10.0).round() / 10.0;
+            if let Some((bbio, dh, cep_ic)) = phares {
+                assert_eq!(a_une_decimale(b.bbio_pts.unwrap()), bbio, "{nom} : Bbio");
+                assert_eq!(a_une_decimale(b.dh_c_h.unwrap()), dh, "{nom} : DH");
+                if let Some((cep, ic)) = cep_ic {
+                    assert_eq!(a_une_decimale(i.cep_kwhep_m2), cep, "{nom} : Cep");
+                    assert_eq!(
+                        a_une_decimale(i.ic_energie_kgco2_m2.unwrap()),
+                        ic,
+                        "{nom} : Ic énergie"
+                    );
+                }
+            }
             if let Some((cep, ic)) = attendu {
                 assert!(
                     (i.cep_kwhep_m2 - cep).abs() < 0.01,
@@ -218,5 +239,87 @@ fn indicateurs_de_tous_les_cas_meteo_reglementaire() {
                 "{nom}"
             );
         }
+    }
+}
+
+/// Annexe de l'article R. 172-4, chapitre V, partie II (Q54, point 14) : catégorie de
+/// contraintes extérieures déclarée pour un bâtiment d'habitation.
+mod categorie_contraintes {
+    use super::*;
+
+    fn variante(nom: &str, modifier: impl Fn(&mut serde_json::Value)) -> Vec<String> {
+        let texte =
+            std::fs::read_to_string(dossier_des_cas().join(nom).join("entree.json")).unwrap();
+        let mut v: serde_json::Value = serde_json::from_str(&texte).unwrap();
+        modifier(&mut v);
+        let p = json::lire_projet(&v.to_string()).unwrap();
+        thbce_core::valider(&p)
+            .erreurs
+            .iter()
+            .map(|e| format!("{} : {}", e.chemin, e.message))
+            .collect()
+    }
+
+    /// Maison climatisée (PAC air/air), dans le Var (H3), à 80 m, en BR2 : catégorie 2 admise.
+    fn categorie_2(v: &mut serde_json::Value) {
+        v["localisation"]["departement"] = "83".into();
+        let e = &mut v["batiments"][0]["exigences"];
+        e["categorie_contraintes_exterieures"] = "categorie_2".into();
+        e["zone_bruit"] = "br2".into();
+    }
+
+    #[test]
+    fn categorie_2_admise_quand_les_trois_conditions_sont_reunies() {
+        let e = variante("maison-pac-air-air-ademe", categorie_2);
+        assert!(e.is_empty(), "{e:?}");
+    }
+
+    #[test]
+    fn categorie_2_refusee_sans_climatisation() {
+        let e = variante("maison-pac-air-air-ademe", |v| {
+            categorie_2(v);
+            v["batiments"][0]["zones"][0]["groupes"][0]["iclim"] = false.into();
+        });
+        assert!(e.iter().any(|m| m.contains("n'est pas climatisé")), "{e:?}");
+    }
+
+    #[test]
+    fn categorie_2_refusee_hors_h2d_et_h3() {
+        let e = variante("maison-pac-air-air-ademe", |v| {
+            categorie_2(v);
+            v["localisation"]["departement"] = "37".into();
+        });
+        assert_eq!(e.len(), 1, "{e:?}");
+        assert!(e[0].contains("zone climatique H2b"), "{e:?}");
+    }
+
+    #[test]
+    fn categorie_2_refusee_a_400_m_et_plus() {
+        let e = variante("maison-pac-air-air-ademe", |v| {
+            categorie_2(v);
+            v["localisation"]["alt_m"] = 400.into();
+        });
+        assert_eq!(e.len(), 1, "{e:?}");
+        assert!(e[0].contains("400 m d'altitude"), "{e:?}");
+    }
+
+    #[test]
+    fn categorie_2_refusee_en_br1() {
+        let e = variante("maison-pac-air-air-ademe", |v| {
+            categorie_2(v);
+            v["batiments"][0]["exigences"]["zone_bruit"] = "br1".into();
+        });
+        assert_eq!(e.len(), 1, "{e:?}");
+        assert!(e[0].contains("zone de bruit BR1"), "{e:?}");
+    }
+
+    #[test]
+    fn categorie_3_refusee_en_habitation() {
+        let e = variante("maison-climat-ademe", |v| {
+            v["batiments"][0]["exigences"]["categorie_contraintes_exterieures"] =
+                "categorie_3".into();
+        });
+        assert_eq!(e.len(), 1, "{e:?}");
+        assert!(e[0].contains("réservée aux locaux climatisés"), "{e:?}");
     }
 }

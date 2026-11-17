@@ -35,10 +35,39 @@ jobs:
         run: cargo run -p xtask -- verifier
       - name: Aucun fichier météo réglementaire dans le dépôt
         run: |
+          # 1. Noms de fichiers.
           if git ls-files | grep -E -i 'scenarios_meteorologiques|meteo-re2020|meteo/reglementaire/'; then
             echo "::error::un fichier météo réglementaire est versionné ; sa diffusion est interdite"
             exit 1
           fi
+          # 2. Contenu : en-tête du CSV dérivé (colonnes zone, mode, h, te0, we0…), quel que soit
+          #    le nom du fichier.
+          if git grep -I -l -i -E '^[[:space:]]*"?zone"?[[:space:]]*[,;][[:space:]]*"?mode"?[[:space:]]*[,;][[:space:]]*"?h"?[[:space:]]*[,;][[:space:]]*"?te0"?[[:space:]]*[,;][[:space:]]*"?we0' -- . ':!.github/'; then
+            echo "::error::un fichier a l'en-tête du CSV météo réglementaire (zone,mode,h,te0,we0) ; sa diffusion est interdite"
+            exit 1
+          fi
+          # 3. Volume : un CSV de plus de 8 000 lignes peut être une année météo horaire. Les
+          #    fichiers ouverts ADEME / Météo-France (docs/reference/meteo/ademe/) sont admis.
+          trouve=0
+          while IFS= read -r -d '' f; do
+            case "$f" in docs/reference/meteo/ademe/*) continue ;; esac
+            n=$(wc -l < "$f")
+            if [ "$n" -gt 8000 ]; then
+              echo "::error file=$f::CSV de $n lignes : vérifier qu'il ne s'agit pas de données météo réglementaires"
+              trouve=1
+            fi
+          done < <(git ls-files -z -- '*.csv' '*.CSV' '*.tsv' '*.txt.csv')
+          exit $trouve
+
+  msrv:
+    name: Version minimale de Rust (1.88)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@1.88
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo build (rust-version du workspace)
+        run: cargo build --workspace --all-targets --locked
 
   licences:
     name: Licences et vulnérabilités (cargo deny)

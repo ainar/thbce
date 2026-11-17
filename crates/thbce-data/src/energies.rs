@@ -10,7 +10,7 @@
 //!   (§5.2.2) ;
 //! - arrêté du 4 août 2021, **article 10** : facteurs d'émission, en kg éq. CO2 par kWh
 //!   d'énergie finale PCI ; identiques à l'indicateur « Changement climatique – total » des
-//!   fiches INIES « [RE2020] » (`docs/reference/inies/inies-energies-re2020.txt`, Q5) ;
+//!   fiches INIES « \[RE2020\] » (`docs/reference/inies/inies-energies-re2020.txt`, Q5) ;
 //! - réseaux de chaleur et de froid : 5e et 6e colonnes de l'annexe 7 de l'arrêté du 15
 //!   septembre 2006 ([`crate::reseaux_chaleur`]).
 //!

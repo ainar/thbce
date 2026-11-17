@@ -5,12 +5,16 @@
 //! Les références « Th-BCE 2020 § » renvoient à l'annexe III de l'arrêté du 4 août 2021 modifié,
 //! versionnée dans `docs/reference/arrete/`.
 //!
-//! État : le calcul annuel au pas horaire est en place pour la maison individuelle et le logement
-//! collectif, en mode Th-B (besoins de chauffage, de refroidissement et d'éclairage, Bbio) puis
-//! en mode Th-D (confort d'été, indicateur DH), puis en mode Th-C pour les demandes des systèmes
-//! de chauffage, de refroidissement et d'ECS et les consommations en énergie finale des
-//! générations du projet. Cep, Cep,nr et Ic énergie ne sont pas encore
-//! calculés et valent `None`. L'avancement fiche par fiche est tenu dans `docs/couverture.md`.
+//! Périmètre de la version 1.0 : calcul annuel au pas horaire de la maison individuelle ou
+//! accolée et du logement collectif, en mode Th-B (besoins de chauffage, de refroidissement et
+//! d'éclairage, Bbio), Th-D (confort d'été, DH) et Th-C (consommations des systèmes du projet),
+//! puis Cep, Cep,nr et Ic énergie, exigences maximales et conformité
+//! ([`indicateurs`]). Les éléments hors du périmètre sont refusés par la validation
+//! ([`validation::Probleme::hors_perimetre`]). L'avancement fiche par fiche est tenu dans
+//! `docs/couverture.md`.
+//!
+//! Les contrats stables de la version 1.0 sont le format JSON d'entrée et de résultats, la ligne
+//! de commande et l'API JavaScript ; l'API Rust de cette bibliothèque n'est pas stabilisée.
 //!
 //! Ce moteur n'est pas le moteur réglementaire officiel et ne vaut pas attestation de conformité.
 

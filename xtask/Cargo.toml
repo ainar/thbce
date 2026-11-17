@@ -4,6 +4,7 @@ name = "xtask"
 description = "Scripts reproductibles du dépôt thbce : génération des données versionnées"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license = "GPL-3.0-or-later"
 repository.workspace = true
 authors.workspace = true

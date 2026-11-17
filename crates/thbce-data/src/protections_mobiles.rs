@@ -26,7 +26,7 @@
 //! Seule la famille « habitation, hôtellerie et hébergement » (usages 1 et 2 de la première
 //! version) et les lignes de gestion manuelle sont transcrites.
 
-/// « Topj-1lim_manu_v[z] » et « Topj-1lim_manu_se[z] » : limite haute de la température
+/// « Topj-1lim_manu_v\[z\] » et « Topj-1lim_manu_se\[z\] » : limite haute de la température
 /// opérative maximale du jour précédent, en gestion manuelle, en °C (§5.9.2, valeur
 /// conventionnelle ; rappelée au §5.9.3.6).
 pub const TOP_J1_LIM_MANU_C: f64 = 26.5;
@@ -39,7 +39,7 @@ pub const V_VENT_LIM_MANU_SE_M_S: f64 = 10.0;
 /// (§5.9.3.5, éq. 198 : « = 0 (conventionnellement) »).
 pub const R_PROT2_OCC0: f64 = 0.0;
 
-/// « Pocc[z] » et « Pderog[z] » d'un usage (figure 34).
+/// « Pocc\[z\] » et « Pderog\[z\] » d'un usage (figure 34).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PartsOccupation {
     /// « Pocc » : part des baies en groupe occupé sur lesquelles un occupant peut agir.

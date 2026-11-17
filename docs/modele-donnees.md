@@ -1,226 +1,49 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-# Proposition de modèle de données
+# Modèle de données
 
-**Statut : validé par le mainteneur le 16 novembre 2026.** Les types sont implémentés dans `crates/thbce-core/src/entree.rs` ; le JSON Schema (`thbce schema`) fait foi pour le format exact. Ce document garde la vue d'ensemble et les intentions.
-
-## Écarts de la phase 2 par rapport à la proposition
-
-- **Seuls les champs vérifiés dans une nomenclature sont implémentés.** Sont reportés à la lecture de leur fiche : les locaux, l'éclairage, la ventilation, l'émission, les systèmes, le photovoltaïque, les stores vénitiens, le masque d'arbres à feuilles caduques, l'ouverture et le classement au bruit des baies, le ratio EnR des réseaux.
-- **`thbce-core` dépend de `thbce-data`**, et non l'inverse : `Departement` et `ZoneClimatique` sont définis avec leurs tables dans `thbce-data`, qui reste sans entrée-sortie.
-- **La validation est dans `thbce-core`** (`validation.rs`), pour servir aussi le module WebAssembly ; `thbce-io` n'en fait que la mise en forme.
-- **La zone climatique est déduite du département** ; `zone_climatique` devient un champ facultatif, et une valeur contradictoire déclenche un avertissement.
-- **Un seul lecteur météo** pour l'instant (`meteo::lire_csv_re2020`) ; le classeur et les fichiers ADEME viendront au lot 3. La provenance non réglementaire d'un fichier se déclare par une ligne `# thbce-origine:`.
-- **Résultats** : `origine_meteo_th_bc` et `origine_meteo_th_d` remplacent `origine_meteo` ; `valeurs_arrondies` indique si l'arrondi de restitution est appliqué.
-- **Surface de la baie** : `a_b_m2` (« Ab », §5.10.2). **Pont thermique** : `exposition` facultative depuis le lot 4c (voir plus bas).
-- **Masques (phase 3)** : un masque lointain azimutal se saisit par ses 36 hauteurs `gamma_i_deg`, une par tranche de 10° repérée par rapport à la normale au composant ; le masque d'arbres à feuilles caduques a la même forme. Un masque proche exige la largeur (`lpb_m`) ou la hauteur (`hpb_m`) du composant.
-- **Résultats (phase 3)** : bloc `climat` avec la zone, `altcorr_m`, `base_ext_c` et la période de confort adaptatif de chaque jeu météo.
-- **Lecteurs météo (phase 3)** : `meteo::lire` reconnaît le classeur `.xlsx`, le CSV dérivé et les fichiers ADEME. Le module WebAssembly ne lit pas le classeur.
-- **Surfaces (lot 4b)** : `su_m2` est la surface utile du groupe (« Agr », §4.1.2), obligatoire pour tous les usages ; `shab_m2` reste la surface de référence en habitation. En maison individuelle, on saisit en pratique `su_m2 = shab_m2` ; en logement collectif, la surface habitable interne au calcul (`Rat_hab · Az`, éq. 33) est distincte de la SHAB saisie (décision Q28). `nb_logements` est obligatoire en logement collectif. Les résultats de zone portent `nadeq`.
-- **Parois opaques et ponts thermiques (lot 4c)** : un type de paroi porte `incl_k`, obligatoire, position dans laquelle `u_k_w_m2k` a été déterminé (`verticale`, `horizontale_flux_ascendant`, `horizontale_flux_descendant`, §5.17.3) ; le moteur en déduit U à l'inclinaison réelle. Un pont thermique accepte une `exposition` facultative : sans elle, la description simplifiée du §5.18.3 s'applique (quatre ponts verticaux de `l/4` aux quatre orientations, sans masque). Les résultats de groupe portent un bloc `enveloppe` (surfaces de parois et de baies, longueur de ponts thermiques, coefficients HTh, et Hges des baies sans protection mobile en place).
-- **Baies (lot 4c)** : une baie est inclinée de 0 à 90° ; son type doit donner `u_sp_horiz_w_m2k` si elle est inclinée de moins de 60° et `u_sp_vert_w_m2k` à partir de 30° (§5.10.3.5, éq. 207). La position des protections mobiles, calculée par la fiche 5.9, n'est pas encore une entrée du projet.
-- **Protections mobiles (lot 4c)** : `protection_mobile` sur le type de baie, avec `type_pm` (`volet`, `store_enroulable`, `store_venitien`), `gestion` (`manuelle_non_motorisee`, `manuelle_motorisee`, `automatique_avec_derogation`), `exterieure`, `seconde_protection` et `typo_pm` facultatif (§5.12.3.1, typologie 0 par défaut, signalée). Le store vénitien et la gestion automatique sont refusés par la validation dans cette version. Une protection déclarée exige `avec_protection` et un coefficient `u_ap_…`.
-- **Surventilation naturelle (lot 4c)** : `ouvrant` sur le type de baie (`r_ouv_max` ou `type_ouvrant`, l'un des deux ; absent, la baie n'est pas ouvrable), `expo_br` sur la baie (`br1`, `br2`, `br3`, requis si le type a un ouvrant), `traversant` sur le groupe (conventionnel en maison individuelle, à ne pas saisir ; requis en logement collectif si des baies sont ouvrables) et `h_ttf_m` facultatif (1,5 m par défaut ; saisie admise entre 4 et 15 m). Les résultats de groupe portent `valeurs_par_defaut`.
-- **Ventilation (lot 4d1)** : `bouches_conduits` sur le groupe, au moins une en habitation. Chaque élément est un circuit de reprise ou de soufflage : `id`, `isouf` (`reprise` ou `soufflage`), `q_spec_conv_pointe_m3_h` et `q_spec_conv_base_m3_h`, débits d'hygiène de pointe et de base de la ventilation installée pour le groupe (§6.2.2 ; la méthode ne donne pas les débits réglementaires par nombre de pièces). Pour un système hygroréglable, on saisit `qvarep_spec_m3_h` (valeur de l'avis technique) à la place du débit de base, qui en est déduit (§6.2.3.1.1.2). Le débit de pointe est au moins égal au débit de base. Les résultats de groupe portent `debits_bbio` (`q_spec_repris_m3_h`, négatif, et `q_spec_souffle_m3_h`) : débits du système de ventilation conventionnel du Bbio (§6.1 ; lecture Q36).
-- **Bilan aéraulique (lot 4d1)** : sur la zone, `h_zone_m`, `h_plancher_m` et `q4pa_surf_m3_h_m2` (perméabilité sous 4 Pa, par m² de parois déperditives hors plancher bas), tous trois obligatoires (§5.6.2), et `trav_zone` (caractère traversant au sens des conditions d'hiver : conventionnel en maison individuelle, à ne pas saisir ; requis en logement collectif, tableau 22). Sur le groupe, `entrees_air` facultatif : `m_m3_h` (somme des modules), `autoreglable` (`delta_p1_pa`, `delta_p2_pa`, `m_prime_m3_h`, les deux pressions étant communes à la zone) et `r` (anti-retour, de 0 à 1 ; absent : pas de dispositif). Les résultats d'enveloppe portent `a_f_perm_m2` et `a_toit_perm_m2`.
-- **Calcul du Bbio (lot 4d2)** : sur le groupe, `v_m3`, volume du groupe, obligatoire (§8.3.2 ; le bilan hydrique en tire la masse d'air du groupe, et le texte ne lui donne pas de valeur par défaut). Résultats : `bbio` au niveau du groupe, de la zone et du bâtiment, avec `annuel` et `mensuel` (douze mois de l'année conventionnelle des scénarios), chacun portant `b_ch_kwh_m2`, `b_fr_kwh_m2`, `b_ecl_kwh_m2` (kWh par m² de surface de référence) et `bbio_pts` ; `bbio_pts` du bâtiment reprend la valeur annuelle ; sur le groupe, `saisons_bbio` (`j_fin_ch`, `j_debut_ch`, `j_debut_fr`, `j_fin_fr`, jours de 1 à 365 au sens des scénarios) et `confort_bbio` (heures et degrés-heures d'inconfort en évolution libre, §4.5). Chaque valeur est arrondie séparément à une décimale ; `--sans-arrondi` (`arrondir: false`) donne les valeurs brutes, pour lesquelles le Bbio annuel est la somme des Bbio mensuels. `reglementaire` est faux dès que la météo n'est pas celle de la RE2020. Deux contrôles de cohérence s'ajoutent à la validation : un groupe dont les parois opaques et les ponts thermiques conduisent plus que l'échange superficiel de ses parois lourdes (`HTH,k+pt ≥ Hgmqs`, éq. 339) et une zone ventilée sans perméabilité ni entrée d'air (éq. 167) sont refusés. Nouvelle nature d'erreur, `calcul` (`Erreur::Calcul`), pour un calcul qui n'aboutit pas sur une entrée valide.
-- **Confort d'été (lot 5)** : aucun changement du format d'entrée. Les champs d'inertie `sequentielle`, `ams_surf_m2_m2`, `annuelle` et `ama_surf_m2_m2`, déjà obligatoires, sont désormais employés (calcul Th-D, §5.21.3.10) ; la validation avertit, sans refuser, si la capacité séquentielle est inférieure à la capacité quotidienne, la capacité annuelle inférieure à la capacité séquentielle, ou une surface d'échange supérieure à `Amq_surf` (l'inertie correspondante est alors sans effet). Avec les classes « par défaut », ou avec `ams_surf_m2_m2` égal à `Amq_surf`, ces inerties n'ont aucun effet. Résultats : `dh_c_h` au niveau du bâtiment et de la zone (DH du groupe le plus défavorable, le DH étant défini par groupe) ; sur le groupe, `confort_ete` (`dh_c_h`, `nbh_inconf`, `nbh_inconf_1c`, `nbh_inconf_2c`, `nbh_occ_conf_adapt`, `theta_op_max_c`, `theta_op_max_occ_c`) et `saisons_th_d`. Séries horaires : `thbce_core::series_horaires(projet, meteo, mode)` renvoie, pour chaque groupe, les 8 760 sorties horaires du mode demandé (températures, besoins, débit de surventilation, saison, inerties et, en Th-D, température d'inconfort chaud et degrés-heures du pas de temps) ; elles ne sont pas dans le JSON des résultats.
-- **Espaces tampons (lot 4b, espaces tampons)** : changement compatible, champs facultatifs. Sur le bâtiment, `espaces_tampons` : `id` et `nature`, soit `non_solarise` (`b_et_ns`, coefficient `b` des règles Th-Bat, de −5 à 1), soit `solarise` (`a_et_m2`, `u_et_pb_w_m2k`, `h_ttf_et_m`, `cm_et_surf_kj_m2k` facultatif — 200 par défaut, tableau 19 —, `qv_et_base_m3_h` facultatif — 1 m³/h par m² de sol par défaut, §5.4.3.3.1.4 —, `protections_mobiles` facultatif avec `exterieures`, et `parois` : `id`, `a_ue_m2`, `u_ue_w_m2k`, `exposition`, `swe_sp`, `swe_ap`, `tle_sp`, `tle_ap`, `r_ouv_max` ; `swe_ap` et `tle_ap` requis avec des protections mobiles). Une paroi opaque, une baie, un pont thermique et les entrées d'air d'un groupe désignent par `espace_tampon` l'espace tampon sur lequel ils donnent ; absent, ils donnent sur l'extérieur. La validation refuse une référence inconnue, une baie donnant sur un espace non solarisé (§5.10.3) et un espace tampon sur lequel ne donne aucun composant d'enveloppe (§5.4.1). Les grandeurs d'enveloppe des résultats restent celles « sans les espaces tampons ». Résultats : `espaces_tampons` sur le bâtiment (absent sans espace tampon), avec, pour chaque mode (`th_b`, `th_d`), `b_therm_moyen`, `theta_et_moy_c`, `theta_et_min_c`, `theta_et_max_c`, `nbh_surventilation`, et `valeurs_par_defaut`. Le calcul simule désormais le bâtiment d'un bloc (`BatimentHoraire`) : espaces tampons puis zones à chaque pas de temps. Lectures : Q41.
-- **Ventilation du projet (lot 6a)** : changement incompatible. Une zone d'habitation porte `ventilation`, obligatoire : `id`, `systeme` et `reseau`, `puits` facultatif (refusé). `systeme` est l'un de `simple_flux_extraction`, `simple_flux_insufflation`, `mecanique_basse_pression` (chacun `p_vent_base_w`, `p_vent_pointe_w`, puissances du ventilateur en débit de base et de pointe) ou `double_flux` (`p_vent_base_rep_w`, `p_vent_pointe_rep_w`, `p_vent_base_sou_w`, `p_vent_pointe_sou_w` ; `echangeur` facultatif : `representation` — `simplifiee` (`epsilon_saisi`, `statut` facultatif : `declare` par défaut, `justifie`, `certifie`) ou `detaillee` (`ua_w_k`, `ecoulement` : `contre_courant`, `courants_paralleles`, `courants_croises_brasses`) —, `bypass` facultatif (`theta_ext_bypass_hiver_c`, `theta_ext_bypass_ete_c`, `theta_int_bypass_hiver_c`, `theta_int_bypass_ete_c`), `antigel` facultatif, `theta_s_ech_rep_lim_c` facultatif (5 °C par défaut, tableau 62), `rotatif` refusé ; `prechauffage`, `humidification`, `rafraichissement_evaporatif`, `surventilation_mecanique` refusés). Les valeurs `naturelle_par_conduits`, `hybride`, `aeration` et `centrale_traitement_air` sont reconnues et refusées avec un message explicite. `reseau` : `b` (locaux non chauffés traversés par les conduits, de 0 à 1), `r_rep_m2k_w` et `r_souf_m2k_w` (résistances des conduits hors volume chauffé, requises selon les sens des bouches), `classe_etancheite` facultative (`A`, `B`, `C` ; absente : Kres par défaut, tableau 59), `ratfuitevc` facultatif (requis avec des surfaces saisies ; absent : tableau 60). Les bouches (`bouches_conduits` du groupe) gagnent `dugd_h` (14 h par défaut, tableau 57), `cdep` (1,30 par défaut, tableau 58) et `a_cond_m2` (surface de conduit saisie, pour toutes les bouches de la zone ou aucune ; sinon éq. 421 à 427). Le sens des bouches doit correspondre au système. Le calcul du Bbio n'emploie ni le système ni ces trois champs (§6.1, décision Q36). Résultats : `ventilation` sur la zone (`id`, `p_vent_w`, `c_aux_vent_kwh`, `th_d` avec `nbh_bypass` et `q_ag_kwh`, `valeurs_par_defaut`, champs relatifs à la zone) et sur le groupe (`q_spec_repris_m3_h`, `q_spec_souffle_m3_h`, `q_repris_cond_m3_h`, `q_souffle_cond_m3_h`, `p_vent_w`, `c_aux_vent_kwh`, `c_aux_vent_kwh_m2`, `c_aux_vent_mensuel_kwh`), `c_aux_vent_kwh` sur le bâtiment : consommation des ventilateurs en kWh d'énergie finale électrique. Le calcul Th-D emploie le système du projet (lecture Q42). Lectures : Q42.
-- **Valeurs par défaut (règle générale)** : le moteur n'applique une valeur par défaut que lorsque le texte de la méthode la donne, et la signale toujours dans les résultats. Premier cas : les facteurs de baie `sw1_c`, `sw2_c`, `sw3_c` (ensemble) et `tlid`, facultatifs (§5.10.3.6.3, éq. 215, 216 et 218) ; les résultats de groupe portent `baies[].valeurs_par_defaut` (`champ`, `valeur`, `regle`). `su_m2` et `incl_k` restent obligatoires : le texte ne leur donne pas de valeur par défaut.
-- **Inertie** : les classes des tableaux 53 et 54 (§5.21.3) sont des variantes d'énumération ; `Ams_surf` et `Ama_surf` sont toujours saisies, comme le dit le texte.
-
-Ce document décrit les types Rust d'entrée et de sortie du moteur. Il ne fixe que la structure. Les champs cités viennent des nomenclatures de l'annexe III déjà lues (§3.1, 3.2, 4.1, 5.1, 5.10, 5.17, 5.19, 5.21, 13.1, 13.2, 13.4, 13.5) ; les autres fiches compléteront les types au moment où elles seront implémentées, chaque champ portant la référence de la nomenclature dont il sort. Aucun champ n'est ajouté s'il ne figure pas dans une nomenclature du texte.
+Vue d'ensemble du format d'entrée et des résultats du moteur. **Le détail fait foi dans les JSON Schema** générés depuis les types Rust : `thbce schema` (entrée) et `thbce schema --resultats` (résultats), ou `schemaEntree()` et `schemaResultats()` dans le module WebAssembly, dont les types TypeScript `Projet` et `Resultats` sont tirés. Les types sont dans `crates/thbce-core/src/entree.rs`, `crates/thbce-core/src/pv/entree.rs` et `crates/thbce-core/src/resultats.rs`. Ce document garde la structure, les intentions et les règles de saisie que le schéma n'exprime pas. L'historique des changements du format est dans [`historique.md`](historique.md).
 
 ## Principes
 
-1. **Trois couches de types**, pour séparer la saisie du calcul :
-   - `entree::*` : ce que l'utilisateur fournit (JSON natif ou RSEE converti). Types `serde` + `schemars`, identifiants textuels, aucune donnée conventionnelle.
-   - `modele::*` : la même description après validation et résolution : identifiants remplacés par des indices, données conventionnelles jointes (météo, scénarios), tampons préalloués. Construit une fois par `entree → modele`, c'est la seule étape qui peut échouer sur une erreur de saisie.
-   - `resultats::*` : indicateurs, détails par niveau et, en option, séries horaires.
-2. **Paramètres intrinsèques et paramètres d'intégration** : la méthode distingue les caractéristiques propres d'un composant de sa mise en œuvre dans le projet (A3 §1.2). Le modèle reprend cette distinction : un catalogue de composants (`BaieType`, `ParoiType`…) référencé par des instances (`Baie`, `ParoiOpaque`…) qui portent surface, orientation et masques. Un même vitrage décrit une fois sert à vingt baies.
-3. **Noms** : ceux du texte, en `snake_case`, suffixés par l'unité (`u_k_w_m2k`, `a_k_m2`, `alt_m`). Les angles saisis sont en degrés (comme les nomenclatures), convertis en radians dans `modele` (A3 §3.2.1 : « dans tous les calculs les angles sont en radians »).
-4. **Énumérations fermées** pour tout code numérique du texte (usage, inclinaison, type d'énergie, poste). Le code numérique du texte est conservé en commentaire et dans la (dé)sérialisation RSEE, jamais manipulé en clair dans le calcul.
-5. **Pas de `Option` porteur de sens caché** : une valeur conventionnelle du texte est appliquée dans `entree → modele` et tracée dans le rapport de validation.
+1. **Entrée, validation, résultats.** `entree::*` décrit ce que l'utilisateur fournit (JSON natif ; RSEE converti plus tard), sans donnée conventionnelle. `valider` contrôle l'entrée (bornes, références, cohérence, périmètre) et produit un rapport (`erreurs`, `avertissements`, chaque problème avec son chemin) ; le calcul résout ensuite les références et joint les données conventionnelles (météo, scénarios, tables). `resultats::*` porte les indicateurs et le détail par niveau.
+2. **Paramètres intrinsèques et paramètres d'intégration** (A3 §1.2) : un catalogue de composants (`catalogue.parois`, `catalogue.baies`, `catalogue.masques`) est référencé par identifiant depuis les instances (parois, baies), qui portent surface, exposition et masques.
+3. **Noms** : ceux du texte, en `snake_case`, suffixés par l'unité (`u_k_w_m2k`, `a_k_m2`, `alt_m`) ; nombres d'objets en `nb_*` ; statuts de justification `certifie`, `justifie`, `declare`, `defaut`. Angles saisis en degrés.
+4. **Énumérations fermées** pour tout code numérique du texte (usage, inclinaison, type d'énergie, poste) ; le code du texte est rappelé dans la documentation de chaque valeur. Un élément reconnu mais hors du périmètre de la version est refusé par la validation (`hors_perimetre`, code de retour 3).
+5. **Valeurs par défaut** : seulement quand le texte de la méthode en donne une, et toujours signalée dans les résultats (`valeurs_par_defaut`). Sinon le champ est obligatoire.
+6. **Racine** : `$schema` (facultatif, ignoré) et `version_format` (facultatif ; 1 pour ce format).
 
 ## Hiérarchie spatiale
 
-La méthode décrit un bâtiment sur quatre niveaux (A3 §5.1.1), plus un niveau projet pour les données communes à plusieurs bâtiments (note 1 du §5.1.1 et production photovoltaïque « de la parcelle », §13.4.3).
+La méthode décrit un bâtiment sur quatre niveaux (A3 §5.1.1), plus un niveau projet pour les données communes.
 
 ```
-Projet
-├── localisation (département, altitude, distance mer, distance îlot urbain)
-├── catalogue de composants (types de baies, parois, ponts thermiques, masques)
-├── productions PV de parcelle
-└── Batiment[]
-    ├── espaces tampons
-    ├── générations, stockages, réseaux intergroupes
-    ├── productions PV du bâtiment
-    └── Zone[]                 ← un usage, donc un jeu de scénarios
-        └── Groupe[]           ← air homogène en température et humidité (§5.21.1)
-            ├── parois opaques, baies, ponts thermiques
-            ├── inertie, éclairage, ventilation, émission
-            └── Local[]        ← type de local, ratio de surface
+Projet { $schema?, version_format?, nom, localisation, catalogue }
+├── localisation      département, altitude (0 à 4 000 m), distances à la mer et à l'îlot urbain, zone climatique?
+├── catalogue         types de parois et de baies, masques
+└── batiments[]
+    ├── espaces_tampons[]                      §5.2 à 5.4
+    ├── generations[], distributions_intergroupes[], distributions_ecs_intergroupes[]
+    ├── installations_pv[]                     ch. 12
+    ├── ascenseurs[], parkings[]               ch. 10
+    ├── exigences?                             annexe de l'article R. 172-4
+    └── zones[]       usage, nb_logements, aéraulique de zone, ventilation
+        └── groupes[] surfaces, volume, inertie, parois opaques, baies, ponts thermiques,
+                      bouches et entrées d'air, iclim, programmation, émetteurs, distributions,
+                      émetteurs d'ECS
 ```
 
-```rust
-// crates/thbce-core/src/entree/mod.rs
-
-pub struct Projet {
-    pub nom: String,
-    pub localisation: Localisation,
-    pub catalogue: Catalogue,
-    pub batiments: Vec<Batiment>,
-    pub installations_pv_parcelle: Vec<InstallationPv>, // A3 §12.1, §13.4.3 éq. (2525)
-}
-
-/// A3 §3.1.2 et §5.1.2 — paramètres d'intégration du climat et du bâtiment.
-pub struct Localisation {
-    pub departement: Departement,        // 01..95, 2A, 2B (question Q13) ; fixe la température de base (A3 p. 31)
-    pub zone_climatique: ZoneClimatique, // H1a … H3 ; saisie tant que la table département → zone manque (Q1a)
-    pub alt_m: f64,
-    pub dmer_km: f64,
-    pub durb_km: f64,
-}
-
-pub struct Batiment {
-    pub id: Id,
-    pub zones: Vec<Zone>,
-    pub espaces_tampons: Vec<EspaceTampon>,        // A3 §5.2–5.4 (lot 4b)
-    pub systemes: SystemesBatiment,                // A3 ch. 6, 8, 9, 10 (phase 6)
-    pub installations_pv: Vec<InstallationPv>,     // A3 ch. 12 (phase 7)
-    pub rat_enr_rdch: Option<f64>,                 // A3 tableau 333 : RatENR_rdch du réseau de chaleur
-}
-
-pub struct Zone {
-    pub id: Id,
-    pub usage: UsageZone,          // A3 §4.1.2 « Usage zone », 28 usages (p. 24–26)
-    pub groupes: Vec<Groupe>,
-    pub nb_logements: Option<u32>,       // A3 §4.1.2 : nombre de logements (collectif, maisons accolées)
-    pub h_zone_m: Option<f64>,     // A3 §5.6.2 (lot 4d1), comme h_plancher_m, q4pa_surf_m3_h_m2, trav_zone
-}
-
-pub struct Groupe {
-    pub id: Id,
-    pub surfaces: SurfacesGroupe,              // SHAB ou SU → SREF (A3 éq. 2375–2376), Agr
-    pub v_m3: f64,                             // A3 §8.3.2 : volume du groupe (bilan hydrique)
-    pub categorie_ce1_ce2: CategorieCe,        // A3 éq. (2387)
-    pub inertie: Inertie,                      // A3 §5.21.2
-    pub parois_opaques: Vec<ParoiOpaque>,
-    pub baies: Vec<Baie>,
-    pub ponts_thermiques: Vec<PontThermique>,
-    pub locaux: Vec<Local>,                    // par défaut : ratios conventionnels de l'usage
-    pub eclairage: Eclairage,                  // A3 §7.1 (phase 4)
-    pub bouches_conduits: Vec<BoucheConduit>,  // A3 §6.2 : débits d'hygiène de pointe et de base (lot 4d1)
-    pub ventilation: VentilationGroupe,        // ch. 6 (phase 6)
-    pub emissions: Vec<Emission>,              // A3 §8.1 (phase 6)
-}
-
-pub struct Local {
-    pub type_local: TypeLocal,     // A3 §4.1.2 « Type local »
-    pub rat_loc: f64,              // ratio surface utile du local / surface utile
-}
-```
+Usages calculés : maison individuelle ou accolée (`maison_individuelle`) et logement collectif (`logement_collectif`) ; les 26 autres usages du tableau 4 sont reconnus et refusés.
 
 ## Enveloppe
 
-```rust
-/// A3 §5.17.2 — paroi opaque.
-pub struct ParoiType {
-    pub id: Id,
-    pub u_k_w_m2k: f64,
-    pub incl_k: PositionParoi,     // position dans laquelle Uk a été déterminé (§5.17.3)
-    pub sf_c_k: f64,               // facteur solaire, calcul du Cep
-    pub sf_e_k: f64,               // facteur solaire, calcul de DH
-    pub vegetalisation: Option<Vegetalisation>, // sf_c_v_k, sf_e_v_k, saison végétative
-}
-pub struct ParoiOpaque {
-    pub type_paroi: Id,
-    pub a_k_m2: f64,
-    pub exposition: Exposition,
-    pub espace_tampon: Option<Id>, // §5.17.3 ; de même sur la baie, le pont thermique et les entrées d'air
-}
-
-/// A3 §3.2.2 — paramètres d'intégration communs à toute surface exposée.
-pub struct Exposition {
-    pub azimut_deg: f64,           // 0 sud, 90 ouest, 180 nord, 270 est
-    pub inclinaison_deg: f64,      // 0 horizontale vers le haut, 90 verticale, 180 vers le bas
-    pub lpb_m: Option<f64>,        // largeur et hauteur : requises pour les masques proches
-    pub hpb_m: Option<f64>,
-    pub masques: Vec<Id>,          // 0 à 7 masques (Nmasque)
-}
-
-/// A3 §3.2 — masques.
-pub enum Masque {
-    LointainAzimutal { tranches: Vec<TrancheAzimutale> },      // Az, γi
-    LointainArbresCaducs { /* à compléter en phase 3 */ },
-    LointainPlanVertical { de_m: f64, hpe_m: f64 },
-    ProcheVerticalDroit { dvd_m: f64, dpd_m: f64 },
-    ProcheVerticalGauche { dvg_m: f64, dpg_m: f64 },
-    ProcheHorizontal { dhm_m: f64, dhp_m: f64 },
-}
-
-/// A3 §5.10.2 — baie vitrée. Chaque jeu de facteurs existe « sans » (sp) et « avec » (ap)
-/// protection mobile, et en version Cep (-c) et DH (-e).
-pub struct BaieType {
-    pub id: Id,
-    pub u_sp: UBaie,                       // Usp,vert / Usp,horiz
-    pub u_ap: Option<UBaie>,               // Uap,vert / Uap,horiz
-    pub sans_protection: FacteursBaie,     // Sw1, Sw2, Sw3 (-c et -e), Tli, Tlid
-    pub protection_mobile: Option<ProtectionMobile>,
-}
-pub enum ProtectionMobile {
-    VoletOuStoreEnroulable { facteurs: FacteursBaie, gestion: GestionPm },
-    StoreVenitien { matrices: MatricesVenitien, gestion: GestionPm }, // M_Sw_BC, M_Sw_E, M_Tl_BCE…
-}
-pub struct Baie {
-    pub type_baie: Id,
-    pub a_m2: f64,
-    pub exposition: Exposition,
-    pub classement_bruit: ClasseBr,        // BR1 à BR3, A3 §5.11
-    pub ouverture: OuvertureBaie,          // A3 §5.13
-}
-
-/// A3 §5.19.2 — pont thermique.
-pub struct PontThermique {
-    pub psi_w_mk: f64,
-    pub l_m: f64,
-    pub sf_c: f64,
-    pub sf_e: f64,
-    pub exposition: Exposition,
-}
-
-/// A3 §5.21.2 — inertie du groupe : soit une classe au sens des règles Th-I,
-/// soit les valeurs surfaciques, pour chacun des trois horizons.
-pub struct Inertie {
-    pub quotidienne: NiveauInertie,   // Typeinertie_quo ou (Amq_surf, Cmq_surf)
-    pub sequentielle: NiveauInertie,  // Typeinertie_seq ou (Ams_surf, Cms_surf)
-    pub annuelle: NiveauInertie,      // Typeinertie_ann ou (Ama_surf, Cma_surf)
-}
-```
+- **Parois opaques** : type (`u_k_w_m2k`, `incl_k`, facteurs solaires `sf_c_k` et `sf_e_k`, végétalisation facultative) et instance (`type_paroi`, `a_k_m2`, `exposition`, `espace_tampon?`).
+- **Exposition** (A3 §3.2.2) : `azimut_deg` (0 sud, 90 ouest, 180 nord, 270 est), `inclinaison_deg` (0 horizontale vers le haut, 90 verticale), `lpb_m` et `hpb_m` (requis avec un masque proche), `masques` (0 à 7 identifiants du catalogue).
+- **Masques** : `lointain_azimutal` et `lointain_arbres_caducs` (36 hauteurs `gamma_i_deg`), `lointain_plan_vertical`, `proche_vertical_droit`, `proche_vertical_gauche`, `proche_horizontal`.
+- **Baies** : type (`u_sp_vert_w_m2k`/`u_sp_horiz_w_m2k`, `u_ap_…`, facteurs `sans_protection` et `avec_protection`, `protection_mobile?`, `ouvrant?`) et instance (`a_b_m2`, `exposition`, `expo_br`, `espace_tampon?`). Stores vénitiens et gestion automatique des protections refusés.
+- **Ponts thermiques** : `l_l_m`, `psi_l_w_mk`, facteurs solaires, `exposition?` (description simplifiée du §5.18.3 sans elle).
+- **Inertie** : classes des tableaux 53 et 54 ou valeurs saisies (`personnalisee`), pour les inerties quotidienne, séquentielle et annuelle.
 
 ## Systèmes
-
-Les systèmes ne sont pas détaillés à ce stade : 65 fiches restent à lire (phase 6). La structure proposée suit les assemblages du texte (A3 §8.6, §8.14, §9.1 à 9.4) :
-
-```rust
-pub struct SystemesBatiment {
-    pub generations: Vec<Generation>,          // §8.14, §8.17 : générateurs + gestion des priorités
-    pub distributions_intergroupes: Vec<DistributionIntergroupe>, // §8.9–8.12, §9.8
-    pub productions_ecs: Vec<ProductionEcs>,   // §9.1–9.4
-    pub ventilations: Vec<SystemeVentilation>, // ch. 6
-    pub deplacements: Deplacements,            // ch. 10 : ascenseurs, escalators, parkings
-}
-
-/// Un variant par fiche générateur. Un système non encore implémenté est un variant
-/// reconnu à la lecture, qui produit `Erreur::NonPrisEnCharge { fiche }` au calcul.
-pub enum Generateur {
-    EffetJoule(EffetJoule),                    // §8.18
-    ChaudiereGazFioulBois(Chaudiere),          // §8.19
-    ThermodynamiqueElec(ThermodynamiqueElec),  // §8.23
-    ReseauChaleurFroid(Reseau),                // §8.28
-    // … un variant par fiche des §8.18 à 8.30 et du ch. 9
-}
-```
 
 ### Format d'entrée des systèmes de chauffage et de refroidissement (lot 6b)
 
@@ -278,10 +101,10 @@ Changement incompatible : une génération décrit ses générateurs (`docs/ques
 - `position` (« idpos », §8.17.2), obligatoire : `en_volume_chauffe` ou `hors_volume_chauffe { espace_tampon? }` (sans espace tampon : à l'extérieur).
 - `priorite` (« idtype_priorite ») : `sans_priorite` ou `cascade`, requis dès que deux générateurs assurent le même poste ; `alternance` est reconnu et refusé. En cascade, chaque générateur du poste porte un rang (`priorite_chauffage`, `priorite_refroidissement`, `priorite_ecs`, à partir de 1, tous distincts).
 - `gestion_temperature_chauffage` et `gestion_temperature_refroidissement` (« idgestion », « θwm ») : `constante { theta_wm_c }` ou `reseaux`, requis si la génération alimente des réseaux hydrauliques du poste.
-- `generateurs`, au moins un : `id`, `rdim` (nombre de générateurs identiques, au moins 1) et `nature`. Nature prise en charge : `effet_joule { fonction: chauffage | ecs, pn_gen_w }` (type 500, §8.18 ; production instantanée d'ECS, §9.1). Les natures `chaudiere`, `poele_ou_insert` et `reseau_de_chaleur_ou_de_froid` (lot 6d) sont décrites plus bas ; `autre_generateur_a_combustion`, `thermodynamique_gaz`, `boucle_d_eau_ou_drv`, `cogeneration` et `pac_hybride` (après v1) sont reconnues et refusées avec un message explicite.
+- `generateurs`, au moins un : `id`, `rdim` (nombre de générateurs identiques, au moins 1) et `nature`. Nature prise en charge : `effet_joule { fonction: chauffage | ecs, pn_gen_w }` (type 500, §8.18 ; production instantanée d'ECS, §9.1). Les natures `chaudiere`, `poele_ou_insert` et `reseau_de_chaleur_ou_de_froid` (lot 6d) sont décrites plus bas ; `autre_generateur_a_combustion`, `thermodynamique_gaz`, `boucle_d_eau_ou_drv`, `cogeneration` et `pac_hybride` (hors version 1.0) sont reconnues et refusées avec un message explicite.
 - Nature `chaudiere` (types 100 à 102, 200, 201 et 400, §8.19 ; `docs/questions.md`, Q49) : `type_chaudiere` (`gaz_standard`, `gaz_basse_temperature`, `gaz_condensation`, `fioul_standard`, `fioul_condensation`, `bois`), `combustible_bois` (`buches`, `granules`, `plaquettes` ; requis pour le bois), `gpl` (faux : gaz naturel), `fonction` (`chauffage`, `ecs`, `chauffage_ecs`), `pn_gen_kw`, `pertes_parois` (`sans_ventilateur`, `avec_ventilateur`, `avec_clapet`, tableau 121), `rendements` facultatif (`statut` : `certifie`, `justifie` ou `declare`, réductions de 0, 10 et 20 % ; `r_pn_pct`, `r_pint_pct` sur PCS ; `p_int_kw` facultatif, 30 % de `Pn_gen` par défaut), `auxiliaires` facultatif (`w_aux_nom_w`, `w_aux_int_w`, `w_veille_w`), `q_po_30_w` facultatif, `alimentation_bois` (tableau 119 ; requis pour le bois dont les auxiliaires sont par défaut). Toute valeur absente prend sa valeur par défaut (éq. 1072 à 1077), signalée dans `generateurs[].valeurs_par_defaut`. La chaudière est en volume chauffé ou non selon `position` de sa génération. Elle alimente des réseaux hydrauliques et peut être le générateur de base d'un `stockages` (ballon chauffé par chaudière ; `h_rel_ech` non requis).
 - Nature `poele_ou_insert` (types 403 et 404, §8.22) : `pn_gen_kw` (de 0 exclu à 100), `eta_pct` (rendement moyen), `p_aux_vent_w`. Chauffage seul, réseaux fictifs (air), énergie bois.
-- Nature `reseau_de_chaleur_ou_de_froid` (types 600 et 601, §8.28) : `chaleur { identifiant_reseau?, fonction, type_reseau, classe_isolation_secondaire (1 à 4), p_ess_kw }` ou `froid { identifiant_reseau?, p_ess_kw }`. `type_reseau` : `eau_chaude_basse_temperature`, `eau_chaude_haute_temperature`, `vapeur_basse_pression`, `vapeur_haute_pression` (tableaux 247 et 248). `identifiant_reseau` (quatre chiffres et « C » ou « F ») est contrôlé contre la table de l'annexe 7 de l'arrêté du 15 septembre 2006 (`thbce_data::reseaux_chaleur`, extraite par `cargo run -p xtask -- reseaux-chaleur`), qui donne au lot 7 le facteur d'émission (5e colonne) et le taux d'EnR&R (6e colonne) ; absent, les lignes « autres réseaux » s'appliquent. Le moteur ne fait que valider l'identifiant : la saisie du réseau dans le calcul des indicateurs est au lot 7.
+- Nature `reseau_de_chaleur_ou_de_froid` (types 600 et 601, §8.28) : `chaleur { identifiant_reseau?, fonction, type_reseau, classe_isolation_secondaire (1 à 4), p_ess_kw }` ou `froid { identifiant_reseau?, p_ess_kw }`. `type_reseau` : `eau_chaude_basse_temperature`, `eau_chaude_haute_temperature`, `vapeur_basse_pression`, `vapeur_haute_pression` (tableaux 247 et 248). `identifiant_reseau` (quatre chiffres et « C » ou « F ») est contrôlé contre la table de l'annexe 7 de l'arrêté du 15 septembre 2006 (`thbce_data::reseaux_chaleur`, extraite par `cargo run -p xtask -- reseaux-chaleur`), qui donne le facteur d'émission (5e colonne) et le taux d'EnR&R (6e colonne) ; absent, les lignes « autres réseaux » s'appliquent.
 - Nature `thermodynamique_electrique` (type 503, §8.23 ; `docs/questions.md`, Q47) : `compresseur` (`puissance_variable` ou `tout_ou_rien`), `taux_auxiliaires` facultatif (`valeur`, `statut` : `certifie` ou `justifie` ; absent : 0,02, ou 0,01 pour un refroidisseur seul, signalé), `source_amont` (`air_exterieur { p_vent_gaine_w? }`, `air_ambiant { espace_tampon, p_vent_gaine_w? }`, `air_extrait { zone, t_air_lim_c, p_vent_gaine_w? }`), et un ou deux modes, `chauffage` et `refroidissement` : `technologie` (`air_exterieur_eau` ou `air_exterieur_air_recycle` ; les autres technologies du tableau 145 sont reconnues et refusées), `performances`, `limites` facultatives (`combinaison` : `l_une_ou_l_autre` ou `l_une_et_l_autre`, `theta_aval_c`, `theta_amont_c`), `typo_emetteur` (`plancher_ou_plafond_inertie_forte`, `radiateurs_ou_plafond_inertie_moyenne`, `ventilo_convecteurs_ou_inertie_faible`, `systemes_a_air`), `fonctionnement_continu` facultatif pour un compresseur à puissance variable (`lr_contmin`, `ccp_lr_contmin`, `statut` ; absent : 0,4 et 1, signalés). `performances` est l'un de `mesurees` (liste de points `theta_aval_c`, `theta_amont_c`, `performance` — COP ou EER —, `pabs_kw`, `statut`, couvrant le croisement de températures prises dans l'ordre de priorité de la technologie, valeur pivot comprise), `pivot_declare { performance, pabs_kw }` ou `pivot_defaut { pabs_kw }`.
 - Mode `ecs` d'un générateur thermodynamique (§8.23.3.4) : `technologie` (`air_exterieur_eau`, `air_extrait_eau`, `air_ambiant_eau` ; les autres sont refusées), `performances`, `limites` facultatives. Un tel générateur est le générateur de base d'un assemblage de `stockages` ; avec le mode `chauffage`, il est double service.
 - `stockages[]` (§9.9, §9.10 et §9.14 ; `docs/questions.md`, Q48) : `id`, `nb_assemblages` (égal au `rdim` du générateur de base), `ballon` (`v_tot_l`, `pertes` : `certifie { ua_s_w_k }`, `justifie { ua_s_w_k }` ou `defaut { nature }` avec `effet_joule_horizontal`, `effet_joule_vertical` ou `autre`, tableau 282 ; `theta_max_c`), `base` (`generateur`, `programmation` : `permanent`, `nuit` ou `jour`, `z_reg` de 1 à 4, `delta_theta_k` facultatif — 2 K par défaut —, `h_rel_ech` requis pour un générateur thermodynamique) et `appoint` facultatif (`generateur` à effet Joule de fonction `ecs`, `programmation`, `z_ap`, `z_reg`, `f_aux` facultatif — 0,5 par défaut —, `delta_theta_k` facultatif). La consigne est conventionnellement de 55 °C. Un ballon électrique se décrit par un générateur `effet_joule` de fonction `ecs` et un stockage dont il est la base.
@@ -293,7 +116,7 @@ Changement incompatible : une génération décrit ses générateurs (`docs/ques
 
 Résultats : les consommations des générateurs à combustion sont restituées en kWh d'énergie finale PCI dans la colonne de leur énergie (`gaz_kwh`, `fioul_kwh`, `bois_kwh`, `reseau_kwh`), leurs auxiliaires en `electricite_kwh` du poste servi ; `eta_eff_*_an` est alors le rendement saisonnier (énergie fournie divisée par le total du poste, auxiliaires compris). `generations[]` porte les demandes (`q_ch_kwh`, `q_fr_kwh`, `q_ecs_kwh`), les énergies fournies (`q_fou_*_kwh`), `q_rep_fin_kwh`, `consommations`, `pertes_vc_kwh`, les compteurs de sous-dimensionnement et `generateurs[]` (énergies fournies, `consommations`, efficacités annuelles `eta_eff_*_an` — COP et EER saisonniers des générateurs thermodynamiques —, `w_aux_kwh`, `phi_rejet_kwh`, `valeurs_par_defaut`). `consommations` (`annuel` et `mensuel`, douze mois des scénarios) donne, par poste (`chauffage`, `refroidissement`, `ecs`) et par type d'énergie (`gaz_kwh`, `fioul_kwh`, `charbon_kwh`, `bois_kwh`, `electricite_kwh`, `reseau_kwh` ; les énergies sans consommation ne sont pas écrites), les kWh d'énergie finale ; il figure sur chaque génération et, réparti au prorata des demandes (éq. 1484 à 1486), sur chaque groupe, chaque zone et le bâtiment : c'est la matrice « Qcef[poste ; énergie] » des sorties du mode Th-C (§13.2), auxiliaires de génération compris. Une génération porte `stockages[]` : énergie fournie à la distribution (`q_fou_ecs_kwh`), énergies injectées par la base et par l'appoint, `pertes_kwh`, `v_puise_l`, `theta_haut_min_c`, `nbh_temp_insuff_max`, `nbh_report_e` (heures de l'année où une demande n'a pas pu être entièrement puisée, éq. 1780 ; alerte au-delà de 24 h), `idcet` et `valeurs_par_defaut`. La ventilation d'une zone porte `th_c` (heures de bypass et énergie d'antigel du calcul Th-C).
 
-Les liens entre objets (un émetteur vers sa distribution, une distribution vers sa génération) sont des `Id` en entrée et des indices typés (`IdxGroupe`, `IdxGeneration`) dans `modele`, vérifiés une fois pour toutes à la résolution.
+Les liens entre objets (un émetteur vers sa distribution, une distribution vers sa génération) sont des identifiants, vérifiés par la validation.
 
 ### Format d'entrée des postes du logement collectif et des parkings (lot 6e)
 
@@ -321,69 +144,13 @@ Champ facultatif (`docs/questions.md`, Q51) : un bâtiment porte `installations_
 - `modules` : `technologie` (`mono_cristallin_si`, `multi_cristallin_si`, `cdte`, `cis`, `amorphe_si`, `autre`), `s_m2` (surface d'un module), `performances` selon `statut` : `certifie`, `justifie` ou `declare` (`pc_w`, `mu_par_c`, `noct_c`), ou `defaut` (`pc_w` seul ; μ et NOCT par défaut signalés). Les valeurs de calcul sont réduites selon le statut (§12.3.3.1).
 - `onduleur` facultatif : `p_ac_nom_w` (défaut : 0,8 × N × Pc, signalé) et `rendement` : `defaut` (0,9), `europeen { eta_eu }` ou `courbe { points: [{ x, eta }] }` (points 0,05 ; 0,1 ; 0,25 ; 0,5 ; 0,75 ; 1 au minimum).
 
-Résultats : `batiments[].production_pv` (`e_prod_pv_kwh`, `e_prod_pv_mensuel_kwh`, `installations[]` : puissance crête de calcul, `eta_stc`, `u1_w_m2k`, `p_ac_nom_w`, rayonnement efficace `g_kwh_m2`, `e_pv_kwh` en sortie des modules, `e_ond_kwh` en sortie de l'onduleur, mensuel, `nbh_extinction`, `valeurs_par_defaut`). Série horaire pour le lot 7 : `thbce_core::series_pv` (Wh par pas, par installation et pour le bâtiment). La répartition autoconsommé/exporté (§13.2.3) n'est pas faite ici.
-
-## Énumérations issues du texte
-
-```rust
-/// A3 §13.4.3, tableau 338 — colonnes de la matrice des consommations.
-pub enum Energie { Gaz /*10*/, Fioul /*20*/, Charbon /*30*/, Bois /*40*/, Electricite /*50*/, ReseauChaleur /*60*/ }
-
-/// A3 §13.4.3 — postes. Les trois premiers sont les lignes du tableau 338.
-pub enum Poste {
-    Chauffage /*1*/, Refroidissement /*2*/, Ecs /*3*/,
-    Eclairage, AuxVentilation, AuxDistribution, Deplacement, Mobilier,
-}
-
-/// Question Q9 : les codes numériques diffèrent selon les fiches.
-pub enum ModeCalcul { ThB, ThC, ThD }
-
-/// A3 §5.17.2 « Incl ».
-pub enum SensFlux { Verticale /*1*/, HorizontaleFluxAscendant /*2*/, HorizontaleFluxDescendant /*3*/ }
-
-/// A3 §4.1.3, tableau 4 (p. 57) : 28 usages, chacun avec les drapeaux i_hebergement et
-/// i_enseignement. Les 28 variants existent dès la phase 2 ; seuls 1 et 2 sont calculés
-/// en première version, les autres renvoient `Erreur::NonPrisEnCharge`.
-pub enum UsageZone { MaisonIndividuelle /*1*/, LogementCollectif /*2*/, Bureaux /*3*/, /* … 28 */ }
-
-pub enum ZoneClimatique { H1a, H1b, H1c, H2a, H2b, H2c, H2d, H3 }
-```
+Résultats : `batiments[].production_pv` (`e_prod_pv_kwh`, `e_prod_pv_mensuel_kwh`, `installations[]` : puissance crête de calcul, `eta_stc`, `u1_w_m2k`, `p_ac_nom_w`, rayonnement efficace `g_kwh_m2`, `e_pv_kwh` en sortie des modules, `e_ond_kwh` en sortie de l'onduleur, mensuel, `nbh_extinction`, `valeurs_par_defaut`). Série horaire (API Rust) : `thbce_core::series_pv` (Wh par pas, par installation et pour le bâtiment) ; l'autoconsommation est restituée dans `indicateurs.production_pv`.
 
 ## Données conventionnelles
 
 ### Météo : jamais embarquée
 
 Les fichiers météo réglementaires ne peuvent être ni versionnés ni diffusés (question Q1). Le moteur ne contient donc aucune donnée météo : l'appelant la fournit.
-
-```rust
-// crates/thbce-core/src/climat/donnees.rs — structure interne unique, quelle que soit la source.
-
-/// Une année-type pour une zone et un mode : 8 760 pas, altitude zéro.
-/// Colonnes du fichier réglementaire ; correspondance avec A3 §3.1.2 dans la question Q1b.
-pub struct AnneeMeteo {
-    pub zone: ZoneClimatique,
-    pub jeu: JeuMeteo,
-    pub origine: OrigineMeteo,
-    pub te0_c: Box<[f64]>,        // te0
-    pub we0_g_kg: Box<[f64]>,     // we0
-    pub idn_w_m2: Box<[f64]>,     // dirN_W_m2
-    pub idi_w_m2: Box<[f64]>,     // diff_W_m2
-    pub teciel_c: Box<[f64]>,     // Teciel_C
-    pub vent_m_s: Box<[f64]>,     // Vent_m_s
-    pub teau0_c: Box<[f64]>,      // Teau_C
-    pub gamma_rad: Box<[f64]>,    // Gamma, converti des degrés
-    pub psi_rad: Box<[f64]>,      // Psi, converti des degrés
-}
-
-pub enum JeuMeteo { ThBC, ThD }   // besoins et consommations ; confort d'été (séquence caniculaire)
-
-/// Reportée telle quelle dans les résultats : un calcul n'est « réglementaire »
-/// que si ses deux jeux météo le sont.
-pub enum OrigineMeteo { ReglementaireRe2020, AdemeProspectif { scenario: String }, Autre { description: String } }
-
-/// Ce dont un calcul a besoin : les deux jeux de la zone du projet.
-pub struct MeteoProjet { pub th_bc: AnneeMeteo, pub th_d: AnneeMeteo }
-```
 
 Les lecteurs vivent dans `thbce-io`, derrière des fonctions qui prennent des octets et non un chemin, pour servir aussi le WASM :
 
@@ -393,41 +160,11 @@ Les lecteurs vivent dans `thbce-io`, derrière des fonctions qui prennent des oc
 | `meteo::lire_classeur_re2020(&[u8])` | classeur officiel, 16 onglets `<zone>_<mode>` | même contenu, format d'origine |
 | `meteo::lire_csv_ademe(&[u8])` | fichiers ouverts ADEME / Météo-France | CI publique, jamais réglementaire (question Q16) |
 
-Conséquences sur les interfaces prévues au départ :
+Le calendrier (jour de semaine, semaine du mois, heure légale) n'est pas lu de la météo : il est calculé d'après A3 §4.1.3 (p. 56).
 
-- CLI : `thbce calcul <entree> --meteo <fichier>` ; sans `--meteo`, erreur explicite. `thbce version` n'annonce aucune donnée météo embarquée.
-- WASM : `calculer(entree, meteo: Uint8Array, options?)`. Le chargement à la demande d'une zone, prévu pour limiter la taille du binaire, n'a plus d'objet.
-- `thbce-data` ne garde une feature `embedded-data` que pour les scénarios et les tables de constantes.
-- Le calendrier (jour de semaine, semaine du mois, heure légale) n'est pas lu de la météo : il est calculé d'après A3 §4.1.3 (p. 56).
+### Scénarios
 
-### Scénarios : générés depuis le classeur officiel
-
-`tools/scenarios` (binaire Rust du workspace, hors publication) lit `docs/reference/scenarios/2026-04-29_scenarios_conventionnels.xlsx` et écrit un fichier de données versionné dans `crates/thbce-data/`. La CI relance le script et échoue si le fichier généré diffère.
-
-```rust
-// crates/thbce-data/src/scenarios.rs — structure d'après l'onglet MI et A3 §4.1.2.
-
-/// Un scénario = une grille hebdomadaire (jour, heure) combinée à une grille annuelle (mois, semaine).
-pub struct Grilles<T> {
-    pub hebdo: [[T; 24]; 7],      // p^s(j, h)
-    pub annuel: [[T; 5]; 12],     // p^a(m, s) ; 5e semaine absente selon le mois (A3 p. 56)
-}
-
-pub struct ScenariosZone {
-    pub usage: UsageZone,
-    pub consignes: Consignes,               // normal, arrêt < 48 h, arrêt > 48 h, en chaud et en froid
-    pub mobilite: Grilles<f64>,
-    pub occupation: Grilles<bool>,
-    pub chauffage: Grilles<NiveauConsigne>, // 1 normal, 0 réduit < 48 h, −1 réduit > 48 h
-    pub refroidissement: Grilles<NiveauConsigne>,
-    pub ventilation: Grilles<bool>,
-    pub eclairage: Grilles<bool>,
-    pub ecs: ScenarioEcs,                   // clé de répartition horaire, facteur correctif de la semaine
-    pub locaux: Vec<ScenariosLocal>,        // ratio de surface, occupants, apports de chaleur et d'humidité
-}
-```
-
-Les types exacts de chaque grille seront fixés par le script, après lecture des 28 onglets.
+`cargo run -p xtask -- scenarios` lit `docs/reference/scenarios/2026-04-29_scenarios_conventionnels.xlsx` et écrit la table versionnée `crates/thbce-data/src/scenarios/table.rs` ; `xtask verifier` (CI) contrôle qu'elle est à jour.
 
 ### Constantes réglementaires
 
@@ -441,60 +178,28 @@ Les types exacts de chaque grille seront fixés par le script, après lecture de
 
 ## Résultats
 
-```rust
-pub struct Resultats {
-    pub version_moteur: String,
-    pub version_methode: String,           // « Th-BCE 2020, arrêté du 4 août 2021 consolidé au 19 mars 2026 »
-    pub reglementaire: bool,               // faux dès qu'un jeu météo n'est pas `ReglementaireRe2020`
-    pub origine_meteo: OrigineMeteo,
-    pub batiments: Vec<ResultatsBatiment>,
-}
+Structure générale (détail : `thbce schema --resultats`) :
 
-pub struct ResultatsBatiment {
-    pub id: Id,
-    pub sref_m2: f64,                      // A3 éq. (2378)
-    pub bbio_pts: f64,                     // A3 éq. (2385)–(2386)
-    pub cep_kwhep_m2: Option<f64>,         // A3 §13.2 ; None tant que la phase 7 n'est pas livrée
-    pub cep_nr_kwhep_m2: Option<f64>,
-    pub dh_ch: Option<f64>,                // A3 éq. (2551), A2 §5.1
-    pub ic_energie_kgco2_m2: Option<f64>,  // A2 éq. (74)
-    pub besoins: BesoinsMensuels,          // chaud, froid, éclairage : 12 mois + annuel
-    pub consommations: MatricePosteEnergie,// énergie finale par poste et par énergie
-    pub production: ProductionLocale,      // PV, cogénération, autoconsommation (A3 éq. 2527)
-    pub zones: Vec<ResultatsZone>,         // même structure, avec les groupes
-    pub horaire: Option<SeriesHoraires>,   // sur demande uniquement
-}
+```
+Resultats { version_moteur, version_methode, reglementaire, origine_meteo_th_bc, origine_meteo_th_d,
+            valeurs_arrondies, avertissements[], climat }
+└── batiments[]   sref_m2, bbio_pts, dh_c_h, cep_kwhep_m2, cep_nr_kwhep_m2, ic_energie_kgco2_m2,
+                  bbio, consommations, consommations_collectif, generations[], ascenseurs[], parkings[],
+                  production_pv, espaces_tampons[], indicateurs (exigences, conformité)
+    └── zones[]   nadeq, dh_c_h, bbio, ventilation, consommations, …
+        └── groupes[]  enveloppe, debits_bbio, baies[], bbio, saisons, confort, ventilation,
+                       systemes, consommations, valeurs_par_defaut
 ```
 
-Les valeurs sont restituées arrondies selon la règle du §1.3.1, sous réserve de la question Q8.
+`reglementaire` est faux dès qu'un jeu météo n'est pas celui de la RE2020. Les valeurs sont arrondies à une décimale (§1.3.1, Q8) sauf `--sans-arrondi` (`arrondir: false`).
 
 ## Erreurs
 
-```rust
-#[derive(thiserror::Error, Debug)]
-pub enum Erreur {
-    #[error("{chemin} : {message}")]
-    Saisie { chemin: String, message: String },       // « batiments[0].zones[1].groupes[0].baies[3].a_m2 »
-    #[error("référence inconnue {id} depuis {chemin}")]
-    ReferenceInconnue { chemin: String, id: String },
-    #[error("fiche {fiche} non prise en charge par cette version")]
-    NonPrisEnCharge { fiche: &'static str },
-    #[error("donnée conventionnelle absente : {0}")]
-    DonneeConventionnelle(String),
-    #[error("le calcul n'a pas convergé : {contexte}")]
-    NonConvergence { contexte: String },
-}
-```
+Rapport de validation : `erreurs` et `avertissements`, chacun `{ chemin, valeur?, message, hors_perimetre? }`. Natures d'erreur (module WebAssembly, propriété `cause.nature`) et codes de retour de la ligne de commande : `lecture` (JSON illisible, code 2), `saisie` (entrée invalide, 2), `meteo` (données météo, 2), `non_pris_en_charge` (entrée correcte mais hors du périmètre, 3), `calcul` (calcul impossible sur une entrée valide, 3). Aucune entrée ne provoque de `panic!`.
 
 ## Déroulement du calcul
 
-Conforme à l'enchaînement du §5.1.3 de l'annexe III :
-
-1. `entree → modele` : validation, résolution des références, jointure des données conventionnelles, préallocation.
-2. Boucle horaire unique sur 8 760 pas, dans l'ordre du texte : climat extérieur → espaces tampons → zones (scénarios, environnement proche) → groupes (baies, parois, ponts thermiques, débits d'air, comportement thermique, émission) → distribution → génération → production PV.
-3. Post-traitement : cumuls mensuels et annuels par groupe, zone, bâtiment ; indicateurs.
-
-Un calcul complet enchaîne plusieurs passes de cette boucle, une par mode (Th-B pour le Bbio, Th-C pour les consommations, Th-D pour DH). Depuis le lot 6b, `calculer` enchaîne Th-B, Th-D puis Th-C (systèmes du projet, saisons effectives et relances, générations idéales) ; depuis le lot 5, Th-B puis Th-D, par le même enchaînement horaire paramétré par `ModeCalcul` ; depuis le lot 4b (espaces tampons), chaque passe porte sur le bâtiment entier (`bati::assemblage_batiment::BatimentHoraire`) : à chaque pas de temps, les espaces tampons, à partir de l'état des groupes au pas précédent, puis les zones. Le détail des passes et de leurs dépendances (les saisons, par exemple, sont déterminées par groupe puis harmonisées au niveau du bâtiment, §5.1.3) sera précisé à la lecture des fiches 4.6 et 8.4.
+Conforme à l'enchaînement du §5.1.3 de l'annexe III : `calculer` valide l'entrée, calcule le climat des deux jeux météo, puis enchaîne pour chaque bâtiment trois passes annuelles au pas horaire du même enchaînement paramétré par `ModeCalcul` : Th-B (Bbio, systèmes conventionnels), Th-D (DH, météo à séquence caniculaire, systèmes du projet) et Th-C (consommations, systèmes du projet, saisons effectives, relances, générations). Chaque passe porte sur le bâtiment entier (`bati::assemblage_batiment::BatimentHoraire`) : à chaque pas de temps, les espaces tampons, à partir de l'état des groupes au pas précédent, puis les zones. Les indicateurs (Cep, Cep,nr, Ic énergie, exigences) sont calculés après la passe Th-C.
 
 ## Cas de validation
 
@@ -512,14 +217,7 @@ tests/cas/<nom-du-cas>/
 - Un cas qui demande la météo réglementaire est ignoré si `THBCE_METEO` n'est pas défini ; la CI publique ne lance que les cas déclarés sur météo ADEME.
 - Le même harnais sert au test de parité natif / WASM (`wasm32-wasip1`), qui compare les sorties au bit près.
 
-## Points à valider
-
-1. La séparation `entree` / `modele` / `resultats` et le catalogue de composants référencés par identifiant.
-2. Le niveau `Projet` au-dessus de `Batiment` dès la première version (nécessaire pour le PV de parcelle).
-3. Le choix d'énumérations fermées avec erreur « non pris en charge » pour les systèmes non encore implémentés.
-4. Les noms de champs : noms du texte suffixés par l'unité, en français.
-5. La météo passée en octets par l'appelant, avec l'origine reportée dans les résultats et le drapeau `reglementaire`.
-6. Le format de `tests/cas/`.
+## Compléments par lot
 
 **Relecture du lot 7b (17 novembre 2026).** `chauffe_eau_solaires[].description.kit.k_theta` devient **requis** (changement incompatible ; sortie de l'outil IdCESI, Q52 point 1) ; un kit n'admet que l'appoint `integre`. Un système solaire combiné demande un réseau hydraulique de chauffage du groupe, relié à sa génération, dont `theta_dep_dim_c` est saisie (« θch_max^gen », éq. 2117). Résultats : `generations[].stockages[]` porte `v_zones_l`, `theta_zones_debut_c` et `theta_zones_fin_c` (volumes et températures des quatre zones d'un ballon, de bas en haut, au début et à la fin du calcul), qui ferment le bilan des ballons.
 
@@ -533,8 +231,8 @@ Champs facultatifs, **non incompatibles** (`docs/questions.md`, Q54) :
 
 ```
 Batiment
-└── exigences?  { categorie_contraintes_exterieures: categorie_1 | categorie_2,   annexe R. 172-4, chap. V (saisi)
-                  zone_bruit: br1 | br2 | br3,                                    Mbbruit
+└── exigences?  { categorie_contraintes_exterieures: categorie_1 | categorie_2 | categorie_3,  chap. V, partie II (saisie, contrôlée)
+                  zone_bruit: br1 | br2 | br3,                                    chap. V, partie I (saisie) ; Mbbruit
                   annee_depot_permis (≥ 2022),                                    Icénergie_maxmoyen
                   hsp_moy_m (1,8 à 10),                                           MbHSP, McHSP
                   s_combles_m2? (0),                                              Mbcombles, Mccombles (maisons)
@@ -544,7 +242,7 @@ NatureGenerateur::PoeleOuInsert
 └── combustible_bois: buches | granules | plaquettes                              facteur d'émission (article 10), obligatoire
 ```
 
-Le raccordement à un réseau de chaleur urbain se déduit des générations (sous-station de réseau de chaleur). Le GPL (`chaudiere.gpl`), le combustible bois des chaudières (`combustible_bois`) et l'identifiant du réseau de l'annexe 7 (`identifiant_reseau`) servent aux coefficients de conversion. Sans `exigences`, les indicateurs sont calculés mais ni les exigences ni la conformité, et le forfait de refroidissement n'est pas plafonné au seuil haut. `combustible_bois` est obligatoire sur un poêle ou un insert (changement incompatible, relecture du lot 7). `conforme` n'est jamais vrai si un indicateur exigé manque (`indicateurs_manquants`).
+Le raccordement à un réseau de chaleur urbain se déduit des générations (sous-station de réseau de chaleur). Le GPL (`chaudiere.gpl`), le combustible bois des chaudières (`combustible_bois`) et l'identifiant du réseau de l'annexe 7 (`identifiant_reseau`) servent aux coefficients de conversion. La catégorie 3 est refusée en habitation ; la catégorie 2 l'est si un groupe d'habitation n'est pas climatisé, hors des zones H2d et H3, à 400 m d'altitude ou plus, ou en BR1 (chapitre V, partie II ; Q54, point 14). Sans `exigences`, les indicateurs sont calculés mais ni les exigences ni la conformité, et le forfait de refroidissement n'est pas plafonné au seuil haut. `combustible_bois` est obligatoire sur un poêle ou un insert (changement incompatible, relecture du lot 7). `conforme` n'est jamais vrai si un indicateur exigé manque (`indicateurs_manquants`).
 
 ### Résultats
 
@@ -570,4 +268,5 @@ indicateurs
 ```
 
 `energie` vaut `electricite`, `gaz_naturel`, `gpl`, `fioul`, `charbon`, `bois_buches`, `bois_granules`, `bois_plaquettes`, `bois` (combustible inconnu), `reseau_chaleur:<id>` ou `reseau_froid:<id>` (`autres` sans identifiant). La ligne de commande écrit une synthèse des indicateurs et de la conformité sur la sortie d'erreur (`thbce_io::rapport::synthese_indicateurs`).
+
 

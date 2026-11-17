@@ -6,7 +6,8 @@
 //!
 //! Seuls les usages de la première version sont transcrits : maisons individuelles ou accolées
 //! (usage 1) et logements collectifs (usage 2). Les catégories de contraintes extérieures et les
-//! zones de bruit (chapitre V, absent du dépôt) sont saisies.
+//! zones de bruit (chapitre V, `docs/reference/texte/annexe-r172-4-chapitre-5.txt`) sont
+//! saisies ; la validation refuse les catégories que la partie II du chapitre V exclut.
 
 use thbce_data::ZoneClimatique;
 
