@@ -24,6 +24,10 @@ use crate::resultats::ValeurParDefaut;
 /// ballon incohérent avec le projet (§9.14.3.4, éq. 1959).
 pub const SEUIL_TEMPERATURE_INSUFFISANTE_H: u32 = 168;
 
+/// Nombre d'heures de report d'énergie à l'issue du puisage au-delà duquel le moteur affiche
+/// une alerte (§9.9.3.2.3, éq. 1780).
+pub const SEUIL_REPORT_PUISAGE_H: u32 = 24;
+
 /// Régulation d'un générateur de ballon, base ou appoint (§9.10.2).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RegulationGenerateur {
@@ -89,6 +93,11 @@ pub struct CumulsAssemblage {
     pub nbh_temp_insuff_max: u32,
     /// Plus basse température de la zone haute en fin de pas de temps, en °C.
     pub theta_haut_min_c: f64,
+    /// « nbhreport_e » : nombre d'heures où une énergie est restée à reporter à l'issue de la
+    /// boucle de puisage (éq. 1780). Le texte incrémente le compteur à chaque heure de report et
+    /// le conserve sinon, sans le remettre à zéro : c'est un total annuel, et non une suite
+    /// d'heures consécutives.
+    pub nbh_report_e: u32,
 }
 
 /// Assemblage d'un ballon, d'un générateur de base et d'un éventuel appoint intégré.
@@ -169,44 +178,53 @@ impl AssemblageBallon {
         let q_rest = puisage.q_report_wh * nb;
         let q_fou = e.q_req_ecs_wh - q_rest;
         let a_puise = puisage.v_p_l > 0.0;
+        // Éq. (1785) : la température vue par un échangeur est celle des zones après le
+        // puisage, avant toute injection de puissance ; celle de l'appoint est donc calculée
+        // avant l'injection de la base.
+        let b = self.base;
+        let theta_aval_base = self.ballon.theta_b_moy_ech_c(b.z_gen, b.h_rel_ech);
+        let theta_aval_ap = self
+            .appoint
+            .map(|a| self.ballon.theta_b_moy_ech_c(a.z_gen, a.h_rel_ech));
         // Troisième étape : générateur de base (§9.13 : la température aval du générateur est
-        // la température du ballon vue par son échangeur ; lecture Q48).
+        // la température du ballon vue par son échangeur ; lecture Q48). §9.10.3.2.2 : « si
+        // fp(h) = 0, alors Qreq_sto_base(h) = 0 » ; §9.14.3.2.2 : « si le générateur de base
+        // est autorisé à fonctionner, il est appelé » : hors de sa programmation, le générateur
+        // n'est pas appelé et ne consomme rien, pas même ses auxiliaires à charge nulle.
         let mut q_req_sto = [0.0; 2];
         let mut q_fou_sto = [0.0; 2];
-        let b = self.base;
-        if f_p(b.programmation, e.hleg)
-            && active(
+        if f_p(b.programmation, e.hleg) {
+            if active(
                 &self.ballon,
                 b.z_reg,
                 self.theta_c_c,
                 b.delta_theta_k,
                 a_puise,
                 true,
-            )
-        {
-            q_req_sto[0] = q_req_sto_wh(&self.ballon, b.z_gen, self.theta_c_c, true);
+            ) {
+                q_req_sto[0] = q_req_sto_wh(&self.ballon, b.z_gen, self.theta_c_c, true);
+            }
+            q_fou_sto[0] = appel(b.generateur, q_req_sto[0] * nb, theta_aval_base) / nb;
         }
-        let theta_aval = self.ballon.theta_b_moy_ech_c(b.z_gen, b.h_rel_ech);
-        q_fou_sto[0] = appel(b.generateur, q_req_sto[0] * nb, theta_aval) / nb;
+        // Les pertes du pas de temps sont appliquées au ballon, que la base fonctionne ou non.
         self.ballon.injecter(b.z_gen, q_fou_sto[0], true);
         // Quatrième étape : appoint intégré, après l'injection de la base ; les pertes du pas
         // de temps, déjà appliquées, ne sont pas comptées une seconde fois (note de l'éq. 1786).
-        if let Some(a) = self.appoint {
-            if f_p(a.programmation, e.hleg)
-                && active(
+        if let (Some(a), Some(theta_aval_ap)) = (self.appoint, theta_aval_ap) {
+            if f_p(a.programmation, e.hleg) {
+                if active(
                     &self.ballon,
                     a.z_reg,
                     self.theta_c_c,
                     a.delta_theta_k,
                     a_puise,
                     false,
-                )
-            {
-                q_req_sto[1] = q_req_sto_wh(&self.ballon, a.z_gen, self.theta_c_c, false);
+                ) {
+                    q_req_sto[1] = q_req_sto_wh(&self.ballon, a.z_gen, self.theta_c_c, false);
+                }
+                q_fou_sto[1] = appel(a.generateur, q_req_sto[1] * nb, theta_aval_ap) / nb;
+                self.ballon.injecter(a.z_gen, q_fou_sto[1], false);
             }
-            let theta_aval = self.ballon.theta_b_moy_ech_c(a.z_gen, a.h_rel_ech);
-            q_fou_sto[1] = appel(a.generateur, q_req_sto[1] * nb, theta_aval) / nb;
-            self.ballon.injecter(a.z_gen, q_fou_sto[1], false);
         }
         // Éq. (1959) : heures consécutives sans atteindre la consigne en zone haute.
         let theta_haut = self.ballon.theta_c[NB_ZONES - 1];
@@ -232,6 +250,10 @@ impl AssemblageBallon {
         }
         c.nbh_temp_insuff_max = c.nbh_temp_insuff_max.max(self.nbh_temp_insuff);
         c.theta_haut_min_c = c.theta_haut_min_c.min(theta_haut);
+        // Éq. (1780).
+        if puisage.q_report_wh != 0.0 {
+            c.nbh_report_e += 1;
+        }
         s
     }
 }
@@ -323,10 +345,22 @@ mod tests {
         assert_eq!(s.q_fou_sto_wh[0], 0.0);
         assert_eq!(s.q_rest_ecs_wh, 1000.0);
         assert_eq!(s.q_fou_ecs_wh, 0.0);
+        // Le générateur n'est pas appelé hors de sa programmation (§9.10.3.2.2 et §9.14.3.2.2),
+        // même à charge nulle ; les pertes du ballon sont appliquées.
+        let mut appels = 0;
+        let mut compteur = |_: usize, q: f64, _: f64| {
+            appels += 1;
+            q
+        };
+        let avant = a.ballon.energie_wh(0.0);
+        let s = a.pas(&entrees(0.0, 13), &mut compteur);
+        assert_eq!(appels, 0);
+        assert!((avant - a.ballon.energie_wh(0.0) - s.phi_pertes_wh / 2.0).abs() < 1e-9);
+        assert_eq!(a.cumuls.nbh_report_e, 1);
         // De nuit, deux assemblages identiques : demande double au générateur.
         let s = a.pas(&entrees(0.0, 2), &mut resistance);
         assert!(s.q_req_sto_wh[0] > 2.0 * 1163.0);
-        assert_eq!(a.cumuls.nbh_temp_insuff_max, 1);
+        assert_eq!(a.cumuls.nbh_temp_insuff_max, 2);
         assert_eq!(a.nbh_temp_insuff, 0);
     }
 
@@ -343,8 +377,19 @@ mod tests {
             ..base
         };
         let mut a = AssemblageBallon::nouveau("ballon", 1.0, ballon, base, Some(appoint), 4);
-        let mut appel = |g: usize, q: f64, _: f64| if g == 0 { q.min(500.0) } else { q };
+        let mut avals = Vec::new();
+        let mut appel = |g: usize, q: f64, theta: f64| {
+            avals.push(theta);
+            if g == 0 {
+                q.min(500.0)
+            } else {
+                q
+            }
+        };
         let s = a.pas(&entrees(0.0, 12), &mut appel);
+        // Éq. (1785) : l'appoint voit le ballon avant l'injection de la base, à 50 °C, et non
+        // le mélange à 52,15 °C qui la suit.
+        assert_eq!(avals, [50.0, 50.0]);
         // La base injecte 500 Wh en zone basse : + 8,6 K sur 50 L, mélangés avec la zone 2.
         assert!((s.q_fou_sto_wh[0] - 500.0).abs() < 1e-9);
         // Tout le ballon se mélange à 50 + 500/232,6 = 52,15 °C ; l'appoint remonte les deux
