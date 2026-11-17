@@ -112,7 +112,8 @@ pub struct ConditionsOuverture {
     pub mode: ModeCalcul,
     /// « iocc_zone(h) ».
     pub i_occ_zone: bool,
-    /// « hlég(h) » : heure légale, de 1 à 24.
+    /// « hlég(h) » : heure légale du pas de temps, de 0 à 23 (`climat::calendrier::hleg`,
+    /// §4.1.3).
     pub hleg: u8,
     /// Vrai si la saison du groupe est « chauffage sans refroidissement ».
     pub saison_de_chauffage: bool,

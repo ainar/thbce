@@ -414,15 +414,57 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
     let rn = brut(&nuit, &m);
     verifier_bilans(&rn, titre);
     let gn = &rn.batiments[0].generations[1];
-    assert!(gn.nbh_sousdim_ch_ecs_max > 6);
+    // Le reste dû au ballon (éq. 1953) ne compte pas dans le sous-dimensionnement de la
+    // génération (éq. 1059) : il déclenche l'alerte propre au ballon (éq. 1780).
+    assert_eq!(gn.nbh_sousdim_ch_ecs_max, 0);
+    assert!(gn.stockages[0].nbh_report_e > 24);
+    assert!(rn.avertissements.iter().any(|a| a.contains("éq. 1780")));
+    assert!(!rn
+        .avertissements
+        .iter()
+        .any(|a| a.contains("sous-dimensionnement")));
     assert!(gn.stockages[0].pertes_kwh < ballon.pertes_kwh);
     println!(
         "{titre} : ballon électrique programmé de nuit, ECS {:.1} kWh d'électricité, pertes {:.1} \
-         kWh, demande reportée jusqu'à {} h de suite ; DH = {:.1} °C.h",
+         kWh, demande non puisée pendant {} h de l'année ; DH = {:.1} °C.h",
         gn.consommations.annuel.ecs.electricite_kwh,
         gn.stockages[0].pertes_kwh,
-        gn.nbh_sousdim_ch_ecs_max,
+        gn.stockages[0].nbh_report_e,
         rn.batiments[0].dh_c_h.unwrap(),
+    );
+    // Sans report, l'alerte du ballon ne se déclenche pas.
+    assert_eq!(ballon.nbh_report_e, 0);
+
+    // Chauffe-eau thermodynamique programmé de nuit, auxiliaires non compris dans l'essai
+    // (Taux = 0,02, éq. 2250) : hors des heures autorisées, le générateur n'est pas appelé
+    // (§9.10.3.2.2, « si fp(h) = 0, alors Qreq_sto_base(h) = 0 » ; §9.14.3.2.2, « si le
+    // générateur de base est autorisé à fonctionner, il est appelé ») et ne consomme pas ses
+    // auxiliaires à charge nulle.
+    let cet_conso = |programmation: &str| {
+        let mut p = cas("maison-plancher-ademe");
+        let c = &mut p.batiments[0].generations[1].chauffe_eau_thermodynamiques[0];
+        c.programmation = serde_json::from_str(&format!("\"{programmation}\"")).unwrap();
+        c.essai.auxiliaires_compris = false;
+        let r = brut(&p, &m);
+        verifier_bilans(&r, titre);
+        let g = &r.batiments[0].generations[1];
+        (
+            g.consommations.annuel.ecs.electricite_kwh,
+            g.generateurs[0].w_aux_kwh,
+            g.stockages[0].nbh_report_e,
+        )
+    };
+    let (ecs_perm, aux_perm, _) = cet_conso("permanent");
+    let (ecs_nuit, aux_nuit, report_nuit) = cet_conso("nuit");
+    // Six heures autorisées sur vingt-quatre (hleg > 23 h ou hleg < 5 h, éq. 1811) : les
+    // auxiliaires à charge nulle ne sont comptés que pendant ces heures, au plus le quart de
+    // ceux du fonctionnement permanent.
+    assert!(aux_nuit < 0.3 * aux_perm, "{titre} : {aux_nuit} {aux_perm}");
+    assert!(ecs_nuit < ecs_perm);
+    println!(
+        "{titre} : chauffe-eau thermodynamique, auxiliaires non compris dans l'essai : permanent, \
+         ECS {ecs_perm:.1} kWh dont {aux_perm:.1} kWh d'auxiliaires ; de nuit, ECS {ecs_nuit:.1} \
+         kWh dont {aux_nuit:.1} kWh d'auxiliaires, {report_nuit} h de report"
     );
 
     // Pompe à chaleur double service : la pompe à chaleur air/eau de la variante à plancher

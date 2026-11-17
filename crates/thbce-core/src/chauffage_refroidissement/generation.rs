@@ -1033,9 +1033,17 @@ impl GenerationHoraire {
         if !self.en_volume_chauffe {
             phi_vc = 0.0;
         }
-        // Éq. (1059) à (1064) : sous-dimensionnement.
+        // Éq. (1059) à (1064) : sous-dimensionnement. Les indicateurs « ne concernent que les
+        // générateurs (le sous-dimensionnement des ballons de stockage est évalué séparément) » :
+        // en ECS, seul compte ce que les générateurs instantanés n'ont pas fourni ; le reste dû
+        // aux ballons (éq. 1953) relève de l'alerte du ballon (éq. 1780).
+        let q_rep_ecs_generateurs = if instantanes_ecs.is_empty() {
+            0.0
+        } else {
+            q_rep[2]
+        };
         let n = &mut self.etat.nb_sousdim;
-        n[0] = if (q_rep[0] > 0.0 || q_rep[2] > 0.0) && !relance[0] {
+        n[0] = if (q_rep[0] > 0.0 || q_rep_ecs_generateurs > 0.0) && !relance[0] {
             n[0] + 1
         } else {
             0
@@ -1676,7 +1684,8 @@ mod tests {
         assert_eq!(s.theta_amb_c, 23.0);
         assert_eq!(g.cumuls.q_req_mensuel_wh[2][6], 600.0);
         assert_eq!(g.generateurs[0].cumuls.nbh_hors_fonctionnement[0], 1);
-        assert_eq!(g.generateurs[1].cumuls.nbh_charge[2][2], 1);
+        // τ = 20 % : tranche « 20 % ≤ τ < 30 % » (éq. 1524).
+        assert_eq!(g.generateurs[1].cumuls.nbh_charge[2][3], 1);
     }
 
     #[test]

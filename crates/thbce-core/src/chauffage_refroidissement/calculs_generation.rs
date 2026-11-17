@@ -178,14 +178,15 @@ impl CumulsCef {
 /// tranches de 10 %.
 pub const NB_CLASSES_CHARGE: usize = 11;
 
-/// Classe du taux de charge `tau` (éq. 1522 à 1524) : 0 pour une charge nulle, puis `k` pour
-/// `(k − 1) × 10 % < τ ≤ k × 10 %`, la dernière classe recueillant les charges au-delà de 90 %.
+/// Classe du taux de charge `tau` (éq. 1522 à 1524, relues sur l'image de la p. 956) : 0 pour
+/// une charge nulle, puis `k` pour `(k − 1) × 10 % ≤ τ < k × 10 %` (« 10 % ≤ τ < 20 % »), la
+/// dernière classe recueillant les charges à partir de 90 %. La première tranche du texte,
+/// « 0 % ≤ τ < 10 % », exclut ici la charge nulle, comptée à part.
 pub fn classe_charge(tau: f64) -> usize {
     if tau <= 0.0 {
         0
     } else {
-        // Les bornes hautes appartiennent à la tranche : 10 % va dans « 0 à 10 % ».
-        (((tau * 10.0) - 1e-12).floor() as usize + 1).min(NB_CLASSES_CHARGE - 1)
+        ((tau * 10.0).floor() as usize + 1).min(NB_CLASSES_CHARGE - 1)
     }
 }
 
@@ -253,8 +254,13 @@ mod tests {
     fn classes_de_charge() {
         assert_eq!(classe_charge(0.0), 0);
         assert_eq!(classe_charge(0.05), 1);
-        assert_eq!(classe_charge(0.1), 1);
-        assert_eq!(classe_charge(0.100_001), 2);
+        // « 10 % ≤ τ < 20 % » : la borne basse appartient à la tranche.
+        assert_eq!(classe_charge(0.099_999), 1);
+        assert_eq!(classe_charge(0.1), 2);
+        assert_eq!(classe_charge(0.199_999), 2);
+        assert_eq!(classe_charge(0.2), 3);
+        assert_eq!(classe_charge(0.3), 4);
+        assert_eq!(classe_charge(0.9), 10);
         assert_eq!(classe_charge(0.95), 10);
         assert_eq!(classe_charge(1.0), 10);
     }

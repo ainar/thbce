@@ -37,9 +37,12 @@ pub const HLEG_FIN_JOURNEE: u8 = 22;
 /// confortable sans refroidissement complémentaire.
 ///
 /// Th-BCE 2020 §13.3.2, tableau 334 (fiche du forfait de consommations de refroidissement). Le
-/// « seuil haut » (`DH_max`) est fixé par l'annexe de l'article R. 172-4 du code de la
-/// construction et de l'habitation, absente des documents de référence du dépôt : le moteur ne
-/// le connaît pas.
+/// « seuil haut » (`DH_max = DH_maxcat`) est fixé par l'annexe de l'article R. 172-4 du code de
+/// la construction et de l'habitation, présente dans le dépôt
+/// (`docs/reference/texte/annexe-r172-4-chapitres-1-a-3.txt`, chapitre III, §IV « Valeurs de
+/// DH_maxcat » : 1 250 °C.h en catégorie de contraintes extérieures 1 et 1 850 °C.h en
+/// catégorie 2 pour les maisons ; valeurs par surface moyenne des logements pour le collectif) ;
+/// il relève du lot 7 (exigences et forfait de refroidissement).
 pub const SEUIL_BAS_DH_C_H: f64 = 350.0;
 
 /// « θop_conf_ch(h) » : température d'inconfort chaud, en °C.
