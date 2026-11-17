@@ -64,8 +64,6 @@ pub struct CumulsCentral {
     pub q_fou_reseau_wh: f64,
     /// Pertes du réseau intergroupe déduites du ballon central (éq. 2080).
     pub pertes_reseau_deduites_wh: f64,
-    /// Pertes du réseau intergroupe que le ballon central n'a pas pu couvrir (lecture Q53).
-    pub pertes_reseau_non_couvertes_wh: f64,
     /// Pertes du ballon central.
     pub phi_pertes_wh: f64,
     /// Températures des zones au début du calcul, en °C.
@@ -196,7 +194,8 @@ impl ProductionCollective {
             if c.cumuls.theta_debut_c.is_none() {
                 c.cumuls.theta_debut_c = Some(b.theta_c);
             }
-            // Éq. (2075) : énergie contenue au début du pas de temps.
+            // Éq. (2075) : énergie contenue au début du pas de temps (températures de la fin du
+            // pas précédent ; la zone haute fixe aussi le départ du réseau intergroupe).
             let q_contenue = b.energie_wh(e.theta_cw_c);
             // Pertes du ballon central, avec les températures de la fin du pas précédent ;
             // appliquées à la douzième étape.
@@ -225,11 +224,11 @@ impl ProductionCollective {
                 s.q_rest_ecs_wh += sa.q_rest_ecs_wh;
                 s.phi_pertes_dec_vc_wh += sa.phi_pertes_wh;
             }
-            // Éq. (2080) : énergie fournie au réseau, soutirée de la zone haute, sans les pertes
-            // du ballon. Les pertes du réseau ne sont soutirées que dans la limite de l'énergie
-            // contenue (lecture Q53 : à la lettre, le ballon descendrait sans fin sous l'eau
-            // froide quand le soleil manque).
-            let pertes_deduites = e.phi_pertes_prim_wh.min(q_contenue.max(0.0));
+            // Éq. (2080) : énergie fournie au réseau, ballons individuels et pertes du réseau,
+            // soutirée de la zone haute, sans les pertes du ballon. Les pertes du réseau,
+            // calculées au départ de la zone haute du ballon central et bornées à zéro, sont
+            // toutes payées par le ballon central (lecture Q53).
+            let pertes_deduites = e.phi_pertes_prim_wh;
             b.injecter(NB_ZONES - 1, -(q_fou_reseau + pertes_deduites), false);
             // Onzième étape : la boucle voit la température de la zone basse du ballon central
             // (« θBSaval(h) = θcentr_b1(h) »).
@@ -245,15 +244,14 @@ impl ProductionCollective {
             let cc = &mut c.cumuls;
             cc.q_fou_reseau_wh += q_fou_reseau;
             cc.pertes_reseau_deduites_wh += pertes_deduites;
-            cc.pertes_reseau_non_couvertes_wh += e.phi_pertes_prim_wh - pertes_deduites;
             cc.phi_pertes_wh += b.pertes_totales_wh();
             let haut = b.theta_c[NB_ZONES - 1];
             cc.theta_haut_min_c = Some(cc.theta_haut_min_c.map_or(haut, |t| t.min(haut)));
             s.phi_pertes_wh += b.pertes_totales_wh();
             s.w_pompe_wh = sb.p_p_wh;
             s.phi_vc_bs_wh = sb.phi_vc_wh;
-            // Les pertes du réseau, comprises dans la demande, sont réputées fournies par le
-            // ballon central (éq. 2076).
+            // Les pertes du réseau, comprises dans la demande, sont fournies par le ballon
+            // central (éq. 2080).
             s.q_fou_ecs_wh += e.q_req_ecs_wh - q_ballons;
         } else {
             // CESCI : première étape, puisage dans tous les ballons.
@@ -435,15 +433,9 @@ mod tests {
         assert_eq!(s.w_pompe_wh, 0.0);
     }
 
-    #[test]
-    fn cescai_bilan_du_ballon_central() {
-        // Ballon central de 1 000 L à 50 °C, eau froide à 12 °C : 44 194 Wh contenus
-        // (éq. 2075). Pertes du réseau 500 Wh ; deux ballons individuels de 150 L à 40 °C,
-        // sans puisage : chacun peut recevoir 1,163 × 150 × 10,5 = 1 831,7 Wh (éq. 2078, réseau
-        // à 50,5 °C). Nuit : pas de solaire. Le ballon central perd 2 × 1 831,7 + 500 Wh
-        // (éq. 2080), plus ses propres pertes.
+    fn cescai(theta_central_c: f64, theta_dec_c: f64) -> ProductionCollective {
         let mut central = Ballon::nouveau(1000.0, 3.0, None, 90.0);
-        central.fixer_temperature(50.0);
+        central.fixer_temperature(theta_central_c);
         let mut p = ProductionCollective {
             id: "c".into(),
             type_production: TypeProduction::Cescai,
@@ -455,26 +447,60 @@ mod tests {
             }),
             lecture_entree: LectureEntreeCescai::default(),
         };
-        p.ensembles[0].ballon.fixer_temperature(40.0);
-        let mut e = entrees(500.0, 0.0);
-        e.phi_pertes_prim_wh = 500.0;
-        let avant = p
-            .central
-            .as_ref()
-            .map(|c| c.ballon.energie_wh(0.0))
-            .unwrap_or(0.0);
+        p.ensembles[0].ballon.fixer_temperature(theta_dec_c);
+        p
+    }
+
+    /// Entrées d'un CESCAI la nuit : réseau bouclé au départ de la zone haute du ballon
+    /// central (θmoy_prim-e = θcentr_b4 − 2,5 K) et pertes du réseau `pertes_wh`.
+    fn entrees_cescai(theta_central_c: f64, pertes_wh: f64) -> EntreesCollectif {
+        let mut e = entrees(pertes_wh, 0.0);
+        e.phi_pertes_prim_wh = pertes_wh;
+        e.theta_moy_prim_c = theta_central_c - 2.5;
+        e
+    }
+
+    #[test]
+    fn cescai_bilan_du_ballon_central() {
+        // Ballon central de 1 000 L à 50 °C, eau froide à 12 °C : 44 194 Wh contenus
+        // (éq. 2075). Réseau à 47,5 °C, pertes 500 Wh ; deux ballons individuels de 150 L à
+        // 40 °C, sans puisage : chacun peut recevoir 1,163 × 150 × 7,5 = 1 308,4 Wh
+        // (éq. 2078). Nuit : pas de solaire. Le ballon central cède 2 × 1 308,4 + 500 Wh
+        // (éq. 2080) et perd 3 W/K × 30 K = 90 Wh.
+        let mut p = cescai(50.0, 40.0);
+        let avant = p.central.as_ref().unwrap().ballon.energie_wh(0.0);
         let mut appel = |_: usize, _: Poste, _: f64, _: f64| 0.0;
-        let s = p.pas(&e, &mut appel);
+        let s = p.pas(&entrees_cescai(50.0, 500.0), &mut appel);
         let c = p.central.as_ref().unwrap();
-        let recu = 2.0 * 1.163 * 150.0 * 10.5;
+        let recu = 2.0 * 1.163 * 150.0 * 7.5;
         assert!((c.cumuls.q_fou_reseau_wh - recu).abs() < 1e-6);
         assert!((c.cumuls.pertes_reseau_deduites_wh - 500.0).abs() < 1e-9);
-        // Pertes propres : 3 W/K × 30 K = 90 Wh.
         assert!((c.cumuls.phi_pertes_wh - 90.0).abs() < 1e-9);
         let apres = c.ballon.energie_wh(0.0);
         assert!((avant - apres - recu - 500.0 - 90.0).abs() < 1e-6);
-        // Les pertes du réseau sont réputées fournies ; rien n'a été puisé.
+        // Les pertes du réseau sont payées par le ballon central ; rien n'a été puisé.
         assert!((s.q_fou_ecs_wh - 500.0).abs() < 1e-9);
         assert!(s.phi_pertes_dec_vc_wh > 0.0 && s.phi_pertes_wh == 90.0);
+        // Les ballons individuels ne dépassent pas la zone haute du ballon central d'avant le
+        // transfert.
+        assert!(p.ensembles[0].ballon.theta_c.iter().all(|t| *t <= 50.0));
+    }
+
+    #[test]
+    fn cescai_ballon_central_plus_froid_que_les_ballons() {
+        // Ballon central à 30 °C (réseau à 27,5 °C), ballons individuels à 40 °C : aucun
+        // transfert (éq. 2078 : « l'eau des ballons doit être plus froide que l'eau de la
+        // distribution intergroupe ») ; le ballon central paie les pertes du réseau (200 Wh)
+        // et les siennes (3 × 10 = 30 Wh), au bilan exact.
+        let mut p = cescai(30.0, 40.0);
+        let avant = p.central.as_ref().unwrap().ballon.energie_wh(0.0);
+        let dec_avant = p.ensembles[0].ballon.energie_wh(0.0);
+        let mut appel = |_: usize, _: Poste, _: f64, _: f64| 0.0;
+        p.pas(&entrees_cescai(30.0, 200.0), &mut appel);
+        let c = p.central.as_ref().unwrap();
+        assert_eq!(c.cumuls.q_fou_reseau_wh, 0.0);
+        assert!((avant - c.ballon.energie_wh(0.0) - 200.0 - 30.0).abs() < 1e-6);
+        assert_eq!(p.ensembles[0].cumuls.q_fou_sto_wh[0], 0.0);
+        assert!(p.ensembles[0].ballon.energie_wh(0.0) < dec_avant);
     }
 }

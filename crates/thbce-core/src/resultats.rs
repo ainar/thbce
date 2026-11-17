@@ -540,10 +540,6 @@ pub struct ResultatsSolaireCollectif {
     /// CESCAI : pertes du réseau intergroupe déduites du ballon central, en kWh (éq. 2080).
     #[serde(default)]
     pub pertes_reseau_deduites_kwh: f64,
-    /// CESCAI : pertes du réseau intergroupe que le ballon central, trop peu chargé, n'a pas
-    /// couvertes, en kWh (lecture Q53).
-    #[serde(default)]
-    pub pertes_reseau_non_couvertes_kwh: f64,
 }
 
 impl ResultatsStockage {
@@ -600,7 +596,6 @@ impl ResultatsSolaireCollectif {
             &mut self.solaire.ecretement_kwh,
             &mut self.q_fou_reseau_kwh,
             &mut self.pertes_reseau_deduites_kwh,
-            &mut self.pertes_reseau_non_couvertes_kwh,
         ] {
             *x = a(*x);
         }

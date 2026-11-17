@@ -121,7 +121,9 @@ fn bilan(g: &ResultatsGeneration, nb_ballons: f64, titre: &str) -> (f64, f64, f6
     let joule: f64 = g.generateurs.iter().map(|x| x.q_fou_ecs_kwh).sum();
     let elec = g.consommations.annuel.ecs.electricite_kwh;
     assert!((elec - joule - sol.w_pompe_kwh).abs() < 1e-6, "{titre}");
-    // Toute la demande est fournie.
+    // Toute la demande est fournie : par les ballons (puisage ; appoint séparé instantané) et,
+    // pour un CESCAI, les pertes du réseau intergroupe par le ballon central, qui les paie
+    // toutes (éq. 2080, bilan exact du ballon central ci-dessus).
     assert!(
         (g.q_fou_ecs_kwh + g.q_rep_fin_kwh - g.q_ecs_kwh).abs() < 1e-6,
         "{titre}"
@@ -214,17 +216,25 @@ fn verifier(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
     let (esol_c, appoint_c, _, elec_c) = bilan(gc, 12.0, titre);
     let cc = &gc.solaires_collectifs[0];
     assert!(cc.q_fou_reseau_kwh > 0.0 && cc.pertes_reseau_deduites_kwh > 0.0);
+    // Le ballon central, qui ne cède de chaleur qu'à des ballons plus froids que son réseau,
+    // reste au-dessus de l'ambiance (20 °C, éq. 2074) : ses pertes sont positives. Ordre de
+    // grandeur de la productivité d'un champ collectif : 200 à 550 kWh/m².
+    let pc = esol_c / 18.0;
+    assert!(
+        cc.ballon_central.as_ref().unwrap().pertes_kwh > 0.0,
+        "{titre}"
+    );
+    assert!((200.0..550.0).contains(&pc), "{titre} : {pc}");
     println!(
         "{titre} : CESCI à appoint séparé : {esol_s:.1} kWh solaires, appoint instantané \
          {appoint_s:.1} kWh, électricité {elec_s:.1} kWh ; CESCAI (ballon central de 900 L, \
          boucle de 40 m) : {esol_c:.1} kWh solaires, {:.1} kWh fournis par le réseau, pertes du \
-         réseau déduites {:.1} kWh et non couvertes {:.1} kWh, pertes du ballon central {:.1} \
-         kWh, appoints {appoint_c:.1} kWh, électricité {elec_c:.1} kWh (circulateur compris \
+         réseau {:.1} kWh, pertes du ballon central {:.1} kWh (zone haute au plus bas {:.1} °C), appoints {appoint_c:.1} kWh, électricité {elec_c:.1} kWh (circulateur compris \
          dans les consommations de la distribution)",
         cc.q_fou_reseau_kwh,
         cc.pertes_reseau_deduites_kwh,
-        cc.pertes_reseau_non_couvertes_kwh,
         cc.ballon_central.as_ref().unwrap().pertes_kwh,
+        cc.ballon_central.as_ref().unwrap().theta_haut_min_c,
     );
 }
 

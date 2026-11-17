@@ -24,7 +24,9 @@ use crate::climat::calendrier::{date_scenario, hleg, jour_bascule_saisons};
 use crate::climat::environnement_proche::ventc_m_s;
 use crate::climat::{ClimatExterieur, ConfortAdaptatif};
 use crate::conventions::{ModeCalcul, NB_HEURES_AN};
-use crate::ecs::distribution_ecs::{pas_intergroupe, SortiesDistributionEcsIntergroupe};
+use crate::ecs::distribution_ecs::{
+    pas_intergroupe_selon_depart, SortiesDistributionEcsIntergroupe,
+};
 use crate::entree::{Batiment, Catalogue};
 use crate::entree::{
     FonctionReseau, PositionGeneration, RaccordementReseaux, ReseauEcsIntergroupe, ReseauGroupe,
@@ -699,7 +701,21 @@ impl SystemesBatiment {
                 .espace_tampon
                 .and_then(|i| espaces_tampons.get(i))
                 .map_or(1.0, |e| e.b_therm);
-            let s = pas_intergroupe(&d.reseau, &aval, true, theta_cw_c, theta_ext_c, b_therm);
+            // CESCAI : réseau au départ de la zone haute du ballon central (§9.17.3.2,
+            // deuxième étape).
+            let depart_ballon = self
+                .generations_horaires
+                .get(d.generation)
+                .and_then(GenerationHoraire::theta_depart_reseau_ecs_c);
+            let s = pas_intergroupe_selon_depart(
+                &d.reseau,
+                &aval,
+                true,
+                theta_cw_c,
+                theta_ext_c,
+                b_therm,
+                depart_ballon,
+            );
             let c = &mut self.cumuls_ecs[k];
             c.q_w_prim_mensuel_wh[mois] += s.q_w_prim_wh;
             c.phi_pertes_vc_wh += s.phi_pertes_vc_wh;

@@ -855,6 +855,16 @@ impl GenerationHoraire {
         stockages
     }
 
+    /// « θcentr_b4(h − 1) » : température de la zone haute du ballon central d'un CESCAI, qui
+    /// fixe le départ du réseau d'ECS intergroupe (§9.17.3.2, deuxième étape) ; `None` sans
+    /// CESCAI.
+    pub fn theta_depart_reseau_ecs_c(&self) -> Option<f64> {
+        self.collectifs
+            .iter()
+            .find_map(|c| c.central.as_ref())
+            .map(|b| b.ballon.theta_c[crate::ecs::ballon_de_stockage::NB_ZONES - 1])
+    }
+
     /// « θamb(h) » : température d'ambiance de la génération (§8.17.3.5.8).
     pub fn theta_amb_c(&self, aut_ch: bool, aut_fr: bool, theta_ext_c: f64, b_therm: f64) -> f64 {
         let conv = match (aut_ch, aut_fr) {
@@ -1055,6 +1065,17 @@ impl GenerationHoraire {
             let theta_moy_prim = ecs().map(|r| r.theta_moy_c).fold(0.0, f64::max);
             let phi_pertes_prim: f64 = ecs().map(|r| r.phi_pertes_prim_wh).sum();
             for c in &mut collectifs {
+                // Éq. (2074) : ambiance d'un CESCAI (ballon central, boucle, réseau) à 20 °C en
+                // volume chauffé, extérieure hors volume chauffé ; ses ballons individuels et
+                // leurs appoints sont en volume chauffé, à 20 °C. CESCI : ambiance de la
+                // génération (éq. 1978, lecture Q53).
+                let cescai = c.central.is_some();
+                let amb = match (cescai, self.en_volume_chauffe) {
+                    (false, _) => theta_amb,
+                    (true, true) => THETA_AMB_CH_C,
+                    (true, false) => e.theta_ext_c,
+                };
+                let amb_appoints = if cescai { THETA_AMB_CH_C } else { theta_amb };
                 let isr = e
                     .climat
                     .map_or(0.0, |climat| c.boucle.capteurs.isr_w_m2(climat, e.h));
@@ -1065,9 +1086,7 @@ impl GenerationHoraire {
                         theta_moy_prim_c: theta_moy_prim,
                         theta_cw_c: e.theta_cw_c,
                         theta_depart_c: theta_depart,
-                        theta_amb_c: theta_amb,
-                        // Éq. (2074) : ballons individuels d'un CESCAI en volume chauffé, à
-                        // température constante.
+                        theta_amb_c: amb,
                         theta_amb_dec_c: THETA_AMB_CH_C,
                         hleg: e.hleg,
                         theta_ext_c: e.theta_ext_c,
@@ -1075,7 +1094,7 @@ impl GenerationHoraire {
                         mois,
                     },
                     &mut |i, poste, q_req, theta_aval| {
-                        self.appeler_pour_ballon(i, poste, q_req, theta_aval, theta_amb, e)
+                        self.appeler_pour_ballon(i, poste, q_req, theta_aval, amb_appoints, e)
                     },
                 );
                 q_ar[2] = s.q_rest_ecs_wh;

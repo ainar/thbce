@@ -177,6 +177,32 @@ pub fn pas_intergroupe(
     theta_ext_c: f64,
     b_therm: f64,
 ) -> SortiesDistributionEcsIntergroupe {
+    pas_intergroupe_selon_depart(
+        reseau,
+        aval,
+        id_encl,
+        theta_cw_c,
+        theta_ext_c,
+        b_therm,
+        None,
+    )
+}
+
+/// Comme [`pas_intergroupe`] ; `theta_depart_ballon_c` : température de départ imposée par le
+/// ballon central d'un CESCAI (« θdépart_prim-e = θcentr_b4 », §9.17.3.2, deuxième étape),
+/// qui fixe la température moyenne et les pertes d'un réseau bouclé. Les pertes sont alors
+/// bornées à zéro : un ballon central plus froid que l'ambiance ne fait pas circuler de
+/// chaleur (lecture Q53). La température de départ restituée reste celle attendue par les
+/// distributions du groupe (éq. 2071).
+pub fn pas_intergroupe_selon_depart(
+    reseau: &ReseauEcsIntergroupe,
+    aval: &[(f64, f64)],
+    id_encl: bool,
+    theta_cw_c: f64,
+    theta_ext_c: f64,
+    b_therm: f64,
+    theta_depart_ballon_c: Option<f64>,
+) -> SortiesDistributionEcsIntergroupe {
     let q_2nd: f64 = aval.iter().map(|(q, _)| q).sum();
     // Éq. (1740), (1753) et (1762).
     let theta_depart = aval
@@ -204,9 +230,15 @@ pub fn pas_intergroupe(
         },
         ReseauEcsIntergroupe::Boucle(b) => {
             // Éq. (1742) et (1743).
-            let theta_retour = theta_depart - DELTA_THETA_BOUCLE_K;
-            let theta_moy = (theta_depart + theta_retour) / 2.0;
+            let depart = theta_depart_ballon_c.unwrap_or(theta_depart);
+            let theta_retour = depart - DELTA_THETA_BOUCLE_K;
+            let theta_moy = (depart + theta_retour) / 2.0;
             let (vc, hvc) = pertes(b.l_vc_m, b.l_hvc_m, b.u_w_mk, theta_moy);
+            let (vc, hvc) = if theta_depart_ballon_c.is_some() {
+                (vc.max(0.0), hvc.max(0.0))
+            } else {
+                (vc, hvc)
+            };
             // Éq. (1746) à (1749) : circulateurs permanents hors enseignement.
             let w_aux = b.p_circ_w;
             let w_rechauf = if b.rechauffeur { vc + hvc } else { 0.0 };

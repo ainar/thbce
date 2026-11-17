@@ -839,7 +839,6 @@ fn resultats_collectif(c: &ProductionCollective) -> ResultatsSolaireCollectif {
         ballon_central: central,
         q_fou_reseau_kwh: k.q_fou_reseau_wh / 1000.0,
         pertes_reseau_deduites_kwh: k.pertes_reseau_deduites_wh / 1000.0,
-        pertes_reseau_non_couvertes_kwh: k.pertes_reseau_non_couvertes_wh / 1000.0,
     }
 }
 
