@@ -89,12 +89,13 @@ fn valider_categorie_contraintes(
     // Une erreur qui tient au bâtiment (zone climatique, altitude…) n'est signalée qu'une fois
     // par chemin de saisie.
     let mut signalees: Vec<(String, &'static str)> = Vec::new();
-    let mut une_fois = |r: &mut RapportValidation, chemin: &str, cle: &'static str, valeur: &str, m: String| {
-        if !signalees.iter().any(|(ch, k)| ch == chemin && *k == cle) {
-            signalees.push((chemin.to_owned(), cle));
-            r.erreur(chemin.to_owned(), Some(valeur.to_owned()), m);
-        }
-    };
+    let mut une_fois =
+        |r: &mut RapportValidation, chemin: &str, cle: &'static str, valeur: &str, m: String| {
+            if !signalees.iter().any(|(ch, k)| ch == chemin && *k == cle) {
+                signalees.push((chemin.to_owned(), cle));
+                r.erreur(chemin.to_owned(), Some(valeur.to_owned()), m);
+            }
+        };
     let regle2 = "(annexe de l'article R. 172-4, chapitre V, partie II : un local de catégorie 2 \
                   est climatisé, ses baies sont exposées au bruit BR2 ou BR3, et le bâtiment est \
                   construit en zone H2d ou H3 à moins de 400 m)";
@@ -216,7 +217,9 @@ fn valider_categorie_contraintes(
         // Catégorie de la zone : la catégorie 3 suppose un usage cité par le chapitre V, même si
         // tous les groupes ont une catégorie propre ; un groupe de catégorie inférieure à celle
         // de sa zone ne peut contenir que des locaux à occupation passagère.
-        if cat_zone == CategorieContraintes::Categorie3 && !habitation && !z.usage.admet_categorie_3()
+        if cat_zone == CategorieContraintes::Categorie3
+            && !habitation
+            && !z.usage.admet_categorie_3()
         {
             une_fois(
                 r,
@@ -1708,8 +1711,18 @@ fn valider_exigences(
         // Q68 : usages 6 à 28 soumis à partir du 1er mai 2026 (colonne « Années 2022 à 2024 »
         // marquée « - » dans le tableau `Icénergie_maxmoyen`).
         const MOIS: [&str; 12] = [
-            "janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
-            "septembre", "octobre", "novembre", "décembre",
+            "janvier",
+            "février",
+            "mars",
+            "avril",
+            "mai",
+            "juin",
+            "juillet",
+            "août",
+            "septembre",
+            "octobre",
+            "novembre",
+            "décembre",
         ];
         let mut usages: Vec<u8> = Vec::new();
         for z in &bat.zones {

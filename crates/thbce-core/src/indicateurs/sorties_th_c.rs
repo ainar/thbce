@@ -275,10 +275,10 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
         .map(|(z, r)| {
             // Catégorie et classe de bruit de la zone (Q66) ; sans `exigences`, elles ne servent
             // pas (aucune exigence n'est calculée).
-            let (categorie, zone_bruit) = params.map_or(
-                (CategorieContraintes::Categorie1, ZoneBruit::Br1),
-                |pa| (pa.categorie_zone(&z.id), pa.zone_bruit_zone(&z.id)),
-            );
+            let (categorie, zone_bruit) = params
+                .map_or((CategorieContraintes::Categorie1, ZoneBruit::Br1), |pa| {
+                    (pa.categorie_zone(&z.id), pa.zone_bruit_zone(&z.id))
+                });
             let p = PartieBatiment {
                 usage: z.usage.numero(),
                 sref_m2: r.sref_m2,

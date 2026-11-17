@@ -71,7 +71,10 @@ fn bureaux_categorie_1() {
     proche(e.mb_geo, 0.25, "Mbgéo");
     proche(e.mb_surf_tot, -9.3 / 95.0, "Mbsurf_tot");
     proche(e.mc_surf_tot, -0.08, "Mcsurf_tot");
-    assert_eq!((e.mb_bruit, e.mc_cat, e.mb_hsp, e.mc_hsp), (0.0, 0.0, 0.0, 0.0));
+    assert_eq!(
+        (e.mb_bruit, e.mc_cat, e.mb_hsp, e.mc_hsp),
+        (0.0, 0.0, 0.0, 0.0)
+    );
     verifier(&e, 109.45, 99.45, 87.75, 234.0);
     assert_eq!(
         dh(3, C::Categorie1, Z::H1b, true),
@@ -176,7 +179,10 @@ fn hotel_partie_nuit() {
     let e = exigences_partie(&z, &p, Z::H1c, 900.0).unwrap();
     proche(e.mb_bruit, 0.05, "Mbbruit");
     verifier(&e, 129.2, 224.191_525_424, 191.7, 568.601_694_915);
-    assert_eq!(dh(9, C::Categorie3, Z::H1c, true), Some(SeuilDh::PasDeSeuil));
+    assert_eq!(
+        dh(9, C::Categorie3, Z::H1c, true),
+        Some(SeuilDh::PasDeSeuil)
+    );
     assert_eq!(
         dh(9, C::Categorie1, Z::H1c, true),
         Some(SeuilDh::Maximum(300.0))

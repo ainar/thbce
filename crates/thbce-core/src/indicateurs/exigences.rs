@@ -611,8 +611,14 @@ mod tests {
         assert!((e.cep_max - 85.0 * m).abs() < 1e-9);
         assert!((e.ic_energie_max - 560.0 * m).abs() < 1e-9);
         let c1 = CategorieContraintes::Categorie1;
-        assert_eq!(dh_max(2, c1, ZoneClimatique::H2b, true, 65.0), Some(SeuilDh::Maximum(1250.0)));
-        assert_eq!(dh_max(2, c1, ZoneClimatique::H3, true, 40.0), Some(SeuilDh::Maximum(1500.0)));
+        assert_eq!(
+            dh_max(2, c1, ZoneClimatique::H2b, true, 65.0),
+            Some(SeuilDh::Maximum(1250.0))
+        );
+        assert_eq!(
+            dh_max(2, c1, ZoneClimatique::H3, true, 40.0),
+            Some(SeuilDh::Maximum(1500.0))
+        );
         let c2 = CategorieContraintes::Categorie2;
         assert_eq!(
             dh_max(2, c2, ZoneClimatique::H2b, false, 40.0),

@@ -208,7 +208,10 @@ impl ParametresExigences {
     /// Vrai si la demande de permis est déposée à partir du 1er jour du mois `mois` de l'année
     /// `annee` ; sans mois saisi, le dépôt est réputé fait en fin d'année (Q68).
     pub fn depot_a_partir_de(&self, annee: u16, mois: u8) -> bool {
-        (self.annee_depot_permis, self.mois_depot_permis.unwrap_or(12)) >= (annee, mois)
+        (
+            self.annee_depot_permis,
+            self.mois_depot_permis.unwrap_or(12),
+        ) >= (annee, mois)
     }
 
     /// Catégorie de contraintes extérieures du groupe `groupe` de la zone `zone` : celle saisie
@@ -216,7 +219,10 @@ impl ParametresExigences {
     pub fn categorie_groupe(&self, zone: &str, groupe: &str) -> CategorieContraintes {
         self.zone(zone)
             .and_then(|z| z.groupes.iter().find(|g| g.groupe.as_str() == groupe))
-            .map_or_else(|| self.categorie_zone(zone), |g| g.categorie_contraintes_exterieures)
+            .map_or_else(
+                || self.categorie_zone(zone),
+                |g| g.categorie_contraintes_exterieures,
+            )
     }
 
     /// Données propres à la zone `id`, si elles sont saisies.

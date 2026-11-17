@@ -328,8 +328,7 @@ mod categorie_contraintes {
     fn categorie_3_refusee_pour_une_zone_d_habitation() {
         let e = variante("maison-climat-ademe", |v| {
             let id = v["batiments"][0]["zones"][0]["id"].clone();
-            v["batiments"][0]["exigences"]["zones"] =
-                serde_json::json!([{ "zone": id, "categorie_contraintes_exterieures": "categorie_3" }]);
+            v["batiments"][0]["exigences"]["zones"] = serde_json::json!([{ "zone": id, "categorie_contraintes_exterieures": "categorie_3" }]);
         });
         assert_eq!(e.len(), 1, "{e:?}");
         assert!(
@@ -409,7 +408,9 @@ mod categorie_contraintes {
     /// Erreurs de saisie (hors refus de périmètre) d'une variante dont la zone change d'usage.
     fn variante_usage(usage: &str, modifier: impl Fn(&mut serde_json::Value)) -> Vec<String> {
         let texte = std::fs::read_to_string(
-            dossier_des_cas().join("maison-climat-ademe").join("entree.json"),
+            dossier_des_cas()
+                .join("maison-climat-ademe")
+                .join("entree.json"),
         )
         .unwrap();
         let mut v: serde_json::Value = serde_json::from_str(&texte).unwrap();
@@ -436,7 +437,8 @@ mod categorie_contraintes {
             x.as_object_mut().unwrap().remove("hsp_moy_m");
         });
         assert!(
-            !e.iter().any(|m| m.contains("categorie_contraintes") || m.contains("hsp_moy_m")),
+            !e.iter()
+                .any(|m| m.contains("categorie_contraintes") || m.contains("hsp_moy_m")),
             "{e:?}"
         );
     }
@@ -448,7 +450,8 @@ mod categorie_contraintes {
                 "categorie_3".into();
         });
         assert!(
-            e.iter().any(|m| m.contains("catégorie 3 impossible") && m.contains("d'usage 4")),
+            e.iter()
+                .any(|m| m.contains("catégorie 3 impossible") && m.contains("d'usage 4")),
             "{e:?}"
         );
     }
@@ -460,7 +463,8 @@ mod categorie_contraintes {
             v["batiments"][0]["exigences"]["annee_depot_permis"] = 2025.into();
         });
         assert!(
-            e.iter().any(|m| m.contains("annee_depot_permis") && m.contains("usage 6")),
+            e.iter()
+                .any(|m| m.contains("annee_depot_permis") && m.contains("usage 6")),
             "{e:?}"
         );
         let e = variante_usage("mediatheque_bibliotheque", |v| {

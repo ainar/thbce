@@ -140,7 +140,7 @@ const MB_GEO_SPORT: Grille = [
 ];
 
 /// Données des usages 3 à 28, dans l'ordre des numéros.
-pub(crate) const USAGES: [DonneesUsage; 26] = [
+pub(crate) static USAGES: [DonneesUsage; 26] = [
     // 3. Bureaux (Bbio p. 9 et 10 ; Cep p. 37 ; DH p. 101).
     DonneesUsage {
         usage: 3,
@@ -911,7 +911,10 @@ mod tests {
         for d in &USAGES {
             assert_eq!(
                 d.categorie_3,
-                matches!(d.usage, 3 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 21 | 22 | 26 | 27),
+                matches!(
+                    d.usage,
+                    3 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 21 | 22 | 26 | 27
+                ),
                 "usage {}",
                 d.usage
             );
@@ -974,7 +977,11 @@ mod tests {
         for (n, r0, r1, a1) in t {
             let d = u(n);
             let rcu = d.ic_rcu.unwrap();
-            assert_eq!((rcu[0], rcu[1], d.ic_autres[1]), (r0, r1, Some(a1)), "usage {n}");
+            assert_eq!(
+                (rcu[0], rcu[1], d.ic_autres[1]),
+                (r0, r1, Some(a1)),
+                "usage {n}"
+            );
             // À partir de 2028, mêmes valeurs qu'en 2025-2027 sauf l'enseignement.
             if !matches!(n, 4 | 5) {
                 assert_eq!(rcu[2], rcu[1], "usage {n}");
