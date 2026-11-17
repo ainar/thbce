@@ -225,6 +225,7 @@ pub fn valider(projet: &Projet) -> RapportValidation {
         photovoltaique::valider_installations_pv(&mut r, &cb, bat, &refs);
         solaire::valider_chauffe_eau_solaires(&mut r, &cb, bat, &refs);
         collectif::valider_collectif(&mut r, &cb, bat);
+        valider_exigences(&mut r, &cb, bat);
     }
     // Contrôles de cohérence entre composants, une fois chaque élément valide : ils demandent
     // de résoudre l'enveloppe des groupes.
@@ -1417,6 +1418,53 @@ fn valider_ventilation(r: &mut RapportValidation, c: &str, v: &Ventilation, zone
             None,
             "ratio des fuites en volume chauffé requis quand les surfaces de conduits sont \
              saisies (Th-BCE 2020 §6.2.3.4)",
+        );
+    }
+}
+
+/// Données de la fixation des exigences (annexe de l'article R. 172-4 du CCH).
+fn valider_exigences(r: &mut RapportValidation, cb: &str, bat: &crate::entree::Batiment) {
+    let Some(e) = &bat.exigences else {
+        return;
+    };
+    let c = format!("{cb}.exigences");
+    if e.annee_depot_permis < 2022 {
+        r.erreur(
+            format!("{c}.annee_depot_permis"),
+            Some(e.annee_depot_permis.to_string()),
+            "la RE2020 s'applique aux permis de construire déposés à partir de 2022",
+        );
+    }
+    r.plage(format!("{c}.hsp_moy_m"), e.hsp_moy_m, 1.8, 10.0);
+    r.plage(
+        format!("{c}.s_combles_m2"),
+        e.s_combles_m2,
+        0.0,
+        f64::INFINITY,
+    );
+    // Les exigences ne sont transcrites que pour les usages 1 et 2 (Q54). Un bâtiment sans zone
+    // d'habitation n'est pas une erreur de saisie des exigences : ses usages sont refusés par le
+    // calcul (« non pris en charge »), avec un message plus précis.
+    for (iz, z) in bat.zones.iter().enumerate() {
+        if !z.usage.est_habitation() {
+            r.avertissement(
+                format!("{cb}.zones[{iz}].usage"),
+                Some(z.usage.numero().to_string()),
+                "exigences transcrites pour les maisons et les logements collectifs seulement : \
+                 zone ignorée dans les exigences",
+            );
+        }
+    }
+    let maisons = bat
+        .zones
+        .iter()
+        .any(|z| z.usage == crate::entree::UsageZone::MaisonIndividuelle);
+    if e.s_combles_m2 > 0.0 && !maisons {
+        r.avertissement(
+            format!("{c}.s_combles_m2"),
+            Some(e.s_combles_m2.to_string()),
+            "la modulation selon les combles aménagés ne vaut que pour les maisons individuelles \
+             ou accolées : sans effet",
         );
     }
 }

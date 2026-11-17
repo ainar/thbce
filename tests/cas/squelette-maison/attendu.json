@@ -97,7 +97,20 @@
           "nadeq": 1.9
         }
       ],
-      "c_aux_vent_kwh": 142.4
+      "c_aux_vent_kwh": 142.4,
+      "cep_kwhep_m2": 184.8,
+      "cep_nr_kwhep_m2": 184.8,
+      "ic_energie_kgco2_m2": 235.6,
+      "indicateurs": {
+        "cef_kwhef_m2": 80.4,
+        "exigences": {
+          "bbio_max_pts": 64.7,
+          "cep_max_kwhep_m2": 70.2,
+          "cep_nr_max_kwhep_m2": 51.5,
+          "ic_energie_max_kgco2_m2": 149.7,
+          "conforme": false
+        }
+      }
     }
   ]
 }

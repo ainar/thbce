@@ -110,6 +110,72 @@ pub struct Batiment {
     /// Parcs de stationnement associés au bâtiment (§10.3 et §10.4).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parkings: Vec<Parking>,
+    /// Données de la fixation des exigences (annexe de l'article R. 172-4 du code de la
+    /// construction et de l'habitation, chapitres II et III). Facultatives : sans elles, les
+    /// indicateurs sont calculés mais ni les exigences ni la conformité.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exigences: Option<ParametresExigences>,
+}
+
+/// Données de la fixation des exigences d'un bâtiment (annexe de l'article R. 172-4 du CCH).
+/// Elles s'appliquent à toutes ses zones.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ParametresExigences {
+    /// Catégorie de contraintes extérieures du bâtiment (chapitre V de l'annexe, absent du
+    /// dépôt : la catégorie est saisie). Elle module `Cep_max`, `Cep,nr_max` et
+    /// `Icénergie_max` (`Mccat`) et fixe `DH_max`.
+    pub categorie_contraintes_exterieures: CategorieContraintes,
+    /// Zone de bruit (chapitre V de l'annexe) : module `Bbio_max` (`Mbbruit`).
+    pub zone_bruit: ZoneBruit,
+    /// Année de dépôt de la demande de permis de construire (2022 ou après) : fixe
+    /// `Icénergie_maxmoyen`. Les dérogations datées du texte sont appliquées à l'année : « avant
+    /// le 31 décembre 2023 » (maisons, raccordement au gaz) est lu « année ≤ 2023 », « avant le
+    /// 31 décembre 2027 » (réseau classé) « année ≤ 2027 » (Q54).
+    pub annee_depot_permis: u16,
+    /// « HSPmoy » : hauteur sous plafond moyenne des locaux d'habitation, en m (chapitre I,
+    /// §XIII) : modulations `MbHSP` et `McHSP`.
+    pub hsp_moy_m: f64,
+    /// « Scombles » : surface de plancher des combles aménagés dont la hauteur sous plafond est
+    /// inférieure à 1,8 m, en m² (maisons individuelles ou accolées). Absente : pas de tels
+    /// combles.
+    #[serde(default)]
+    pub s_combles_m2: f64,
+    /// Réseau de chaleur auquel le bâtiment est raccordé classé en application de l'article
+    /// L. 712-1 du code de l'énergie : jusqu'en 2027, `Icénergie_maxmoyen` des années 2022 à
+    /// 2024.
+    #[serde(default)]
+    pub reseau_chaleur_classe: bool,
+    /// Maison dont la parcelle est concernée par un permis d'aménager délivré, ou comprise dans
+    /// une zone d'aménagement concerté dont le dossier de réalisation a été approuvé, avant le
+    /// 1er janvier 2022 et prévoyant un raccordement au réseau de gaz : `Icénergie_maxmoyen` de
+    /// 280 kg éq. CO2/m² pour un permis déposé avant le 31 décembre 2023.
+    #[serde(default)]
+    pub parcelle_raccordement_gaz: bool,
+}
+
+/// Catégorie de contraintes extérieures (annexe de l'article R. 172-4, chapitre V).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CategorieContraintes {
+    /// Catégorie 1.
+    #[serde(rename = "categorie_1")]
+    Categorie1,
+    /// Catégorie 2.
+    #[serde(rename = "categorie_2")]
+    Categorie2,
+}
+
+/// Zone de bruit (annexe de l'article R. 172-4, chapitre V).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ZoneBruit {
+    /// BR1.
+    Br1,
+    /// BR2.
+    Br2,
+    /// BR3.
+    Br3,
 }
 
 /// Th-BCE 2020 §5.4 — espace tampon.
@@ -2009,7 +2075,8 @@ pub struct ChaudiereSaisie {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub combustible_bois: Option<CombustibleBoisSaisi>,
     /// Gaz de pétrole liquéfié (PCSI de 1,09 au lieu de 1,11, tableau 116) ; gaz naturel
-    /// sinon. Le lot 7 devra distinguer les deux pour les coefficients de conversion.
+    /// sinon. Le GPL relève des « autres énergies » de l'article 9 et du facteur d'émission
+    /// « gaz butane / propane » de l'article 10 (lot 7).
     #[serde(default)]
     pub gpl: bool,
     /// « Id_fou_gen » : fonction du générateur.
@@ -2044,6 +2111,9 @@ pub struct PoeleSaisi {
     pub eta_pct: f64,
     /// « Paux,vent » : puissance du ventilateur, en W (0 sans ventilateur).
     pub p_aux_vent_w: f64,
+    /// « Type_Combustible_Bois » (§13.2.2) : combustible, qui fixe le facteur d'émission du bois
+    /// dans l'Ic énergie (article 10 de l'arrêté). Obligatoire, comme pour une chaudière au bois.
+    pub combustible_bois: CombustibleBoisSaisi,
 }
 
 /// Type d'un réseau de chaleur (§8.28.3.1, tableaux 247 et 248).

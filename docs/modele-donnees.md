@@ -433,10 +433,10 @@ Les types exacts de chaque grille seront fixés par le script, après lecture de
 
 | Donnée | Source | Forme |
 |---|---|---|
-| Coefficients d'énergie primaire | arrêté, article 9 ; A3 tableau 333 | table par `Energie` |
-| Facteurs d'émission des énergies | arrêté, article 10 ; fiches INIES « [RE2020] » en recoupement | table par énergie et par usage |
+| Coefficients d'énergie primaire | arrêté, article 9 ; A3 tableau 333 | `data/src/energies.rs`, par `Energie` (lot 7) |
+| Facteurs d'émission des énergies | arrêté, article 10 ; fiches INIES « [RE2020] » en recoupement | `data/src/energies.rs`, par énergie et par usage (lot 7) |
 | Réseaux de chaleur et de froid | annexe 7 de l'arrêté du 15 septembre 2006 (colonnes 5 et 6) | table générée par script, clé = identifiant du réseau |
-| Pondération dynamique `fCO2(a)` | arrêté, article 11 | **manquante** (question Q5) |
+| Pondération dynamique `fCO2(a)` | arrêté, article 11 (JO du 15 août 2021, p. 59) | `data/src/ponderation_dynamique.rs` (Q5) |
 | Température de base par département | A3 §3.1.3 (p. 31) | table par `Departement` |
 
 ## Résultats
@@ -524,3 +524,50 @@ tests/cas/<nom-du-cas>/
 **Relecture du lot 7b (17 novembre 2026).** `chauffe_eau_solaires[].description.kit.k_theta` devient **requis** (changement incompatible ; sortie de l'outil IdCESI, Q52 point 1) ; un kit n'admet que l'appoint `integre`. Un système solaire combiné demande un réseau hydraulique de chauffage du groupe, relié à sa génération, dont `theta_dep_dim_c` est saisie (« θch_max^gen », éq. 2117). Résultats : `generations[].stockages[]` porte `v_zones_l`, `theta_zones_debut_c` et `theta_zones_fin_c` (volumes et températures des quatre zones d'un ballon, de bas en haut, au début et à la fin du calcul), qui ferment le bilan des ballons.
 
 **Lot 7c (fiches 9.16 et 9.17).** `generations[].chauffe_eau_solaires_collectifs[]` (au plus un par génération, seul assemblage avec ballon de sa génération) : `id`, `type_pcad` (`cesci`, `cescai` ou `cesci_appoint_separe`), `exposition_capteurs` (inclinaison de 0 à 90°), `capteurs` et `boucle` (comme pour un chauffe-eau solaire décrit par ses composants, pour tout le champ ; régulation `irradiance` requise pour un CESCI, éq. 1981 ; `h_rel_ech` refusé), `ballon_central` (CESCAI seulement, comme `ballon`) et `ensembles[]` (au moins un : `id`, `nb_ballons`, `ballon` individuel, `appoint` intégré comme celui d'un stockage — requis pour `cesci` et `cescai`, sans objet pour `cesci_appoint_separe` —, générateur d'effet Joule de fonction `ecs` ou chaudière assurant l'ECS, dont `rdim` vaut `nb_ballons`). Réseau d'ECS intergroupe de la génération : `aucun` pour un CESCI, `boucle` sans réchauffeur pour un CESCAI. Un CESCI à appoint séparé demande un générateur instantané d'ECS dans la génération. Résultats : `generations[].solaires_collectifs[]` (`id`, `type_pcad`, `solaire` comme pour un chauffe-eau solaire, `ensembles[]` comme `stockages[]` pour tous les ballons d'un ensemble, `ballon_central`, `q_fou_reseau_kwh`, `pertes_reseau_deduites_kwh`). Lectures : Q53.
+
+## Indicateurs réglementaires et exigences (lot 7)
+
+### Format d'entrée
+
+Champs facultatifs, **non incompatibles** (`docs/questions.md`, Q54) :
+
+```
+Batiment
+└── exigences?  { categorie_contraintes_exterieures: categorie_1 | categorie_2,   annexe R. 172-4, chap. V (saisi)
+                  zone_bruit: br1 | br2 | br3,                                    Mbbruit
+                  annee_depot_permis (≥ 2022),                                    Icénergie_maxmoyen
+                  hsp_moy_m (1,8 à 10),                                           MbHSP, McHSP
+                  s_combles_m2? (0),                                              Mbcombles, Mccombles (maisons)
+                  reseau_chaleur_classe? (false),                                 Icénergie_maxmoyen jusqu'en 2027
+                  parcelle_raccordement_gaz? (false) }                            Icénergie_maxmoyen = 280 (maisons, ≤ 2023)
+NatureGenerateur::PoeleOuInsert
+└── combustible_bois: buches | granules | plaquettes                              facteur d'émission (article 10), obligatoire
+```
+
+Le raccordement à un réseau de chaleur urbain se déduit des générations (sous-station de réseau de chaleur). Le GPL (`chaudiere.gpl`), le combustible bois des chaudières (`combustible_bois`) et l'identifiant du réseau de l'annexe 7 (`identifiant_reseau`) servent aux coefficients de conversion. Sans `exigences`, les indicateurs sont calculés mais ni les exigences ni la conformité, et le forfait de refroidissement n'est pas plafonné au seuil haut. `combustible_bois` est obligatoire sur un poêle ou un insert (changement incompatible, relecture du lot 7). `conforme` n'est jamais vrai si un indicateur exigé manque (`indicateurs_manquants`).
+
+### Résultats
+
+`batiments[].cep_kwhep_m2`, `cep_nr_kwhep_m2` et `ic_energie_kgco2_m2` sont calculés dès que le bâtiment a des générations. Le détail est dans `batiments[].indicateurs` :
+
+```
+indicateurs
+├── sref_m2
+├── electricite_consommee, electricite_importee        { chauffage_kwh, refroidissement_kwh, ecs_kwh, eclairage_kwh,
+│                                                        auxiliaires_ventilation_kwh, auxiliaires_distribution_kwh,
+│                                                        deplacements_kwh, mobilier_kwh }          §13.4, éq. 2535
+├── electricite_importee_mensuel_kwh[12]               hors mobilier, hors forfait
+├── production_pv?    { e_prod_pv_kwh, e_prod_pv_ac_kwh, e_exportee_kwh, tac_pct, mensuels }   éq. 2527 à 2530
+├── forfaits_refroidissement[]  { zone, groupe, dh_c_h, seuil_haut_c_h, cef_kwh_m2, cef_kwh }   §13.3, éq. 2493
+├── energie_solaire_captee_kwh? pour information (coefficients nuls, article 9)
+├── lignes[]          { poste, energie, cef_kwh, coef_ep, coef_ep_nr, facteur_emission_kg_kwh,
+│                       cep_kwhep_m2, cep_nr_kwhep_m2, ic_energie_kgco2_m2 }
+├── cef_kwhef_m2, cep_kwhep_m2, cep_nr_kwhep_m2, ic_energie_kgco2_m2, somme_f_co2
+└── exigences?        { bbio_max_pts, cep_max_kwhep_m2, cep_nr_max_kwhep_m2, ic_energie_max_kgco2_m2,
+                        zones[] (valeurs moyennes et coefficients de modulation de chaque zone),
+                        verifications[] { indicateur, groupe?, valeur, maximum, marge, marge_pct, respectee },
+                        conforme }
+```
+
+`energie` vaut `electricite`, `gaz_naturel`, `gpl`, `fioul`, `charbon`, `bois_buches`, `bois_granules`, `bois_plaquettes`, `bois` (combustible inconnu), `reseau_chaleur:<id>` ou `reseau_froid:<id>` (`autres` sans identifiant). La ligne de commande écrit une synthèse des indicateurs et de la conformité sur la sortie d'erreur (`thbce_io::rapport::synthese_indicateurs`).
+

@@ -58,7 +58,9 @@ fn calcul_ecrit_les_resultats_en_json() {
     assert_eq!(r["reglementaire"], false);
     // Jeu synthétique à 10 °C sans soleil : le besoin de chauffage, donc le Bbio, est positif.
     assert!(r["batiments"][0]["bbio_pts"].as_f64().unwrap() > 0.0);
-    assert_eq!(r["batiments"][0]["cep_kwhep_m2"], serde_json::Value::Null);
+    // Indicateurs du lot 7 : Cep calculé, synthèse sur la sortie d'erreur.
+    assert!(r["batiments"][0]["cep_kwhep_m2"].as_f64().unwrap() > 0.0);
+    assert!(r["batiments"][0]["indicateurs"]["cep_nr_kwhep_m2"].is_number());
     // Le jeu « Th-D » synthétique n'a pas de période de confort adaptatif : DH calculé, nul.
     assert_eq!(r["batiments"][0]["dh_c_h"].as_f64(), Some(0.0));
     let groupe = &r["batiments"][0]["zones"][0]["groupes"][0];
@@ -66,6 +68,7 @@ fn calcul_ecrit_les_resultats_en_json() {
     assert!(groupe["confort_ete"]["theta_op_max_c"].as_f64().unwrap() > 15.0);
     let erreurs = String::from_utf8_lossy(&s.stderr);
     assert!(erreurs.contains("non réglementaire"));
+    assert!(erreurs.contains("Cep,nr"), "{erreurs}");
     assert!(!erreurs.contains("DH calculé"));
     assert!(!erreurs.contains("générations idéales"));
     // Calcul Th-C : demande de chauffage positive par temps froid, fournie par les panneaux

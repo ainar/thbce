@@ -37,7 +37,13 @@ fn calcule_le_cas_de_demonstration() {
     // Jeu synthétique à 10 °C sans soleil : le besoin de chauffage, donc le Bbio, est positif.
     let bbio = champ(&batiments.get(0), "bbio_pts").as_f64();
     assert!(bbio.is_some_and(|b| b > 0.0), "{bbio:?}");
-    assert!(champ(&batiments.get(0), "cep_kwhep_m2").is_null());
+    // Indicateurs du lot 7 : Cep calculé, exigences et conformité restituées.
+    let cep = champ(&batiments.get(0), "cep_kwhep_m2").as_f64();
+    assert!(cep.is_some_and(|c| c > 0.0), "{cep:?}");
+    let indicateurs = champ(&batiments.get(0), "indicateurs");
+    let exigences = champ(&indicateurs, "exigences");
+    assert!(champ(&exigences, "cep_max_kwhep_m2").as_f64().is_some());
+    assert!(champ(&exigences, "conforme").as_bool().is_some());
     // Le jeu « Th-D » synthétique n'a pas de période de confort adaptatif : DH calculé, nul.
     assert_eq!(champ(&batiments.get(0), "dh_c_h").as_f64(), Some(0.0));
 }

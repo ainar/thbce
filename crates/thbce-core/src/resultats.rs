@@ -122,6 +122,11 @@ pub struct ResultatsBatiment {
     /// Parkings (§10.3 et §10.4) ; absent sans parking.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parkings: Vec<ResultatsParking>,
+    /// Indicateurs réglementaires du bâtiment (§13.2 à 13.4, annexe II §4.3.2) : consommations
+    /// importées par poste et par énergie, autoconsommation, forfait de refroidissement, Cep,
+    /// Cep,nr, Ic énergie, exigences et conformité. Absents sans génération.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub indicateurs: Option<crate::indicateurs::resultats::ResultatsIndicateurs>,
 }
 
 /// Consommation électrique d'un poste, annuelle et par mois des scénarios, en kWh d'énergie
@@ -1224,6 +1229,9 @@ impl Resultats {
             }
             if let Some(c) = &mut b.consommations_collectif {
                 c.arrondir();
+            }
+            if let Some(i) = &mut b.indicateurs {
+                i.arrondir();
             }
             for x in &mut b.ascenseurs {
                 for v in [

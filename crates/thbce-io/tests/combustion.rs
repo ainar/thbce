@@ -260,7 +260,7 @@ fn validation_des_generateurs_a_combustion() {
     assert!(m.iter().any(|m| m.contains("classe d'isolation")), "{m:?}");
     // Un poêle alimente des réseaux fictifs, une chaudière des réseaux hydrauliques.
     let m = modifie("maison-plancher-ademe", &|v| {
-        *v = serde_json::json!({"poele_ou_insert": {"pn_gen_kw": 5.0, "eta_pct": 80.0, "p_aux_vent_w": 0.0}});
+        *v = serde_json::json!({"poele_ou_insert": {"pn_gen_kw": 5.0, "eta_pct": 80.0, "p_aux_vent_w": 0.0, "combustible_bois": "buches"}});
     });
     assert!(m.iter().any(|m| m.contains("réseaux fictifs")), "{m:?}");
     let m = modifie("maison-climat-ademe", &|v| {

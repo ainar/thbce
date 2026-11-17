@@ -2,6 +2,10 @@
   "batiments": [
     {
       "id": "maison",
+      "cep_kwhep_m2": 122.4,
+      "cep_nr_kwhep_m2": 122.4,
+      "ic_energie_kgco2_m2": 152.4,
+      "indicateurs": {"cef_kwhef_m2": 53.2, "exigences": {"bbio_max_pts": 64.7, "cep_max_kwhep_m2": 70.2, "cep_nr_max_kwhep_m2": 51.5, "ic_energie_max_kgco2_m2": 149.7, "conforme": false}, "production_pv": {"e_prod_pv_ac_kwh": 1324.1, "e_exportee_kwh": 1705.0}},
       "production_pv": {
         "e_prod_pv_kwh": 3029.0,
         "e_prod_pv_mensuel_kwh": [

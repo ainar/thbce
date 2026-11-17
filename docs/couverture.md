@@ -41,7 +41,7 @@ Tant qu'aucun cas de référence n'est disponible, aucune fiche ne peut dépasse
 | 6e | Logement collectif : éclairage des parties communes, ascenseurs, parkings | 4 | 31 |
 | 7a | Production photovoltaïque | 4 | 15 |
 | 7b | Solaire thermique | 7 | 81 |
-| 7 | Indicateurs : Cep, Cep,nr, bilans, usages mobiliers, Ic énergie | 5 | 36 |
+| 7 | Indicateurs : Cep, Cep,nr, bilans, usages mobiliers, Ic énergie ; exigences (annexe de l'article R. 172-4) | 5 | 36 |
 | après v1 | Systèmes non retenus dans l'ordre validé | 26 | 359 |
 | hors lot 1 | Titres V | 24 | 445 |
 
@@ -53,17 +53,18 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 
 | Texte | Contenu utile | Usage dans le moteur | Statut |
 |---|---|---|---|
-| Arrêté, article 9 | Coefficients de conversion en énergie primaire et en énergie primaire non renouvelable | `thbce-data` ; recoupe le tableau 333 de l'annexe III | non commencé |
-| Arrêté, article 10 | Facteurs d'émission des énergies (kg éq. CO2/kWh EF PCI) | `thbce-data` ; valeurs identiques aux fiches INIES « [RE2020] » | non commencé |
+| Arrêté, article 9 | Coefficients de conversion en énergie primaire et en énergie primaire non renouvelable | `data/src/energies.rs` ; recoupe le tableau 333 de l'annexe III | implémenté (lot 7) : bois, électricité, réseaux de chaleur (`1 − RatENR`) et de froid, gaz naturel, autres énergies (GPL, fioul, charbon), énergie renouvelable captée (0) |
+| Arrêté, article 10 | Facteurs d'émission des énergies (kg éq. CO2/kWh EF PCI) | `data/src/energies.rs` ; un test vérifie l'égalité avec les fiches INIES « [RE2020] » | implémenté (lot 7) : bois selon le combustible, électricité selon l'usage, gaz naturel, GPL, autres combustibles fossiles, réseaux de l'annexe 7 |
 | Arrêté, article 11 | Coefficients de pondération dynamique (Journal officiel du 15 août 2021, p. 59) | `data/src/ponderation_dynamique.rs` | implémenté |
 | Arrêté du 26 octobre 2010, annexe I | Zone climatique de chaque département | `data/src/zones_climatiques/`, table générée par `xtask` | implémenté |
 | Annexe II §2.2.1 | Données conventionnelles du calcul énergétique | `thbce-data` | non commencé |
-| Annexe II §4.3 | Ic énergie, éq. (72) à (75) | `core/src/indicateurs/ic_energie.rs` (lot 7) | non commencé |
-| Annexe II §5.1, 5.2 | Indicateurs DH, Bbio, Cep, Cep,nr | `core/src/indicateurs/`, `core/src/confort/confort_ete.rs` | partiel : Bbio (§5.2.1) et DH (§5.1, éq. 126) ; Cep et Cep,nr au lot 7 |
-| Annexe 7 de l'arrêté du 15 septembre 2006 | Facteur d'émission (5e colonne) et ratio EnR&R (6e colonne) par réseau de chaleur | `thbce-data/src/reseaux_chaleur/`, table générée par `xtask` (1 086 réseaux de chaleur et de froid, plus les lignes « autres réseaux ») ; l'identifiant saisi est validé contre elle, la saisie du réseau dans les indicateurs est au lot 7 | implémenté (extraction ; usage au lot 7) |
+| Annexe II §4.3 | Ic énergie, éq. (72) à (75) | `core/src/indicateurs/sorties_th_c.rs` (lot 7) | implémenté : éq. (74), pondération dynamique `Σ fCO2(a)` pour `a` de 1 à 50 (39,543) ; éq. (75) (valeur annuelle d'une année `a`) non restituée (Q54) |
+| Annexe II §5.1, 5.2 | Indicateurs DH, Bbio, Cep, Cep,nr | `core/src/indicateurs/`, `core/src/confort/confort_ete.rs` | implémenté : Bbio (§5.2.1), DH (§5.1, éq. 126), Cep et Cep,nr (§5.2.2, éq. 128 et 129, lot 7) ; consommation par occupant (§5.2.3) non faite (Q54) |
+| Annexe 7 de l'arrêté du 15 septembre 2006 | Facteur d'émission (5e colonne) et ratio EnR&R (6e colonne) par réseau de chaleur | `thbce-data/src/reseaux_chaleur/`, table générée par `xtask` (1 086 réseaux de chaleur et de froid, plus les lignes « autres réseaux ») ; l'identifiant saisi est validé contre elle, employée par les indicateurs du lot 7 (Cep,nr, Ic énergie) | implémenté |
 | A3 §3.1.3, tableau des températures de base | Température de base par département | `data/src/temperature_base/`, table générée par `xtask` | implémenté |
 | Scénarios conventionnels (classeur du 29 avril 2026) | 28 onglets, un par usage | `data/src/scenarios/`, table générée par `xtask` (187 grilles hebdomadaires et 29 grilles annuelles distinctes) | converti et recoupé avec le tableau de synthèse pour les usages 1 à 3 |
 | Annexe VI | Contenu du RSEE, au niveau des chapitres seulement | insuffisant pour écrire un lecteur XML (décision Q3) | en attente de fichiers d'exemple |
+| Annexe de l'article R. 172-4 du CCH, chapitres I à III | Valeurs des exigences et coefficients de modulation (Bbio_max, Cep_max, Cep,nr_max, Icénergie_max, DH_max) | `core/src/indicateurs/exigences.rs` (lot 7) | implémenté pour les usages 1 et 2 ; catégorie de contraintes extérieures et zone de bruit saisies (chapitre V absent du dépôt) ; Icconstruction hors du moteur ; autres usages non transcrits (Q54) |
 | Règles Th-Bat 2020 | Détermination des données d'entrée (U, Ψ, inertie, facteurs solaires) | hors moteur : ces grandeurs sont des entrées | — |
 
 ## Annexe III, fiche par fiche
@@ -99,7 +100,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 4.4 | FA_Extension_de_bâtiment | 70–70 | 2 | `io : règles de saisie (fiche d’application)` | non commencé |
 | 4.5 | C_Ein_Indicateurs de confort | 71–79 | 4 | `core/src/confort/indicateurs_confort.rs` | implémenté : éq. (56) à (65) ; `θrm` (éq. 57) reprise du climat ; facteur des écarts d'inconfort chaud lu comme une coquille (Q38) ; branché sur le calcul Th-B |
 | 4.6 | C_Ein_Détermination des saisons | 80–94 | 4 | `core/src/scenarios/saisons.rs` | partiel : saisons propres (éq. 67 à 92) ; en Bbio, autorisations effectives égales aux autorisations propres, sans égard pour `iclim` (éq. 91) ; lectures Q35 ; branché sur les calculs Th-B et Th-D, bascule après le pas de temps de 9 h légales (Q39) ; en Th-D, règles des éq. (76), (77), (80), (88) et (90), l'autorisation propre de refroidir suivant la procédure sans égard pour `iclim` (Q40) ; autorisations effectives du calcul des consommations au lot 6 |
-| 4.7 | C_EIN_calcul des consommations electriques des équipements mobiliers | 95–96 | 7 | `core/src/scenarios/equipements_mobiliers.rs` | non commencé |
+| 4.7 | C_EIN_calcul des consommations electriques des équipements mobiliers | 95–96 | 7 | `core/src/indicateurs/equipements_mobiliers.rs` | implémenté : éq. (93) à (95), apports internes hors occupants des scénarios ; employés par l'autoconsommation (§13.4) |
 
 ### 5. Bati (p. 97–320)
 
@@ -247,11 +248,11 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
 | 13.1 | C_CALC_Sorties du mode Th-B | 1355–1364 | 4 | `core/src/indicateurs/sorties_th_b.rs` | partiel : surfaces de référence, éq. (2375) à (2378), dans `core/src/calcul.rs` ; besoins mensuels et annuels et Bbio du groupe, de la zone et du bâtiment, éq. (2379) à (2386) (décision Q10, lectures Q39) ; restent : surfaces par catégorie CE1/CE2 (éq. 2387), ratios d'enveloppe, perméabilité et déperditions de la zone et du bâtiment (éq. 2388 et suivantes) |
-| 13.2 | C_CALC_Sorties du mode Th-C | 1365–1378 | 7 | `core/src/indicateurs/sorties_th_c.rs` | non commencé |
-| 13.3 | C_Sn_Methode_Th_C_Forfait de consommations de refroidissement | 1379–1385 | 7 | `core/src/indicateurs/forfait_refroidissement.rs` | non commencé : dépend du seuil haut `DH_max` (annexe de l'article R. 172-4 du CCH, chapitre III, §IV, présente dans le dépôt : `docs/reference/texte/annexe-r172-4-chapitres-1-a-3.txt`), de `Groupe_is_climatisé` et des sorties du mode Th-C ; seuil bas de 350 °C.h transcrit (`confort_ete::SEUIL_BAS_DH_C_H`) ; Q40 point 8 |
-| 13.4 | C_Calc_Bilans_Energies_Consommees_et_importées | 1386–1395 | 7 | `core/src/indicateurs/bilans_energies.rs` | non commencé |
+| 13.2 | C_CALC_Sorties du mode Th-C | 1365–1378 | 7 | `core/src/indicateurs/sorties_th_c.rs`, `indicateurs/resultats.rs` | partiel : tableau 333 (avec les articles 9 et 10), niveau bâtiment — quantités importées par poste et par énergie, sous-décomposées par générateur (GPL, combustible bois, réseau), éq. (2473) à (2489) ; Cef, Cep, Cep,nr ; restent : sorties mensuelles par énergie et par poste hors électricité, niveaux zone et groupe (éq. 2416 à 2461), besoins `O_B_*` du mode Th-C ; lectures Q54 |
+| 13.3 | C_Sn_Methode_Th_C_Forfait de consommations de refroidissement | 1379–1385 | 7 | `core/src/indicateurs/forfait_refroidissement.rs` | implémenté : éq. (2493) à (2496), tableaux 334 à 336 ; seuil haut `DH_max` du groupe (annexe de l'article R. 172-4, chapitre III, §IV) ; lectures Q54 |
+| 13.4 | C_Calc_Bilans_Energies_Consommees_et_importées | 1386–1395 | 7 | `core/src/indicateurs/bilans_energies.rs` | implémenté au niveau du bâtiment : consommations horaires d'électricité par poste (éq. 2497 à 2519, relevées pendant le calcul Th-C), production photovoltaïque (éq. 2523, 2524, 2526), autoconsommation, taux et importations (éq. 2527 à 2530, 2535, 2537) ; sans cogénération ni PV de parcelle (hors de la version) ; niveau zone (éq. 2532 à 2534, 2536) non restitué ; lectures Q54 |
 | 13.5 | C_BAT_Confort_d’été | 1396–1403 | 5 | `core/src/confort/confort_ete.rs` | implémenté hors systèmes modifiant la sensation thermique (`Δθcorr_syst = 0`) : éq. (2543) à (2551), usages d'habitation ; DH par groupe, groupe le plus défavorable au niveau de la zone et du bâtiment ; calculé avec la ventilation du projet (lot 6a, Q42) et les systèmes du projet : émetteurs, distributions, ECS et pertes récupérables (lot 6b, Q43 à Q45) |
-| 13.6 | C_CALC_Indicateurs pédagogiques en fonction du nombre d’occupants | 1404–1406 | 7 | `core/src/indicateurs/indicateurs_pedagogiques.rs` | non commencé |
+| 13.6 | C_CALC_Indicateurs pédagogiques en fonction du nombre d’occupants | 1404–1406 | 7 | `core/src/indicateurs/indicateurs_pedagogiques.rs` | non commencé : le nombre d'occupants (pièces principales des logements, tableau 342) n'est pas saisi (Q54) |
 
 ### 14. Glossaire (p. 1407–1408)
 

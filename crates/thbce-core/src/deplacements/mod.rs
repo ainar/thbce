@@ -37,6 +37,10 @@ pub struct ResultatCollectif {
     pub ascenseurs: Vec<ResultatsAscenseur>,
     /// Parkings.
     pub parkings: Vec<ResultatsParking>,
+    /// Séries horaires du bâtiment, en Wh, pour les bilans du calcul des indicateurs (§13.4) :
+    /// éclairage des parties communes, ascenseurs, ventilation des parkings, éclairage des
+    /// parkings.
+    pub series_batiment_wh: [Vec<f64>; 4],
 }
 
 /// Cumule une série horaire en Wh en un poste en kWh (annuel et douze mois des scénarios).
@@ -213,10 +217,16 @@ pub fn calculer(
         ventilation_parkings: somme(|c| &c.ventilation_parkings),
         eclairage_parkings: somme(|c| &c.eclairage_parkings),
     };
+    let series_batiment_wh: [Vec<f64>; 4] = std::array::from_fn(|k| {
+        (0..NB_HEURES_AN)
+            .map(|h| series_zone.iter().map(|s| s[k][h]).sum())
+            .collect()
+    });
     Ok(Some(ResultatCollectif {
         zones,
         batiment,
         ascenseurs: resultats_ascenseurs,
         parkings: resultats_parkings,
+        series_batiment_wh,
     }))
 }

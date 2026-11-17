@@ -377,7 +377,8 @@
                 "poele_ou_insert": {
                   "pn_gen_kw": 3.0,
                   "eta_pct": 88.0,
-                  "p_aux_vent_w": 35.0
+                  "p_aux_vent_w": 35.0,
+                  "combustible_bois": "granules"
                 }
               }
             },
@@ -447,7 +448,13 @@
           "generation": "ballon-ecs",
           "reseau": "aucun"
         }
-      ]
+      ],
+      "exigences": {
+        "categorie_contraintes_exterieures": "categorie_1",
+        "zone_bruit": "br1",
+        "annee_depot_permis": 2025,
+        "hsp_moy_m": 2.5
+      }
     }
   ]
 }
