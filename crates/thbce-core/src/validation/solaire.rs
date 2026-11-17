@@ -5,7 +5,7 @@ use crate::ecs::gestion_regulation_ballon::THETA_C_ECS_C;
 use crate::entree::{
     AppointCesi, BallonSaisi, Batiment, BoucleSolaireSaisie, CapteursSolaires, DescriptionCesi,
     FonctionEffetJoule, FonctionReseau, Generation, NatureGenerateur, PerformancesCapteurs,
-    PertesBallon, RaccordementSsc, RegulationBoucleSaisie, TransfertBoucle,
+    PertesBallon, RaccordementSsc, RegulationBoucleSaisie, ReseauGroupe, TransfertBoucle,
 };
 
 use super::generation::postes_assures;
@@ -91,9 +91,25 @@ fn valider_generation(
                     THETA_C_ECS_C,
                     100.0,
                 );
-                if let Some(kt) = k.k_theta {
-                    r.strictement_positif(format!("{ck}.k_theta"), kt);
-                    r.plage(format!("{ck}.k_theta"), kt, 0.0, 1.0);
+                // « Kθ » : sortie de l'outil IdCESI (§9.23.3.2.3), sans valeur dans le texte.
+                r.strictement_positif(format!("{ck}.k_theta"), k.k_theta);
+                r.plage(format!("{ck}.k_theta"), k.k_theta, 0.0, 1.0);
+                // §9.23.3.2.2 : « l'assemblage va être strictement identique au ballon base
+                // seule solaire avec appoint intégré ».
+                if !matches!(x.appoint, AppointCesi::Integre(_)) {
+                    r.erreur(
+                        format!("{cc}.appoint"),
+                        Some(
+                            match x.appoint {
+                                AppointCesi::Aucun => "aucun",
+                                _ => "separe_instantane",
+                            }
+                            .into(),
+                        ),
+                        "un kit CESI est un ballon base seule solaire avec appoint intégré \
+                         (Th-BCE 2020 §9.23.3.2.2) : appoint `integre` requis ; un chauffe-eau \
+                         sans appoint ou à appoint séparé se décrit par ses composants",
+                    );
                 }
                 // Éq. (2266) : η0 = AC*/(0,8·A) ne peut dépasser 1.
                 if k.surface_m2 > 0.0 && k.ac_etoile_m2 > 0.8 * k.surface_m2 {
@@ -112,12 +128,8 @@ fn valider_generation(
                          éq. 2272)",
                     ),
                     (AppointCesi::Integre(_), Some(f)) => f_aux_kit = Some(f),
-                    (_, Some(f)) => r.erreur(
-                        format!("{ck}.f_aux"),
-                        Some(f.to_string()),
-                        "« faux » sans objet sans appoint intégré",
-                    ),
-                    (_, None) => {}
+                    // Appoint autre qu'intégré : refusé ci-dessus.
+                    (_, _) => {}
                 }
             }
         }
@@ -192,8 +204,32 @@ fn valider_generation(
         .distributions_intergroupes
         .iter()
         .any(|d| d.generation == g.id && d.fonction == FonctionReseau::Chauffage);
+    // Éq. (2117) : « θch_max^gen », température maximale des réseaux de chauffage de la
+    // génération, est la température de départ de dimensionnement la plus haute de ses réseaux
+    // hydrauliques de chauffage (lecture Q46 point 5 et Q52 point 12) ; elle doit exister.
+    let theta_ch_max_saisie = bat.zones.iter().flat_map(|z| &z.groupes).any(|gr| {
+        gr.distributions.iter().any(|d| {
+            d.fonction == FonctionReseau::Chauffage
+                && matches!(&d.reseau, ReseauGroupe::Hydraulique(h) if h.theta_dep_dim_c.is_some())
+                && bat.distributions_intergroupes.iter().any(|di| {
+                    di.id == d.distribution_intergroupes
+                        && di.generation == g.id
+                        && di.fonction == FonctionReseau::Chauffage
+                })
+        })
+    });
     for (k, x) in g.systemes_solaires_combines.iter().enumerate() {
         let cc = format!("{c}.systemes_solaires_combines[{k}]");
+        if chauffe && !theta_ch_max_saisie {
+            r.erreur(
+                cc.clone(),
+                None,
+                "un système solaire combiné demande un réseau hydraulique de chauffage du groupe, \
+                 alimenté par la génération, dont la température de départ de dimensionnement \
+                 `theta_dep_dim_c` est saisie : c'est « θch_max^gen » (Th-BCE 2020 §9.18.3, \
+                 éq. 2117 ; lecture Q52)",
+            );
+        }
         if g.generateurs.iter().any(|y| y.id == x.id) {
             r.erreur(
                 format!("{cc}.id"),

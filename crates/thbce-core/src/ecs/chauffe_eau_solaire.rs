@@ -28,9 +28,6 @@ use crate::resultats::ValeurParDefaut;
 
 /// « Δθreg » d'un kit CESI caractérisé selon la norme NF EN 12976, en K (éq. 2273).
 pub const DELTA_THETA_REG_KIT_K: f64 = 2.0;
-/// « Kθ » d'un kit CESI quand l'outil IdCESI ne le donne pas : la valeur qui redonne la
-/// superficie de captage équivalente avec `η0 = AC*/(0,8·A)` (éq. 2266 ; lecture Q52).
-pub const K_THETA_KIT_DEFAUT: f64 = 0.8;
 
 /// Paramètres Th-BCE d'un kit CESI (éq. 2263 à 2273) : `(boucle, Vtot, (UA)S)`.
 pub fn parametres_kit(k: &crate::entree::KitCesi) -> (BoucleSolaire, f64, f64) {
@@ -43,7 +40,8 @@ pub fn parametres_kit(k: &crate::entree::KitCesi) -> (BoucleSolaire, f64, f64) {
         a1_w_m2k: k.uc_etoile_w_m2k * eta0,
         // Éq. (2268) à (2270).
         a2_w_m2k2: 0.0,
-        k_theta: k.k_theta.unwrap_or(K_THETA_KIT_DEFAUT),
+        // « Kθ » : sortie de l'outil IdCESI (§9.23.3.2.3), requise (lecture Q52).
+        k_theta: k.k_theta,
         ua_te_w_k: 0.0,
         ua_ti_w_k: 0.0,
         // « Les autres paramètres du modèle de chauffe-eau sont des valeurs conventionnelles ou
@@ -89,14 +87,6 @@ pub fn resoudre(
                              CESI ; échangeur, débit et αp conventionnels du tableau 292";
             defauts.push(defaut("kit.eta0", boucle.eta0, regle_kit));
             defauts.push(defaut("kit.a1_w_m2k", boucle.a1_w_m2k, regle_kit));
-            if k.k_theta.is_none() {
-                defauts.push(defaut(
-                    "kit.k_theta",
-                    K_THETA_KIT_DEFAUT,
-                    "Th-BCE 2020 §9.23.3.2.2 : Kθ sans valeur dans le texte ; 0,8, qui redonne \
-                     AC* avec η0 = AC*/(0,8·A) (éq. 2266 ; lecture Q52)",
-                ));
-            }
             (boucle, v, ua, k.theta_max_c, 0.0, k.f_aux)
         }
     };
@@ -392,7 +382,7 @@ mod tests {
             us_w_k: 1.8,
             f_aux: Some(0.4),
             theta_max_c: 90.0,
-            k_theta: None,
+            k_theta: 0.92,
         };
         let (b, v, us) = parametres_kit(&k);
         assert!((b.eta0 - 0.8125).abs() < 1e-12);
@@ -407,7 +397,9 @@ mod tests {
                 delta_theta_reg_k: 2.0
             }
         );
-        // Kθ = 0,8 par défaut : η0·A·Kθ = AC*.
-        assert!((b.eta0 * b.a_m2 * b.k_theta - 2.6).abs() < 1e-12);
+        // Kθ saisi, repris tel quel ; éq. (2267) : a1·A = UC*·AC*/0,8, pertes du capteur
+        // supérieures de 25 % à celles de l'essai (lecture Q52).
+        assert_eq!(b.k_theta, 0.92);
+        assert!((b.a1_w_m2k * b.a_m2 - 5.0 * 2.6 / 0.8).abs() < 1e-12);
     }
 }

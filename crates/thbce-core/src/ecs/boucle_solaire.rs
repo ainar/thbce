@@ -74,6 +74,39 @@ pub enum RegulationBoucle {
     },
 }
 
+/// Lecture de l'éq. (1973), pertes des tuyauteries de la boucle vers l'intérieur (Q52
+/// point 4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LecturePertesBoucle {
+    /// Retenue : pertes comptées pompe en marche seulement ; pompe arrêtée, aucune énergie ne
+    /// circule et `θcomp` n'est qu'une température de calcul.
+    #[default]
+    PompeEnMarche,
+    /// Lecture littérale : l'équation ne distingue pas la marche de l'arrêt, les pertes sont
+    /// comptées à toutes les heures. Conservée, non exposée dans le format d'entrée.
+    ToutesHeures,
+}
+
+/// « ΦvcBS » : pertes des tuyauteries vers l'intérieur au pas de temps, en Wh (éq. 1973),
+/// selon la lecture ; positives ou nulles.
+pub fn phi_vc_wh_selon(
+    lecture: LecturePertesBoucle,
+    ua_ti_w_k: f64,
+    theta_comp_c: f64,
+    theta_amb_c: f64,
+    en_marche: bool,
+) -> f64 {
+    let compte = match lecture {
+        LecturePertesBoucle::PompeEnMarche => en_marche,
+        LecturePertesBoucle::ToutesHeures => true,
+    };
+    if compte {
+        (ua_ti_w_k * (theta_comp_c - theta_amb_c)).max(0.0)
+    } else {
+        0.0
+    }
+}
+
 /// Paramètres d'une boucle solaire (tableau 292), pour un assemblage.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BoucleSolaire {
@@ -179,8 +212,13 @@ impl BoucleSolaire {
         }
     }
 
-    /// Un pas de temps d'une heure (§9.15.3).
+    /// Un pas de temps d'une heure (§9.15.3), avec la lecture retenue de l'éq. (1973).
     pub fn pas(&self, e: &EntreesBoucle) -> SortiesBoucle {
+        self.pas_selon(e, LecturePertesBoucle::default())
+    }
+
+    /// Un pas de temps d'une heure (§9.15.3), selon la lecture de l'éq. (1973).
+    pub fn pas_selon(&self, e: &EntreesBoucle, lecture: LecturePertesBoucle) -> SortiesBoucle {
         let (q_int, theta_comp) = self.q_sol_int_wh(e);
         let en_marche = match self.regulation {
             RegulationBoucle::Temperature { delta_theta_reg_k } => {
@@ -199,14 +237,15 @@ impl BoucleSolaire {
         SortiesBoucle {
             q_sol_wh: if en_marche { q_int } else { 0.0 },
             p_p_wh: if en_marche { self.p_np_w } else { 0.0 },
-            // Éq. (1973) : pertes des tuyauteries vers l'intérieur. Comptées pompe en marche
-            // seulement : pompe arrêtée, aucune énergie ne circule et `θcomp` n'est qu'une
-            // température de calcul (lecture Q52).
-            phi_vc_wh: if en_marche {
-                (self.ua_ti_w_k * (theta_comp - e.theta_amb_c)).max(0.0)
-            } else {
-                0.0
-            },
+            // Éq. (1973) : pertes des tuyauteries vers l'intérieur, comptées pompe en marche
+            // seulement dans la lecture retenue (Q52 point 4).
+            phi_vc_wh: phi_vc_wh_selon(
+                lecture,
+                self.ua_ti_w_k,
+                theta_comp,
+                e.theta_amb_c,
+                en_marche,
+            ),
             en_marche,
             q_sol_int_wh: q_int,
             theta_comp_c: theta_comp,
@@ -398,5 +437,76 @@ mod tests {
             performances_par_defaut(TypeCapteur::Tubulaire),
             (0.6, 3.0, 0.0)
         );
+    }
+    #[test]
+    fn pertes_vers_l_interieur_selon_la_lecture() {
+        // Éq. (1973), (UA)ti = 1,5 W/K, θcomp = 40 °C, θamb = 20 °C : 30 Wh.
+        let f = |l, m| phi_vc_wh_selon(l, 1.5, 40.0, 20.0, m);
+        assert_eq!(f(LecturePertesBoucle::PompeEnMarche, true), 30.0);
+        assert_eq!(f(LecturePertesBoucle::PompeEnMarche, false), 0.0);
+        assert_eq!(f(LecturePertesBoucle::ToutesHeures, false), 30.0);
+        // Boucle plus froide que l'ambiance : aucune perte.
+        assert_eq!(
+            phi_vc_wh_selon(LecturePertesBoucle::ToutesHeures, 1.5, 10.0, 20.0, false),
+            0.0
+        );
+    }
+
+    #[test]
+    fn relecture_pas_horaire_calcule_a_la_main() {
+        // Relecture indépendante : capteurs certifiés a2 > 0, éq. (1963) à (1973).
+        // Bilan (1964)/(1965) en y = θm − θe, à la main :
+        // 0,78·4·800·0,9 + 0,5·40 = 2 266,4 W ; pertes 4·(3,6 + 0,015·y)·y + 1·y + 1,5·(y − 5)
+        // + 400·(y − 25) ⇒ 0,06·y² + 416,9·y − 12 273,9 = 0 ⇒ y = 29,317175, θm = 44,317175 °C,
+        // Qsol = 400 × 4,317175 = 1 726,870 Wh ; Δθce = (2 × 1 726,87 + 29,317 + 1,5 × 24,317
+        // − 20)/464 = 7,542 K ≥ 1 ; Φvc = 1,5 × 24,317 = 36,476 Wh ; Pp = 40 Wh.
+        let b = BoucleSolaire {
+            a_m2: 4.0,
+            eta0: 0.78,
+            a1_w_m2k: 3.6,
+            a2_w_m2k2: 0.015,
+            k_theta: 0.9,
+            ua_te_w_k: 1.0,
+            ua_ti_w_k: 1.5,
+            ua_hx_w_k: Some(400.0),
+            p_np_w: 40.0,
+            alpha_p: 0.5,
+            m_cp_w_k: 232.0,
+            regulation: RegulationBoucle::Temperature {
+                delta_theta_reg_k: 1.0,
+            },
+        };
+        let s = b.pas(&EntreesBoucle {
+            isr_w_m2: 800.0,
+            theta_e_c: 15.0,
+            theta_amb_c: 20.0,
+            theta_b_moy_ech_c: 40.0,
+        });
+        assert!(
+            (s.theta_comp_c - 44.317_174_851_3).abs() < 1e-6,
+            "{}",
+            s.theta_comp_c
+        );
+        assert!(
+            (s.q_sol_wh - 1_726.869_940_5).abs() < 1e-5,
+            "{}",
+            s.q_sol_wh
+        );
+        assert!(s.en_marche && s.p_p_wh == 40.0);
+        assert!((s.phi_vc_wh - 36.475_762).abs() < 1e-5);
+        // Faible ensoleillement, ballon chaud : θm = 49,0093 °C, Qsol^Int = −396,27 Wh,
+        // Δθce = −1,56 K < 1 : pompe arrêtée.
+        let s = b.pas(&EntreesBoucle {
+            isr_w_m2: 150.0,
+            theta_e_c: 5.0,
+            theta_amb_c: 20.0,
+            theta_b_moy_ech_c: 50.0,
+        });
+        assert!(
+            (s.q_sol_int_wh + 396.267_000_07).abs() < 1e-5,
+            "{}",
+            s.q_sol_int_wh
+        );
+        assert!(!s.en_marche && s.q_sol_wh == 0.0 && s.p_p_wh == 0.0);
     }
 }

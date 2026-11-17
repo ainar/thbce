@@ -1555,6 +1555,8 @@ pub enum RegulationBoucleSaisie {
 }
 
 /// Kit CESI caractérisé selon la norme NF EN 12976 (« TypeCES = 1 », §9.23.3.2.2, tableau 308).
+/// Le §9.23.3.2.2 le traite comme un « ballon base seule solaire avec appoint intégré » : son
+/// appoint est `integre`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct KitCesi {
@@ -1576,11 +1578,9 @@ pub struct KitCesi {
     pub f_aux: Option<f64>,
     /// « θmax » : température maximale du ballon, en °C (de 55 à 100).
     pub theta_max_c: f64,
-    /// « Kθ » : facteur d'angle d'incidence, sortie de l'outil IdCESI. Absent : 0,8, la valeur
-    /// qui redonne la superficie de captage équivalente `AC*` avec `η0 = AC*/(0,8·A)`
-    /// (éq. 2266 ; lecture Q52), signalée.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub k_theta: Option<f64>,
+    /// « Kθ » : facteur d'angle d'incidence, de 0 à 1, sortie de l'outil IdCESI
+    /// (§9.23.3.2.3). Requis : le texte ne lui donne aucune valeur (lecture Q52).
+    pub k_theta: f64,
 }
 
 /// Appoint d'un chauffe-eau solaire (« Type_prod_stockage », §9.14.2).
