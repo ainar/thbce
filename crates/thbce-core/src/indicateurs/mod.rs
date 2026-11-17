@@ -13,6 +13,7 @@
 pub mod bilans_energies;
 pub mod equipements_mobiliers;
 pub mod exigences;
+pub(crate) mod exigences_usages;
 pub mod forfait_refroidissement;
 pub mod resultats;
 pub mod sorties_th_b;

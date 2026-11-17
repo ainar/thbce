@@ -130,18 +130,21 @@ pub struct Batiment {
 
 /// Données de la fixation des exigences d'un bâtiment (annexe de l'article R. 172-4 du CCH).
 /// Elles s'appliquent à toutes ses zones.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ParametresExigences {
     /// Catégorie de contraintes extérieures du bâtiment (chapitre V de l'annexe, partie II).
-    /// Elle module `Cep_max`, `Cep,nr_max` et `Icénergie_max` (`Mccat`) et fixe `DH_max`.
+    /// Elle module `Cep_max`, `Cep,nr_max` et `Icénergie_max` (`Mccat`), `Bbio_max` (`Mbbruit`,
+    /// catégorie 3) et fixe `DH_max`.
     ///
     /// Un local est de catégorie 2 si, cumulativement, il est climatisé, ses baies sont exposées
     /// au bruit BR2 ou BR3 et le bâtiment est construit en zone H2d ou H3 à moins de 400 m
     /// d'altitude ; une zone est de catégorie 2 si tous ses locaux autres qu'à occupation
-    /// passagère le sont. La catégorie 3 est réservée à des usages non résidentiels. La
-    /// validation refuse une catégorie que ces règles excluent ; la catégorie reste saisie, faute
-    /// de description des locaux dans l'entrée.
+    /// passagère le sont. La catégorie 3 est réservée aux locaux climatisés de certains usages
+    /// non résidentiels (voir [`CategorieContraintes::Categorie3`]). La validation refuse une
+    /// catégorie que ces règles excluent ; la catégorie reste saisie, faute de description des
+    /// locaux dans l'entrée. Elle vaut pour toutes les zones et tous les groupes, sauf ceux qui
+    /// ont la leur dans `zones` (Q66).
     pub categorie_contraintes_exterieures: CategorieContraintes,
     /// Classe d'exposition au bruit du bâtiment (chapitre V de l'annexe, partie I) : module
     /// `Bbio_max` (`Mbbruit`). Saisie : elle dépend des infrastructures voisines et du plan
@@ -163,9 +166,20 @@ pub struct ParametresExigences {
     /// le 31 décembre 2023 » (maisons, raccordement au gaz) est lu « année ≤ 2023 », « avant le
     /// 31 décembre 2027 » (réseau classé) « année ≤ 2027 » (Q54).
     pub annee_depot_permis: u16,
+    /// Mois (1 à 12) du dépôt de la demande de permis de construire, facultatif : il départage
+    /// les versions de l'annexe dont la date d'effet tombe en cours d'année (Q68) : 1er juillet
+    /// 2022 (bureaux et enseignement), 1er mai 2026 (usages 6 à 28), 1er juillet 2026
+    /// (modulations `MbHSP` et `McHSP` du décret n° 2026-200). Absent : la version en vigueur
+    /// à la fin de l'année du dépôt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mois_depot_permis: Option<u8>,
     /// « HSPmoy » : hauteur sous plafond moyenne des locaux d'habitation, en m (chapitre I,
-    /// §XIII) : modulations `MbHSP` et `McHSP`.
-    pub hsp_moy_m: f64,
+    /// §XIII) : modulations `MbHSP` et `McHSP`, introduites par le décret n° 2026-200 pour les
+    /// permis déposés à partir du 1er juillet 2026 (Q69). Obligatoire dans ce cas si le
+    /// bâtiment comprend une zone d'habitation (usages 1 et 2) ; sans effet pour les autres
+    /// usages, dont `MbHSP` et `McHSP` sont nuls, et pour les permis antérieurs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hsp_moy_m: Option<f64>,
     /// « Scombles » : surface de plancher des combles aménagés dont la hauteur sous plafond est
     /// inférieure à 1,8 m, en m² (maisons individuelles ou accolées). Absente : pas de tels
     /// combles.
@@ -182,6 +196,81 @@ pub struct ParametresExigences {
     /// 280 kg éq. CO2/m² pour un permis déposé avant le 31 décembre 2023.
     #[serde(default)]
     pub parcelle_raccordement_gaz: bool,
+    /// Catégorie de contraintes extérieures et classe d'exposition au bruit propres à une zone,
+    /// quand elles diffèrent de celles du bâtiment (chapitre V : elles se définissent pour
+    /// chaque partie de bâtiment ou zone ; Q66). Une zone absente de la liste prend les valeurs
+    /// du bâtiment.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub zones: Vec<ExigencesZoneSaisie>,
+}
+
+impl ParametresExigences {
+    /// Vrai si la demande de permis est déposée à partir du 1er jour du mois `mois` de l'année
+    /// `annee` ; sans mois saisi, le dépôt est réputé fait en fin d'année (Q68).
+    pub fn depot_a_partir_de(&self, annee: u16, mois: u8) -> bool {
+        (self.annee_depot_permis, self.mois_depot_permis.unwrap_or(12)) >= (annee, mois)
+    }
+
+    /// Catégorie de contraintes extérieures du groupe `groupe` de la zone `zone` : celle saisie
+    /// pour le groupe, sinon celle de la zone (Q66).
+    pub fn categorie_groupe(&self, zone: &str, groupe: &str) -> CategorieContraintes {
+        self.zone(zone)
+            .and_then(|z| z.groupes.iter().find(|g| g.groupe.as_str() == groupe))
+            .map_or_else(|| self.categorie_zone(zone), |g| g.categorie_contraintes_exterieures)
+    }
+
+    /// Données propres à la zone `id`, si elles sont saisies.
+    fn zone(&self, id: &str) -> Option<&ExigencesZoneSaisie> {
+        self.zones.iter().find(|z| z.zone.as_str() == id)
+    }
+
+    /// Catégorie de contraintes extérieures de la zone `id` : celle de la zone si elle est
+    /// saisie, celle du bâtiment sinon.
+    pub fn categorie_zone(&self, id: &str) -> CategorieContraintes {
+        self.zone(id)
+            .and_then(|z| z.categorie_contraintes_exterieures)
+            .unwrap_or(self.categorie_contraintes_exterieures)
+    }
+
+    /// Classe d'exposition au bruit de la zone `id` : celle de la zone si elle est saisie, celle
+    /// du bâtiment sinon.
+    pub fn zone_bruit_zone(&self, id: &str) -> ZoneBruit {
+        self.zone(id)
+            .and_then(|z| z.zone_bruit)
+            .unwrap_or(self.zone_bruit)
+    }
+}
+
+/// Données de la fixation des exigences propres à une zone (annexe de l'article R. 172-4,
+/// chapitre V).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ExigencesZoneSaisie {
+    /// Identifiant de la zone du bâtiment.
+    pub zone: Id,
+    /// Catégorie de contraintes extérieures de la zone ; absente : celle du bâtiment. Elle
+    /// module `Mbbruit` (catégorie 3), `Mccat` et fixe `DH_max` des groupes de la zone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub categorie_contraintes_exterieures: Option<CategorieContraintes>,
+    /// Classe d'exposition au bruit de la zone ; absente : celle du bâtiment.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub zone_bruit: Option<ZoneBruit>,
+    /// Catégories propres à certains groupes (parties de bâtiment thermiquement homogènes) :
+    /// elles fixent leur `DH_max` (chapitre II, IV). Un groupe absent prend la catégorie de la
+    /// zone.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub groupes: Vec<ExigencesGroupeSaisie>,
+}
+
+/// Catégorie de contraintes extérieures propre à un groupe (annexe de l'article R. 172-4,
+/// chapitre V, partie II).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ExigencesGroupeSaisie {
+    /// Identifiant du groupe dans la zone.
+    pub groupe: Id,
+    /// Catégorie de contraintes extérieures du groupe.
+    pub categorie_contraintes_exterieures: CategorieContraintes,
 }
 
 /// Catégorie de contraintes extérieures (annexe de l'article R. 172-4, chapitre V).
@@ -194,8 +283,11 @@ pub enum CategorieContraintes {
     /// Catégorie 2.
     #[serde(rename = "categorie_2")]
     Categorie2,
-    /// Catégorie 3 : locaux climatisés de certains usages non résidentiels (bureaux, hôtels,
-    /// commerces…). Reconnue pour être refusée explicitement en habitation.
+    /// Catégorie 3 : zone dont tous les locaux autres qu'à occupation passagère sont climatisés,
+    /// d'un usage cité par le chapitre V (bureaux, médiathèques et bibliothèques, bâtiments
+    /// universitaires et d'enseignements atypiques, hôtels, petite enfance, restaurants,
+    /// commerces, santé partie jour, aérogares), et dont les baies ne peuvent être ouvertes
+    /// (règles d'hygiène et de sécurité) ou situés dans un immeuble de grande hauteur.
     #[serde(rename = "categorie_3")]
     Categorie3,
 }
@@ -674,6 +766,29 @@ impl UsageZone {
     /// Usages d'habitation au sens de la surface de référence (§13.1.3 : « Usage = 1 ou 2 »).
     pub fn est_habitation(self) -> bool {
         matches!(self, Self::MaisonIndividuelle | Self::LogementCollectif)
+    }
+
+    /// Usage pour lequel une partie de bâtiment peut être de catégorie de contraintes
+    /// extérieures 3 (annexe de l'article R. 172-4, chapitre V, partie II ; Q66) : bureaux,
+    /// hôtels, restaurants (scolaires compris), commerces, petite enfance, bâtiments
+    /// universitaires et d'enseignements atypiques, médiathèques et bibliothèques, santé
+    /// (partie jour), aérogares. Ce sont aussi les usages dont le tableau `DH_maxcat` a une
+    /// colonne « Catégorie 3 ».
+    pub fn admet_categorie_3(self) -> bool {
+        matches!(self.numero(), 3 | 6..=17 | 21 | 22 | 26 | 27)
+    }
+
+    /// Année et mois à partir desquels une demande de permis de construire est soumise à la
+    /// RE2020 pour cet usage (article R. 172-1 du CCH, Q68) : 1er janvier 2022 pour
+    /// l'habitation, 1er juillet 2022 pour les bureaux et l'enseignement, 1er mai 2026 pour les
+    /// autres usages (décret n° 2026-16 du 15 janvier 2026 ; colonne « Années 2022 à 2024 »
+    /// marquée « - » dans le tableau `Icénergie_maxmoyen`).
+    pub fn debut_re2020(self) -> (u16, u8) {
+        match self.numero() {
+            1 | 2 => (2022, 1),
+            3..=5 => (2022, 7),
+            _ => (2026, 5),
+        }
     }
 
     /// Usage calculé par la version courante du moteur (décision Q4).

@@ -1080,12 +1080,28 @@ export interface EssaiEn16147 {
   theta_wh_c: number;
 }
 
+/**
+ * Catégorie de contraintes extérieures propre à un groupe (annexe de l'article R. 172-4,
+ * chapitre V, partie II).
+ */
+export interface ExigencesGroupeSaisie {
+  /** Catégorie de contraintes extérieures du groupe. */
+  categorie_contraintes_exterieures: CategorieContraintes;
+  /** Identifiant du groupe dans la zone. */
+  groupe: string;
+}
+
 /** Exigences d'une zone (partie de bâtiment d'un usage), annexe de l'article R. 172-4. */
 export interface ExigencesZone {
   /** « Bbio_maxmoyen », en points. */
   bbio_max_moyen: number;
   /** « Bbio_max », en points. */
   bbio_max_pts: number;
+  /**
+   * Catégorie de contraintes extérieures retenue pour la zone (celle de la zone si elle est
+   * saisie, celle du bâtiment sinon ; Q66).
+   */
+  categorie_contraintes_exterieures?: CategorieContraintes | null;
   /** « Cep_max », en kWhep/(m².an). */
   cep_max_kwhep_m2: number;
   /** « Cep_maxmoyen », en kWhep/(m².an). */
@@ -1124,12 +1140,36 @@ export interface ExigencesZone {
   mc_surf_moy: number;
   /** « Mcsurf_tot ». */
   mc_surf_tot: number;
-  /** « Smoylgt » : surface moyenne des logements, en m². */
+  /** « Smoylgt » : surface moyenne des logements, en m² ; 0 hors habitation. */
   smoy_lgt_m2: number;
   /** « Sref » de la zone, en m². */
   sref_m2: number;
   /** Numéro d'usage. */
   usage: number;
+  /** Classe d'exposition au bruit retenue pour la zone. */
+  zone_bruit?: ZoneBruit | null;
+}
+
+/**
+ * Données de la fixation des exigences propres à une zone (annexe de l'article R. 172-4,
+ * chapitre V).
+ */
+export interface ExigencesZoneSaisie {
+  /**
+   * Catégorie de contraintes extérieures de la zone ; absente : celle du bâtiment. Elle
+   * module `Mbbruit` (catégorie 3), `Mccat` et fixe `DH_max` des groupes de la zone.
+   */
+  categorie_contraintes_exterieures?: CategorieContraintes | null;
+  /**
+   * Catégories propres à certains groupes (parties de bâtiment thermiquement homogènes) :
+   * elles fixent leur `DH_max` (chapitre II, IV). Un groupe absent prend la catégorie de la
+   * zone.
+   */
+  groupes?: ExigencesGroupeSaisie[];
+  /** Identifiant de la zone du bâtiment. */
+  zone: string;
+  /** Classe d'exposition au bruit de la zone ; absente : celle du bâtiment. */
+  zone_bruit?: ZoneBruit | null;
 }
 
 /** « expo_BR » (§5.13.2 ; fiche d'application §5.11) : classe d'exposition au bruit d'une baie. */
@@ -1834,21 +1874,35 @@ export interface ParametresExigences {
   annee_depot_permis: number;
   /**
    * Catégorie de contraintes extérieures du bâtiment (chapitre V de l'annexe, partie II).
-   * Elle module `Cep_max`, `Cep,nr_max` et `Icénergie_max` (`Mccat`) et fixe `DH_max`.
+   * Elle module `Cep_max`, `Cep,nr_max` et `Icénergie_max` (`Mccat`), `Bbio_max` (`Mbbruit`,
+   * catégorie 3) et fixe `DH_max`.
    *
    * Un local est de catégorie 2 si, cumulativement, il est climatisé, ses baies sont exposées
    * au bruit BR2 ou BR3 et le bâtiment est construit en zone H2d ou H3 à moins de 400 m
    * d'altitude ; une zone est de catégorie 2 si tous ses locaux autres qu'à occupation
-   * passagère le sont. La catégorie 3 est réservée à des usages non résidentiels. La
-   * validation refuse une catégorie que ces règles excluent ; la catégorie reste saisie, faute
-   * de description des locaux dans l'entrée.
+   * passagère le sont. La catégorie 3 est réservée aux locaux climatisés de certains usages
+   * non résidentiels (voir [`CategorieContraintes::Categorie3`]). La validation refuse une
+   * catégorie que ces règles excluent ; la catégorie reste saisie, faute de description des
+   * locaux dans l'entrée. Elle vaut pour toutes les zones et tous les groupes, sauf ceux qui
+   * ont la leur dans `zones` (Q66).
    */
   categorie_contraintes_exterieures: CategorieContraintes;
   /**
    * « HSPmoy » : hauteur sous plafond moyenne des locaux d'habitation, en m (chapitre I,
-   * §XIII) : modulations `MbHSP` et `McHSP`.
+   * §XIII) : modulations `MbHSP` et `McHSP`, introduites par le décret n° 2026-200 pour les
+   * permis déposés à partir du 1er juillet 2026 (Q69). Obligatoire dans ce cas si le
+   * bâtiment comprend une zone d'habitation (usages 1 et 2) ; sans effet pour les autres
+   * usages, dont `MbHSP` et `McHSP` sont nuls, et pour les permis antérieurs.
    */
-  hsp_moy_m: number;
+  hsp_moy_m?: number | null;
+  /**
+   * Mois (1 à 12) du dépôt de la demande de permis de construire, facultatif : il départage
+   * les versions de l'annexe dont la date d'effet tombe en cours d'année (Q68) : 1er juillet
+   * 2022 (bureaux et enseignement), 1er mai 2026 (usages 6 à 28), 1er juillet 2026
+   * (modulations `MbHSP` et `McHSP` du décret n° 2026-200). Absent : la version en vigueur
+   * à la fin de l'année du dépôt.
+   */
+  mois_depot_permis?: number | null;
   /**
    * Maison dont la parcelle est concernée par un permis d'aménager délivré, ou comprise dans
    * une zone d'aménagement concerté dont le dossier de réalisation a été approuvé, avant le
@@ -1885,6 +1939,13 @@ export interface ParametresExigences {
    * BR2 ou BR3 et l'une au moins BR2, BR1 sinon.
    */
   zone_bruit: ZoneBruit;
+  /**
+   * Catégorie de contraintes extérieures et classe d'exposition au bruit propres à une zone,
+   * quand elles diffèrent de celles du bâtiment (chapitre V : elles se définissent pour
+   * chaque partie de bâtiment ou zone ; Q66). Une zone absente de la liste prend les valeurs
+   * du bâtiment.
+   */
+  zones?: ExigencesZoneSaisie[];
 }
 
 /**
