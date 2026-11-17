@@ -463,12 +463,12 @@ mod tests {
     fn valeurs_par_defaut_a_la_main() {
         let v = valeurs_par_defaut(TypeChaudiere::GazCondensation, None, 20.0, 6.0, false);
         // (94 + log10 20) / 1,11.
-        assert!((v.r_pn_pct - (94.0 + 20f64.log10()) / 1.11).abs() < 1e-12);
-        assert!((v.r_pint_pct - (103.0 + 20f64.log10()) / 1.11).abs() < 1e-12);
+        assert!((v.r_pn_pct - (94.0 + libm::log10(20.0)) / 1.11).abs() < 1e-12);
+        assert!((v.r_pint_pct - (103.0 + libm::log10(20.0)) / 1.11).abs() < 1e-12);
         // 1000 × 0,04 × 20^−0,4 × 20.
-        assert!((v.q_po_30_w - 40.0 * 20f64.powf(-0.4) * 20.0).abs() < 1e-9);
-        assert!((v.w_aux_nom_w - 45.0 * 20f64.powf(0.48)).abs() < 1e-9);
-        assert!((v.w_aux_int_w - 15.0 * 6f64.powf(0.48)).abs() < 1e-9);
+        assert!((v.q_po_30_w - 40.0 * libm::pow(20.0, -0.4) * 20.0).abs() < 1e-9);
+        assert!((v.w_aux_nom_w - 45.0 * libm::pow(20.0, 0.48)).abs() < 1e-9);
+        assert!((v.w_aux_int_w - 15.0 * libm::pow(6.0, 0.48)).abs() < 1e-9);
         let b = valeurs_par_defaut(
             TypeChaudiere::Bois(CombustibleBois::Granules),
             Some(AlimentationBois::AutomatiqueAirPulse),
@@ -476,7 +476,7 @@ mod tests {
             6.0,
             false,
         );
-        assert!((b.r_pn_pct - (91.0 + 2.0 * 20f64.log10()) / 1.08).abs() < 1e-12);
+        assert!((b.r_pn_pct - (91.0 + 2.0 * libm::log10(20.0)) / 1.08).abs() < 1e-12);
         assert!((b.w_aux_nom_w - (74.0 + 10.5 * 20.0)).abs() < 1e-9);
     }
 
@@ -509,7 +509,7 @@ mod tests {
         let p_int = 1000.0 * r_int / c.r_pint_pct * 6.0;
         let fx = 1000.0 / p_int;
         let phi_int = (100.0 / r_int - 1.0) * p_int;
-        let stab = c.q_po_30_w * (20.0f64 / 30.0).powf(1.25);
+        let stab = c.q_po_30_w * libm::pow(20.0 / 30.0, 1.25);
         let pertes = fx * phi_int + (1.0 - fx) * stab;
         assert!((s.q_cons_wh - (1000.0 + pertes) / 1.11).abs() < 1e-6);
         let _ = r_nom;

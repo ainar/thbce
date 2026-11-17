@@ -95,11 +95,17 @@ fn verifier(meteo_de: &dyn Fn(&Projet) -> MeteoProjet, titre: &str) {
     let r = calcul("maison-chaudiere-gaz-ademe", meteo_de);
     verifier_bilans(&r, titre);
     let b = &r.batiments[0];
-    assert_eq!(b.bbio_pts, bbio_ref, "{titre} : le Bbio ne dépend pas des systèmes");
+    assert_eq!(
+        b.bbio_pts, bbio_ref,
+        "{titre} : le Bbio ne dépend pas des systèmes"
+    );
     let g = &b.generations[0];
     let c = &g.consommations.annuel;
     assert!(c.chauffage.gaz_kwh > g.q_fou_ch_kwh * 0.9, "{titre}");
-    assert!(c.ecs.gaz_kwh > 0.0 && c.chauffage.electricite_kwh > 0.0, "{titre}");
+    assert!(
+        c.ecs.gaz_kwh > 0.0 && c.chauffage.electricite_kwh > 0.0,
+        "{titre}"
+    );
     // Seules les cases gaz et électricité sont remplies.
     for p in [&c.chauffage, &c.ecs] {
         assert_eq!(p.fioul_kwh + p.bois_kwh + p.reseau_kwh + p.charbon_kwh, 0.0);
@@ -114,7 +120,10 @@ fn verifier(meteo_de: &dyn Fn(&Projet) -> MeteoProjet, titre: &str) {
     // L'énergie fournie au ballon par la chaudière dépasse celle qu'il livre (pertes).
     let sto = &g.stockages[0];
     assert!(sto.q_fou_sto_base_kwh > sto.q_fou_ecs_kwh, "{titre}");
-    assert!((ch.q_fou_ecs_kwh - sto.q_fou_sto_base_kwh).abs() < 1e-6, "{titre}");
+    assert!(
+        (ch.q_fou_ecs_kwh - sto.q_fou_sto_base_kwh).abs() < 1e-6,
+        "{titre}"
+    );
     let eta = ch.eta_eff_ch_an.unwrap();
     assert!((0.7..1.15).contains(&eta), "{titre} : η = {eta}");
     println!(
@@ -140,7 +149,10 @@ fn verifier(meteo_de: &dyn Fn(&Projet) -> MeteoProjet, titre: &str) {
     let appoint = &g.generateurs[1];
     let c = &poele.consommations.chauffage;
     // Qcons = Qfou / η : les pertes sont proportionnelles à la charge (éq. 1228 à 1231).
-    assert!((c.bois_kwh - poele.q_fou_ch_kwh / 0.88).abs() < 1e-6, "{titre}");
+    assert!(
+        (c.bois_kwh - poele.q_fou_ch_kwh / 0.88).abs() < 1e-6,
+        "{titre}"
+    );
     // Auxiliaire : Σ τ × 35 W, avec τ = Qfou / 3 kW.
     assert!(
         (c.electricite_kwh - poele.q_fou_ch_kwh / 3.0 * 0.035).abs() < 1e-6,
@@ -211,8 +223,8 @@ fn messages(p: &Projet) -> Vec<String> {
 fn validation_des_generateurs_a_combustion() {
     let modifie = |cas_nom: &str, f: &dyn Fn(&mut serde_json::Value)| {
         let mut p = cas(cas_nom);
-        let mut v = serde_json::to_value(&p.batiments[0].generations[0].generateurs[0].nature)
-            .unwrap();
+        let mut v =
+            serde_json::to_value(&p.batiments[0].generations[0].generateurs[0].nature).unwrap();
         f(&mut v);
         p.batiments[0].generations[0].generateurs[0].nature = serde_json::from_value(v).unwrap();
         messages(&p)
@@ -226,11 +238,18 @@ fn validation_des_generateurs_a_combustion() {
         v["chaudiere"]["rendements"] =
             serde_json::json!({"statut": "certifie", "r_pn_pct": 101.0, "r_pint_pct": 95.0});
     });
-    assert!(m.iter().any(|m| m.contains("égaux ou supérieurs à l'unité")), "{m:?}");
+    assert!(
+        m.iter()
+            .any(|m| m.contains("égaux ou supérieurs à l'unité")),
+        "{m:?}"
+    );
     let m = modifie("maison-reseau-chaleur-ademe", &|v| {
         v["reseau_de_chaleur_ou_de_froid"]["chaleur"]["identifiant_reseau"] = "0000C".into();
     });
-    assert!(m.iter().any(|m| m.contains("absent de l'annexe 7")), "{m:?}");
+    assert!(
+        m.iter().any(|m| m.contains("absent de l'annexe 7")),
+        "{m:?}"
+    );
     let m = modifie("maison-reseau-chaleur-ademe", &|v| {
         v["reseau_de_chaleur_ou_de_froid"]["chaleur"]["identifiant_reseau"] = "7501F".into();
     });
@@ -247,5 +266,8 @@ fn validation_des_generateurs_a_combustion() {
     let m = modifie("maison-climat-ademe", &|v| {
         *v = serde_json::json!({"chaudiere": {"type_chaudiere": "gaz_standard", "fonction": "chauffage", "pn_gen_kw": 8.0, "pertes_parois": "sans_ventilateur"}});
     });
-    assert!(m.iter().any(|m| m.contains("réseaux hydrauliques")), "{m:?}");
+    assert!(
+        m.iter().any(|m| m.contains("réseaux hydrauliques")),
+        "{m:?}"
+    );
 }
