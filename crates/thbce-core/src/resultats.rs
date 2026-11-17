@@ -481,6 +481,10 @@ pub struct ResultatsStockage {
     /// 24 heures.
     #[serde(default)]
     pub nbh_report_e: u32,
+    /// Boucle solaire d'un chauffe-eau solaire (§9.15), pour l'ensemble des assemblages
+    /// identiques.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub solaire: Option<ResultatsBoucleSolaire>,
     /// Paramètres Th-BCE identifiés à partir de l'essai d'un chauffe-eau thermodynamique
     /// (§9.22).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -488,6 +492,32 @@ pub struct ResultatsStockage {
     /// Valeurs par défaut de la méthode appliquées à l'assemblage.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+}
+
+/// Boucle solaire d'un chauffe-eau solaire, calcul Th-C (§9.15 ; sorties « Esol_tot^BS » et
+/// « Eef_aux_tot^BS » des fiches d'assemblage). L'énergie solaire transmise au ballon est
+/// comprise dans `q_fou_sto_base_kwh` ; elle n'est pas une consommation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsBoucleSolaire {
+    /// « Esol_tot^BS » : énergie solaire transmise aux ballons par les échangeurs, en kWh.
+    pub e_sol_kwh: f64,
+    /// La même, par mois des scénarios, en kWh.
+    pub e_sol_mensuel_kwh: Vec<f64>,
+    /// « Eef_aux_tot^BS » : consommation électrique des pompes, en kWh (comprise dans les
+    /// consommations d'ECS de la génération, éq. 1972).
+    pub w_pompe_kwh: f64,
+    /// « ΦvcBS » : pertes des tuyauteries vers l'intérieur du bâtiment, en kWh (éq. 1973).
+    pub pertes_vc_kwh: f64,
+    /// Ensoleillement annuel sur le plan des capteurs, masques compris, en kWh/m².
+    pub isr_kwh_m2: f64,
+    /// Superficie d'entrée des capteurs d'un assemblage, en m².
+    pub a_capteurs_m2: f64,
+    /// Heures de fonctionnement de la pompe.
+    pub nbh_marche: u32,
+    /// Énergie retirée aux ballons par la limitation à leur température maximale (éq. 1779),
+    /// en kWh : part de l'énergie solaire transmise que le ballon ne peut pas stocker (lecture
+    /// Q52).
+    pub ecretement_kwh: f64,
 }
 
 /// Identification d'un chauffe-eau thermodynamique (§9.22.3.4) : entrées du modèle Th-BCE
@@ -1110,6 +1140,20 @@ impl Resultats {
                         &mut s.theta_haut_min_c,
                     ] {
                         *x = a(*x);
+                    }
+                    if let Some(b) = &mut s.solaire {
+                        for x in [
+                            &mut b.e_sol_kwh,
+                            &mut b.w_pompe_kwh,
+                            &mut b.pertes_vc_kwh,
+                            &mut b.isr_kwh_m2,
+                            &mut b.ecretement_kwh,
+                        ] {
+                            *x = a(*x);
+                        }
+                        for x in &mut b.e_sol_mensuel_kwh {
+                            *x = a(*x);
+                        }
                     }
                     if let Some(i) = &mut s.idcet {
                         // Paramètres identifiés restitués avec quatre décimales.

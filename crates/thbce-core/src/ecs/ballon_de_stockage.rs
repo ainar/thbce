@@ -70,6 +70,9 @@ pub struct Ballon {
     pub pertes_wh: [f64; NB_ZONES],
     /// « Φpertes,z(h − 1) ».
     pub pertes_prec_wh: [f64; NB_ZONES],
+    /// Énergie retirée au ballon par la limitation à sa température maximale (éq. 1779),
+    /// cumulée depuis le début du calcul, en Wh : le texte ne la compte nulle part.
+    pub ecretement_wh: f64,
 }
 
 impl Ballon {
@@ -95,6 +98,7 @@ impl Ballon {
             theta_prec2_c: [THETA_INITIALE_BALLON_C; NB_ZONES],
             pertes_wh: [0.0; NB_ZONES],
             pertes_prec_wh: [0.0; NB_ZONES],
+            ecretement_wh: 0.0,
         }
     }
 
@@ -169,8 +173,11 @@ impl Ballon {
                 a += 1;
             }
         }
-        for t in &mut self.theta_c {
-            *t = t.min(self.theta_max_c);
+        for (t, v) in self.theta_c.iter_mut().zip(self.v_l) {
+            if *t > self.theta_max_c {
+                self.ecretement_wh += RHO_CW_WH_L_K * v * (*t - self.theta_max_c);
+                *t = self.theta_max_c;
+            }
         }
     }
 
@@ -298,6 +305,8 @@ mod tests {
         // Limitation à la température maximale (éq. 1779).
         b.injecter(0, 1.163 * 200.0 * 100.0, false);
         assert_eq!(b.theta_c, [90.0; 4]);
+        // Énergie écrêtée : 1,163 × 200 × (55 + 100 − 90) Wh.
+        assert!((b.ecretement_wh - 1.163 * 200.0 * 65.0).abs() < 1e-6);
         // Pertes appliquées avec l'injection (éq. 1786).
         let mut b = Ballon::nouveau(200.0, 2.0, None, 90.0);
         b.debut_pas(20.0);

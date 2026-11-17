@@ -227,6 +227,9 @@ pub fn simuler_essai(essai: &Essai, t: &Triplet) -> Option<ResultatsEssai> {
                 theta_depart_c: THETA_MITIGEE_ESSAI_C,
                 theta_amb_c: theta_amb,
                 hleg: 12,
+                theta_ext_c: theta_amb,
+                isr_w_m2: 0.0,
+                mois: 0,
             },
             &mut |_, q_req, theta_aval| {
                 let p = pac.point(Poste::Ecs, q_req, theta_amont, theta_aval, 1.0, true, None);

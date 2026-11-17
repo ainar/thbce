@@ -31,7 +31,10 @@ use crate::ventilation::debits_air_cep::{trav_zone_conventionnel, EntreeAir};
 mod collectif;
 #[path = "validation/generation.rs"]
 mod generation;
+#[path = "validation/photovoltaique.rs"]
 mod photovoltaique;
+#[path = "validation/solaire.rs"]
+mod solaire;
 #[path = "validation/systemes.rs"]
 mod systemes;
 
@@ -220,6 +223,7 @@ pub fn valider(projet: &Projet) -> RapportValidation {
         systemes::valider_systemes_batiment(&mut r, &cb, bat);
         generation::valider_generations(&mut r, &cb, bat);
         photovoltaique::valider_installations_pv(&mut r, &cb, bat, &refs);
+        solaire::valider_chauffe_eau_solaires(&mut r, &cb, bat, &refs);
         collectif::valider_collectif(&mut r, &cb, bat);
     }
     // Contrôles de cohérence entre composants, une fois chaque élément valide : ils demandent

@@ -9,16 +9,21 @@
 //! - [`gestion_regulation_ballon`] : fiche `C_STO_gestion_régulation_ballon` (§9.10) ;
 //! - [`assemblage_ballon`] : fiches `S1_GEN_générateur_pour_ballon` (§9.13) et assemblage d'un
 //!   ballon et de ses générateurs (§9.14) ;
-//! - [`idcet`] : saisie des chauffe-eau thermodynamiques à compression électrique (§9.22).
+//! - [`idcet`] : saisie des chauffe-eau thermodynamiques à compression électrique (§9.22) ;
+//! - [`boucle_solaire`] : fiche `C_GEN_Boucle solaire` (§9.15) ;
+//! - [`chauffe_eau_solaire`] : chauffe-eau solaires individuels, ballon à base solaire (§9.14
+//!   et §9.15) et saisie des kits CESI (§9.23).
 //!
 //! La production d'ECS, instantanée (§9.1) ou avec stockage (§9.2), passe par la génération
-//! (`chauffage_refroidissement::generation`). Le ballon solaire relève du lot 7b.
+//! (`chauffage_refroidissement::generation`).
 //!
-//! Lectures : `docs/questions.md`, Q45 et Q48.
+//! Lectures : `docs/questions.md`, Q45, Q48 et Q52.
 
 pub mod assemblage_ballon;
 pub mod ballon_de_stockage;
 pub mod besoins_ecs;
+pub mod boucle_solaire;
+pub mod chauffe_eau_solaire;
 pub mod distribution_ecs;
 pub mod gestion_regulation_ballon;
 pub mod idcet;

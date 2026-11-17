@@ -15,8 +15,10 @@
 //! Q48.
 
 use super::ballon_de_stockage::{Ballon, NB_ZONES};
+use super::boucle_solaire::{BoucleSolaireHoraire, EntreesBoucle};
 use super::gestion_regulation_ballon::{
-    active, boucle_puisage, f_p, q_req_sto_wh, Programmation, THETA_C_ECS_C,
+    active, boucle_puisage, boucle_puisage_appoint_separe, f_p, q_req_sto_wh, Programmation,
+    THETA_C_ECS_C,
 };
 use crate::resultats::ValeurParDefaut;
 
@@ -59,6 +61,13 @@ pub struct EntreesAssemblage {
     pub theta_amb_c: f64,
     /// « hleg » : heure légale du pas de temps.
     pub hleg: u8,
+    /// « θe(h) » : température extérieure, en °C (boucle solaire).
+    pub theta_ext_c: f64,
+    /// « Isr* » : ensoleillement sur le plan des capteurs d'une boucle solaire, masques
+    /// compris, en W/m² ; nul sans boucle.
+    pub isr_w_m2: f64,
+    /// Mois des scénarios, de 0 à 11, pour les cumuls.
+    pub mois: usize,
 }
 
 /// Sorties d'un assemblage à un pas de temps, pour l'ensemble des assemblages identiques.
@@ -76,6 +85,13 @@ pub struct SortiesAssemblage {
     pub q_req_sto_wh: [f64; 2],
     /// « Qfou_sto_base » et « Qfou_sto_ap », en Wh.
     pub q_fou_sto_wh: [f64; 2],
+    /// « Qsol » : chaleur transférée par une boucle solaire de base, en Wh (comprise dans
+    /// `q_fou_sto_wh[0]`).
+    pub q_sol_wh: f64,
+    /// « Pp » : consommation électrique de la pompe d'une boucle solaire, en Wh (éq. 1972).
+    pub w_pompe_wh: f64,
+    /// « ΦvcBS » : pertes d'une boucle solaire vers l'intérieur du bâtiment, en Wh (éq. 1973).
+    pub phi_vc_bs_wh: f64,
 }
 
 /// Cumuls annuels d'un assemblage.
@@ -125,6 +141,13 @@ pub struct AssemblageBallon {
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,
     /// Identification d'un chauffe-eau thermodynamique décrit par son essai (§9.22).
     pub identification: Option<super::idcet::Identification>,
+    /// Boucle solaire tenant lieu de générateur de base (« Issolaire_base », §9.10.2 et
+    /// §9.15) ; le champ `generateur` de `base` est alors sans objet.
+    pub solaire: Option<Box<BoucleSolaireHoraire>>,
+    /// Vrai pour un assemblage à appoint séparé instantané (« Type_prod_stockage = 3 ») : le
+    /// puisage suit les éq. (1800) à (1807) et le reste est fourni par les générateurs
+    /// instantanés d'ECS de la génération.
+    pub appoint_separe: bool,
 }
 
 impl AssemblageBallon {
@@ -152,6 +175,8 @@ impl AssemblageBallon {
             },
             valeurs_par_defaut: Vec::new(),
             identification: None,
+            solaire: None,
+            appoint_separe: false,
         }
     }
 
@@ -168,13 +193,23 @@ impl AssemblageBallon {
         // Pertes du pas de temps, avec les températures de la fin du pas précédent (éq. 1770).
         self.ballon.debut_pas(e.theta_amb_c);
         // Première étape : volume puisé pour l'ECS (éq. 1952 à 1954).
-        let puisage = boucle_puisage(
-            &mut self.ballon,
-            e.q_req_ecs_wh / nb,
-            e.theta_entrant_c,
-            e.theta_depart_c,
-            self.nb_iter_vp,
-        );
+        let puisage = if self.appoint_separe {
+            boucle_puisage_appoint_separe(
+                &mut self.ballon,
+                e.q_req_ecs_wh / nb,
+                e.theta_entrant_c,
+                e.theta_depart_c,
+                self.nb_iter_vp,
+            )
+        } else {
+            boucle_puisage(
+                &mut self.ballon,
+                e.q_req_ecs_wh / nb,
+                e.theta_entrant_c,
+                e.theta_depart_c,
+                self.nb_iter_vp,
+            )
+        };
         let q_rest = puisage.q_report_wh * nb;
         let q_fou = e.q_req_ecs_wh - q_rest;
         let a_puise = puisage.v_p_l > 0.0;
@@ -193,7 +228,27 @@ impl AssemblageBallon {
         // n'est pas appelé et ne consomme rien, pas même ses auxiliaires à charge nulle.
         let mut q_req_sto = [0.0; 2];
         let mut q_fou_sto = [0.0; 2];
-        if f_p(b.programmation, e.hleg) {
+        let mut boucle = None;
+        if let Some(sol) = &mut self.solaire {
+            // Boucle solaire de base (§9.10.3.2.2) : enclenchée dès qu'elle peut réchauffer le
+            // ballon, selon sa propre régulation (§9.15.3.2) ; son énergie est injectée en zone
+            // basse, sans égard pour la consigne (la température maximale du ballon, éq. 1779,
+            // borne la stratification).
+            let s = sol.boucle.pas(&EntreesBoucle {
+                isr_w_m2: e.isr_w_m2,
+                theta_e_c: e.theta_ext_c,
+                theta_amb_c: e.theta_amb_c,
+                theta_b_moy_ech_c: theta_aval_base,
+            });
+            q_fou_sto[0] = s.q_sol_wh;
+            let c = &mut sol.cumuls;
+            c.e_sol_mensuel_wh[e.mois.min(11)] += s.q_sol_wh;
+            c.e_aux_wh += s.p_p_wh;
+            c.phi_vc_wh += s.phi_vc_wh;
+            c.isr_wh_m2 += e.isr_w_m2;
+            c.nbh_marche += u32::from(s.en_marche);
+            boucle = Some(s);
+        } else if f_p(b.programmation, e.hleg) {
             if active(
                 &self.ballon,
                 b.z_reg,
@@ -240,6 +295,9 @@ impl AssemblageBallon {
             v_p_l: puisage.v_p_l * nb,
             q_req_sto_wh: q_req_sto.map(|q| q * nb),
             q_fou_sto_wh: q_fou_sto.map(|q| q * nb),
+            q_sol_wh: boucle.map_or(0.0, |b| b.q_sol_wh * nb),
+            w_pompe_wh: boucle.map_or(0.0, |b| b.p_p_wh * nb),
+            phi_vc_bs_wh: boucle.map_or(0.0, |b| b.phi_vc_wh * nb),
         };
         let c = &mut self.cumuls;
         c.q_fou_ecs_wh += s.q_fou_ecs_wh;
@@ -282,6 +340,9 @@ mod tests {
             theta_depart_c: 53.0,
             theta_amb_c: 20.0,
             hleg,
+            theta_ext_c: 10.0,
+            isr_w_m2: 0.0,
+            mois: 0,
         }
     }
 

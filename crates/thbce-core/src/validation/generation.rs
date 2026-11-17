@@ -143,7 +143,10 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
             ),
         );
     }
-    if g.generateurs.is_empty() && g.chauffe_eau_thermodynamiques.is_empty() {
+    if g.generateurs.is_empty()
+        && g.chauffe_eau_thermodynamiques.is_empty()
+        && g.chauffe_eau_solaires.is_empty()
+    {
         r.erreur(
             format!("{c}.generateurs"),
             None,
@@ -156,9 +159,13 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
     let pilote = |id: &str| {
         g.stockages.iter().any(|s| {
             s.base.generateur == id || s.appoint.as_ref().is_some_and(|a| a.generateur == id)
-        })
+        }) || g.chauffe_eau_solaires.iter().any(
+            |s| matches!(&s.appoint, crate::entree::AppointCesi::Integre(a) if a.generateur == id),
+        )
     };
-    let avec_stockage = !g.stockages.is_empty() || !g.chauffe_eau_thermodynamiques.is_empty();
+    let avec_stockage = !g.stockages.is_empty()
+        || !g.chauffe_eau_thermodynamiques.is_empty()
+        || !g.chauffe_eau_solaires.is_empty();
     if avec_stockage && g.priorite == Some(TypePriorite::SansPriorite) {
         r.erreur(
             format!("{c}.priorite"),
@@ -424,6 +431,7 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
         .iter()
         .any(|d| d.generation == g.id)
         && !assure(2)
+        && g.chauffe_eau_solaires.is_empty()
         && !(g.generateurs.is_empty() && g.chauffe_eau_thermodynamiques.is_empty())
     {
         r.erreur(
@@ -651,7 +659,8 @@ fn valider_stockages(r: &mut RapportValidation, c: &str, g: &Generation, bat: &B
         g.stockages
             .iter()
             .map(|s| &s.id)
-            .chain(g.chauffe_eau_thermodynamiques.iter().map(|x| &x.id)),
+            .chain(g.chauffe_eau_thermodynamiques.iter().map(|x| &x.id))
+            .chain(g.chauffe_eau_solaires.iter().map(|x| &x.id)),
     );
     let zone_valide = |r: &mut RapportValidation, chemin: String, z: u8| {
         if !(1..=4).contains(&z) {
