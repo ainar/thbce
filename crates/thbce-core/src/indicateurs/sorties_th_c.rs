@@ -547,8 +547,10 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
             .map(|c| c.solaire.e_sol_kwh)
             .sum::<f64>();
 
-    // Une zone dont l'usage n'a pas d'exigences transcrites interdit d'évaluer celles du
-    // bâtiment : ni maximum partiel ni conformité, plutôt qu'un maximum nul.
+    // Une zone sans exigences (usage que la RE2020 ne vise pas l'année du dépôt du permis,
+    // Q68 : la validation le refuse déjà) interdit d'évaluer celles du bâtiment : ni maximum
+    // partiel ni conformité, plutôt qu'un maximum nul. Garde-fou depuis le lot 0b, qui a
+    // transcrit les exigences des 28 usages.
     let sans_exigences: Vec<u8> = parties
         .iter()
         .filter(|(_, ex)| ex.is_none())
@@ -556,8 +558,8 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
         .collect();
     if params.is_some() && !sans_exigences.is_empty() {
         avertissements.push(format!(
-            "bâtiment {} : exigences maximales et conformité non évaluées : les exigences de \
-             l'usage n° {} ne sont pas prises en charge par cette version",
+            "bâtiment {} : exigences maximales et conformité non évaluées : l'usage n° {} \
+             n'a pas d'exigences pour l'année de dépôt du permis",
             bat.id,
             sans_exigences
                 .iter()

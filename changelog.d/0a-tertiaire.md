@@ -13,5 +13,5 @@
 ### Modifié
 
 - Format d'entrée, sans incompatibilité : `p_vent_base_w`, `p_vent_pointe_w` (ventilateur simple flux), `q_spec_conv_pointe_m3_h` (bouche) et `nb_logements` (émetteur d'ECS) ne sont plus requis par le schéma ; la validation les exige toujours en maison individuelle ou accolée et en logement collectif, et les refuse dans les autres usages.
-- Un bâtiment dont une zone est d'un usage sans exigences transcrites n'a plus d'exigences ni de conformité (avertissement), au lieu d'un maximum calculé sans cette zone.
+- Un bâtiment dont une zone n'a pas d'exigences pour l'année de dépôt du permis n'a ni exigences maximales ni conformité (avertissement), au lieu d'un maximum calculé sans cette zone.
 - `zones[].nadeq` n'est restitué qu'en habitation.
