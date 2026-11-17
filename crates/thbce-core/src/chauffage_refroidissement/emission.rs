@@ -13,7 +13,7 @@
 //! 88, éq. 795 à 799), les ventilateurs locaux (éq. 811 à 823) et l'énergie latente (éq. 828)
 //! relèvent du calcul des consommations (lot 6b).
 //!
-//! Lectures : `docs/questions.md`, Q38.
+//! Lectures : `docs/questions/Q038.md`.
 
 use crate::bati::comportement_thermique::{Reponse, Temperatures, P_MATRICE_W_M2};
 

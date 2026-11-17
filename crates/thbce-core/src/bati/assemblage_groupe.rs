@@ -17,10 +17,10 @@
 //!
 //! Périmètre : calculs Th-B et Th-D des usages d'habitation. Le calcul Th-D emploie
 //! l'assemblage du calcul du Bbio (figure 23), avec les débits et l'air soufflé du système de
-//! ventilation du projet (lot 6a, `docs/questions.md`, Q42) et l'émission conventionnelle
+//! ventilation du projet (lot 6a, `docs/questions/Q042.md`) et l'émission conventionnelle
 //! jusqu'au lot 6b (Q40).
 //!
-//! Lectures propres à l'enchaînement horaire : `docs/questions.md`, Q39 et Q40.
+//! Lectures propres à l'enchaînement horaire : `docs/questions/Q039.md` et `Q040.md`.
 
 use thbce_data::protections_mobiles::parts_occupation;
 
@@ -91,7 +91,7 @@ pub const DELTA_THETA_CORR_SYST_C: f64 = 0.0;
 
 /// Lectures du texte employées par l'enchaînement horaire d'un groupe, quand elles peuvent
 /// être basculées pour mesurer leur effet. Ce ne sont pas des entrées du projet : la valeur par
-/// défaut est celle des lectures retenues (`docs/questions.md`).
+/// défaut est celle des lectures retenues (`docs/questions/README.md`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Lectures {
     /// Hystérésis de l'ouverture des baies (Q32 point 1).
@@ -114,7 +114,7 @@ pub struct Lectures {
     pub recuperation_th_d: bool,
 }
 
-/// Émission employée par le calcul Th-D (`docs/questions.md`, Q43 ; Q40 point 1).
+/// Émission employée par le calcul Th-D (`docs/questions/Q043.md` ; Q40 point 1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EmissionThD {
     /// Les émetteurs du projet (fiche 8.1), chauffage seul : lecture retenue au lot 6b.
@@ -125,7 +125,7 @@ pub enum EmissionThD {
     ConventionnelleBbio,
 }
 
-/// Système de ventilation employé par le calcul Th-D (`docs/questions.md`, Q42 ; Q40 point 1).
+/// Système de ventilation employé par le calcul Th-D (`docs/questions/Q042.md` ; Q40 point 1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum VentilationThD {
     /// Le système de ventilation du projet (fiches 6.2 à 6.5) : lecture retenue au lot 6a.

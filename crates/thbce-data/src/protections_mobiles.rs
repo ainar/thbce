@@ -19,7 +19,7 @@
 //!   `docs/reference/arrete/figures/a3_figure38_stores_enroulables_habitation_jo.png`.
 //!
 //! La transcription a été vérifiée par deux lectures indépendantes de ces images, cellule par
-//! cellule, pour les lignes de gestion manuelle (16 novembre 2026, `docs/questions.md`,
+//! cellule, pour les lignes de gestion manuelle (16 novembre 2026, `docs/questions/Q031.md`,
 //! décision Q31). Les tests de ce
 //! module vérifient en outre la cohérence interne des matrices.
 //!

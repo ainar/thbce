@@ -6,15 +6,13 @@
 //! manuelle (motorisée ou non), pour les usages de la famille « habitation, hôtellerie et
 //! hébergement » pris en charge ; seconde protection mobile ; règles propres au calcul Th-D
 //! (§5.9.3.6). La gestion automatique et les stores vénitiens ne sont pas pris en charge : la
-//! validation les refuse (`docs/questions.md`, Q30 et Q31).
+//! validation les refuse (`docs/questions/`, Q30 et Q31).
 //!
 //! En l'absence d'espace tampon, `becl = 1` et `Etp** = Etp*` (éq. 176).
 
 use thbce_data::protections_mobiles::{
-    LigneGpm, LigneInoccupation, LigneOccupation, MatriceManuelle, R_PROT2_OCC0,
-    STORE_ENROULABLE_HABITATION, TH_D_R_PROT_JOUR_MIN_AUTRE, TH_D_R_PROT_JOUR_MIN_MOTORISEE,
-    TH_D_R_PROT_NUIT_MAX_VOLET, TH_D_R_PROT_NUIT_STORE_ENROULABLE, TOP_J1_LIM_MANU_C,
-    VOLET_HABITATION, V_VENT_LIM_MANU_SE_M_S,
+    LigneGpm, LigneInoccupation, LigneOccupation, MatriceManuelle, R_PROT2_OCC0, TOP_J1_LIM_MANU_C,
+    V_VENT_LIM_MANU_SE_M_S,
 };
 
 use crate::entree::{GestionPm, ProtectionMobile, TypePm, TypoPm};

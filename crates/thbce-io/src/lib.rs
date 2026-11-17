@@ -10,7 +10,7 @@
 //!
 //! Le lecteur RSEE XML n'existe pas encore : le schéma XSD n'est pas public et l'annexe VI de
 //! l'arrêté ne nomme aucun élément XML. Il sera écrit à partir de fichiers d'exemple
-//! (décision Q3, `docs/questions.md`).
+//! (décision Q3, `docs/questions/Q003.md`).
 
 pub mod json;
 pub mod meteo;

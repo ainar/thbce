@@ -145,8 +145,10 @@ fn logement_collectif_surface_par_debit_maximal() {
     // Basse pression : 20 Pa (tableau 60, lecture Q42).
     zone_mut(&mut p).ventilation.as_mut().unwrap().systeme =
         SystemeVentilation::MecaniqueBassePression(VentilateurSimpleFlux {
-            p_vent_base_w: 15.0,
-            p_vent_pointe_w: 30.0,
+            p_vent_base_w: Some(15.0),
+            p_vent_pointe_w: Some(30.0),
+            p_vent_occ_w: None,
+            p_vent_inocc_w: None,
         });
     let v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
     let fuites = 3600.0 * 0.0675e-3 * 9.0 * libm::pow(20.0, 0.667);
@@ -170,6 +172,9 @@ fn double_flux(bypass: Option<Bypass>, antigel: bool) -> Projet {
         dugd_h: None,
         cdep: Some(1.0),
         a_cond_m2: Some(0.0),
+        q_spec_occ_m3_h: None,
+        q_spec_inocc_m3_h: None,
+        crdbnr: None,
     };
     z.groupes[0].bouches_conduits = vec![
         reprise.clone(),
@@ -219,6 +224,7 @@ fn un_pas(p: &Projet, theta_ext: f64, theta_i: f64, chauffage: bool) -> (AirSouf
             saison_de_chauffage: chauffage,
         }],
         &mut air,
+        true,
     );
     assert_eq!(air[0].omega_air_souffle_kg_kg, 0.004);
     (air[0], s.epsilon, s.w_ag_wh)
@@ -374,8 +380,10 @@ fn validation_du_systeme_de_ventilation() {
     zone_mut(&mut p).groupes[0].bouches_conduits[0].isouf = Isouf::Soufflage;
     zone_mut(&mut p).ventilation.as_mut().unwrap().systeme =
         SystemeVentilation::SimpleFluxInsufflation(VentilateurSimpleFlux {
-            p_vent_base_w: 15.0,
-            p_vent_pointe_w: 30.0,
+            p_vent_base_w: Some(15.0),
+            p_vent_pointe_w: Some(30.0),
+            p_vent_occ_w: None,
+            p_vent_inocc_w: None,
         });
     assert_eq!(
         chemins(&p),
@@ -405,8 +413,10 @@ fn simple_flux_par_insufflation() {
     b.a_cond_m2 = Some(0.0);
     let v = z.ventilation.as_mut().unwrap();
     v.systeme = SystemeVentilation::SimpleFluxInsufflation(VentilateurSimpleFlux {
-        p_vent_base_w: 20.0,
-        p_vent_pointe_w: 20.0,
+        p_vent_base_w: Some(20.0),
+        p_vent_pointe_w: Some(20.0),
+        p_vent_occ_w: None,
+        p_vent_inocc_w: None,
     });
     v.reseau.r_souf_m2k_w = Some(0.6);
     v.reseau.ratfuitevc = Some(1.0);

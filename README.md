@@ -17,7 +17,7 @@ Version **0.1.0**. Le moteur calcule, au pas horaire sur une année, la **maison
 Tout élément de l'entrée hors de ce périmètre est reconnu et refusé avec un message explicite (code de retour 3). Aucun cas de référence (COMETH ou logiciel évalué) n'a encore permis de valider les résultats : les lectures du texte retenues sont des hypothèses à confirmer (voir les limites ci-dessous).
 
 - Avancement fiche par fiche : [`docs/couverture.md`](docs/couverture.md) (144 fiches).
-- Ambiguïtés du texte et décisions de lecture : [`docs/questions.md`](docs/questions.md).
+- Ambiguïtés du texte et décisions de lecture : [`docs/questions/`](docs/questions/README.md).
 - Modèle de données : [`docs/modele-donnees.md`](docs/modele-donnees.md) ; historique du développement : [`docs/historique.md`](docs/historique.md).
 
 ## Contrats stables
@@ -147,8 +147,11 @@ Les fonctions sont typées (`pkg/thbce_wasm.d.ts`) : les types `Projet` et `Resu
 | `xtask` | scripts reproductibles (génération des données versionnées) |
 | `tests/cas` | cas de validation ([format](tests/cas/README.md)) |
 | `docs/reference` | textes réglementaires et données sources |
+| `docs` | [guide d'architecture](docs/architecture.md), couverture, modèle de données, questions |
 
 ## Développement
+
+Pour contribuer, lire d'abord le guide d'architecture [`docs/architecture.md`](docs/architecture.md) (parcours d'un calcul, carte des modules, recettes, tests ciblés), puis [`CONTRIBUTING.md`](CONTRIBUTING.md). Tout nouveau lot met à jour la partie du guide qui le concerne.
 
 ```sh
 cargo test --workspace
@@ -168,7 +171,7 @@ Voir [`CONTRIBUTING.md`](CONTRIBUTING.md).
 ## Limites connues
 
 - **Périmètre** : habitation seulement (maison individuelle ou accolée, logement collectif) ; les 26 autres usages sont refusés. Extensions de bâtiment non traitées.
-- **Aucune validation contre un cas de référence** (COMETH ou RSEE d'un logiciel évalué) : les lectures du texte Q8 à Q54 de [`docs/questions.md`](docs/questions.md) restent des hypothèses ; les paramètres à tester en premier en cas d'écart y sont listés.
+- **Aucune validation contre un cas de référence** (COMETH ou RSEE d'un logiciel évalué) : les lectures du texte Q8 à Q54 de [`docs/questions/`](docs/questions/README.md) restent des hypothèses ; les paramètres à tester en premier en cas d'écart y sont listés.
 - **Exigences** : catégorie de contraintes extérieures et zone de bruit saisies (le moteur contrôle la catégorie selon le chapitre V de l'annexe de l'article R. 172-4, mais ne détermine pas la classe de bruit des baies) ; Icconstruction et les exigences de moyens hors du moteur.
 - **Pas de lecteur RSEE XML** : le schéma XSD n'est pas public.
 - **Systèmes refusés** : ventilation naturelle, hybride, aération, centrales de traitement d'air, puits climatiques ou hydrauliques, échangeur rotatif, préchauffage, humidification, rafraîchissement évaporatif, surventilation mécanique ; brasseurs d'air ; gestion des générateurs en alternance, boucles d'eau, DRV, cogénération, PAC au gaz ou hybrides, PAC sur eau ou sur sol, triple service, second ballon, récupération de chaleur sur les eaux grises ; stores vénitiens, gestion automatique des protections mobiles ; Titres V.

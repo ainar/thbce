@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Assemblage des composants d'une zone : fiche `S2_BAT-assemblage_zone` (Th-BCE 2020 §5.5,
 //! figure 18), pour le calcul du Bbio (mode Th-B) et pour le calcul du confort d'été (mode
-//! Th-D), qui emploie le même assemblage (`docs/questions.md`, Q40).
+//! Th-D), qui emploie le même assemblage (`docs/questions/Q040.md`).
 //!
 //! À chaque pas de temps : climat et scénarios de la zone ; bilan aéraulique de la zone (§5.6)
 //! avec les débits et l'air soufflé du système de ventilation — conventionnel en Th-B (§6.1 et

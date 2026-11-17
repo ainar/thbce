@@ -92,7 +92,7 @@ impl Journee {
 ///
 /// Th-BCE 2020 §4.6.3.3, éq. (91), cas particulier du calcul du Bbio : le Bbio ne décrivant
 /// aucun système, tout groupe y est traité comme refroidi (décision du mainteneur,
-/// `docs/questions.md`, Q35 point 7 et Q38 point 3). En Th-C, « pas de système, pas de froid ».
+/// `docs/questions/Q035.md`, point 7 et Q38 point 3). En Th-C, « pas de système, pas de froid ».
 /// En Th-D, §13.5.3.1 : « dans le cas d'un groupe climatisé, le groupe est passé en non
 /// climatisé et le système de climatisation est désactivé » : jamais de refroidissement.
 pub fn refroidissement_possible(mode: ModeCalcul, i_clim: bool) -> bool {
@@ -103,7 +103,7 @@ pub fn refroidissement_possible(mode: ModeCalcul, i_clim: bool) -> bool {
     }
 }
 
-/// Lecture de l'autorisation propre de refroidir en calcul Th-D (`docs/questions.md`, Q40).
+/// Lecture de l'autorisation propre de refroidir en calcul Th-D (`docs/questions/Q040.md`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LectureSaisonFroidThD {
     /// Lecture retenue : en Th-D, `Autfr,pro` suit la procédure de la fiche, avec ses règles
@@ -310,7 +310,7 @@ impl Saisons {
     /// jour depuis le début de son calcul, jusqu'à 28 jours, puis glisse. `MGdh_ch` commence au
     /// jour 253 ou, au printemps, le deuxième jour après un arrêt ; `MGdh_fr` au jour 8 ;
     /// `MGbch` porte sur les 28 jours précédents ou, après un redémarrage, sur les jours écoulés
-    /// depuis celui-ci ; `MGbfr` sur les 28 jours précédents. Lectures : `docs/questions.md`, Q35.
+    /// depuis celui-ci ; `MGbfr` sur les 28 jours précédents. Lectures : `docs/questions/Q035.md`.
     pub fn nouveau_jour(&mut self, j: u16, confort_adaptatif_th_d: bool) -> Saison {
         // Clôture de la journée « 9 h (j−1) à 9 h (j) ».
         self.historique.rotate_left(1);
