@@ -226,8 +226,12 @@ pub struct ResultatsExigences {
     pub verifications: Vec<VerificationExigence>,
     /// Vrai si toutes les exigences vérifiées sont respectées. Seules les exigences sur Bbio,
     /// Cep, Cep,nr, Ic énergie et DH sont vérifiées : `Icconstruction`, les caractéristiques
-    /// minimales et les autres articles de l'arrêté sont hors du moteur.
+    /// minimales et les autres articles de l'arrêté sont hors du moteur. Toujours faux si un
+    /// indicateur exigé manque (`indicateurs_manquants`).
     pub conforme: bool,
+    /// Indicateurs exigés qui n'ont pas pu être calculés ni donc vérifiés ; vide en général.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub indicateurs_manquants: Vec<String>,
 }
 
 /// Indicateurs réglementaires d'un bâtiment.

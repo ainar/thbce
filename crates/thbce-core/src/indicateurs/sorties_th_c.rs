@@ -175,7 +175,7 @@ fn vecteur_generateur(nature: &NatureGenerateur, col: Colonne, froid: bool) -> V
             VecteurConnu::nouveau("gpl", Vecteur::Gpl)
         }
         (NatureGenerateur::Chaudiere(c), Colonne::Bois) => bois(c.combustible_bois),
-        (NatureGenerateur::PoeleOuInsert(p), Colonne::Bois) => bois(p.combustible_bois),
+        (NatureGenerateur::PoeleOuInsert(p), Colonne::Bois) => bois(Some(p.combustible_bois)),
         (
             NatureGenerateur::ReseauDeChaleurOuDeFroid(ReseauChaleurFroidSaisi::Chaleur {
                 identifiant_reseau,
@@ -461,6 +461,7 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
     let exigences = params.map(|pa| {
         let mut zones = Vec::new();
         let mut verifications = Vec::new();
+        let mut dh_manquants = Vec::new();
         let (mut bbio_max, mut cep_max, mut cep_nr_max, mut ic_max, mut s_tot) =
             (0.0, 0.0, 0.0, 0.0, 0.0);
         for ((z, r), (p, ex)) in bat.zones.iter().zip(e.zones).zip(&parties) {
@@ -499,19 +500,20 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
             });
             // Chapitre II, IV : DH_max de chaque partie thermiquement homogène (le groupe).
             for (g, rg) in z.groupes.iter().zip(&r.groupes) {
-                let (Some(dh), Some(max)) = (
-                    rg.confort_ete.as_ref().map(|c| c.dh_c_h),
-                    dh_max(
-                        p.usage,
-                        pa.categorie_contraintes_exterieures,
-                        e.zone_climatique,
-                        g.iclim == Some(true),
-                        x.smoy_lgt_m2,
-                    ),
-                ) else {
-                    continue;
-                };
-                verifications.push(verifier("dh", Some(g.id.clone()), dh, max));
+                let max = dh_max(
+                    p.usage,
+                    pa.categorie_contraintes_exterieures,
+                    e.zone_climatique,
+                    g.iclim == Some(true),
+                    x.smoy_lgt_m2,
+                );
+                match (rg.confort_ete.as_ref().map(|c| c.dh_c_h), max) {
+                    (Some(dh), Some(max)) => {
+                        verifications.push(verifier("dh", Some(g.id.clone()), dh, max));
+                    }
+                    (None, Some(_)) => dh_manquants.push(format!("dh ({})", g.id)),
+                    _ => {}
+                }
             }
         }
         let moy = |x: f64| if s_tot > 0.0 { x / s_tot } else { 0.0 };
@@ -527,7 +529,16 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
             tete.push(verifier("ic_energie", None, ic, ic_max));
         }
         tete.extend(verifications);
-        let conforme = tete.iter().all(|v| v.respectee);
+        // Un indicateur exigé qui n'a pas pu être calculé interdit de conclure à la conformité.
+        let mut manquants = Vec::new();
+        if e.bbio_pts.is_none() {
+            manquants.push("bbio".to_owned());
+        }
+        if ic.is_none() {
+            manquants.push("ic_energie".to_owned());
+        }
+        manquants.extend(dh_manquants);
+        let conforme = manquants.is_empty() && tete.iter().all(|v| v.respectee);
         ResultatsExigences {
             bbio_max_pts: bbio_max,
             cep_max_kwhep_m2: cep_max,
@@ -536,6 +547,7 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
             zones,
             verifications: tete,
             conforme,
+            indicateurs_manquants: manquants,
         }
     });
     if params.is_none() {

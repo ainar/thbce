@@ -129,27 +129,21 @@ fn indicateurs_de_tous_les_cas_meteo_ademe() {
 }
 
 #[test]
-fn le_bois_sans_combustible_n_a_pas_d_ic_energie() {
-    let (_, mut p) = cas()
-        .into_iter()
-        .find(|(n, _)| n == "maison-poele-granules-ademe")
-        .unwrap();
-    let m = meteo_ademe(&p);
-    for g in &mut p.batiments[0].generations {
-        for x in &mut g.generateurs {
-            if let thbce_core::entree::NatureGenerateur::PoeleOuInsert(poele) = &mut x.nature {
-                poele.combustible_bois = None;
+fn le_poele_sans_combustible_est_refuse() {
+    let chemin = dossier_des_cas().join("maison-poele-granules-ademe/entree.json");
+    let mut v: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(chemin).unwrap()).unwrap();
+    let mut retire = false;
+    for g in v["batiments"][0]["generations"].as_array_mut().unwrap() {
+        for x in g["generateurs"].as_array_mut().unwrap() {
+            if let Some(p) = x["nature"]["poele_ou_insert"].as_object_mut() {
+                retire |= p.remove("combustible_bois").is_some();
             }
         }
     }
-    let r = calculer(&p, &m, &Options { arrondir: false }).unwrap();
-    let i = r.batiments[0].indicateurs.as_ref().unwrap();
-    assert_eq!(i.ic_energie_kgco2_m2, None);
-    assert!(i.cep_kwhep_m2 > 0.0);
-    assert!(r
-        .avertissements
-        .iter()
-        .any(|a| a.contains("combustible_bois")));
+    assert!(retire);
+    // `combustible_bois` est obligatoire sur un poêle ou un insert (Q54).
+    assert!(json::lire_projet(&v.to_string()).is_err());
 }
 
 #[test]
@@ -168,6 +162,22 @@ fn indicateurs_de_tous_les_cas_meteo_reglementaire() {
         for b in &r.batiments {
             let i = b.indicateurs.as_ref().unwrap();
             let e = i.exigences.as_ref().unwrap();
+            // Valeurs recalculées à la main par la relecture indépendante, à partir des
+            // consommations par poste.
+            let attendu = match nom.as_str() {
+                "maison-climat-ademe" => Some((145.81, 182.28)),
+                "maison-chaudiere-gaz-ademe" => Some((85.41, 591.07)),
+                _ => None,
+            };
+            if let Some((cep, ic)) = attendu {
+                assert!(
+                    (i.cep_kwhep_m2 - cep).abs() < 0.01,
+                    "{nom} : Cep {}",
+                    i.cep_kwhep_m2
+                );
+                let obtenu = i.ic_energie_kgco2_m2.unwrap();
+                assert!((obtenu - ic).abs() < 0.01, "{nom} : Ic {obtenu}");
+            }
             println!(
                 "{:<36} {:>6.1} {:>6.1} {:>7.1} {:>7.1} {:>7.1} {:>7.1} {:>7.1} {:>7.1} {:>8.1} {:>6}",
                 nom,

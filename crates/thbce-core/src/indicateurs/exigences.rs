@@ -12,7 +12,18 @@ use thbce_data::ZoneClimatique;
 
 use crate::entree::{CategorieContraintes, ParametresExigences, ZoneBruit};
 
-use super::forfait_refroidissement::classe_altitude;
+/// Classe d'altitude des tableaux `Mbgéo` et `Mcgéo`, de 0 à 2, à la lettre de l'annexe :
+/// « < 400m », « 400m-800m », « >800m » ; 400 m pile relève de la deuxième classe, 800 m pile
+/// aussi (Q54 ; le tableau 336 du forfait de refroidissement a ses propres bornes).
+pub fn classe_altitude(alt_m: f64) -> usize {
+    if alt_m < 400.0 {
+        0
+    } else if alt_m <= 800.0 {
+        1
+    } else {
+        2
+    }
+}
 
 /// Description d'une zone (partie de bâtiment d'un usage) pour la fixation des exigences.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -435,6 +446,110 @@ mod tests {
         assert_eq!(
             dh_max(2, c2, ZoneClimatique::H2b, false, 40.0),
             Some(2350.0)
+        );
+    }
+
+    /// Valeurs recalculées à la main par la relecture indépendante du lot 7.
+    #[test]
+    fn valeurs_de_la_relecture_independante() {
+        let proche = |a: f64, b: f64| assert!((a - b).abs() < 1e-3, "{a} ≠ {b}");
+        let mut p = parametres();
+        p.annee_depot_permis = 2025;
+        let maison = |rcu: bool| PartieBatiment {
+            usage: 1,
+            sref_m2: 96.44,
+            nb_lgt: 1,
+            sref_usage_m2: 96.44,
+            raccorde_rcu: rcu,
+        };
+        let z = ZoneClimatique::H2b;
+        let e = exigences_partie(&maison(false), &p, z, 100.0).unwrap();
+        proche(e.bbio_max, 64.7444);
+        proche(e.cep_max, 70.1700);
+        proche(e.cep_nr_max, 51.4580);
+        proche(e.ic_energie_max, 149.6960);
+        proche(
+            exigences_partie(&maison(true), &p, z, 100.0)
+                .unwrap()
+                .ic_energie_max,
+            187.12,
+        );
+        for annee in [2028, 2031] {
+            p.annee_depot_permis = annee;
+            let e = exigences_partie(&maison(true), &p, z, 100.0).unwrap();
+            proche(e.ic_energie_max, 149.696);
+        }
+        p.parcelle_raccordement_gaz = true;
+        p.annee_depot_permis = 2023;
+        proche(
+            exigences_partie(&maison(false), &p, z, 100.0)
+                .unwrap()
+                .ic_energie_max,
+            261.968,
+        );
+        p.annee_depot_permis = 2024;
+        proche(
+            exigences_partie(&maison(false), &p, z, 100.0)
+                .unwrap()
+                .ic_energie_max,
+            149.696,
+        );
+
+        let mut p = parametres();
+        let immeuble = |rcu: bool| PartieBatiment {
+            usage: 2,
+            sref_m2: 720.0,
+            nb_lgt: 12,
+            sref_usage_m2: 720.0,
+            raccorde_rcu: rcu,
+        };
+        p.annee_depot_permis = 2025;
+        let e = exigences_partie(&immeuble(false), &p, z, 100.0).unwrap();
+        proche(e.bbio_max, 73.7);
+        proche(e.cep_max, 92.042857);
+        proche(e.cep_nr_max, 75.8);
+        proche(e.ic_energie_max, 281.542857);
+        proche(
+            exigences_partie(&immeuble(true), &p, z, 100.0)
+                .unwrap()
+                .ic_energie_max,
+            346.514,
+        );
+        p.annee_depot_permis = 2022;
+        proche(
+            exigences_partie(&immeuble(false), &p, z, 100.0)
+                .unwrap()
+                .ic_energie_max,
+            606.4,
+        );
+        p.reseau_chaleur_classe = true;
+        p.annee_depot_permis = 2027;
+        proche(
+            exigences_partie(&immeuble(true), &p, z, 100.0)
+                .unwrap()
+                .ic_energie_max,
+            606.4,
+        );
+        p.annee_depot_permis = 2028;
+        // Valeur donnée à deux décimales par la relecture (281,542857 arrondi).
+        let e = exigences_partie(&immeuble(true), &p, z, 100.0).unwrap();
+        assert!(
+            (e.ic_energie_max - 281.54).abs() < 5e-3,
+            "{}",
+            e.ic_energie_max
+        );
+    }
+
+    #[test]
+    fn classes_d_altitude_a_la_lettre_de_l_annexe() {
+        assert_eq!(classe_altitude(399.9), 0);
+        assert_eq!(classe_altitude(400.0), 1);
+        assert_eq!(classe_altitude(800.0), 1);
+        assert_eq!(classe_altitude(800.1), 2);
+        // Le tableau 336 du forfait garde « [0 ; 400 m] ».
+        assert_eq!(
+            super::super::forfait_refroidissement::classe_altitude(400.0),
+            0
         );
     }
 

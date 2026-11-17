@@ -83,6 +83,9 @@ mod tests {
         assert_eq!(c, 1.0);
         let f = cef_fr_elec_kwh_m2(false, 1000.0, Some(1250.0), 0.011, c);
         assert!((f - 0.011 * 650.0 / 2.3).abs() < 1e-12);
+        // Relecture indépendante : DH 1 042,906 °C.h, 3,313898 kWhef/m².
+        let f = cef_fr_elec_kwh_m2(false, 1042.906, Some(1250.0), 0.011, c);
+        assert!((f - 3.313898).abs() < 1e-6, "{f}");
         // Plafonné au seuil haut, nul sous le seuil bas ou si le groupe est climatisé.
         let haut = cef_fr_elec_kwh_m2(false, 3000.0, Some(1250.0), 0.011, c);
         assert!((haut - 0.011 * 900.0 / 2.3).abs() < 1e-12);

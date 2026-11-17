@@ -129,7 +129,9 @@ pub struct ParametresExigences {
     /// Zone de bruit (chapitre V de l'annexe) : module `Bbio_max` (`Mbbruit`).
     pub zone_bruit: ZoneBruit,
     /// Année de dépôt de la demande de permis de construire (2022 ou après) : fixe
-    /// `Icénergie_maxmoyen`.
+    /// `Icénergie_maxmoyen`. Les dérogations datées du texte sont appliquées à l'année : « avant
+    /// le 31 décembre 2023 » (maisons, raccordement au gaz) est lu « année ≤ 2023 », « avant le
+    /// 31 décembre 2027 » (réseau classé) « année ≤ 2027 » (Q54).
     pub annee_depot_permis: u16,
     /// « HSPmoy » : hauteur sous plafond moyenne des locaux d'habitation, en m (chapitre I,
     /// §XIII) : modulations `MbHSP` et `McHSP`.
@@ -2006,7 +2008,8 @@ pub struct ChaudiereSaisie {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub combustible_bois: Option<CombustibleBoisSaisi>,
     /// Gaz de pétrole liquéfié (PCSI de 1,09 au lieu de 1,11, tableau 116) ; gaz naturel
-    /// sinon. Le lot 7 devra distinguer les deux pour les coefficients de conversion.
+    /// sinon. Le GPL relève des « autres énergies » de l'article 9 et du facteur d'émission
+    /// « gaz butane / propane » de l'article 10 (lot 7).
     #[serde(default)]
     pub gpl: bool,
     /// « Id_fou_gen » : fonction du générateur.
@@ -2042,9 +2045,8 @@ pub struct PoeleSaisi {
     /// « Paux,vent » : puissance du ventilateur, en W (0 sans ventilateur).
     pub p_aux_vent_w: f64,
     /// « Type_Combustible_Bois » (§13.2.2) : combustible, qui fixe le facteur d'émission du bois
-    /// dans l'Ic énergie (article 10 de l'arrêté). Absent : l'Ic énergie n'est pas calculé.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub combustible_bois: Option<CombustibleBoisSaisi>,
+    /// dans l'Ic énergie (article 10 de l'arrêté). Obligatoire, comme pour une chaudière au bois.
+    pub combustible_bois: CombustibleBoisSaisi,
 }
 
 /// Type d'un réseau de chaleur (§8.28.3.1, tableaux 247 et 248).

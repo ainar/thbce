@@ -174,10 +174,38 @@ export interface ResultatsExigences {
   cep_max_kwhep_m2: number;
   cep_nr_max_kwhep_m2: number;
   ic_energie_max_kgco2_m2: number;
-  /** Exigences et coefficients de modulation de chaque zone (voir `thbce schema --resultats`). */
-  zones: Record<string, number | string>[];
+  zones: ExigencesZone[];
   verifications: VerificationExigence[];
+  /** Toujours faux si un indicateur exigé manque. */
   conforme: boolean;
+  indicateurs_manquants?: string[];
+}
+/** Exigences d'une zone et coefficients de modulation (annexe de l'article R. 172-4). */
+export interface ExigencesZone {
+  id: string;
+  usage: number;
+  sref_m2: number;
+  smoy_lgt_m2: number;
+  bbio_max_moyen: number;
+  mb_geo: number;
+  mb_combles: number;
+  mb_surf_moy: number;
+  mb_surf_tot: number;
+  mb_bruit: number;
+  mb_hsp: number;
+  bbio_max_pts: number;
+  cep_max_moyen: number;
+  cep_nr_max_moyen: number;
+  ic_energie_max_moyen: number;
+  mc_geo: number;
+  mc_combles: number;
+  mc_surf_moy: number;
+  mc_surf_tot: number;
+  mc_cat: number;
+  mc_hsp: number;
+  cep_max_kwhep_m2: number;
+  cep_nr_max_kwhep_m2: number;
+  ic_energie_max_kgco2_m2: number;
 }
 export interface ResultatsIndicateurs {
   sref_m2: number;
