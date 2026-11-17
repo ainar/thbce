@@ -1,0 +1,59 @@
+{
+  "batiments": [
+    {
+      "id": "maison",
+      "production_pv": {
+        "e_prod_pv_kwh": 3029.0,
+        "e_prod_pv_mensuel_kwh": [
+          65.5,
+          136.6,
+          272.0,
+          289.8,
+          395.7,
+          367.8,
+          451.9,
+          448.5,
+          272.6,
+          179.6,
+          95.1,
+          54.1
+        ],
+        "installations": [
+          {
+            "id": "toiture-sud",
+            "n_modules": 8,
+            "puissance_crete_calcul_kwc": 3.0,
+            "eta_stc": 0.214,
+            "u1_w_m2k": 10.855,
+            "p_ac_nom_w": 2400.0,
+            "g_kwh_m2": 1365.6,
+            "e_pv_kwh": 3525.7,
+            "e_ond_kwh": 3029.0,
+            "e_ond_mensuel_kwh": [
+              65.5,
+              136.6,
+              272.0,
+              289.8,
+              395.7,
+              367.8,
+              451.9,
+              448.5,
+              272.6,
+              179.6,
+              95.1,
+              54.1
+            ],
+            "nbh_extinction": 1,
+            "valeurs_par_defaut": [
+              {
+                "champ": "onduleur.p_ac_nom_w",
+                "valeur": 2400.0,
+                "regle": "Th-BCE 2020 \u00a712.4.3 : PAC NOM = 0,8 \u00d7 N \u00d7 Pc"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

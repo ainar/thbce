@@ -29,6 +29,8 @@ use crate::ecs::distribution_ecs::{l_vc_2nd_e_defaut_m, EmetteurEcsResolu};
 use crate::entree::{Batiment, Catalogue, Groupe, Projet, UsageZone, Zone};
 use crate::erreur::Erreur;
 use crate::indicateurs::sorties_th_b::{sorties, EnergiesMensuelles};
+use crate::pv::global::produire;
+use crate::pv::ResultatsProductionPv;
 use crate::resultats::{
     Consommations, ConsommationsPostes, PeriodeConfortAdaptatif, Resultats, ResultatsBaie,
     ResultatsBatiment, ResultatsClimat, ResultatsConfort, ResultatsConfortEte, ResultatsDebitsBbio,
@@ -210,6 +212,15 @@ pub fn calculer(
             distributions_ecs_intergroupes: resultats_ecs_intergroupes(&th_c),
             generations: resultats_generations(&th_c),
             consommations: avec_generations.then_some(consommations_bat),
+            production_pv: (!bat.installations_pv.is_empty()).then(|| {
+                // §12 : production sur le jeu météo « Th-BC » (comme les consommations).
+                let productions: Vec<_> = bat
+                    .installations_pv
+                    .iter()
+                    .map(|i| produire(i, &projet.catalogue, &climat_th_bc))
+                    .collect();
+                ResultatsProductionPv::depuis(&productions)
+            }),
             consommations_collectif: conso_collectif,
             ascenseurs,
             parkings,
@@ -500,6 +511,50 @@ pub fn series_horaires(
         })?;
     }
     Ok(series)
+}
+
+/// Série horaire de production photovoltaïque d'un bâtiment (§12 ; entrée du chapitre 13).
+#[derive(Debug, Clone, PartialEq)]
+pub struct SeriePvBatiment {
+    /// Identifiant du bâtiment.
+    pub batiment: String,
+    /// « Eelec_prod_PV_integre(h) » (éq. 2524) : somme des `Pond` des installations, en Wh par
+    /// pas de temps, 8 760 valeurs.
+    pub e_prod_pv_wh: Vec<f64>,
+    /// `Pond` de chaque installation (identifiant, 8 760 valeurs en W).
+    pub installations: Vec<(String, Vec<f64>)>,
+}
+
+/// Production photovoltaïque horaire de chaque bâtiment doté d'installations, sur le jeu météo
+/// « Th-BC ». Les valeurs ne sont pas arrondies. La répartition entre part autoconsommée et
+/// part exportée (§13.2.3, éq. 2527 à 2530) est à la charge du lot 7.
+pub fn series_pv(projet: &Projet, meteo: &MeteoProjet) -> Result<Vec<SeriePvBatiment>, Erreur> {
+    verifier(projet, meteo)?;
+    let loc = &projet.localisation;
+    let climat = ClimatExterieur::nouveau(&meteo.th_bc, loc.departement, loc.alt_m);
+    Ok(projet
+        .batiments
+        .iter()
+        .filter(|b| !b.installations_pv.is_empty())
+        .map(|b| {
+            let prods: Vec<_> = b
+                .installations_pv
+                .iter()
+                .map(|i| produire(i, &projet.catalogue, &climat))
+                .collect();
+            let mut total = vec![0.0; NB_HEURES_AN];
+            for p in &prods {
+                for (t, x) in total.iter_mut().zip(&p.p_ond_w) {
+                    *t += x;
+                }
+            }
+            SeriePvBatiment {
+                batiment: b.id.clone(),
+                e_prod_pv_wh: total,
+                installations: prods.into_iter().map(|p| (p.id, p.p_ond_w)).collect(),
+            }
+        })
+        .collect())
 }
 
 /// Énergies mensuelles d'un groupe à l'issue du calcul annuel.

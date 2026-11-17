@@ -107,6 +107,10 @@ pub struct ResultatsBatiment {
     /// génération.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub consommations: Option<Consommations>,
+    /// Production photovoltaïque du bâtiment (§12), sur le jeu météo « Th-BC » ; absente sans
+    /// installation. La répartition autoconsommé/exporté relève du chapitre 13.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub production_pv: Option<crate::pv::ResultatsProductionPv>,
     /// Postes propres au logement collectif et aux parkings du bâtiment, en électricité (§7.2,
     /// §10.1, §10.3, §10.4) : somme de ceux de ses zones. Absent sans logement collectif ni
     /// parking.
@@ -1052,6 +1056,9 @@ impl Resultats {
             b.dh_c_h = b.dh_c_h.map(a);
             b.ic_energie_kgco2_m2 = b.ic_energie_kgco2_m2.map(a);
             b.c_aux_vent_kwh = b.c_aux_vent_kwh.map(a);
+            if let Some(pv) = &mut b.production_pv {
+                pv.arrondir();
+            }
             if let Some(c) = &mut b.consommations_collectif {
                 c.arrondir();
             }

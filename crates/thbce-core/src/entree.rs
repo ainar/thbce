@@ -99,6 +99,9 @@ pub struct Batiment {
     /// Réseaux de distribution d'ECS intergroupes (§9.8).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub distributions_ecs_intergroupes: Vec<DistributionEcsIntergroupe>,
+    /// Installations photovoltaïques intégrées au bâtiment (§12.1 et §12.2). Facultatif.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub installations_pv: Vec<crate::pv::InstallationPv>,
     /// Ascenseurs du bâtiment (§10.1), une entrée par cabine ; logement collectif seulement.
     /// L'éclairage conventionnel des parties communes (§7.2) ne demande aucune saisie : il
     /// s'applique à toute zone de logement collectif.

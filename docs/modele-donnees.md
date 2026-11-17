@@ -309,6 +309,16 @@ Batiment
 
 Résultats : `consommations_collectif` (zone et bâtiment) : `eclairage_parties_communes`, `ascenseurs`, `ventilation_parkings`, `eclairage_parkings`, chacun `{ annuel_kwh, annuel_kwh_m2, mensuel_kwh[12] }` ; `ascenseurs[]` (`n_dem`, `t_mob_h`, `pti_w`, `e_tm_kwh`, `e_ti_kwh`, `e_tot_kwh`, `valeurs_par_defaut`) et `parkings[]` (`e_vent_kwh`, `e_ecl_kwh`, `valeurs_par_defaut`) au niveau du bâtiment.
 
+### Format d'entrée de la production photovoltaïque (lot 7a)
+
+Champ facultatif (`docs/questions.md`, Q51) : un bâtiment porte `installations_pv[]`, une par ensemble de modules connectés à un même onduleur (§12.1, §12.2.1).
+
+- `id` ; `exposition` (`azimut_deg`, `inclinaison_deg` de 0 à 90, `lpb_m`, `hpb_m`, `masques` : identifiants du catalogue, §3.2) ; `n_modules` (« N ») ; `confinement` (« CT » : `libre` = 1, `autre` = 1,5, `confine` = 2, valeur par défaut).
+- `modules` : `technologie` (`mono_cristallin_si`, `multi_cristallin_si`, `cdte`, `cis`, `amorphe_si`, `autre`), `s_m2` (surface d'un module), `performances` selon `statut` : `certifie`, `justifie` ou `declare` (`pc_w`, `mu_par_c`, `noct_c`), ou `defaut` (`pc_w` seul ; μ et NOCT par défaut signalés). Les valeurs de calcul sont réduites selon le statut (§12.3.3.1).
+- `onduleur` facultatif : `p_ac_nom_w` (défaut : 0,8 × N × Pc, signalé) et `rendement` : `defaut` (0,9), `europeen { eta_eu }` ou `courbe { points: [{ x, eta }] }` (points 0,05 ; 0,1 ; 0,25 ; 0,5 ; 0,75 ; 1 au minimum).
+
+Résultats : `batiments[].production_pv` (`e_prod_pv_kwh`, `e_prod_pv_mensuel_kwh`, `installations[]` : puissance crête de calcul, `eta_stc`, `u1_w_m2k`, `p_ac_nom_w`, rayonnement efficace `g_kwh_m2`, `e_pv_kwh` en sortie des modules, `e_ond_kwh` en sortie de l'onduleur, mensuel, `nbh_extinction`, `valeurs_par_defaut`). Série horaire pour le lot 7 : `thbce_core::series_pv` (Wh par pas, par installation et pour le bâtiment). La répartition autoconsommé/exporté (§13.2.3) n'est pas faite ici.
+
 ## Énumérations issues du texte
 
 ```rust

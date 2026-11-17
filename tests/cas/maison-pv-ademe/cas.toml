@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Maison d'exemple (tests/cas/maison-climat-ademe) avec une installation photovoltaïque de 3 kWc en toiture sud (8 modules de 375 W, 1,75 m², silicium monocristallin, inclinaison 30°, valeurs certifiées illustratives : μ = 0,0035 °C⁻¹, NOCT = 45 °C), face arrière confinée, onduleur par défaut (rendement 0,9, PAC NOM = 0,8 × N × Pc = 2 400 W), sur la météo ouverte ADEME (Tours, H2b). Seule la production est comparée. Résultat non réglementaire."
+source = "aucune : valeurs non issues d'un cas de référence ; ce sont celles du moteur au moment de l'ajout du lot 7a (fiches 12.1 à 12.4), figées pour détecter une régression. Ce n'est pas un cas de référence."
+meteo = "ademe"
