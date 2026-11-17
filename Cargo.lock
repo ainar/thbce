@@ -890,7 +890,7 @@ dependencies = [
 
 [[package]]
 name = "thbce-cli"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "clap",
  "serde_json",
@@ -901,7 +901,7 @@ dependencies = [
 
 [[package]]
 name = "thbce-core"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "libm",
  "proptest",
@@ -914,7 +914,7 @@ dependencies = [
 
 [[package]]
 name = "thbce-data"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "schemars",
  "serde",
@@ -924,7 +924,7 @@ dependencies = [
 
 [[package]]
 name = "thbce-io"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "calamine",
  "rust_xlsxwriter",
@@ -940,7 +940,7 @@ dependencies = [
 
 [[package]]
 name = "thbce-wasm"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "js-sys",
  "serde",
@@ -1203,7 +1203,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "calamine",
  "serde_json",

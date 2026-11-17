@@ -169,7 +169,7 @@ fn indicateurs_de_tous_les_cas_meteo_reglementaire() {
                 "maison-chaudiere-gaz-ademe" => Some((85.41, 591.07)),
                 _ => None,
             };
-            // Valeurs phares de la version 1.0.0 (arrondies à une décimale), garde-fou contre une
+            // Valeurs phares de la version 0.1.0 (arrondies à une décimale), garde-fou contre une
             // régression : Bbio, DH, Cep et Ic énergie de la maison d'exemple, Bbio et DH de
             // l'immeuble d'exemple.
             let phares = match nom.as_str() {

@@ -5,11 +5,11 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
-## [1.0.0] - 2026-11-17
+## [0.1.0] - 2026-11-17
 
 Méthode : Th-BCE 2020, annexe III de l'arrêté du 4 août 2021, version consolidée au 19 mars 2026 ; annexe de l'article R. 172-4 du CCH (exigences) dans sa rédaction applicable aux permis déposés à compter du 1er juillet 2026.
 
-Première version publiée. **Ce n'est pas le moteur réglementaire officiel ; ses résultats ne valent pas attestation de conformité.**
+Première version publiée. **Ce n'est pas le moteur réglementaire officiel ; ses résultats ne valent pas attestation de conformité.** La version 1.0.0 sera publiée après validation contre le moteur réglementaire COMETH, au moyen d'un logiciel certifié. Jusque-là, les contrats (format JSON, CLI, API JavaScript) sont considérés comme stables, mais les résultats peuvent changer à la suite de cette validation.
 
 ### Calcul
 
@@ -21,7 +21,7 @@ Première version publiée. **Ce n'est pas le moteur réglementaire officiel ; s
   - ECS instantanée ou par ballon, chauffe-eau thermodynamiques, CESI, systèmes solaires combinés, CESCI et CESCAI ;
   - photovoltaïque et autoconsommation ;
   - éclairage des parties communes, ascenseurs et parkings.
-- Valeurs de la version 1.0.0 sur la météo réglementaire (H2b, permis 2025, catégorie 1, BR1) :
+- Valeurs de la version 0.1.0 sur la météo réglementaire (H2b, permis 2025, catégorie 1, BR1) :
 
   | Exemple | Bbio | Cep | Cep,nr | Ic énergie | DH |
   |---|---|---|---|---|---|
@@ -49,9 +49,9 @@ Première version publiée. **Ce n'est pas le moteur réglementaire officiel ; s
 
 ### Contrats stables
 
-Ne changeront pas de façon incompatible avant la version 2.0 : le format JSON d'entrée et celui des résultats (des champs facultatifs ou des valeurs nouvelles peuvent s'ajouter), la ligne de commande (commandes, options, codes de retour) et l'API JavaScript (fonctions, paramètres, nature des erreurs). L'API Rust n'est pas stabilisée. Les valeurs calculées peuvent changer quand une lecture du texte est corrigée.
+Considérés comme stables : le format JSON d'entrée et celui des résultats (des champs facultatifs ou des valeurs nouvelles peuvent s'ajouter), la ligne de commande (commandes, options, codes de retour) et l'API JavaScript (fonctions, paramètres, nature des erreurs). L'API Rust n'est pas stabilisée. La version 1.0.0 sera publiée après validation contre le moteur réglementaire COMETH, au moyen d'un logiciel certifié. Jusque-là, les contrats (format JSON, CLI, API JavaScript) sont considérés comme stables, mais les résultats peuvent changer à la suite de cette validation.
 
-### Changements de format pour les utilisateurs de `main` d'avant la 1.0
+### Changements de format pour les utilisateurs de `main` d'avant la 0.1.0
 
 Une entrée écrite pour une version de développement doit être mise à jour (`thbce valider` signale chaque champ) :
 
@@ -61,7 +61,7 @@ Une entrée écrite pour une version de développement doit être mise à jour (
 - un type de paroi porte `incl_k` ; un groupe `su_m2` et `v_m3` ; une zone `h_zone_m`, `h_plancher_m` et `q4pa_surf_m3_h_m2` ; au moins une bouche dans `bouches_conduits` (lot 4) ;
 - un masque lointain azimutal se saisit par `gamma_i_deg` (36 hauteurs) ;
 - `kit.k_theta` est requis sur un kit CESI ; `poele_ou_insert.combustible_bois` est obligatoire ;
-- renommages de la préparation de la 1.0 :
+- renommages de la préparation de la 0.1.0 :
 
   | Avant | Après |
   |---|---|

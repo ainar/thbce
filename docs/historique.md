@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # Historique du développement
 
-Journal détaillé, lot par lot et dans l'ordre chronologique, des travaux qui ont précédé la version 1.0.0 sur la branche `main`. Le [CHANGELOG](../CHANGELOG.md) n'en garde que la synthèse. Les chiffres cités sont ceux de leur date : ils ont pu changer ensuite (voir les valeurs de la version 1.0.0 dans le CHANGELOG et dans `tests/cas/`).
+Journal détaillé, lot par lot et dans l'ordre chronologique, des travaux qui ont précédé la version 0.1.0 sur la branche `main`. Le [CHANGELOG](../CHANGELOG.md) n'en garde que la synthèse. Les chiffres cités sont ceux de leur date : ils ont pu changer ensuite (voir les valeurs de la version 0.1.0 dans le CHANGELOG et dans `tests/cas/`).
 
 ## Phases 1 à 3 et lot 4 : squelette, climat, scénarios, bâti et modèle thermique
 

@@ -4,7 +4,7 @@ resolver = "2"
 members = ["crates/*", "xtask"]
 
 [workspace.package]
-version = "1.0.0"
+version = "0.1.0"
 edition = "2021"
 # Version minimale de Rust : celle qu'exigent calamine, zip et proptest ; vérifiée par la CI
 # (tâche « Version minimale de Rust »).

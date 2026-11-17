@@ -7,7 +7,7 @@ Moteur de calcul de la méthode **Th-BCE 2020**, la méthode réglementaire de l
 
 ## État
 
-Version **1.0.0**. Le moteur calcule, au pas horaire sur une année, la **maison individuelle ou accolée** et le **logement collectif** :
+Version **0.1.0**. Le moteur calcule, au pas horaire sur une année, la **maison individuelle ou accolée** et le **logement collectif** :
 
 - **Bbio** (calcul Th-B), **DH** (confort d'été, calcul Th-D sur la météo à séquence caniculaire), consommations par poste et par énergie (calcul Th-C), **Cep**, **Cep,nr** et **Ic énergie** (pondération dynamique de l'article 11) ;
 - si l'entrée décrit les données de l'annexe de l'article R. 172-4 du CCH (`exigences`), les **exigences maximales** (Bbio_max, Cep_max, Cep,nr_max, Icénergie_max, DH_max et leurs modulations) et la **conformité** ;
@@ -20,15 +20,17 @@ Tout élément de l'entrée hors de ce périmètre est reconnu et refusé avec u
 - Ambiguïtés du texte et décisions de lecture : [`docs/questions.md`](docs/questions.md).
 - Modèle de données : [`docs/modele-donnees.md`](docs/modele-donnees.md) ; historique du développement : [`docs/historique.md`](docs/historique.md).
 
-## Contrats stables de la version 1.0
+## Contrats stables
 
-Suivant le [versionnage sémantique](https://semver.org/lang/fr/), les éléments suivants ne changeront pas de façon incompatible avant une version 2.0 :
+La version 1.0.0 sera publiée après validation contre le moteur réglementaire COMETH, au moyen d'un logiciel certifié. Jusque-là, les contrats (format JSON, CLI, API JavaScript) sont considérés comme stables, mais les résultats peuvent changer à la suite de cette validation.
+
+Sont considérés comme stables :
 
 - le **format JSON d'entrée** (`thbce schema`) et le **format JSON des résultats** (`thbce schema --resultats`) : des champs facultatifs ou des valeurs nouvelles peuvent s'ajouter, aucun champ existant n'est renommé ni retiré ;
 - la **ligne de commande** : commandes `calcul`, `valider`, `schema`, `meteo convertir`, `version`, leurs options et les **codes de retour** ;
 - l'**API JavaScript** du module WebAssembly : `calculer`, `valider`, `versionMoteur`, `schemaEntree`, `schemaResultats`, leurs paramètres et la forme des erreurs (`cause.nature`).
 
-L'**API Rust** des crates (`thbce-core`, `thbce-io`…) n'est **pas stabilisée** : elle peut changer dans une version mineure. Les valeurs calculées peuvent changer quand une lecture du texte est corrigée ; le CHANGELOG le signale.
+L'**API Rust** des crates (`thbce-core`, `thbce-io`…) n'est **pas stabilisée**. Les valeurs calculées peuvent changer quand une lecture du texte est corrigée ; le CHANGELOG le signale.
 
 ## Données météo
 
