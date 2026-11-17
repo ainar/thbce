@@ -4,6 +4,7 @@
 //! ```text
 //! cargo run -p xtask -- zones-climatiques [--verifier]
 //! cargo run -p xtask -- temperature-base [--verifier]
+//! cargo run -p xtask -- reseaux-chaleur [--verifier]
 //! cargo run -p xtask -- scenarios [--verifier]
 //! cargo run -p xtask -- verifier
 //! cargo run -p xtask -- meteo-synthetique <fichier.csv>
@@ -16,6 +17,9 @@
 //!   depuis le tableau du §3.1.3 de l'annexe III.
 //! - `scenarios` convertit le classeur des scénarios conventionnels en
 //!   `crates/thbce-data/src/scenarios/table.rs`.
+//! - `reseaux-chaleur` extrait identifiant, facteur d'émission et taux d'EnR&R des réseaux de
+//!   chaleur et de froid de l'annexe 7 de l'arrêté du 15 septembre 2006 en
+//!   `crates/thbce-data/src/reseaux_chaleur/table.rs`.
 //! - `verifier` contrôle tous les fichiers générés.
 //! - `meteo-synthetique` écrit un jeu météo constant pour les huit zones, au format CSV long,
 //!   pour les tests de bout en bout. Ce jeu n'est pas réglementaire.
@@ -27,6 +31,7 @@ use thbce_core::climat::donnees::DESCRIPTION_SYNTHETIQUE;
 use thbce_core::climat::MeteoProjet;
 use thbce_data::ZoneClimatique;
 
+mod reseaux;
 mod scenarios;
 mod temperature_base;
 mod zones;
@@ -78,6 +83,16 @@ fn temperature_de_base(verifier: bool) -> Result<(), String> {
     )
 }
 
+fn reseaux_de_chaleur(verifier: bool) -> Result<(), String> {
+    let (reseaux, chaleur, froid) = reseaux::extraire(&lire_source(reseaux::SOURCE)?)?;
+    produire(
+        reseaux::SORTIE,
+        reseaux::generer(&reseaux, chaleur, froid),
+        "reseaux-chaleur",
+        verifier,
+    )
+}
+
 fn scenarios_conventionnels(verifier: bool) -> Result<(), String> {
     let chemin = racine().join(scenarios::SOURCE);
     let octets = std::fs::read(&chemin).map_err(|e| format!("{} : {e}", chemin.display()))?;
@@ -114,14 +129,17 @@ fn main() -> ExitCode {
         ["zones-climatiques", "--verifier"] => zones_climatiques(true),
         ["temperature-base"] => temperature_de_base(false),
         ["temperature-base", "--verifier"] => temperature_de_base(true),
+        ["reseaux-chaleur"] => reseaux_de_chaleur(false),
+        ["reseaux-chaleur", "--verifier"] => reseaux_de_chaleur(true),
         ["scenarios"] => scenarios_conventionnels(false),
         ["scenarios", "--verifier"] => scenarios_conventionnels(true),
         ["verifier"] => zones_climatiques(true)
             .and_then(|()| temperature_de_base(true))
+            .and_then(|()| reseaux_de_chaleur(true))
             .and_then(|()| scenarios_conventionnels(true)),
         ["meteo-synthetique", sortie] => meteo_synthetique(sortie),
         _ => Err(
-            "usage : xtask zones-climatiques [--verifier] | temperature-base [--verifier] | scenarios [--verifier] | verifier | meteo-synthetique <fichier.csv>"
+            "usage : xtask zones-climatiques [--verifier] | temperature-base [--verifier] | reseaux-chaleur [--verifier] | scenarios [--verifier] | verifier | meteo-synthetique <fichier.csv>"
                 .to_owned(),
         ),
     };
