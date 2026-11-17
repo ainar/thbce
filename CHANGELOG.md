@@ -84,7 +84,7 @@ Une entrée écrite pour une version de développement doit être mise à jour (
 ### Limites connues
 
 - Périmètre habitation seulement.
-- Aucune validation contre un cas de référence (COMETH ou RSEE) : les lectures Q8 à Q54 de `docs/questions/` restent des hypothèses.
+- Aucune validation contre un cas de référence (COMETH ou RSEE) : les lectures Q8 à Q54 (`docs/questions/Q008.md` à `Q054.md`) restent des hypothèses.
 - Catégorie de contraintes extérieures et zone de bruit saisies, la catégorie étant contrôlée selon le chapitre V de l'annexe de l'article R. 172-4 ; Icconstruction hors du moteur.
 - Pas de lecteur RSEE XML.
 - Systèmes refusés : ventilation naturelle, hybride, aération, CTA, puits, échangeur rotatif ; brasseurs d'air ; gestion en alternance, boucles d'eau, DRV, cogénération, PAC au gaz ou hybrides, PAC sur eau ou sol, second ballon, récupération sur eaux grises ; stores vénitiens, gestion automatique des protections ; Titres V.

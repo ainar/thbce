@@ -20,7 +20,7 @@
 //! ventilation du projet (lot 6a, `docs/questions/Q042.md`) et l'émission conventionnelle
 //! jusqu'au lot 6b (Q40).
 //!
-//! Lectures propres à l'enchaînement horaire : `docs/questions/`, Q39 et Q40.
+//! Lectures propres à l'enchaînement horaire : `docs/questions/Q039.md` et `Q040.md`.
 
 use thbce_data::protections_mobiles::parts_occupation;
 

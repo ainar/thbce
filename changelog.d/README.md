@@ -28,4 +28,4 @@ cargo run -p xtask -- changelog --apercu      # affiche l'assemblage, n'écrit r
 cargo run -p xtask -- changelog 0.2.0         # écrit la section datée, supprime les fragments
 ```
 
-L'assemblage réunit les sections de même titre, dans l'ordre de Keep a Changelog, et insère la nouvelle section `## [version] - date` sous `## [Non publié]` de `CHANGELOG.md` (`--date AAAA-MM-JJ` fixe la date). `cargo run -p xtask -- verifier` contrôle que les fragments présents sont lisibles.
+L'assemblage réunit les sections de même titre (sans ligne vide entre les puces de fragments différents), dans l'ordre de Keep a Changelog, et insère la nouvelle section `## [version] - date` sous `## [Non publié]` de `CHANGELOG.md` (`--date AAAA-MM-JJ` fixe la date). `cargo run -p xtask -- verifier` contrôle que les fragments présents sont lisibles.

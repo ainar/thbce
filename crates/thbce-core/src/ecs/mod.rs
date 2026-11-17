@@ -19,7 +19,7 @@
 //! La production d'ECS, instantanée (§9.1) ou avec stockage (§9.2), passe par la génération
 //! (`chauffage_refroidissement::generation`).
 //!
-//! Lectures : `docs/questions/`, Q45, Q48, Q52 et Q53.
+//! Lectures : `docs/questions/Q045.md`, `Q048.md`, `Q052.md` et `Q053.md`.
 
 pub mod assemblage_ballon;
 pub mod ballon_de_stockage;

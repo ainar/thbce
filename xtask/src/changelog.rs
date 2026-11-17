@@ -123,11 +123,13 @@ fn assembler(fragments: &[Fragment]) -> String {
         for f in fragments {
             for (t, texte) in &f.sections {
                 if t == titre {
+                    // Pas de ligne vide entre les puces de fragments différents.
                     sortie.push_str(texte);
-                    sortie.push_str("\n\n");
+                    sortie.push('\n');
                 }
             }
         }
+        sortie.push('\n');
     }
     sortie.trim_end().to_owned()
 }
@@ -273,7 +275,7 @@ mod tests {
         let b = analyser("b", "### Ajouté\n- b1\n### Divers\n- d\n").expect("b");
         assert_eq!(
             assembler(&[a, b]),
-            "### Ajouté\n\n- a1\n\n- b1\n\n### Corrigé\n\n- c1\n\n### Divers\n\n- d"
+            "### Ajouté\n\n- a1\n- b1\n\n### Corrigé\n\n- c1\n\n### Divers\n\n- d"
         );
     }
 
