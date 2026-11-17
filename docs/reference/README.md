@@ -26,6 +26,7 @@ Les fichiers `texte/` et les `.txt` sont des extractions automatiques (`pdftotex
 
 | Fichier | Contenu | Version texte |
 |---|---|---|
+| `re2020-fa03_extension-construction-inf-50_v2.pdf` | FA03 v2 (1er octobre 2026) : extension nouvelle d'un bâtiment existant et construction de petite surface ; articles R. 172-1 et R. 172-3 du CCH, articles 50-2 et 50-3 de l'arrêté (rédaction de l'arrêté du 18 mars 2026 pour les surélévations) ; régimes « exigences de moyens » (50-3, III), « intermédiaire » (50-3, II) et « complet » selon l'usage, la surface et la part de l'existant (tableaux 2 à 4) ; paramètres de calcul d'une extension (annexe II) (Q86 à Q88). | `texte/fa03-extension-construction-inf-50-v2.txt` |
 | `re2020-fa05_usage-batiment_v2.pdf` | FA05 v2 (1er octobre 2026) : identifier l'usage d'un bâtiment et l'exigence associée ; article R. 172-1 du CCH (dates d'application par usage), article 2 de l'arrêté (assimilation d'une petite partie à l'usage principal), correspondance destinations → usages Th-BCE, bâtiments à usage mixte (Q67, Q68). | `texte/fa05-usage-batiment-v2.txt` |
 | `re2020-fa09_exclusion-application-tertiaire-specifique-industrie_v1.pdf` | FA09 v1 (1er octobre 2026) : exclusions d'application aux bâtiments tertiaires spécifiques et industriels (locaux de process, constructions temporaires, petites surfaces, extensions ; Q68). | `texte/fa09-exclusions-tertiaire-specifique-industrie-v1.txt` |
 

@@ -1,0 +1,758 @@
+                    RE2020
+              Fiche d’application
+       Extension nouvelle d’un bâtiment
+       existant et Construction de petite
+                    surface
+         Date                        Modification                       Version
+
+       07/02/2023                       Création                           1
+
+       01/10/2026    •   Refonte du format afin de faciliter la            2
+                         lecture de la fiche d’application ;
+                     •   Modification (extension de périmètre de la
+                         RE2020 aux bâtiments d'activités tertiaires
+                         spécifiques et aux bâtiments à usage
+                         industriel et artisanal) ;
+                     •   Intégration des dispositions relatives aux
+                         surélévations issues du décret n°2026-200
+                         et de l’arrêté du 18 mars 2026.
+
+
+
+
+Préambule
+Cette fiche d’application précise les modalités de prise en compte de la
+réglementation environnementale 2020 (RE2020) dans le cas d’une partie nouvelle
+d’un bâtiment existant et des constructions de petite surface.
+
+La présente fiche ne s’applique pas aux constructions temporaires et aux
+constructions d’habitations légères de loisirs.
+
+Pour mémoire, une fiche d’application constitue un outil de documentation et n’a
+aucune portée juridique. Les textes officiels faisant foi sont ceux parus au Journal
+Officiel.
+
+
+
+
+1/20
+Que disent les textes réglementaires?
+Les extraits de la réglementation sont fournis pour faciliter la lecture de la présente
+fiche d’application. Ils n’ont donc aucune portée juridique. Les textes officiels faisant
+foi sont ceux parus au Journal Officiel.
+
+Code de la Construction et de l’Habitation :
+
+       Article R 172-1
+
+       « I. - Les dispositions de la présente section s'appliquent à la construction, au sens
+       de l'article L. 122-2, de bâtiments ou parties de bâtiments d'habitation qui font
+       l'objet d'une demande de permis de construire ou d'une déclaration préalable
+       déposée à compter du 1er janvier 2022, à l'exclusion des cas où la construction a
+       donné lieu à la signature, avant le 1er octobre 2021, d'un contrat de louage
+       d'ouvrage, au sens de l' article 1787 du code civil et dont la demande de permis de
+       construire ou la déclaration préalable est déposée avant le 1er septembre 2022, ou
+       d'un contrat de construction de maison individuelle régi par les articles L. 231-1 et
+       L. 232-1 du présent code. Les dispositions de la présente section s'appliquent à la
+       construction de bâtiments ou parties de bâtiments de bureaux ou d'enseignement
+       primaire ou secondaire qui font l'objet d'une demande de permis de construire ou
+       d'une déclaration préalable déposée à compter du 1er juillet 2022. Elles
+       s'appliquent également à la construction de parcs de stationnement associés à ces
+       bâtiments.
+
+       Les résidences de tourisme disposant d'un local de sommeil, d'une cuisine et de
+       sanitaires sont soumises aux règles applicables aux bâtiments à usage d'habitation
+       fixées par la présente section. […]
+
+       III. - Les dispositions de la présente section s'appliquent à la construction de
+       bâtiments ou parties de bâtiments, qui font l'objet d'une demande de permis de
+       construire ou d'une déclaration préalable déposée à compter du 1er mai 2026, et
+       figurant dans la liste suivante :
+       1° Médiathèques et bibliothèques ;
+       2° Bâtiments d'enseignements atypiques ;
+       3° Bâtiments universitaires d'enseignement et de recherche ;
+       4° Hôtels ;
+       5° Etablissements d'accueil de la petite enfance ;
+       6° Restaurants ;
+       7° Commerces ;
+       8° Vestiaires seuls ;
+       9° Etablissements sanitaires avec hébergements ;
+       10° Etablissements de santé ;
+       11° Aérogares ;
+
+2/20
+       12° Bâtiments à usage industriel et artisanal ;
+       13° Etablissements sportifs.
+
+       Ces dispositions ne s'appliquent pas à :
+       1° La construction de bâtiments ou de parties de bâtiments qui, en raison de
+       contraintes spécifiques liées à leur usage, doivent garantir des conditions
+       particulières de température, d'hygrométrie ou de qualité de l'air et nécessitant,
+       de ce fait, des règles particulières ;
+       2° La construction temporaire de bâtiments ou de parties de bâtiments
+       mentionnés à l'article R.* 421-5 du code de l'urbanisme ou implantés pour une
+       durée n'excédant pas deux ans ;
+       3° La construction ou l'extension de bâtiments d'une surface inférieure à 50 m² ;
+       4° L'extension de bâtiments d'une surface cumulativement inférieure à 150 m² et
+       inférieure à 30 % de la surface des locaux existants. »
+
+       Article R 172-3
+
+       « Pour les constructions de bâtiments d'une surface inférieure à 50 m², pour les
+       extensions de bâtiments d'une surface inférieure à 150 m², ainsi que pour les
+       surélévations de bâtiments d'une surface inférieure à 150 m² ou d'une surface
+       inférieure à 30 % de la surface de référence du bâtiment existant, un arrêté des
+       ministres chargés de l'énergie et de la construction peut définir, en fonction des
+       catégories de bâtiments, des exigences alternatives pour des résultats minimaux
+       fixés à l'article R. 172-4. »
+
+Article 50-3 de l’arrêté du 4 août 2021 relatif aux exigences de performance
+énergétique et environnementale des constructions de bâtiments en France
+métropolitaine
+
+« Le présent article ne s'applique pas aux habitations légères de loisirs, au sens de l'article
+R. 111-37 du code de l'urbanisme, d'une surface inférieure à 50 m².
+
+I.-Les exigences alternatives prévues à l'article R. 172-3 du code de la construction et de
+l'habitation, pouvant être appliquées à la place des résultats minimaux fixés à l'article R.
+172-4 du même code, sont précisées :
+    - au II du présent article pour les extensions à usage de maison individuelle de
+        surface de référence comprise strictement entre 50 et 80 m² et les surélévations
+        à usage autre que de maison individuelle de surface de référence comprise
+        strictement entre 50 et 150 m² et supérieure à 30 % de la surface de référence
+        des locaux existants, ainsi que les surélévations à usage autre que de maison
+        individuelle de surface de référence supérieure 150 m² et inférieure à 30 % de la
+        surface de référence des locaux existants ;
+    - au III du présent article pour :
+
+
+
+3/20
+             o   Les constructions et extensions, y compris les surélévations, de surface de
+                 référence inférieure à 50 m² ;
+             o   Les extensions, y compris les surélévations, à usage autre que de maison
+                 individuelle de surface de référence comprise strictement entre 50 et 150
+                 m², et inférieure à 30 % de la surface de référence des locaux existants.
+
+  La surface considérée pour l'application du présent I est le cumul des surfaces des
+  différentes extensions d'un même bâtiment, le cas échéant. […] »
+
+
+  Comment utiliser cette fiche ?
+  La fiche a été rédigée afin d’orienter les réflexions des applicateurs étape par étape :
+
+         1                2                  3                    4                    5
+     Qualifier       Identifier        Déterminer le        Appliquer les         Produire les
+     le projet     l’usage et les         régime            exigences du          attestations
+                      surfaces          applicable             régime
+
+
+  1. Qualifier le projet
+    Question n°1 : Crée-t-on une partie nouvelle du bâtiment ? Le critère de lecture
+    retenu dans cette fiche est la création d’un clos nouvellement construit. À défaut,
+    le projet relève de la réglementation de l’existant.
+
+  Partie nouvelle, extension et surélévation
+
+  Une extension d’un bâtiment est une partie nouvelle d'un bâtiment existant : elle crée
+  de nouveaux locaux et présente un lien physique et fonctionnel avec le bâtiment
+  existant. Elle peut être horizontale ou verticale. Une extension verticale est appelée
+  « surélévation » dans la présente fiche.
+
+  Une extension est donc soumise à la RE2020, puisqu’il s’agit d’une partie nouvelle d’un
+  bâtiment existant.
+
+Relève d’une partie nouvelle / extension              Ne relève pas d’une partie nouvelle
+- Une partie de bâtiment construite            - Une partie de bâtiment rénovée, qui ne serait
+  créant de nouveaux locaux et accolée           pas une partie nouvelle,
+  à    un    bâtiment    existant,    et       - La création d’un plancher intermédiaire dans
+  communiquant directement avec                  une enveloppe de bâtiment existant,
+  celui-ci,                                    - L’aménagement de combles existants d’un
+- Un étage ajouté à un bâtiment                  bâtiment sans modification de l’enveloppe du
+  existant,                                      bâtiment ou conduisant à surélever le faîtage de
+
+
+
+
+  4/20
+- Un    aménagement         de    combles      la toiture d’une hauteur inférieure ou égale à 1,8
+  existants d’un bâtiment conduisant à         mètre,
+  surélever le faîtage de la toiture d’une   - L’aménagement d’un espace initialement à l’air
+  hauteur de plus de 1,8 mètre.                libre (loggia, coursive, porche, préau, …), suite à
+                                               des travaux conduisant à fermer cet espace,
+                                             - L’aménagement d’un local existant, y compris
+                                               dans le cas d’un changement de destination au
+                                               sens du code de l’urbanisme (ex : grange accolée
+                                               à une maison et transformée en pièce habitable,
+                                               aménagement d’un garage en pièce habitable).
+
+   Surface de référence (Sref) et surface existante
+
+      •   La surface prise en compte pour l’application de la RE2020 est la Sref, soit la
+          surface habitable (SHAB) ou la surface utile (SU), suivant l’usage du bâtiment.
+      •   La « surface de référence des locaux existants » correspond à la partie existante
+          avant travaux, y compris les locaux rénovés le cas échéant.
+      •   Une construction de petite surface est une construction de surface de
+          référence (Sref) inférieure à 50 m².
+      •   En cas de plusieurs extensions d’un même bâtiment, la surface à considérer
+          pour l’application de l’article 50-3 est le cumul des surfaces des différentes
+          extensions.
+      •   En cas de démolition-reconstruction, il convient d’appliquer la doctrine de la
+          FAQ RE2020 n°012.
+
+
+    Calcul du pourcentage : Pour les tableaux hors maison individuelle : part de
+    l’extension = Sref cumulée des extensions concernées / Sref des locaux existants
+    avant travaux.
+
+
+   2. Identifier l’usage de l'extension
+
+   Usage de l’extension
+
+   L’usage d’une extension au sens de la méthode RE2020, dite Th-BCE 2020, est défini
+   par l'usage des locaux qui la composent. A ce sujet, se référer à la fiche d’application
+   RE2020 « Comment identifier l’usage d’un bâtiment et l’exigence associée », et
+   notamment sa partie « cas particulier des locaux de petite taille ».
+
+   Si l’extension ne comporte pas des locaux permettant d’en déterminer l’usage, l’usage
+   de l’extension doit être le même que celui du bâtiment existant. Par exemple,
+   l’extension d’un hall d’un bâtiment de bureaux prendra l’usage de bureaux.
+
+   De plus, une zone d’une extension ne peut pas contenir des surfaces existants.
+
+
+   5/20
+Exemple - cas d’un bâtiment de bureaux existant :
+
+1er cas : l’extension est composée d’un logement (60 m²) et d’un bureau (200 m²). La
+surface totale (260 m²) est supérieure à 150m² et à 30% de la surface existante.
+L’extension est donc soumise à la RE2020 dans son intégralité. Le logement a une
+surface inférieure à 150m² mais supérieure à 10% de la surface de la partie nouvelle de
+bureaux. Il ne peut pas prendre l’usage « Bureaux » mais doit conserver l’usage
+« Logement collectif »
+
+                                                                  Logement                   Bâtiment existant
+                                                                 de fonction
+                                                                    60 m²
+                                                                                             Extension
+                       Bâtiment existant à usage de bureaux
+                                      800 m²
+                                                                    Bureaux
+                                                                    200 m²
+
+
+
+
+                              Figure 1 – Schéma exemple pour le 1er cas
+
+2d cas : l’extension est composée d’un logement et de bureaux. La surface du logement
+est inférieure à 150m² et à 10% de la surface nouvelle de bureaux. Le logement peut
+prendre l’usage « bureaux ».
+
+                                                                                Logement                         Bâtiment existant
+                                                                               de fonction
+                                                                                 – 60 m²
+                                                                                                                 Extension
+         Bâtiment existant à usage de
+                                               Extension – Bureaux – 800 m²
+              bureaux – 550 m²
+
+
+
+
+                             Figure 2 – Schéma exemple pour le 2ème cas
+
+
+Cas de plusieurs extensions sur un même bâtiment
+
+Si un bâtiment existant fait l’objet de plusieurs extensions, les seuils à prendre en
+compte pour l’application de la RE2020 peuvent être déterminés à partir de
+l’ensemble des extensions.
+
+L’application se fait comme suit :
+
+
+
+
+6/20
+              Bbio – Cep – Cep,nr –
+                                               DH            Exigences de moyens
+                      Icénergie
+             Vérification du respect Vérification du        Application des
+             des exigences             respect des          exigences
+              − soit sur l’ensemble exigences               − soit sur l’ensemble
+Application     des extensions         − par partie             des extensions
+de la RE2020    (même si elles sont        d’extension          (même si elles sont
+                dissociées)                                     dissociées)
+              − soit par partie                             − soit par partie
+                  d’extension                                   d’extension
+                 Tableau 1 : Application si plusieurs extensions
+
+
+
+3. Déterminer le régime applicable
+
+4 questions à se poser
+
+           a)                       b)                       c)                       d)
+   Crée-t-on une           Quel est l’usage ?        Horizontal ou             Quelle taille ?
+  partie nouvelle ?          MI / LC-BUR-ENS /        vertical ?              Sref créée + part de
+      Le clos est            usages tertiaires       Depuis le 1er juillet   cette Sref par rapport
+     nouvellement             spécifiques et        2026, la surélévation    aux locaux existants +
+  construit. Sinon : RT     industriel-artisanal   hors MI bénéficie d’un    cumul des extensions
+        Existant                                   traitement spécifique
+
+
+Que recouvrent les trois régimes des extensions ?
+
+                                                                Principales exigences /
+       Régime               Exigences de résultat
+                                                                     adaptations
+                                                              Application cumulative des
+                            Pas de vérification des          exigences techniques du III :
+     Exigences de         résultats minimaux Bbio /          composants, facteur solaire,
+       moyens              Cep / Cep,nr / Ic énergie        ponts thermiques, émetteurs /
+   - article 50-3 III     / Ic construction / DH au        PAC air-air, éclairage, régulation
+                              titre de ce régime.          et exigences issues de l’arrêté du
+                                                                      3 mai 2007.
+                           Respect des 1°, 4° et 5°
+                                                            Exigences de moyens ciblées :
+                             de R.172-4 : Bbio, Ic
+       RE2020                                              articles 23 à 26 et 29 de l’arrêté
+                          construction et DH. Cep,
+  « intermédiaire »                                        du 4 août 2021, ainsi que l’article
+                           Cep,nr et Ic énergie ne
+   - article 50-3 II                                        22 sauf pour le premier niveau
+                           sont pas exigés au titre
+                                                                 créé en surélévation.
+                                de ce régime.
+
+
+
+
+7/20
+                                                        Les extensions conservent les
+                        Exigences de résultat de
+                                                     adaptations générales de l’article
+                          R.172-4 : Bbio ; Cep et
+                                                     50-2 : pas de mesure d’étanchéité
+       « RE2020           Cep,nr ; Ic énergie ; Ic
+                                                          art.19, pas de vérification
+    complète » -         construction ; DH. Les
+                                                        ventilation art.20, exemption
+     adaptation          indicateurs informatifs
+                                                         art.22 au premier niveau de
+      extension           prévus à R.172-4 sont
+                                                      surélévation, adaptations art.27-
+                        également calculés selon
+                                                        28 si système existant, art.23
+                                  le cas.
+                                                     vérifiable à l’échelle du bâtiment.
+     Hors champ            Voir fiche d’application RT2012 « Extension nouvelle d’un
+        RE2020                                bâtiment existant »
+Remarques : « RE2020 intermédiaire » est un intitulé pédagogique utilisé dans cette
+fiche. Juridiquement il s’agit des exigences alternatives de l’article 50-3 II de l’arrêté du
+4 août 2021.
+« RE2020 complète » signifie ici que le respect des exigences de résultat applicables,
+tout en conservant les adaptations générales propres aux extensions.
+
+
+
+
+8/20
+4. Appliquer les exigences du régime
+
+Quelles exigences réglementaires appliquer en fonction de la taille et du type d’extension ?
+
+Les exigences de la réglementation environnementale RE2020 sont proportionnées à la taille et à son usage (maison individuelle
+ou autre bâtiment). Les exigences de la RE2020 sont applicables uniquement à la partie nouvelle dans le cas d’une extension. Les
+tableaux suivants récapitulent les différents cas de figure :
+
+
+   1° Maisons individuelles (MI) :
+
+                Construction ou extension Sref ≤
+    Taille                                           Extension Sref > 50m² et < 80 m²            Extension Sref ≥ 80 m²
+                             50 m²
+                    Exigences de moyens                  RE2020 intermédiaire               RE2020 complète – adaptation
+                          art. 50-3 III                        art. 50-3 II                           extension
+                    Tableau 2 – modalités d’application pour les extensions à usage de maison individuelle
+
+
+
+
+9/20
+   2° Bâtiments LC, BUR ou ENS :
+
+            Extension horizontale Extension         Extension
+                 Sref ≤ 50 m²          horizontale horizontale                  Surélévation        Surélévation Sref > Surélévation Sref ≥ 150
+   Taille                                                              Taille
+            Construction Sref ≤ 50 Sref > 50m²      Sref ≥ 150                   Sref ≤ 50 m²       50m² et < 150 m²               m²
+                       m²              et < 150 m²      m²
+ ≤ 30% de                                            RE2020         ≤ 30% de la
+la Sref des        Exigences de moyens             complète –         Sref des          Exigences de moyens             RE2020 intermédiaire
+locaux                   art. 50-3 III             adaptation         locaux                  art. 50-3 III                   art. 50-3 II
+existants                                           extension        existants
+> 30% de                                                            > 30% de la
+                                                                                Exigences de             RE2020
+la Sref des Exigences de moyens          RE2020 complète –            Sref des                                           RE2020 complète –
+                                                                                   moyens             intermédiaire
+locaux           art. 50-3 III          adaptation extension          locaux                                            adaptation extension
+                                                                                 art. 50-3 III          art. 50-3 II
+existants                                                            existants
+Tableau 3 – modalités d’application pour les extensions à usage de logements collectifs, de bureau et d’enseignement primaire
+                                                             ou secondaire
+
+
+
+
+10/20
+   3° Bâtiments dits « tertiaires spécifiques » et industriels/artisanaux :
+
+                                           Extension
+               Extension horizontale                        Extension                                          Surélévation
+                                          horizontale                                        Surélévation                       Surélévation
+ Taille             Sref ≤ 50 m²                         horizontale Sref          Taille                     Sref > 50m² et
+                                         Sref > 50m² et                                       Sref ≤ 50 m²                      Sref ≥ 150 m²
+              Construction Sref ≤ 50 m²                      ≥ 150 m²                                            < 150 m²
+                                            < 150 m²
+ ≤ 30% de                Hors champ RE2020                   RE2020            ≤ 30% de
+                                                                                                                                   RE2020
+ la Sref des      Voir fiche d’application RT2012          complète –         la Sref des         Exigences de moyens
+                                                                                                                               intermédiaire
+ locaux         « Extension nouvelle d’un bâtiment         adaptation         locaux                   art. 50-3 III
+                                                                                                                                 art. 50-3 II
+ existants                    existant »                    extension         existants
+               Hors champ RE2020
+ > 30% de                                                                     > 30% de la
+              Voir fiche d’application                                                       Exigences de         RE2020     RE2020 complète
+ la Sref des                             RE2020 complète – adaptation         Sref       des
+                RT2012 « Extension                                                              moyens        intermédiaire     – adaptation
+ locaux                                             extension                 locaux
+              nouvelle d’un bâtiment                                                          art. 50-3 III     art. 50-3 II      extension
+ existants                                                                    existants
+                      existant »
+ Tableau 4 – modalités d’application pour les extensions à usage dits « tertiaires spécifiques » ou à usage industriel ou artisanal
+
+
+
+
+11/20
+Appliquer le régime identifié
+
+Une fois le régime trouvé dans les tableaux précédents, utiliser la branche
+correspondante ci-dessous. Cette page sert de passerelle entre le choix du régime et
+les tableaux techniques détaillés (voir annexes I et II).
+
+   Si le tableau indique…          Vous devez vérifier…           Où regarder ensuite ?
+                                Les exigences techniques
+                                                              Annexe I pour les
+   Exigences de moyens          de l’article 50-3 III, sans
+                                                              exigences de moyen et
+        art. 50-3 III           résultats minimaux
+                                                              références techniques.
+                                Bbio/Cep/etc.
+                                                              Annexe I pour les
+                                Bbio + Ic construction +
+   RE2020 intermédiaire                                       exigences de moyen puis
+                                DH + exigences de
+        art. 50-3 II                                          annexe II pour les
+                                moyens ciblées.
+                                                              paramètres de calcul.
+                                                              Annexe I pour les
+                                Les exigences de résultat
+    RE2020 complète –                                         exigences de moyen puis
+                                RE2020, avec adaptations
+   adaptation extension                                       Annexe II pour les
+                                propres aux extensions.
+                                                              paramètres de calcul.
+
+
+5. Produire les attestations
+Les attestations de respect de la réglementation environnementale doivent être
+établies au moment du dépôt de la déclaration préalable / permis de construire d’une
+part, et à l’achèvement des travaux pour constituer le dossier de la Déclaration
+Attestant de l’Achèvement et de la Conformité des Travaux (DAACT) d’autre part.
+
+Plusieurs types de formulaires sont disponibles et cohérents avec les exigences de la
+RE2020 à respecter (cf. paragraphe « Quelles exigences réglementaires appliquer en
+fonction du type d’extension ? » de la présente fiche d’application), à savoir :
+   - des attestations à utiliser dans le cas d’un projet soumis à l’ensemble des
+       exigences de la RE2020,
+   - des attestations dites « simplifiées » dans le cas des extensions et constructions
+       de petites surfaces qui ne sont pas soumises à l’ensemble des exigences de la
+       RE2020.
+
+C’est l’arrêté du 09 décembre 2021 qui définit le contenu des différentes attestations
+(complètes ou simplifiées).
+
+                                                    RE2020            RE2020 complète –
+                  Exigences de moyens
+                                                 intermédiaire           adaptation
+                       art. 50-3 III
+                                                   art. 50-3 II           extension
+
+
+
+12/20
+ Au dépôt         Uniquement les points :          Uniquement les            Uniquement les
+                        I, II et III.1                   points :                 points :
+                       de l'article 3                I, III et IV. 1°         I à III et IV. 1°
+                                                     de l'article 3            de l'article 3
+ A l’achèvement   Uniquement les points :          Uniquement les            Uniquement les
+ des travaux       I. 1° à I. 7°, I. 12° et VI           points :                 points :
+                         de l'article 7          I. 1° à I. 8°, I. 12°, I.      I et IV à VI
+                                                      15°, IV et VI            de l'article 7
+                                                     de l'article 7
+                  Tableau 5 : Contenu des attestations simplifiées
+
+
+
+
+13/20
+Annexe I : Exigences de moyens RE2020 à appliquer selon la configuration
+Les articles 50-2 et 50-3 de l’arrêté du 04 août 2021 décrivent les exigences de moyens RE2020 à satisfaire, en faisant appel à 3
+arrêtés :
+   - l’arrêté du 4 août 2021 relatif aux exigences de performance énergétique et environnementale des constructions de
+       bâtiments (tableau 6),
+   - l’arrêté du 3 mai 2007 relatif aux caractéristiques thermiques et à la performance énergétique des bâtiments existants
+       (tableau 7),
+   - l’arrêté du 17 novembre 2020 relatif aux caractéristiques techniques et modalités de réalisation des travaux et prestations
+       dont les dépenses sont éligibles à la prime de transition énergétique dans sa version applicable au 1er juillet 2022 (tableau
+       8).
+
+Les articles du tableau ci-dessous font référence à l’arrêté du 04 août 2021.
+
+
+                                    Exigences de moyens                      RE2020 intermédiaire                 RE2020 complète
+                                         art. 50-3 III                            art. 50-3 II                 – adaptation extension
+
+                                                                               Non requis quelle que soit leur surface de référence
+ Art. 19
+                           Non requis quelle que soit leur surface de     Pour le calcul réglementaire, il sera pris en compte les valeurs de
+ Mesure de la
+                                          référence                       perméabilité par défaut au regard de l’usage de l’extension, sauf
+ perméabilité à l’air du
+                                                                         justification (par mesure ou démarche de qualité) conformément
+ bâtiment d’habitation
+                                                                                          à l’art. 17 de l’arrêté du 4 août 2021.
+
+                                                       Non requis quelle que soit leur surface de référence.
+ Art. 20
+
+
+
+
+14/20
+Vérification des
+systèmes de
+ventilation
+
+                        Non requis pour le premier niveau créé en
+                                     surélevation.                          Non requis pour le premier niveau créé en surélévation.
+
+Art. 22                 Mise à part cette exception, se limite à : le                  Mise à part cette exception, requis.
+Ponts thermiques        ratio de transmission thermique linéique
+                       moyen global, Ratio ψ, des ponts thermiques
+                        du bâtiment ou de la partie de bâtiment,
+                             n’excède pas 0,6 W/ (m² Sref. K)
+
+                                                                                                      Requis
+Art. 23
+                                        Non requis
+Accès à l’éclairage                                                        Peut être vérifié à l'échelle du bâtiment, au lieu de la seule
+naturel                                                                                              extension.
+
+Art. 24                                                                     Requis
+Facteur solaire
+Art. 25
+                                        Non requis                                                    Requis
+Surface d'ouverture
+minimale des baies
+Art. 26                                                                     Requis
+Automatisme
+                            Non requis lorsque le système énergétique de la partie existante est utilisé pour alimenter l’extension.
+Art. 27
+Mesure ou estimation
+des consommations
+                            Non requis lorsque le système énergétique de la partie existante est utilisé pour alimenter l’extension.
+Art. 28
+
+
+
+
+15/20
+ Mesure ou calcul des
+ consommations
+ Art. 29 et 32
+ Dispositif d’arrêt                                                           Requis
+ manuel et de réglage
+ par local
+ Autres :                                                   Non requis                                                 Requis
+ Art. 21, 30, 31, 33 à 40
+                            Tableau 6 : Exigences de moyens basées sur le titre III de l’arrêté du 04 août 2021
+
+
+Les articles du tableau ci-dessous font référence à l’arrêté du 3 mai 2007 modifié par l'arrêté du 22 mars 2017.
+
+                                                                                                      Exigences de moyens
+                                                                                                           art. 50-3 III
+ Art. 13
+ Coffre de volets roulants
+ Art. 21
+ Pompes de circulation chauffage
+ Art. 22
+ Isolation des réseaux de distribution
+ Art. 23
+                                                                                                              Requis
+ Organes d’équilibrage des réseaux en pied de chaque colonne
+ Art. 24
+ Dispositif d’arrêt « chaud » manuel par local
+ Art. 26
+ Commande et programmation chauffage
+ Art. 28
+ Pertes max. chauffe-eau
+
+
+
+
+16/20
+ Art. 32
+ Pompes de circulation refroidissement
+ Art. 34
+
+ Art. 36 à 40
+ Ventilation
+ Art. 42, 43, 45 et 46
+ Eclairage
+ Autres articles de l’arrêté du 3 mai 2007
+                                                                                                           Non requis
+
+                                   Tableau 7 : Exigences de moyens basées sur l’arrêté du 3 mai 2007
+
+
+Les articles du tableau ci-dessous font référence à l’arrêté du 17 novembre 2020 dans version applicable au 1er juillet 2022 (ne pas
+tenir compte des modifications et suppressions ultérieures), sauf mention contraire.
+
+                                                                                                       Exigences de moyens
+                                                                                                            art. 50-3 III
+ Performance des systèmes de production                                                   Art. 1 à 4
+ Performance des ventilations double-flux                                                 Art. 7
+ Performance des parois vitrées                                                           Art. 9
+ Performance des parois opaques « murs »                                                  Art. 10
+ Performance des parois opaques « rampants »                                              Art. 11
+ Performance des parois opaques « toits-terrasses »                                       Art. 12
+        Tableau 8 : Exigences de moyens basé sur l’arrêté du 17 novembre 2020 dans version applicable au 1er juillet 2022
+
+
+Les exigences ci-dessous sont spécifiques à l’arrêté du 4 août 2021.
+
+
+
+
+17/20
+                                                                                              Exigences de moyens
+                                                                                                   art. 50-3 III
+Performance des parois opaques « plancher bas »                          Art. 50-3-III-2 de l’arrêté du 4 août 2021
+Performance des portes                                                   Art. 50-3-III-3 de l’arrêté du 4 août 2021
+Performance des verrières, vérandas et lanterneaux                       Art. 50-3-III-4 à 6 de l’arrêté du 4 août 2021
+Performance des émetteurs et des PAC air/air                             Art. 50-3-III-9 à 11 de l’arrêté du 4 août 2021
+Performance de l’éclairage                                               Art. 50-3-III-12 de l’arrêté du 4 août 2021
+                                                     Tableau 9 : Autres exigences
+
+
+
+
+18/20
+Annexe II : Paramètres à prendre en compte pour la
+réalisation du calcul réglementaire
+Dans le cas d’extensions pour lesquelles le calcul réglementaire est requis (voir
+paragraphe « Quelles exigences réglementaires appliquer en fonction du type
+d’extension ? » de la présente fiche), les éléments permettant de calculer les
+coefficients Bbio, Cep, Cep,nr et DH doivent être détaillés. On présente ici les
+hypothèses à considérer.
+
+Perméabilité à l’air du bâtiment
+
+Bien que la mesure de la perméabilité à l’air du bâtiment ne soit pas imposée pour les
+extensions quelle que soit leur surface de référence, une valeur meilleure peut être
+prise en compte si elle est justifiée par le résultat du test d’étanchéité à l’air du
+bâtiment (ou démarche qualité).
+
+À défaut, il faut retenir pour le calcul réglementaire les valeurs par défaut de la partie
+5.6.3.3.3 de l’annexe III de l’arrêté du 4 août 2021.
+
+Paramètres caractérisant la performance des éléments de bâti
+
+Les valeurs à prendre en compte doivent être conformes aux règles Th-Bat.
+
+Paramètres caractérisant la performance des équipements
+
+Pour réaliser le calcul de Cep, Cep,nr et Icénergie, tous les équipements permettant de
+répondre aux besoins de chauffage, de refroidissement, de production d’eau chaude
+sanitaire, d’éclairage et les auxiliaires doivent être décrits.
+
+La méthodologie de description à suivre est alors la suivante. La modélisation dans les
+logiciels d’application de la génération d’un des bâtiments du projet doit donc être
+réalisée de la manière suivante :
+   4° La puissance nominale des équipements :
+          a. Elle est déterminée préférentiellement au prorata des besoins du
+             bâtiment modélisé par rapport aux besoins de l’ensemble des bâtiments
+             alimentés par cet équipement. La méthode à utiliser pour déterminer
+             ces besoins est laissée à la libre appréciation de l’applicateur.
+          b. Si la détermination des besoins n’est pas réalisable, la puissance
+             nominale à utiliser peut alors être calculée au prorata de la surface de
+             l’extension par rapport à la surface totale desservie.
+   5° Les caractéristiques des équipements :
+
+
+
+
+19/20
+Le tableau ci-dessous permet de déterminer, en fonction de la position de
+l’équipement dans le bâtiment et de son statut, le mode de description à retenir.
+
+
+Position de l’équipement
+                         Statut de l’équipement           Description
+utilisé par l’extension
+
+                                                          Valeur initiale ou valeur par
+                             Inchangé ou rénové avant
+                                                          défaut de la RT ex
+Partie existante
+                                                          Valeur du projet ou valeur
+                             Neuf
+                                                          par défaut
+
+Partie neuve                 Neuf                         Valeur du projet
+
+Tableau 10 : modalités de description des systèmes énergétiques dans le cas général
+
+Pour les extensions de bâtiments tertiaires non équipées de points de puisage, et pour
+lesquelles il n’est pas prévu d’installer une nouvelle génération assurant les besoins
+d’eau chaude sanitaire, l’applicateur a le choix entre :
+    − Décrire le système existant selon les modalités décrites dans le Tableau 10 ci-
+       dessus,
+    − Utiliser le générateur d’eau chaude sanitaire conventionnel décrit au chapitre
+       9.24 de la méthode Th-BCE.
+   6° Equipement de ventilation
+Si l’extension dispose d’un équipement de ventilation mécanique complet (entrées
+d’air ou bouche d’insufflation, bouche d’extraction et extracteur de VMC), décrire les
+équipements réels.
+
+Dans les autres cas, le système de ventilation est pris conventionnellement égal à
+l’équipement suivant : Le système d’extraction est un système compatible avec les
+entrées d’air mises en œuvre dans l’extension (autoréglable ou hygroréglable), les
+débits d’extraction sont égaux à la somme des modules d’entrée d’air et la puissance
+du ventilateur d’extraction à saisir est égale à 0,25 W/(m3/h). Pour les systèmes
+hygroréglables, la répartition des Sommes des Modules d’Entrée d’Air (SMEA) entre la
+partie existante et la partie extension est effectuée en fonction du nombre de
+bouches de chaque partie.
+
+
+
+
+20/20
+
