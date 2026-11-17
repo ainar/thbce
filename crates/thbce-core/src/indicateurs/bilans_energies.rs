@@ -83,7 +83,12 @@ fn cumuls(b: &BatimentHoraire) -> [f64; NB_POSTES] {
         }
     }
     c[poste::AUX_DIST] += b.systemes.cumuls.iter().map(|k| k.w_aux_wh).sum::<f64>();
-    c[poste::AUX_DIST] += b.systemes.cumuls_ecs.iter().map(|k| k.w_aux_wh).sum::<f64>();
+    c[poste::AUX_DIST] += b
+        .systemes
+        .cumuls_ecs
+        .iter()
+        .map(|k| k.w_aux_wh)
+        .sum::<f64>();
     c
 }
 
@@ -167,10 +172,10 @@ pub fn bilan(cons: &[[f64; NB_POSTES]], prod_pv_wh: &[f64]) -> BilanElectrique {
         b.prod_pv_ac_wh += ac;
         b.prod_pv_mensuel_wh[mois] += prod;
         b.prod_pv_ac_mensuel_wh[mois] += ac;
-        for p in 0..NB_POSTES {
+        for (p, &x) in w.iter().enumerate() {
             // Éq. (2535).
-            let imp = w[p] * (1.0 - tap);
-            b.cons_wh[p] += w[p];
+            let imp = x * (1.0 - tap);
+            b.cons_wh[p] += x;
             b.imp_wh[p] += imp;
             b.imp_mensuel_wh[mois][p] += imp;
         }

@@ -20,7 +20,11 @@ use crate::scenarios::scenarios_conventionnels::ScenariosZone;
 ///
 /// Usage de la zone sans scénarios pris en charge.
 pub fn consommation_horaire_wh(zone: &Zone) -> Result<Vec<f64>, Erreur> {
-    let a_gr: Vec<f64> = zone.groupes.iter().map(|g| g.su_m2.unwrap_or(0.0)).collect();
+    let a_gr: Vec<f64> = zone
+        .groupes
+        .iter()
+        .map(|g| g.su_m2.unwrap_or(0.0))
+        .collect();
     let sc = ScenariosZone::nouveau(zone.usage, &a_gr, zone.nb_lgt.unwrap_or(1))?;
     Ok((0..NB_HEURES_AN).map(|h| sc.evaluer(h).q_int_w).collect())
 }

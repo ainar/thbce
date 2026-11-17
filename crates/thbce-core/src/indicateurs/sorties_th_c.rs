@@ -16,7 +16,9 @@ use thbce_data::ZoneClimatique;
 use crate::entree::{
     Batiment, CombustibleBoisSaisi, NatureGenerateur, ReseauChaleurFroidSaisi, UsageZone,
 };
-use crate::resultats::{ConsommationsParEnergie, ConsommationsPostes, ResultatsGeneration, ResultatsZone};
+use crate::resultats::{
+    ConsommationsParEnergie, ConsommationsPostes, ResultatsGeneration, ResultatsZone,
+};
 
 use super::bilans_energies::{poste, BilanElectrique, NB_POSTES};
 use super::exigences::{dh_max, exigences_partie, PartieBatiment};
@@ -56,6 +58,9 @@ pub struct EntreesIndicateurs<'a> {
     /// Générations du bâtiment (consommations de chaque générateur), dans l'ordre de l'entrée.
     pub generations: &'a [ResultatsGeneration],
 }
+
+/// Sélection d'un poste dans les consommations des générations.
+type ChoixPoste = fn(&ConsommationsPostes) -> &ConsommationsParEnergie;
 
 /// Vecteur énergétique d'une part de consommation : libellé, coefficients et facteur.
 #[derive(Debug, Clone, PartialEq)]
@@ -130,7 +135,13 @@ enum Colonne {
 }
 
 impl Colonne {
-    const TOUTES: [Self; 5] = [Self::Gaz, Self::Fioul, Self::Charbon, Self::Bois, Self::Reseau];
+    const TOUTES: [Self; 5] = [
+        Self::Gaz,
+        Self::Fioul,
+        Self::Charbon,
+        Self::Bois,
+        Self::Reseau,
+    ];
 
     fn valeur(self, c: &ConsommationsParEnergie) -> f64 {
         match self {
@@ -189,7 +200,7 @@ fn vecteur_generateur(nature: &NatureGenerateur, col: Colonne, froid: bool) -> V
 fn repartir(
     bat: &Batiment,
     generations: &[ResultatsGeneration],
-    choisir: fn(&ConsommationsPostes) -> &ConsommationsParEnergie,
+    choisir: ChoixPoste,
     col: Colonne,
     froid: bool,
     total_kwh: f64,
@@ -204,11 +215,10 @@ fn repartir(
             if q <= 0.0 {
                 continue;
             }
-            let v = g
-                .generateurs
-                .iter()
-                .find(|x| x.id == r.id)
-                .map_or_else(|| col.par_defaut(froid), |x| vecteur_generateur(&x.nature, col, froid));
+            let v = g.generateurs.iter().find(|x| x.id == r.id).map_or_else(
+                || col.par_defaut(froid),
+                |x| vecteur_generateur(&x.nature, col, froid),
+            );
             match parts.iter_mut().find(|(w, _)| *w == v) {
                 Some((_, x)) => *x += q,
                 None => parts.push((v, q)),
@@ -228,12 +238,15 @@ fn repartir(
 /// Bâtiment raccordé à un réseau de chaleur urbain : une de ses générations comprend une
 /// sous-station de réseau de chaleur.
 pub fn raccorde_rcu(bat: &Batiment) -> bool {
-    bat.generations.iter().flat_map(|g| &g.generateurs).any(|x| {
-        matches!(
-            x.nature,
-            NatureGenerateur::ReseauDeChaleurOuDeFroid(ReseauChaleurFroidSaisi::Chaleur { .. })
-        )
-    })
+    bat.generations
+        .iter()
+        .flat_map(|g| &g.generateurs)
+        .any(|x| {
+            matches!(
+                x.nature,
+                NatureGenerateur::ReseauDeChaleurOuDeFroid(ReseauChaleurFroidSaisi::Chaleur { .. })
+            )
+        })
 }
 
 /// Calcule les indicateurs d'un bâtiment. Renvoie aussi les avertissements du calcul.
@@ -337,7 +350,11 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
     // réseaux des postes chauffage, refroidissement et ECS.
     let mut parts: Vec<(&str, VecteurConnu, f64)> = Vec::new();
     let elec = |u: UsageElectricite| VecteurConnu::nouveau("electricite", Vecteur::Electricite(u));
-    parts.push(("chauffage", elec(UsageElectricite::Chauffage), importee.chauffage_kwh));
+    parts.push((
+        "chauffage",
+        elec(UsageElectricite::Chauffage),
+        importee.chauffage_kwh,
+    ));
     parts.push((
         "refroidissement",
         elec(UsageElectricite::Refroidissement),
@@ -365,7 +382,7 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
         elec(UsageElectricite::AutresUsages),
         importee.deplacements_kwh,
     ));
-    let postes: [(&str, fn(&ConsommationsPostes) -> &ConsommationsParEnergie, bool); 3] = [
+    let postes: [(&str, ChoixPoste, bool); 3] = [
         ("chauffage", |c| &c.chauffage, false),
         ("refroidissement", |c| &c.refroidissement, true),
         ("ecs", |c| &c.ecs, false),

@@ -49,7 +49,20 @@
           "valeurs_par_defaut": []
         }
       ],
-      "c_aux_vent_kwh": 129.2
+      "c_aux_vent_kwh": 129.2,
+      "cep_kwhep_m2": 131.3,
+      "cep_nr_kwhep_m2": 131.3,
+      "ic_energie_kgco2_m2": 161.9,
+      "indicateurs": {
+        "cef_kwhef_m2": 57.1,
+        "exigences": {
+          "bbio_max_pts": 64.7,
+          "cep_max_kwhep_m2": 70.2,
+          "cep_nr_max_kwhep_m2": 51.5,
+          "ic_energie_max_kgco2_m2": 149.7,
+          "conforme": false
+        }
+      }
     }
   ]
 }

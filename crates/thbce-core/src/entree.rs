@@ -157,8 +157,10 @@ pub struct ParametresExigences {
 #[serde(rename_all = "snake_case")]
 pub enum CategorieContraintes {
     /// Catégorie 1.
+    #[serde(rename = "categorie_1")]
     Categorie1,
     /// Catégorie 2.
+    #[serde(rename = "categorie_2")]
     Categorie2,
 }
 

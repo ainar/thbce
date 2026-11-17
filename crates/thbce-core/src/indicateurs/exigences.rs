@@ -400,7 +400,13 @@ mod tests {
         assert_eq!(e.mb_bruit, 0.1);
         assert_eq!(e.mc_cat, 0.1);
         assert_eq!(
-            dh_max(1, p.categorie_contraintes_exterieures, ZoneClimatique::H3, false, 120.0),
+            dh_max(
+                1,
+                p.categorie_contraintes_exterieures,
+                ZoneClimatique::H3,
+                false,
+                120.0
+            ),
             Some(1850.0)
         );
     }
@@ -426,7 +432,10 @@ mod tests {
         assert_eq!(dh_max(2, c1, ZoneClimatique::H2b, true, 65.0), Some(1250.0));
         assert_eq!(dh_max(2, c1, ZoneClimatique::H3, true, 40.0), Some(1500.0));
         let c2 = CategorieContraintes::Categorie2;
-        assert_eq!(dh_max(2, c2, ZoneClimatique::H2b, false, 40.0), Some(2350.0));
+        assert_eq!(
+            dh_max(2, c2, ZoneClimatique::H2b, false, 40.0),
+            Some(2350.0)
+        );
     }
 
     #[test]

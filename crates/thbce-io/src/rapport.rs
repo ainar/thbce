@@ -68,7 +68,11 @@ pub fn synthese_indicateurs(r: &thbce_core::resultats::Resultats) -> String {
                 v.maximum,
                 v.marge,
                 v.marge_pct,
-                if v.respectee { "respectée" } else { "NON RESPECTÉE" }
+                if v.respectee {
+                    "respectée"
+                } else {
+                    "NON RESPECTÉE"
+                }
             );
         }
         let _ = writeln!(

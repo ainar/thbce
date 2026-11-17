@@ -227,7 +227,14 @@ pub fn calculer(
             .iter()
             .map(|i| produire(i, &projet.catalogue, &climat_th_bc))
             .collect();
-        let mut prod_pv_wh = vec![0.0; if productions.is_empty() { 0 } else { NB_HEURES_AN }];
+        let mut prod_pv_wh = vec![
+            0.0;
+            if productions.is_empty() {
+                0
+            } else {
+                NB_HEURES_AN
+            }
+        ];
         for p in &productions {
             for (t, x) in prod_pv_wh.iter_mut().zip(&p.p_ond_w) {
                 *t += x;

@@ -86,8 +86,14 @@ mod tests {
         // Plafonné au seuil haut, nul sous le seuil bas ou si le groupe est climatisé.
         let haut = cef_fr_elec_kwh_m2(false, 3000.0, Some(1250.0), 0.011, c);
         assert!((haut - 0.011 * 900.0 / 2.3).abs() < 1e-12);
-        assert_eq!(cef_fr_elec_kwh_m2(false, 300.0, Some(1250.0), 0.011, c), 0.0);
-        assert_eq!(cef_fr_elec_kwh_m2(true, 1000.0, Some(1250.0), 0.011, c), 0.0);
+        assert_eq!(
+            cef_fr_elec_kwh_m2(false, 300.0, Some(1250.0), 0.011, c),
+            0.0
+        );
+        assert_eq!(
+            cef_fr_elec_kwh_m2(true, 1000.0, Some(1250.0), 0.011, c),
+            0.0
+        );
         // Altitude et zone (tableau 336).
         assert_eq!(coef_zone_clim_et_alt(ZoneClimatique::H3, 500.0), 1.0);
         assert_eq!(coef_zone_clim_et_alt(ZoneClimatique::H1a, 900.0), 0.4);
