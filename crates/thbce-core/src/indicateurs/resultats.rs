@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::conventions::arrondir_restitution;
-use crate::entree::Id;
+use crate::entree::{CategorieContraintes, Id, ZoneBruit};
 
 /// Électricité par poste, en kWh d'énergie finale.
 #[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
@@ -141,9 +141,16 @@ pub struct ExigencesZone {
     pub id: Id,
     /// Numéro d'usage.
     pub usage: u8,
+    /// Catégorie de contraintes extérieures retenue pour la zone (celle de la zone si elle est
+    /// saisie, celle du bâtiment sinon ; Q66).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub categorie_contraintes_exterieures: Option<CategorieContraintes>,
+    /// Classe d'exposition au bruit retenue pour la zone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub zone_bruit: Option<ZoneBruit>,
     /// « Sref » de la zone, en m².
     pub sref_m2: f64,
-    /// « Smoylgt » : surface moyenne des logements, en m².
+    /// « Smoylgt » : surface moyenne des logements, en m² ; 0 hors habitation.
     pub smoy_lgt_m2: f64,
     /// « Bbio_maxmoyen », en points.
     pub bbio_max_moyen: f64,

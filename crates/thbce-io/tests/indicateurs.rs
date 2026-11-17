@@ -322,4 +322,211 @@ mod categorie_contraintes {
         assert_eq!(e.len(), 1, "{e:?}");
         assert!(e[0].contains("réservée aux locaux climatisés"), "{e:?}");
     }
+
+    /// Lot 0b (Q66) : catégorie propre à une zone, saisie dans `exigences.zones`.
+    #[test]
+    fn categorie_3_refusee_pour_une_zone_d_habitation() {
+        let e = variante("maison-climat-ademe", |v| {
+            let id = v["batiments"][0]["zones"][0]["id"].clone();
+            v["batiments"][0]["exigences"]["zones"] = serde_json::json!([{ "zone": id, "categorie_contraintes_exterieures": "categorie_3" }]);
+        });
+        assert_eq!(e.len(), 1, "{e:?}");
+        assert!(
+            e[0].starts_with("batiments[0].exigences.zones[0].categorie_contraintes_exterieures"),
+            "{e:?}"
+        );
+    }
+
+    #[test]
+    fn zone_inconnue_dans_les_exigences() {
+        let e = variante("maison-climat-ademe", |v| {
+            v["batiments"][0]["exigences"]["zones"] =
+                serde_json::json!([{ "zone": "inconnue", "zone_bruit": "br2" }]);
+        });
+        assert_eq!(e.len(), 1, "{e:?}");
+        assert!(e[0].contains("zone inconnue"), "{e:?}");
+    }
+
+    /// Catégorie 2 du bâtiment, zone ramenée en BR1 : la catégorie 2 n'est plus possible.
+    #[test]
+    fn categorie_2_refusee_pour_une_zone_en_br1() {
+        let e = variante("maison-pac-air-air-ademe", |v| {
+            categorie_2(v);
+            let id = v["batiments"][0]["zones"][0]["id"].clone();
+            v["batiments"][0]["exigences"]["zones"] =
+                serde_json::json!([{ "zone": id, "zone_bruit": "br1" }]);
+        });
+        assert_eq!(e.len(), 1, "{e:?}");
+        assert!(e[0].contains("zone de bruit BR1"), "{e:?}");
+    }
+
+    /// Q69 : `HSPmoy` obligatoire en habitation pour les permis déposés à partir du 1er
+    /// juillet 2026 (`MbHSP` et `McHSP` du décret n° 2026-200), facultatif avant.
+    #[test]
+    fn hauteur_sous_plafond_obligatoire_en_habitation() {
+        let sans_hsp = |annee: u16, mois: Option<u8>| {
+            variante("maison-climat-ademe", move |v| {
+                let x = &mut v["batiments"][0]["exigences"];
+                x["annee_depot_permis"] = annee.into();
+                if let Some(m) = mois {
+                    x["mois_depot_permis"] = m.into();
+                }
+                x.as_object_mut().unwrap().remove("hsp_moy_m");
+            })
+        };
+        let e = sans_hsp(2026, Some(7));
+        assert_eq!(e.len(), 1, "{e:?}");
+        assert!(e[0].contains("hsp_moy_m"), "{e:?}");
+        assert!(sans_hsp(2026, Some(6)).is_empty());
+        assert!(sans_hsp(2025, None).is_empty());
+    }
+
+    /// Catégorie propre à un groupe : chemin de l'erreur et groupe inconnu.
+    #[test]
+    fn categorie_d_un_groupe() {
+        let e = variante("maison-climat-ademe", |v| {
+            let z = v["batiments"][0]["zones"][0]["id"].clone();
+            let g = v["batiments"][0]["zones"][0]["groupes"][0]["id"].clone();
+            v["batiments"][0]["exigences"]["zones"] = serde_json::json!([{
+                "zone": z,
+                "groupes": [
+                    { "groupe": g, "categorie_contraintes_exterieures": "categorie_3" },
+                    { "groupe": "inconnu", "categorie_contraintes_exterieures": "categorie_1" }
+                ]
+            }]);
+        });
+        assert_eq!(e.len(), 2, "{e:?}");
+        assert!(e.iter().any(|m| m.contains("groupe inconnu")), "{e:?}");
+        assert!(
+            e.iter().any(|m| m.starts_with(
+                "batiments[0].exigences.zones[0].groupes[0].categorie_contraintes_exterieures"
+            )),
+            "{e:?}"
+        );
+    }
+
+    /// Erreurs de saisie (hors refus de périmètre) d'une variante dont la zone change d'usage.
+    fn variante_usage(usage: &str, modifier: impl Fn(&mut serde_json::Value)) -> Vec<String> {
+        let texte = std::fs::read_to_string(
+            dossier_des_cas()
+                .join("maison-climat-ademe")
+                .join("entree.json"),
+        )
+        .unwrap();
+        let mut v: serde_json::Value = serde_json::from_str(&texte).unwrap();
+        v["batiments"][0]["zones"][0]["usage"] = usage.into();
+        modifier(&mut v);
+        let p = json::lire_projet(&v.to_string()).unwrap();
+        thbce_core::valider(&p)
+            .erreurs
+            .iter()
+            .filter(|e| !e.hors_perimetre)
+            .map(|e| format!("{} : {}", e.chemin, e.message))
+            .collect()
+    }
+
+    /// Bureaux climatisés de catégorie 3 : admis (la zone reste refusée par le périmètre de
+    /// la version tant que le calcul tertiaire n'est pas ouvert) ; la hauteur sous plafond
+    /// n'est pas exigée hors habitation.
+    #[test]
+    fn categorie_3_admise_pour_des_bureaux() {
+        let e = variante_usage("bureaux", |v| {
+            let x = &mut v["batiments"][0]["exigences"];
+            x["categorie_contraintes_exterieures"] = "categorie_3".into();
+            x["annee_depot_permis"] = 2026.into();
+            x.as_object_mut().unwrap().remove("hsp_moy_m");
+        });
+        assert!(
+            !e.iter()
+                .any(|m| m.contains("categorie_contraintes") || m.contains("hsp_moy_m")),
+            "{e:?}"
+        );
+    }
+
+    #[test]
+    fn categorie_3_refusee_pour_l_enseignement() {
+        let e = variante_usage("enseignement_primaire", |v| {
+            v["batiments"][0]["exigences"]["categorie_contraintes_exterieures"] =
+                "categorie_3".into();
+        });
+        assert!(
+            e.iter()
+                .any(|m| m.contains("catégorie 3 impossible") && m.contains("d'usage 4")),
+            "{e:?}"
+        );
+    }
+
+    /// Q68 : une médiathèque n'est soumise qu'à partir des permis de 2026.
+    #[test]
+    fn mediatheque_avant_2026_refusee() {
+        let e = variante_usage("mediatheque_bibliotheque", |v| {
+            v["batiments"][0]["exigences"]["annee_depot_permis"] = 2025.into();
+        });
+        assert!(
+            e.iter()
+                .any(|m| m.contains("annee_depot_permis") && m.contains("usage 6")),
+            "{e:?}"
+        );
+        let e = variante_usage("mediatheque_bibliotheque", |v| {
+            v["batiments"][0]["exigences"]["annee_depot_permis"] = 2026.into();
+        });
+        assert!(!e.iter().any(|m| m.contains("annee_depot_permis")), "{e:?}");
+    }
+
+    /// Relecture de la PR #55 : un mois hors plage ne produit que son erreur, sans fausse erreur
+    /// de date d'effet.
+    #[test]
+    fn mois_hors_plage_sans_fausse_erreur_de_date() {
+        for m in [0, 13] {
+            let e = variante_usage("mediatheque_bibliotheque", |v| {
+                let x = &mut v["batiments"][0]["exigences"];
+                x["annee_depot_permis"] = 2026.into();
+                x["mois_depot_permis"] = m.into();
+            });
+            assert_eq!(e.len(), 1, "{e:?}");
+            assert!(e[0].contains("mois_depot_permis"), "{e:?}");
+        }
+    }
+
+    /// Doublon dans `exigences.zones` : l'erreur porte sur `zone`.
+    #[test]
+    fn zone_decrite_deux_fois() {
+        let e = variante("maison-climat-ademe", |v| {
+            let id = v["batiments"][0]["zones"][0]["id"].clone();
+            v["batiments"][0]["exigences"]["zones"] =
+                serde_json::json!([{ "zone": id.clone() }, { "zone": id }]);
+        });
+        assert_eq!(e.len(), 1, "{e:?}");
+        assert!(
+            e[0].starts_with("batiments[0].exigences.zones[1].zone "),
+            "{e:?}"
+        );
+    }
+
+    /// Q68, décision du 17 novembre 2026 : mois obligatoire en 2026, et en 2022 avec une zone
+    /// d'usage 3 à 5 ; facultatif sinon.
+    #[test]
+    fn mois_obligatoire_en_2026_et_pour_le_tertiaire_en_2022() {
+        let annee = |a: u16| {
+            move |v: &mut serde_json::Value| {
+                v["batiments"][0]["exigences"]["annee_depot_permis"] = a.into();
+            }
+        };
+        let e = variante("maison-climat-ademe", annee(2026));
+        assert!(
+            e.iter()
+                .any(|m| m.contains("mois_depot_permis") && m.contains("1er mai 2026")),
+            "{e:?}"
+        );
+        let e = variante_usage("bureaux", annee(2022));
+        assert!(
+            e.iter()
+                .any(|m| m.contains("mois_depot_permis") && m.contains("1er juillet 2022")),
+            "{e:?}"
+        );
+        assert!(variante("maison-climat-ademe", annee(2025)).is_empty());
+        assert!(variante("maison-climat-ademe", annee(2022)).is_empty());
+        let e = variante_usage("bureaux", annee(2025));
+        assert!(!e.iter().any(|m| m.contains("mois_depot_permis")), "{e:?}");
+    }
 }
