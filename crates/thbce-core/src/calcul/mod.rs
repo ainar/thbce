@@ -205,10 +205,18 @@ pub fn calculer(
             }
             None => (None, Vec::new(), Vec::new()),
         };
-        // Éq. (2504) : ventilateurs des centrales, de puissance constante en habitation.
-        for z in &zones {
+        // Éq. (2504) : ventilateurs des centrales, de puissance constante en habitation ; hors
+        // habitation, puissance d'occupation ou d'inoccupation à chaque pas (éq. 636 à 639).
+        for (z, zc) in zones.iter().zip(&th_c.zones) {
             if let Some(v) = &z.ventilation {
-                releve.ajouter_constante(poste::AUX_VENT, v.p_vent_w);
+                let serie = zc
+                    .ventilation
+                    .as_ref()
+                    .and_then(|vp| ventilation::puissance_horaire_w(vp, &zc.scenarios));
+                match serie {
+                    Some(serie) => releve.ajouter_serie(poste::AUX_VENT, &serie),
+                    None => releve.ajouter_constante(poste::AUX_VENT, v.p_vent_w),
+                }
             }
         }
         // Fiche 4.7 : usages mobiliers, pour la consommation « tous usages » (éq. 2515).

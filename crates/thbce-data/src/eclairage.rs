@@ -6,9 +6,7 @@
 //! par usage de zone et par type de local. Le texte renvoie à ce tableau tantôt sous le numéro
 //! 78, tantôt sous le numéro 79.
 //!
-//! Transcription : la page 488 (usages 3 à 8) a été relue sur l'image de la page ; les pages
-//! 489 à 491 (usages 9 à 28) sont transcrites de la couche de texte du PDF, que l'image de la
-//! page 488 reproduit à l'identique, et restent à relire sur image avant d'ouvrir ces usages.
+//! Transcription relue sur les images des pages 488 à 491 (usages 3 à 28).
 //! Les valeurs sont reprises telles qu'imprimées, y compris celles qui surprennent (salle de
 //! réunion des bureaux à 50 lux, salle de repos de l'enseignement primaire à 0,60 puis 0,75).
 //! Deux cellules de l'usage 18 sont imprimées « 0?75 » et « 0?7 » : lues 0,75 et 0,70, comme

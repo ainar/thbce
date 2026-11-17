@@ -249,6 +249,25 @@ pub fn raccorde_rcu(bat: &Batiment) -> bool {
         })
 }
 
+/// Part de la surface de référence du bâtiment qui relève d'usages autres que l'habitation,
+/// de 0 à 1 : 0 pour un bâtiment d'habitation, 1 pour un bâtiment tertiaire.
+fn part_sref_non_residentielle(bat: &Batiment, zones: &[ResultatsZone]) -> f64 {
+    let (mut total, mut tertiaire) = (0.0, 0.0);
+    for (z, r) in bat.zones.iter().zip(zones) {
+        total += r.sref_m2;
+        if !z.usage.est_habitation() {
+            tertiaire += r.sref_m2;
+        }
+    }
+    if tertiaire <= 0.0 || total <= 0.0 {
+        0.0
+    } else if tertiaire >= total {
+        1.0
+    } else {
+        tertiaire / total
+    }
+}
+
 /// Calcule les indicateurs d'un bâtiment. Renvoie aussi les avertissements du calcul.
 pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs, Vec<String>) {
     let bat = e.batiment;
@@ -361,12 +380,29 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
         importee.refroidissement_kwh,
     ));
     parts.push(("ecs", elec(UsageElectricite::Ecs), importee.ecs_kwh));
-    // Usages d'habitation seulement dans cette version : éclairage « habitation ».
-    parts.push((
-        "eclairage",
-        elec(UsageElectricite::EclairageHabitation),
-        importee.eclairage_kwh,
-    ));
+    // Article 10 : l'éclairage n'a pas le même facteur d'émission « dans un bâtiment
+    // résidentiel » et « dans un bâtiment tertiaire ». Dans un bâtiment qui réunit des zones
+    // d'habitation et d'autres usages, l'éclairage importé est réparti au prorata des surfaces
+    // de référence (lecture Q62).
+    let part_tertiaire = part_sref_non_residentielle(bat, e.zones);
+    if part_tertiaire < 1.0 {
+        parts.push((
+            "eclairage",
+            elec(UsageElectricite::EclairageHabitation),
+            if part_tertiaire > 0.0 {
+                importee.eclairage_kwh * (1.0 - part_tertiaire)
+            } else {
+                importee.eclairage_kwh
+            },
+        ));
+    }
+    if part_tertiaire > 0.0 {
+        parts.push((
+            "eclairage",
+            elec(UsageElectricite::EclairageTertiaire),
+            importee.eclairage_kwh * part_tertiaire,
+        ));
+    }
     parts.push((
         "auxiliaires_ventilation",
         elec(UsageElectricite::AutresUsages),
@@ -465,7 +501,26 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
             .map(|c| c.solaire.e_sol_kwh)
             .sum::<f64>();
 
-    let exigences = params.map(|pa| {
+    // Une zone dont l'usage n'a pas d'exigences transcrites interdit d'évaluer celles du
+    // bâtiment : ni maximum partiel ni conformité, plutôt qu'un maximum nul.
+    let sans_exigences: Vec<u8> = parties
+        .iter()
+        .filter(|(_, ex)| ex.is_none())
+        .map(|(p, _)| p.usage)
+        .collect();
+    if params.is_some() && !sans_exigences.is_empty() {
+        avertissements.push(format!(
+            "bâtiment {} : exigences maximales et conformité non évaluées : les exigences de \
+             l'usage n° {} ne sont pas prises en charge par cette version",
+            bat.id,
+            sans_exigences
+                .iter()
+                .map(u8::to_string)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+    let exigences = params.filter(|_| sans_exigences.is_empty()).map(|pa| {
         let mut zones = Vec::new();
         let mut verifications = Vec::new();
         let mut dh_manquants = Vec::new();

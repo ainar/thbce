@@ -302,6 +302,14 @@ export interface BoucheConduit {
    */
   cdep?: number | null;
   /**
+   * « Crdbnr » : coefficient de réduction des débits en occupation, en non résidentiel
+   * (§6.2.3.2.1, tableau 57) : 1 sans régulation des débits, 0,9 avec un dispositif de
+   * détection d'utilisation du local, 0,8 avec un comptage d'occupants ou des sondes de CO2 ;
+   * une autre valeur si elle vient d'un Avis Technique. Absent : 1, aucune régulation,
+   * signalé dans les résultats. Sans objet en habitation.
+   */
+  crdbnr?: number | null;
+  /**
    * « Dugd » : durée d'utilisation du grand débit, en h par semaine (§6.2.3.2.2.2, tableau
    * 57) : 14 pour un dispositif à gestion manuelle, 7 avec temporisation ; davantage pour un
    * passage en grand débit commandé depuis plusieurs pièces (note 3). Absente : 14, gestion
@@ -321,9 +329,25 @@ export interface BoucheConduit {
   q_spec_conv_base_m3_h?: number | null;
   /**
    * « qspec,rep,conv_pointe » ou « qspec,souffle,conv_pointe » : débit volumique spécifique
-   * conventionnel en pointe, en m³/h, positif.
+   * conventionnel en pointe, en m³/h, positif. Requis en maison individuelle ou accolée et
+   * en logement collectif ; ne pas le saisir dans les autres usages, qui se décrivent par
+   * `q_spec_occ_m3_h` et `q_spec_inocc_m3_h`.
    */
-  q_spec_conv_pointe_m3_h: number;
+  q_spec_conv_pointe_m3_h?: number;
+  /**
+   * « qspec,rep,inocc » ou « qspec,soufflé,inocc » : débit volumique total repris ou soufflé
+   * en inoccupation, en m³/h, positif ou nul (éq. 385 et 386). Requis comme
+   * `q_spec_occ_m3_h`.
+   */
+  q_spec_inocc_m3_h?: number | null;
+  /**
+   * « qspec,rep,occ » ou « qspec,soufflé,occ » : débit volumique total repris ou soufflé en
+   * occupation, en m³/h, positif, pour les usages autres que la maison individuelle ou
+   * accolée et le logement collectif (§6.2.3.1.1.1, éq. 383 et 384). Requis dans ces usages.
+   * Le calcul du Bbio ne l'emploie pas : ses débits sont conventionnels (§6.2.3.1.3,
+   * tableau 56-1).
+   */
+  q_spec_occ_m3_h?: number | null;
   /**
    * « Qvarepspec » : débit de l'avis technique d'un système hygroréglable, en m³/h
    * (§6.2.3.1.1.2). Le débit de base en est déduit ; ne pas saisir alors
@@ -804,6 +828,49 @@ export interface EchangeurSimplifie {
   statut?: StatutEchangeur | null;
 }
 
+/** Th-BCE 2020 §7.1.2 — système d'éclairage d'un local. */
+export interface EclairageLocal {
+  /**
+   * « Eff_ecl_immo_projet » : densité de puissance de l'éclairage immobilier, en W/m² pour
+   * 100 lux. Requise pour un local de bureaux d'une zone de bureaux dont la puissance
+   * immobilière est inférieure à 10 W/m² (§7.1.3.2.3) ; sans objet sinon.
+   */
+  eff_ecl_immo_projet_w_m2_100lux?: number | null;
+  /**
+   * « Eiproj » : éclairement requis du projet, en lux. Requis dans le même cas que
+   * `eff_ecl_immo_projet_w_m2_100lux` : si l'éclairage immobilier ne l'atteint pas,
+   * l'éclairage mobilier assure le complément, à raison de 1 W/m² pour 100 lux.
+   */
+  ei_proj_lux?: number | null;
+  /**
+   * « Fr_Grad_ecl,l » : vrai si la gestion selon la lumière naturelle est fractionnée (2),
+   * c'est-à-dire si la partie du local qui a accès à la lumière naturelle est gérée
+   * indépendamment de celle qui n'y a pas accès ; faux sinon (1).
+   */
+  fractionne: boolean;
+  /** « Gest_ecl,l » : mode de commande de l'éclairage artificiel. */
+  gest_ecl: GestEcl;
+  /** « Grad_ecl,l » : mode de gestion de l'éclairage artificiel selon la lumière naturelle. */
+  grad_ecl: GradEcl;
+  /**
+   * « Pecl_aux,l » : puissance surfacique des appareillages et périphériques de gestion
+   * quand les lampes sont éteintes (horloges, gradateurs, détecteurs, boutons-poussoirs
+   * alimentés ; hors ballasts, transformateurs et drivers), en W/m². Requise avec une
+   * détection de présence ou d'absence (`gest_ecl`) ou une gestion automatique selon la
+   * lumière naturelle (`grad_ecl`) ; sinon elle est nulle par convention : ne pas la saisir.
+   */
+  p_ecl_aux_w_m2?: number | null;
+  /**
+   * « Pecl_tot,l » : puissance surfacique totale d'éclairage installée à poste fixe dans le
+   * local, en W/m² : lampes et accessoires, système de gestion intégré aux luminaires,
+   * éclairages d'appoint des postes de travail ; hors éclairage de sécurité, éclairage
+   * extérieur, éclairage de mise en valeur et éclairage de process (§7.1.1). Dans un local de
+   * bureaux d'une zone de bureaux, c'est la puissance de l'éclairage immobilier
+   * (« Pecl_immo_projet », §7.1.3.2.3).
+   */
+  p_ecl_tot_w_m2: number;
+}
+
 /** Th-BCE 2020 §10.4.2 — éclairage d'un parking. */
 export interface EclairageParking {
   /**
@@ -889,9 +956,17 @@ export interface EmetteurEcs {
   /**
    * « Nbmaison » (maison individuelle ou accolée : nombre de maisons desservies, plus de 1
    * pour des maisons accolées) ou « Nblgt-e » (logement collectif : nombre de logements
-   * desservis), tableau 272.
+   * desservis), tableau 272. Requis, au moins 1, en maison individuelle ou accolée et en
+   * logement collectif ; sans objet dans les autres usages.
    */
-  nb_logements: number;
+  nb_logements?: number;
+  /**
+   * « Nu » : nombre d'unités caractéristiques desservies, pour les usages autres que la
+   * maison individuelle ou accolée et le logement collectif (§9.6.3.2.2.1, tableau 277 : en
+   * m² de surface utile pour tous ces usages). Absent : la surface utile que l'émetteur
+   * dessert, `rat_em × su_m2` (éq. 1682). Ne pas saisir en habitation.
+   */
+  nu?: number | null;
   /**
    * « partmélangeur » : part des besoins passant par des mélangeurs, mitigeurs mécaniques et
    * autres émetteurs (gain 0 %, tableau 273).
@@ -1361,6 +1436,12 @@ export interface Generation {
   systemes_solaires_combines?: SystemeSolaireCombine[];
 }
 
+/**
+ * « Gest_ecl,l » (§7.1.2 et §7.1.3.6.1) : mode de commande de l'éclairage artificiel d'un
+ * local.
+ */
+export type GestEcl = "permanent" | "interrupteur_manuel" | "interrupteur_et_horloge" | "marche_et_arret_automatiques" | "marche_manuelle_arret_automatique";
+
 /** « Type-GPM » (§5.9.2) : gestion d'un volet ou d'un store enroulable. */
 export type GestionPm = "automatique_avec_derogation" | "manuelle_non_motorisee" | "manuelle_motorisee";
 
@@ -1377,6 +1458,12 @@ export type GestionTemperatureGeneration = {
 
 /** « GestVCV » (§8.1.2). */
 export type GestionVentilateurs = "manuelle" | "automatique_permanente" | "automatique_avec_arret";
+
+/**
+ * « Grad_ecl,l » (§7.1.2 et §7.1.3.6.1) : mode de gestion de l'éclairage artificiel d'un local
+ * selon la lumière naturelle.
+ */
+export type GradEcl = "aucune" | "manuelle" | "gradation_automatique" | "allumage_et_extinction_automatiques" | "extinction_automatique";
 
 /**
  * Niveau « groupe » (Th-BCE 2020 §5.7) : local ou ensemble de locaux dont l'air est supposé
@@ -1429,6 +1516,13 @@ export interface Groupe {
   id: string;
   /** Inertie thermique du groupe (§5.21.2). */
   inertie: Inertie;
+  /**
+   * Locaux du groupe au sens de l'éclairage (§7.1), pour les usages autres que la maison
+   * individuelle ou accolée et le logement collectif, dont l'éclairage est conventionnel :
+   * ne pas les saisir en habitation. Requis dans les autres usages ; la somme des
+   * `ratio_local` vaut 1.
+   */
+  locaux?: LocalEclairage[];
   /** Parois opaques (§5.15 à 5.17). */
   parois_opaques?: ParoiOpaque[];
   /** Ponts thermiques (§5.18 à 5.20). */
@@ -1615,6 +1709,36 @@ export interface LimitesPac {
    * (« θmax_av »), minimale en refroidissement (« θmin_av »).
    */
   theta_aval_c: number;
+}
+
+/**
+ * Th-BCE 2020 §7.1 — local d'un groupe au sens de l'éclairage : « un local a une puissance
+ * d'éclairage artificiel spécifique » et « un seul mode de mise en marche et d'extinction »
+ * (§7.1.1). Des locaux de même type et de même système d'éclairage se regroupent.
+ */
+export interface LocalEclairage {
+  /**
+   * Système d'éclairage du projet (§7.1.3.2). Le calcul du Bbio l'ignore : il emploie une
+   * puissance et une gestion conventionnelles (§7.1.3.1).
+   */
+  eclairage: EclairageLocal;
+  /** Identifiant, unique dans le groupe. */
+  id: string;
+  /**
+   * « Ratioécl_nat,l » : part du local qui a un accès effectif à la lumière naturelle, de 0
+   * à 1 (§7.1.3.6.1) : parties situées à moins de `2,5 × (hLi − hTa)` d'une baie non
+   * horizontale (`hLi` : hauteur du linteau, `hTa` : hauteur du plan de travail), sous
+   * réserve, dans un local plus profond, que leurs luminaires soient commandés
+   * indépendamment ; 0 pour un local sans baie.
+   */
+  ratio_ecl_nat: number;
+  /** « Ratiolocal,l » : part de la surface du local dans la surface utile du groupe, de 0 à 1. */
+  ratio_local: number;
+  /**
+   * « type_local,l » : type de local, parmi ceux que le tableau 78 donne à l'usage de la
+   * zone ; il fixe le coefficient `C1` et l'éclairement de référence `Eiref`.
+   */
+  type_local: TypeLocal;
 }
 
 /** Th-BCE 2020 §3.1.2 et §5.1.2 — paramètres d'intégration du climat et du bâtiment. */
@@ -3747,6 +3871,9 @@ export type TypeEmetteurChaud = "soufflage_air_chaud" | "muraux_rayonnants" | "p
 /** Typologie d'émetteur de froid (§8.1.3.1.3, tableau 86). */
 export type TypeEmetteurFroid = "soufflage_air_froid" | "poutre_froide" | "plafond_rafraichissant" | "mur_rafraichissant" | "plancher_rafraichissant";
 
+/** Type de local au sens de l'éclairage (§7.1.2, « type_local » ; tableau 78). */
+export type TypeLocal = "bureau_standard" | "salle_reunion" | "circulation_accueil" | "sanitaires_collectifs" | "salle_classe" | "salle_repos" | "sanitaires_vestiaires" | "salle_enseignement_informatique" | "salle_conference" | "centre_documentation" | "salle_professeurs" | "salle_multi_fonctions" | "local_service" | "chambre_sans_cuisine" | "salle_petits_dejeuners" | "bar" | "salle_seminaires_reunion" | "salle_jeux" | "salle_restaurant" | "cuisine" | "aire_vente_inferieure300" | "aire_vente_superieure300" | "douches_collectives" | "salle_commune" | "locaux_soins_offices" | "salle_attente_consultation" | "aire_production" | "espace_voyageurs" | "commerces" | "inspection_filtrage" | "salle_sport";
+
 /** Type d'ouvrant (§5.13.3.2.3, tableau 44). */
 export type TypeOuvrant = "francaise_ou_anglaise" | "italienne_ou_soufflet" | "soufflet_oscillo_battant" | "coulissant";
 
@@ -3874,12 +4001,34 @@ export interface Vegetalisation {
   sf_e_v_k: number;
 }
 
-/** Th-BCE 2020 §6.4.3 et §6.5.2 — ventilateur d'un système simple flux en résidentiel. */
+/**
+ * Th-BCE 2020 §6.4.3 et §6.5.2 — ventilateur d'un système simple flux : puissances en débit
+ * de base et de pointe en résidentiel, en occupation et en inoccupation en non résidentiel.
+ */
 export interface VentilateurSimpleFlux {
-  /** « Pventbase » : puissance électrique du ventilateur en débit de base, en W. */
-  p_vent_base_w: number;
-  /** « Pventpointe » : puissance électrique du ventilateur en débit de pointe, en W. */
-  p_vent_pointe_w: number;
+  /**
+   * « Pventbase » : puissance électrique du ventilateur en débit de base, en W. Requise en
+   * maison individuelle ou accolée et en logement collectif ; ne pas la saisir dans les
+   * autres usages.
+   */
+  p_vent_base_w?: number | null;
+  /**
+   * « Pventinocc » : puissance électrique du ventilateur en inoccupation, en non
+   * résidentiel, en W (éq. 637 et 639). Requise comme `p_vent_occ_w` ; 0 si le ventilateur
+   * est arrêté en inoccupation.
+   */
+  p_vent_inocc_w?: number | null;
+  /**
+   * « Pventocc » : puissance électrique du ventilateur en occupation, en non résidentiel,
+   * en W (§6.5.3.3, éq. 636 et 638). Requise dans les usages autres que la maison
+   * individuelle ou accolée et le logement collectif ; ne pas la saisir en habitation.
+   */
+  p_vent_occ_w?: number | null;
+  /**
+   * « Pventpointe » : puissance électrique du ventilateur en débit de pointe, en W. Requise
+   * en maison individuelle ou accolée et en logement collectif.
+   */
+  p_vent_pointe_w?: number | null;
 }
 
 /** Th-BCE 2020 §8.1.3.8 — ventilateurs locaux d'un émetteur. */

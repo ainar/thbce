@@ -427,3 +427,119 @@ fn simple_flux_par_insufflation() {
     let qm = rho_kg_m3(18.0) * 111.25 / 3600.0;
     proche(air.t_air_souffle_c, 5.0 + P_EL * 20.0 / (C_PA_J_KG_K * qm));
 }
+
+/// Zone de bureaux à simple flux par extraction, dérivée de la maison d'exemple : un groupe,
+/// une bouche de reprise de 3 000 m³/h en occupation et 300 m³/h en inoccupation.
+fn zone_de_bureaux(crdbnr: Option<f64>, q_inocc: f64) -> Projet {
+    let mut p = projet();
+    let z = zone_mut(&mut p);
+    z.usage = UsageZone::Bureaux;
+    z.groupes[0].bouches_conduits = vec![BoucheConduit {
+        id: "extraction".into(),
+        isouf: Isouf::Reprise,
+        q_spec_conv_pointe_m3_h: 0.0,
+        q_spec_conv_base_m3_h: None,
+        qvarep_spec_m3_h: None,
+        dugd_h: None,
+        cdep: Some(1.15),
+        a_cond_m2: None,
+        q_spec_occ_m3_h: Some(3000.0),
+        q_spec_inocc_m3_h: Some(q_inocc),
+        crdbnr,
+    }];
+    let v = z.ventilation.as_mut().unwrap();
+    v.systeme = SystemeVentilation::SimpleFluxExtraction(VentilateurSimpleFlux {
+        p_vent_base_w: None,
+        p_vent_pointe_w: None,
+        p_vent_occ_w: Some(900.0),
+        p_vent_inocc_w: Some(90.0),
+    });
+    v.reseau.classe_etancheite = Some(ClasseEtancheite::B);
+    v.reseau.ratfuitevc = None;
+    p
+}
+
+/// Simple flux en non résidentiel : §6.2.3.1.1.1, §6.2.3.2.2.1, §6.2.3.3.1, §6.2.3.4 et
+/// §6.5.3.3, valeurs calculées à la main.
+#[test]
+fn simple_flux_non_residentiel_a_la_main() {
+    let p = zone_de_bureaux(Some(0.9), 300.0);
+    let v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
+    assert!(v.selon_occupation());
+    // Occupation : éq. (383) q_max = −3 000 ; éq. (400) × Crdbnr 0,9 ; éq. (412) × Cdep 1,15 :
+    // −3 105 m³/h. Inoccupation : éq. (385) et (402), Crdbnr = 1 : −300 × 1,15 = −345 m³/h.
+    // Conduit par défaut, éq. (424) : 3 000 × 0,05 = 150 m² ; fuites, éq. (419), classe B,
+    // 250 Pa (tableau 60) : 3 600 × 0,009e-3 × 150 × 250^0,667.
+    let fuites = 3600.0 * 0.009e-3 * 150.0 * libm::pow(250.0, 0.667);
+    // Éq. (428), Ratfuitevc = 0,75 par défaut en non résidentiel ; éq. (430).
+    let occ = v.debits_groupe_selon(0, true);
+    proche(occ.q_rep_m3_h, -(3105.0 + 0.75 * fuites));
+    assert_eq!(occ.q_souffle_m3_h, 0.0);
+    proche(
+        v.debits_cond_groupe_selon(0, true).q_rep_m3_h,
+        -(3105.0 + fuites),
+    );
+    let inocc = v.debits_groupe_selon(0, false);
+    proche(inocc.q_rep_m3_h, -(345.0 + 0.75 * fuites));
+    proche(
+        v.debits_cond_groupe_selon(0, false).q_rep_m3_h,
+        -(345.0 + fuites),
+    );
+    // `debits_groupe` restitue l'occupation.
+    assert_eq!(v.debits_groupe(0), occ);
+    // Éq. (636) et (637) : puissance d'occupation ou d'inoccupation ; éq. (642) : un seul
+    // groupe la reçoit entière.
+    assert_eq!(v.p_vent_selon(true), (900.0, 0.0));
+    assert_eq!(v.p_vent_selon(false), (90.0, 0.0));
+    proche(v.p_vent_groupe_selon_w(0, true), 900.0);
+    proche(v.p_vent_groupe_selon_w(0, false), 90.0);
+    assert_eq!(v.p_vent_w(), 900.0);
+    // Valeur par défaut signalée : Ratfuitevc (0,75) et surface de conduit.
+    let champs: Vec<&str> = v
+        .valeurs_par_defaut
+        .iter()
+        .map(|d| d.champ.as_str())
+        .collect();
+    assert!(champs.contains(&"ventilation.reseau.ratfuitevc"));
+    assert!(champs.iter().any(|c| c.ends_with("a_cond_m2")));
+    assert!(!champs.iter().any(|c| c.ends_with("crdbnr")));
+
+    // Sans `crdbnr` : 1, aucune régulation (tableau 57), signalé.
+    let p = zone_de_bureaux(None, 0.0);
+    let v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
+    proche(
+        v.debits_groupe_selon(0, true).q_rep_m3_h,
+        -(3450.0 + 0.75 * fuites),
+    );
+    assert!(v
+        .valeurs_par_defaut
+        .iter()
+        .any(|d| d.champ.ends_with("crdbnr") && d.valeur == 1.0));
+    // Ventilation arrêtée en inoccupation : débit nul, donc dP = 0 et fuites nulles (éq. 419).
+    assert_eq!(v.debits_groupe_selon(0, false).q_rep_m3_h, 0.0);
+    assert_eq!(v.debits_cond_groupe_selon(0, false).q_rep_m3_h, 0.0);
+}
+
+/// Le pas de temps d'un simple flux par extraction suit l'indicateur de ventilation : débit
+/// massique rejeté et échauffement par le ventilateur (éq. 652 à 654).
+#[test]
+fn simple_flux_non_residentiel_pas_de_temps() {
+    let p = zone_de_bureaux(Some(1.0), 300.0);
+    let mut v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
+    let etat = [EtatGroupeVentilation {
+        theta_i_fin_c: 20.0,
+        saison_de_chauffage: true,
+    }];
+    let mut air = [AirSouffle::default()];
+    let occ = v.pas(5.0, 0.004, &etat, &mut air, true);
+    let inocc = v.pas(5.0, 0.004, &etat, &mut air, false);
+    let fuites = 3600.0 * 0.009e-3 * 150.0 * libm::pow(250.0, 0.667);
+    // Débit vu par le ventilateur, à la masse volumique de l'air du groupe (20 °C).
+    let qm = |q_m3_h: f64| rho_kg_m3(20.0) * q_m3_h / 3600.0;
+    proche(occ.qm_air_extrait_kg_s, qm(3450.0 + fuites));
+    proche(inocc.qm_air_extrait_kg_s, qm(345.0 + fuites));
+    // Le ventilateur échauffe moins l'air en occupation : 900 W pour un débit dix fois plus
+    // fort qu'en inoccupation (90 W) — même ordre de grandeur, mais pas la même valeur.
+    assert!(occ.theta_air_extrait_c > 5.0 && inocc.theta_air_extrait_c > 5.0);
+    assert!((occ.theta_air_extrait_c - inocc.theta_air_extrait_c).abs() > 1e-6);
+}
