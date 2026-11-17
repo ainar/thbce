@@ -1,0 +1,166 @@
+{
+  "reglementaire": false,
+  "batiments": [
+    {
+      "id": "maison",
+      "bbio_pts": 63.8,
+      "dh_c_h": 1730.5,
+      "generations": [
+        {
+          "id": "generation-ssc",
+          "q_ch_kwh": 2833.2,
+          "q_ecs_kwh": 1488.8,
+          "q_fou_ch_kwh": 2833.2,
+          "q_fou_ecs_kwh": 1488.8,
+          "q_rep_fin_kwh": 0.0,
+          "pertes_vc_kwh": 801.5,
+          "stockages": [
+            {
+              "id": "ssc",
+              "q_fou_ecs_kwh": 1488.8,
+              "q_fou_sto_base_kwh": 1931.4,
+              "q_fou_sto_ap_kwh": 485.1,
+              "pertes_kwh": 681.4,
+              "v_puise_l": 26102.0,
+              "theta_haut_min_c": 53.0,
+              "nbh_temp_insuff_max": 14,
+              "nbh_report_e": 0,
+              "solaire": {
+                "e_sol_kwh": 1931.4,
+                "e_sol_mensuel_kwh": [
+                  72.3,
+                  126.9,
+                  243.4,
+                  209.5,
+                  222.2,
+                  185.7,
+                  208.0,
+                  227.1,
+                  144.3,
+                  143.1,
+                  98.3,
+                  50.7
+                ],
+                "w_pompe_kwh": 70.8,
+                "pertes_vc_kwh": 120.1,
+                "isr_kwh_m2": 1370.2,
+                "a_capteurs_m2": 10.0,
+                "nbh_marche": 1180,
+                "ecretement_kwh": 24.0
+              },
+              "ssc": {
+                "q_puise_ch_kwh": 228.8,
+                "q_fou_ch_appoint_kwh": 0.0
+              },
+              "valeurs_par_defaut": [
+                {
+                  "champ": "capteurs.performances.eta0",
+                  "valeur": 0.6,
+                  "regle": "Th-BCE 2020 §9.15.3.1, tableau 293 : performances par défaut des capteurs solaires"
+                },
+                {
+                  "champ": "capteurs.performances.a1_w_m2k",
+                  "valeur": 6.0,
+                  "regle": "Th-BCE 2020 §9.15.3.1, tableau 293 : performances par défaut des capteurs solaires"
+                },
+                {
+                  "champ": "capteurs.performances.a2_w_m2k2",
+                  "valeur": 0.0,
+                  "regle": "Th-BCE 2020 §9.15.3.1, tableau 293 : performances par défaut des capteurs solaires"
+                },
+                {
+                  "champ": "boucle.transfert.echangeur.ua_hx_w_k",
+                  "valeur": 1000.0,
+                  "regle": "Th-BCE 2020 §9.15.2, tableau 292 : (UA)hx conventionnel, 100·A"
+                },
+                {
+                  "champ": "boucle.alpha_p",
+                  "valeur": 0.5,
+                  "regle": "Th-BCE 2020 §9.15.2, tableau 292 : αp conventionnel"
+                },
+                {
+                  "champ": "boucle.m_cp_w_k",
+                  "valeur": 580.0,
+                  "regle": "Th-BCE 2020 §9.15.2, tableau 292 : débit calorifique conventionnel, 58·A"
+                },
+                {
+                  "champ": "appoint.delta_theta_k",
+                  "valeur": 2.0,
+                  "regle": "Th-BCE 2020 §9.10.3.2.2 : hystérésis du thermostat par défaut, 2 K"
+                }
+              ]
+            }
+          ],
+          "generateurs": [
+            {
+              "id": "pac-air-eau",
+              "q_fou_ch_kwh": 2604.4,
+              "q_fou_fr_kwh": 0.0,
+              "q_fou_ecs_kwh": 0.0,
+              "consommations": {
+                "chauffage": {
+                  "electricite_kwh": 706.5
+                },
+                "refroidissement": {},
+                "ecs": {}
+              },
+              "eta_eff_ch_an": 3.69,
+              "w_aux_kwh": 115.3,
+              "phi_rejet_kwh": -2013.2,
+              "valeurs_par_defaut": [
+                {
+                  "champ": "chauffage.fonctionnement_continu.lr_contmin",
+                  "valeur": 0.4,
+                  "regle": "Th-BCE 2020 §8.23.3.6, éq. (1280) et (1281) : LRcontmin = 0,4 et CcpLRcontmin = 1 par défaut"
+                },
+                {
+                  "champ": "taux_auxiliaires",
+                  "valeur": 0.02,
+                  "regle": "Th-BCE 2020 §8.23.3.6, éq. (1278) et (1279) : Taux par défaut, 0,02 en chauffage ou en ECS, 0,01 en refroidissement"
+                }
+              ]
+            },
+            {
+              "id": "appoint-electrique",
+              "q_fou_ch_kwh": 0.0,
+              "q_fou_fr_kwh": 0.0,
+              "q_fou_ecs_kwh": 0.0,
+              "consommations": {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {}
+              },
+              "w_aux_kwh": 0.0
+            },
+            {
+              "id": "resistance-ssc",
+              "q_fou_ch_kwh": 0.0,
+              "q_fou_fr_kwh": 0.0,
+              "q_fou_ecs_kwh": 485.1,
+              "consommations": {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 485.1
+                }
+              },
+              "eta_eff_ecs_an": 1.0,
+              "w_aux_kwh": 0.0
+            }
+          ],
+          "consommations": {
+            "annuel": {
+              "chauffage": {
+                "electricite_kwh": 711.3
+              },
+              "refroidissement": {},
+              "ecs": {
+                "electricite_kwh": 551.2
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
