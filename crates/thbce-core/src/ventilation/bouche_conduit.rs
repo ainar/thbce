@@ -200,6 +200,8 @@ pub enum TypologieReseau {
     MaisonIndividuelle,
     /// Bâtiment collectif (logement collectif).
     BatimentCollectif,
+    /// Bâtiment non résidentiel.
+    NonResidentiel,
 }
 
 /// Pression de fonctionnement d'un système au sens du tableau 60.
@@ -217,6 +219,7 @@ impl TypologieReseau {
         match self {
             Self::MaisonIndividuelle => 0.25,
             Self::BatimentCollectif => 0.5,
+            Self::NonResidentiel => 0.75,
         }
     }
 
@@ -225,6 +228,9 @@ impl TypologieReseau {
         match (self, pression) {
             (Self::MaisonIndividuelle, PressionReseau::Haute) => 80.0,
             (Self::BatimentCollectif, PressionReseau::Haute) => 160.0,
+            (Self::NonResidentiel, PressionReseau::Haute) => 250.0,
+            // Le tableau 60 ne donne pas de pression en basse pression au bâtiment non
+            // résidentiel ; les systèmes à basse pression n'y sont pas pris en charge.
             (_, PressionReseau::Basse) => 20.0,
         }
     }
@@ -322,6 +328,92 @@ impl DebitsBoucheProjet {
     pub fn a_cond_ext_m2(&self) -> f64 {
         (1.0 - self.ratfuitevc) * self.a_cond_m2
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Usages autres que la maison individuelle ou accolée et le logement collectif.
+// ---------------------------------------------------------------------------------------------
+
+/// « Crdbnr » sans régulation des débits (§6.2.3.2.1, tableau 57).
+pub const CRDBNR_DEFAUT: f64 = 1.0;
+/// Débit minimal conventionnel du Bbio en inoccupation, en m³/h (§6.2.3.1.3 :
+/// `max(60 ; Param_inoccupation × SREF)`).
+pub const Q_MIN_INOCCUPATION_BBIO_M3_H: f64 = 60.0;
+
+/// « Param_occupation » et « Param_inoccupation » du calcul du Bbio, en m³/h par m² de surface
+/// de référence, selon le numéro d'usage (§6.2.3.1.3, tableau 56-1, p. 334 et 335). `None`
+/// pour les usages 1 et 2, dont les débits du Bbio sont les débits d'hygiène des bouches.
+pub fn param_debits_bbio(numero_usage: u8) -> Option<(f64, f64)> {
+    Some(match numero_usage {
+        3 => (4.0, 0.42),
+        4 => (7.2, 0.38),
+        5 => (4.7, 0.38),
+        6 => (5.6, 0.46),
+        7 => (7.4, 0.6),
+        8 => (3.0, 3.0),
+        9 => (2.0, 2.2),
+        10 => (8.0, 0.0),
+        11 => (7.0, 0.0),
+        12 => (4.7, 0.75),
+        13..=16 => (10.0, 0.5),
+        17 => (3.7, 0.0),
+        18 => (6.7, 6.7),
+        19 | 20 => (4.5, 4.5),
+        21 => (4.5, 0.0),
+        22 => (4.0, 0.3),
+        23 | 24 => (3.1, 0.0),
+        25 | 28 => (3.0, 0.0),
+        26 | 27 => (8.0, 0.3),
+        _ => return None,
+    })
+}
+
+/// Débits conventionnels du calcul du Bbio d'un groupe hors habitation, en m³/h : en occupation
+/// puis en inoccupation au sens de la ventilation (`Ivent`).
+///
+/// Th-BCE 2020 §6.2.3.1.3 : en occupation, `q_max = Param_occupation × SREF_gr` ; en
+/// inoccupation, `q_min = max(60 ; Param_inoccupation × SREF_gr)` ; §6.2.3.2.1 et §6.2.3.2.2.1 :
+/// `Crdbnr = 1`, le débit régulé vaut `q_max` en occupation et `q_min` en inoccupation ;
+/// `Cdep = 1` (éq. 414) et fuites nulles (tableau 59).
+///
+/// Le texte écrit ces débits « pour chaque bouche », en reprise si `Isouf = 0` et en soufflage
+/// si `Isouf = 1`. Ils ne dépendent pourtant que de la surface du groupe : ils sont comptés une
+/// fois par groupe (lecture Q60), et le système conventionnel du Bbio, à débits soufflé et
+/// extrait égaux (§6.1.3, décision Q36 point 1), reprend et souffle ce débit.
+pub fn debits_bbio_non_residentiel(numero_usage: u8, sref_gr_m2: f64) -> Option<(Debits, Debits)> {
+    let (param_occ, param_inocc) = param_debits_bbio(numero_usage)?;
+    let symetrique = |q: f64| Debits {
+        q_rep_m3_h: -q,
+        q_souffle_m3_h: q,
+    };
+    let q_occ = CDEP_BBIO * CRDBNR_BBIO * param_occ * sref_gr_m2;
+    let q_inocc = CDEP_BBIO * Q_MIN_INOCCUPATION_BBIO_M3_H.max(param_inocc * sref_gr_m2);
+    Some((symetrique(q_occ), symetrique(q_inocc)))
+}
+
+/// Débits d'une bouche hors habitation pour le calcul des consommations et du confort d'été :
+/// débit maximal, puis débits après dépassement en occupation et en inoccupation, en m³/h,
+/// signés (reprise négative).
+///
+/// Th-BCE 2020 §6.2.3.1.1.1, éq. (383) à (386) : `q_max = ∓qspec,occ`, `q_min = ∓qspec,inocc` ;
+/// §6.2.3.2.2.1, éq. (400) à (402) : en occupation (`Ivent` vrai), `q_regul = Crdbnr × q_max` ;
+/// en inoccupation, `Crdbnr = 1` et `q_regul = q_min` ; §6.2.3.3.1, éq. (412) et (413) :
+/// `q_dep = Cdep × q_regul`.
+pub fn debits_dep_non_residentiel(
+    isouf: Isouf,
+    q_spec_occ_m3_h: f64,
+    q_spec_inocc_m3_h: f64,
+    crdbnr: f64,
+    cdep: f64,
+) -> (f64, f64, f64) {
+    let signe = |d: Debits| d.q_rep_m3_h + d.q_souffle_m3_h;
+    let max = Debits::de(isouf, q_spec_occ_m3_h);
+    let min = Debits::de(isouf, q_spec_inocc_m3_h);
+    (
+        signe(max),
+        signe(debits_avec_depassement(cdep, max.fois(crdbnr))),
+        signe(debits_avec_depassement(cdep, min)),
+    )
 }
 
 /// Débits maximal, de base et après dépassement d'une bouche en habitation, pour le calcul

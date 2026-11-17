@@ -271,6 +271,18 @@ impl ZoneHoraire {
         // des groupes à la fin du pas précédent. Air soufflé : en Th-B, par le système
         // conventionnel du Bbio, après l'échangeur (§6.1.3) ; sinon, par le système du projet
         // (§6.3.3.4 et §6.5.3.4), calculé avant les groupes (§6.3.3.3, « première phase »).
+        // §6.2.3.2.2.1 : hors habitation, les débits des bouches suivent l'indicateur de
+        // ventilation de la zone (éq. 400 à 402 ; débits conventionnels du §6.2.3.1.3 en Bbio).
+        let i_vent = scenarios.i_vent > 0.0;
+        for (ig, g) in self.groupes.iter_mut().enumerate() {
+            match (&self.ventilation, g.debits_bbio_non_residentiel) {
+                (Some(v), _) if v.selon_occupation() => {
+                    g.debits = v.debits_groupe_selon(ig, i_vent);
+                }
+                (None, Some((occ, inocc))) => g.debits = if i_vent { occ } else { inocc },
+                _ => {}
+            }
+        }
         if let Some(v) = &mut self.ventilation {
             self.etats_ventilation.clear();
             self.etats_ventilation
@@ -289,6 +301,7 @@ impl ZoneHoraire {
                 c.omega_e_kg_kg,
                 &self.etats_ventilation,
                 &mut self.air_souffle,
+                i_vent,
             );
             self.cumuls_ventilation.nbh_bypass += u32::from(self.sorties_ventilation.bypass);
             self.cumuls_ventilation.w_ag_wh += self.sorties_ventilation.w_ag_wh;

@@ -59,12 +59,15 @@ pub fn r_ouv_max_par_defaut(type_ouvrant: TypeOuvrant) -> f64 {
 /// « δtrav_surv » conventionnel d'un usage : caractère traversant du groupe au sens de la
 /// surventilation.
 ///
-/// Th-BCE 2020 §5.13.3.2.1, tableau 43, usages pris en charge : 1 (maisons individuelles ou
-/// accolées), traversant ; 2 (logements collectifs), non conventionnel, selon le groupe :
-/// renvoie `None`, la valeur étant saisie.
+/// Th-BCE 2020 §5.13.3.2.1, tableau 43 (p. 265 et 266) : traversant pour les maisons
+/// individuelles ou accolées (1), les commerces (17), les vestiaires (18), les aérogares (22),
+/// les industries (23 et 24) et les établissements sportifs (25 et 28) ; non traversant pour
+/// les autres usages, dont les bureaux (3) ; non conventionnel en logement collectif (2), selon
+/// le groupe : renvoie `None`, la valeur étant saisie.
 pub fn traversant_conventionnel(usage: u8) -> Option<bool> {
     match usage {
-        1 => Some(true),
+        1 | 17 | 18 | 22..=25 | 28 => Some(true),
+        3..=16 | 19..=21 | 26 | 27 => Some(false),
         _ => None,
     }
 }

@@ -112,3 +112,214 @@ fn autonomie_en_lumiere_naturelle() {
     );
     assert_proche!(a.taux_occ_einat_sup_pct().unwrap(), 50.0);
 }
+
+/// Usages autres que l'habitation : valeurs calculées à la main d'après les §7.1.3.1 à
+/// 7.1.3.6.1 et les tableaux 78 et 79.
+mod tertiaire {
+    use thbce_core::eclairage::{
+        a_eclnat2_m2, c1, c2, ctrl_ecl_einat, eclairage_locaux, facteur_einat_sans_acces,
+        p_ecl_tot_bbio_w_m2, p_ecl_tot_bureaux_w_m2, LocalResolu,
+    };
+    use thbce_core::entree::{GestEcl, GradEcl, LocalEclairage};
+
+    fn proche(a: f64, b: f64) -> bool {
+        (a - b).abs() < 1e-12 * (1.0 + b.abs())
+    }
+
+    fn local(json: &str) -> LocalEclairage {
+        serde_json::from_str(json).unwrap()
+    }
+
+    #[test]
+    fn puissances() {
+        // Éq. (782) : bureau standard, Eiref = 500 lux : 10 W/m².
+        assert!(proche(p_ecl_tot_bbio_w_m2(500.0), 10.0));
+        // §7.1.3.2.3 : 6 W/m² à 1,5 W/m² pour 100 lux : 400 lux ; requis 500 lux : il manque
+        // 100 lux, soit 1 W/m² d'éclairage mobilier.
+        assert!(proche(p_ecl_tot_bureaux_w_m2(6.0, 1.5, 500.0), 7.0));
+        // Éclairement requis atteint : pas d'éclairage mobilier.
+        assert!(proche(p_ecl_tot_bureaux_w_m2(6.0, 1.2, 500.0), 6.0));
+        // À partir de 10 W/m², la puissance immobilière seule.
+        assert!(proche(p_ecl_tot_bureaux_w_m2(10.0, 4.0, 500.0), 10.0));
+    }
+
+    #[test]
+    fn coefficient_c1() {
+        let ligne = [0.90, 0.85, 0.80, 0.70];
+        assert_eq!(c1(GestEcl::Permanent, &ligne), 1.0);
+        assert_eq!(c1(GestEcl::InterrupteurManuel, &ligne), 0.90);
+        assert_eq!(c1(GestEcl::InterrupteurEtHorloge, &ligne), 0.85);
+        assert_eq!(c1(GestEcl::MarcheEtArretAutomatiques, &ligne), 0.80);
+        assert_eq!(c1(GestEcl::MarcheManuelleArretAutomatique, &ligne), 0.70);
+    }
+
+    #[test]
+    fn coefficient_c2_tableau_79() {
+        // Grad_ecl = 0.
+        assert_eq!(c2(GradEcl::Aucune, 5000.0, 500.0), 1.0);
+        // 1, gestion manuelle : B (100 ; 1), G (700 ; 0,3), J (2800 ; 0).
+        assert_eq!(c2(GradEcl::Manuelle, 50.0, 500.0), 1.0);
+        assert!(proche(c2(GradEcl::Manuelle, 400.0, 500.0), 0.65));
+        assert!(proche(c2(GradEcl::Manuelle, 700.0, 500.0), 0.3));
+        assert!(proche(c2(GradEcl::Manuelle, 1750.0, 500.0), 0.15));
+        assert_eq!(c2(GradEcl::Manuelle, 3000.0, 500.0), 0.0);
+        // 2, gradation : B (100 ; 1), E (500 ; 0,15), H (1000 ; 0,15), nul au-delà.
+        assert_eq!(c2(GradEcl::GradationAutomatique, 100.0, 500.0), 1.0);
+        assert!(proche(
+            c2(GradEcl::GradationAutomatique, 300.0, 500.0),
+            0.575
+        ));
+        assert!(proche(
+            c2(GradEcl::GradationAutomatique, 500.0, 500.0),
+            0.15
+        ));
+        assert!(proche(
+            c2(GradEcl::GradationAutomatique, 1000.0, 500.0),
+            0.15
+        ));
+        assert_eq!(c2(GradEcl::GradationAutomatique, 1000.1, 500.0), 0.0);
+        // 3, allumage et extinction automatiques : 1 jusqu'à Eiref.
+        assert_eq!(
+            c2(GradEcl::AllumageEtExtinctionAutomatiques, 500.0, 500.0),
+            1.0
+        );
+        assert_eq!(
+            c2(GradEcl::AllumageEtExtinctionAutomatiques, 500.1, 500.0),
+            0.0
+        );
+        // 4, extinction automatique, Eiref = 500 < 700 : point D (500 ; (6,7 − 3,5)/6).
+        assert!(proche(
+            c2(GradEcl::ExtinctionAutomatique, 500.0, 500.0),
+            3.2 / 6.0
+        ));
+        assert!(proche(
+            c2(GradEcl::ExtinctionAutomatique, 400.0, 500.0),
+            0.65
+        ));
+        assert_eq!(c2(GradEcl::ExtinctionAutomatique, 501.0, 500.0), 0.0);
+        // Eiref = 1400 ≥ 700 : point D (1400 ; 0,4 − 1400/7000 = 0,2).
+        assert!(proche(
+            c2(GradEcl::ExtinctionAutomatique, 1400.0, 1400.0),
+            0.2
+        ));
+        // Eiref ≤ Eimin (circulation, 100 lux ; salle de réunion des bureaux, 50 lux) : 1
+        // jusqu'à 100 lux (lecture Q58).
+        assert_eq!(c2(GradEcl::GradationAutomatique, 80.0, 50.0), 1.0);
+        assert_eq!(c2(GradEcl::GradationAutomatique, 101.0, 50.0), 0.0);
+        assert!(proche(
+            c2(GradEcl::GradationAutomatique, 150.0, 100.0),
+            0.15
+        ));
+        assert_eq!(
+            c2(GradEcl::AllumageEtExtinctionAutomatiques, 80.0, 50.0),
+            1.0
+        );
+        assert_eq!(c2(GradEcl::ExtinctionAutomatique, 120.0, 50.0), 0.0);
+    }
+
+    #[test]
+    fn fractionnement() {
+        assert!(proche(facteur_einat_sans_acces(0.9), 0.75));
+        assert!(proche(facteur_einat_sans_acces(0.7), 0.25));
+        assert!(proche(facteur_einat_sans_acces(0.5), 0.15));
+        assert_eq!(facteur_einat_sans_acces(0.2), 0.0);
+        // Local sans accès : C2ae = C2pae = 1.
+        assert_eq!(
+            ctrl_ecl_einat(GradEcl::Manuelle, true, 0.0, 2000.0, 500.0),
+            1.0
+        );
+        // Ratio 0,5, Einat(2) = 2 000 lux, gestion manuelle. Partie sans accès : 300 lux,
+        // C2pae = 1 − 0,7 × 200/600 ; partie avec accès : 2 000 lux,
+        // C2ae = 0,3 × 800/2100.
+        let c2_pae = 1.0 - 0.7 * 200.0 / 600.0;
+        let c2_ae = 0.3 * 800.0 / 2100.0;
+        assert!(proche(
+            ctrl_ecl_einat(GradEcl::Manuelle, true, 0.5, 2000.0, 500.0),
+            0.5 * c2_ae + 0.5 * c2_pae
+        ));
+        // Non fractionnée : la partie sans accès impose son fonctionnement à tout le local.
+        assert!(proche(
+            ctrl_ecl_einat(GradEcl::Manuelle, false, 0.5, 2000.0, 500.0),
+            c2_pae
+        ));
+    }
+
+    #[test]
+    fn consommation_d_un_groupe_de_bureaux() {
+        // Groupe de 1 000 m² : 60 % de bureaux standards (gradation, détection, fractionnée),
+        // 40 % de circulations sans accès à la lumière naturelle (interrupteur).
+        let bureaux = local(
+            r#"{"id": "b", "type_local": "bureau_standard", "ratio_local": 0.6,
+                "ratio_ecl_nat": 0.8,
+                "eclairage": {"p_ecl_tot_w_m2": 6, "p_ecl_aux_w_m2": 0.3,
+                              "gest_ecl": "marche_manuelle_arret_automatique",
+                              "grad_ecl": "gradation_automatique", "fractionne": true,
+                              "eff_ecl_immo_projet_w_m2_100lux": 1.5, "ei_proj_lux": 500}}"#,
+        );
+        let circulations = local(
+            r#"{"id": "c", "type_local": "circulation_accueil", "ratio_local": 0.4,
+                "ratio_ecl_nat": 0,
+                "eclairage": {"p_ecl_tot_w_m2": 4, "gest_ecl": "interrupteur_manuel",
+                              "grad_ecl": "manuelle", "fractionne": false}}"#,
+        );
+        // Projet : 6 W/m² immobiliers + 1 W/m² mobilier ; C1 = 0,70 ; circulations C1 = 0,80.
+        let projet = [
+            LocalResolu::projet(3, &bureaux, 1000.0).unwrap(),
+            LocalResolu::projet(3, &circulations, 1000.0).unwrap(),
+        ];
+        assert!(proche(projet[0].p_ecl_tot_w_m2, 7.0));
+        assert_eq!((projet[0].c1, projet[0].p_ecl_aux_w_m2), (0.70, 0.3));
+        assert_eq!((projet[1].c1, projet[1].p_ecl_aux_w_m2), (0.80, 0.0));
+        // Aeclnat2 = 600 × 0,8 = 480 m².
+        assert!(proche(a_eclnat2_m2(&projet), 480.0));
+        // De nuit (Einat = 0), en occupation : bureaux 7 × 0,7 × 600 = 2 940 W ; circulations
+        // 4 × 0,8 × 400 = 1 280 W.
+        let nuit = eclairage_locaux(&projet, true, 0.0);
+        assert!(proche(nuit.c_ecl_kwh, 4.22));
+        assert!(proche(nuit.f_ecl_c_w, 2110.0));
+        assert!(proche(nuit.f_ecl_r_w, 2110.0));
+        // Einat(2) = 1 200 lux : partie avec accès, au-delà de 2 × Eiref, C2ae = 0 ; partie
+        // sans accès, 1 200 × (2,5 × 0,8 − 1,5) = 600 lux, C2pae = 0,15 ;
+        // CTRLecl_einat = 0,2 × 0,15 = 0,03 ; 7 × 0,7 × 0,03 = 0,147 W/m², moins que les
+        // périphériques de gestion (0,3 W/m²) : 0,3 × 600 = 180 W. Circulations : 1 280 W.
+        let jour = eclairage_locaux(&projet, true, 1200.0);
+        assert!(proche(jour.c_ecl_kwh, 0.18 + 1.28));
+        // En inoccupation : seuls les périphériques de gestion consomment.
+        let inocc = eclairage_locaux(&projet, false, 0.0);
+        assert!(proche(inocc.c_ecl_kwh, 0.18));
+
+        // Bbio : 2 × Eiref/100, soit 10 W/m² en bureaux (C1 = 0,85) et 2 W/m² en circulations
+        // (C1 = 0,75), gestion manuelle non fractionnée, sans périphériques.
+        let bbio = [
+            LocalResolu::bbio(3, &bureaux, 1000.0).unwrap(),
+            LocalResolu::bbio(3, &circulations, 1000.0).unwrap(),
+        ];
+        let nuit = eclairage_locaux(&bbio, true, 0.0);
+        assert!(proche(
+            nuit.c_ecl_kwh,
+            (10.0 * 0.85 * 600.0 + 2.0 * 0.75 * 400.0) / 1000.0
+        ));
+        assert_eq!(eclairage_locaux(&bbio, false, 0.0).c_ecl_kwh, 0.0);
+        // Einat(2) = 1 200 lux, non fractionnée : 600 lux partout dans les bureaux,
+        // C2 = 1 − 0,7 × 500/600.
+        let c2 = 1.0 - 0.7 * 500.0 / 600.0;
+        let jour = eclairage_locaux(&bbio, true, 1200.0);
+        assert!(proche(
+            jour.c_ecl_kwh,
+            (10.0 * 0.85 * c2 * 600.0 + 2.0 * 0.75 * 400.0) / 1000.0
+        ));
+        // Type de local absent du tableau 78 pour l'usage, grand volume : non résolus.
+        let classe = local(
+            r#"{"id": "x", "type_local": "salle_classe", "ratio_local": 1, "ratio_ecl_nat": 1,
+                "eclairage": {"p_ecl_tot_w_m2": 6, "gest_ecl": "interrupteur_manuel",
+                              "grad_ecl": "manuelle", "fractionne": false}}"#,
+        );
+        assert!(LocalResolu::projet(3, &classe, 100.0).is_none());
+        let sport = local(
+            r#"{"id": "x", "type_local": "salle_sport", "ratio_local": 1, "ratio_ecl_nat": 1,
+                "eclairage": {"p_ecl_tot_w_m2": 6, "gest_ecl": "interrupteur_manuel",
+                              "grad_ecl": "manuelle", "fractionne": false}}"#,
+        );
+        assert!(LocalResolu::bbio(25, &sport, 100.0).is_none());
+    }
+}

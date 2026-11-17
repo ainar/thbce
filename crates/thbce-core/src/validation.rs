@@ -407,13 +407,13 @@ fn valider_zone(r: &mut RapportValidation, c: &str, zone: &Zone, refs: &Referenc
         _ => {}
     }
     valider_aeraulique_zone(r, c, zone);
-    if zone.usage.est_habitation() {
+    if zone.usage.est_pris_en_charge() {
         match &zone.ventilation {
             None => r.erreur(
                 format!("{c}.ventilation"),
                 None,
-                "système de ventilation requis en habitation : il sert aux calculs du confort \
-                 d'été et des consommations (Th-BCE 2020 §6.2 à 6.5)",
+                "système de ventilation requis : il sert aux calculs du confort d'été et des \
+                 consommations (Th-BCE 2020 §6.2 à 6.5)",
             ),
             Some(v) => valider_ventilation(r, &format!("{c}.ventilation"), v, zone),
         }
@@ -534,8 +534,14 @@ fn valider_groupe(
         g.bouches_conduits.iter().map(|b| &b.id),
     );
     for (i, b) in g.bouches_conduits.iter().enumerate() {
-        valider_bouche_conduit(r, &format!("{c}.bouches_conduits[{i}]"), b);
+        let cb = format!("{c}.bouches_conduits[{i}]");
+        if zone.usage.est_habitation() {
+            valider_bouche_conduit(r, &cb, b);
+        } else {
+            valider_bouche_conduit_non_residentielle(r, &cb, b);
+        }
     }
+    valider_locaux_eclairage(r, c, g, zone);
     if let Some(e) = &g.entrees_air {
         valider_entrees_air(r, &format!("{c}.entrees_air"), e);
     }
@@ -706,7 +712,192 @@ fn valider_entrees_air(r: &mut RapportValidation, c: &str, e: &EntreesAir) {
 
 /// Th-BCE 2020 §6.2.2 : les débits ont pour minimum 0 ; §6.2.3.1.1.2 : le débit de pointe est le
 /// débit maximal de la bouche, le débit de base son débit minimal.
+/// Th-BCE 2020 §7.1 : locaux d'éclairage d'un groupe. Sans objet en habitation, dont
+/// l'éclairage est conventionnel (§7.1.3.6.2) ; requis dans les autres usages calculés.
+fn valider_locaux_eclairage(r: &mut RapportValidation, c: &str, g: &Groupe, zone: &Zone) {
+    use crate::eclairage::{a_des_peripheriques_de_gestion, est_local_de_bureaux};
+    use thbce_data::eclairage::{est_grand_volume, local as local_tableau_78};
+    let cl = format!("{c}.locaux");
+    if zone.usage.est_habitation() {
+        if !g.locaux.is_empty() {
+            r.erreur(
+                cl,
+                None,
+                "les locaux d'éclairage ne se saisissent pas en maison individuelle ou accolée ni \
+                 en logement collectif : l'éclairage y est conventionnel (Th-BCE 2020 §7.1.3.6.2)",
+            );
+        }
+        return;
+    }
+    if !zone.usage.est_pris_en_charge() {
+        return;
+    }
+    if g.locaux.is_empty() {
+        r.erreur(
+            cl,
+            None,
+            "au moins un local d'éclairage requis : type de local, part de la surface du groupe, \
+             accès à la lumière naturelle et système d'éclairage (Th-BCE 2020 §7.1.2)",
+        );
+        return;
+    }
+    r.ids_uniques(&cl, g.locaux.iter().map(|l| &l.id));
+    let somme: f64 = g.locaux.iter().map(|l| l.ratio_local).sum();
+    if (somme - 1.0).abs() > 1e-6 {
+        r.erreur(
+            cl.clone(),
+            Some(somme.to_string()),
+            "la somme des « Ratiolocal » des locaux du groupe vaut 1 (Th-BCE 2020 §7.1.2)",
+        );
+    }
+    let usage = zone.usage.numero();
+    for (i, l) in g.locaux.iter().enumerate() {
+        let c = format!("{cl}[{i}]");
+        r.plage(format!("{c}.ratio_local"), l.ratio_local, 0.0, 1.0);
+        r.plage(format!("{c}.ratio_ecl_nat"), l.ratio_ecl_nat, 0.0, 1.0);
+        if local_tableau_78(usage, l.type_local).is_none() {
+            r.erreur(
+                format!("{c}.type_local"),
+                Some(nom_json(&l.type_local)),
+                format!(
+                    "ce type de local n'existe pas pour l'usage n° {usage} (Th-BCE 2020 \
+                     §7.1.3.6.1, tableau 78)"
+                ),
+            );
+        } else if est_grand_volume(usage, l.type_local) {
+            r.hors_perimetre(
+                format!("{c}.type_local"),
+                Some(nom_json(&l.type_local)),
+                "éclairage d'un local de grand volume (Th-BCE 2020 §7.1.3.3 et §7.1.3.4)",
+            );
+        }
+        let e = &l.eclairage;
+        let ce = format!("{c}.eclairage");
+        r.positif(format!("{ce}.p_ecl_tot_w_m2"), e.p_ecl_tot_w_m2);
+        match (
+            a_des_peripheriques_de_gestion(e.gest_ecl, e.grad_ecl),
+            e.p_ecl_aux_w_m2,
+        ) {
+            (true, Some(p)) => r.positif(format!("{ce}.p_ecl_aux_w_m2"), p),
+            (true, None) => r.erreur(
+                format!("{ce}.p_ecl_aux_w_m2"),
+                None,
+                "puissance des appareillages et périphériques de gestion requise avec une \
+                 détection de présence ou une gestion automatique selon la lumière naturelle \
+                 (Th-BCE 2020 §7.1.3.6)",
+            ),
+            (false, Some(p)) if p != 0.0 => r.erreur(
+                format!("{ce}.p_ecl_aux_w_m2"),
+                Some(p.to_string()),
+                "sans détection de présence ni gestion automatique selon la lumière naturelle, \
+                 la puissance des périphériques de gestion est nulle par convention : ne pas la \
+                 saisir (Th-BCE 2020 §7.1.3.6)",
+            ),
+            (false, _) => {}
+        }
+        let mobilier = est_local_de_bureaux(usage, l.type_local)
+            && e.p_ecl_tot_w_m2 < crate::eclairage::P_ECL_IMMO_SEUIL_BUREAUX_W_M2;
+        for (champ, valeur) in [
+            (
+                "eff_ecl_immo_projet_w_m2_100lux",
+                e.eff_ecl_immo_projet_w_m2_100lux,
+            ),
+            ("ei_proj_lux", e.ei_proj_lux),
+        ] {
+            match (mobilier, valeur) {
+                (true, Some(v)) => r.strictement_positif(format!("{ce}.{champ}"), v),
+                (true, None) => r.erreur(
+                    format!("{ce}.{champ}"),
+                    None,
+                    "requis pour un local de bureaux dont la puissance d'éclairage immobilier \
+                     est inférieure à 10 W/m² : l'éclairage mobilier complète l'éclairement \
+                     requis (Th-BCE 2020 §7.1.3.2.3)",
+                ),
+                (false, Some(v)) => r.erreur(
+                    format!("{ce}.{champ}"),
+                    Some(v.to_string()),
+                    "ne se saisit que pour un local de bureaux d'une zone de bureaux dont la \
+                     puissance d'éclairage immobilier est inférieure à 10 W/m² (Th-BCE 2020 \
+                     §7.1.3.2.3)",
+                ),
+                (false, None) => {}
+            }
+        }
+    }
+}
+
+/// Th-BCE 2020 §6.2.3.1.1.1 et §6.2.3.2.2.1 : bouche et conduit d'un groupe d'un usage autre
+/// que la maison individuelle ou accolée et le logement collectif.
+fn valider_bouche_conduit_non_residentielle(r: &mut RapportValidation, c: &str, b: &BoucheConduit) {
+    let regle = "ne se saisit qu'en maison individuelle ou accolée et en logement collectif ; \
+                 dans les autres usages, saisir les débits en occupation et en inoccupation \
+                 (Th-BCE 2020 §6.2.3.1.1.1)";
+    if b.q_spec_conv_pointe_m3_h != 0.0 {
+        r.erreur(
+            format!("{c}.q_spec_conv_pointe_m3_h"),
+            Some(b.q_spec_conv_pointe_m3_h.to_string()),
+            regle,
+        );
+    }
+    for (champ, valeur) in [
+        ("q_spec_conv_base_m3_h", b.q_spec_conv_base_m3_h),
+        ("qvarep_spec_m3_h", b.qvarep_spec_m3_h),
+        ("dugd_h", b.dugd_h),
+    ] {
+        if let Some(v) = valeur {
+            r.erreur(format!("{c}.{champ}"), Some(v.to_string()), regle);
+        }
+    }
+    match b.q_spec_occ_m3_h {
+        Some(q) => r.strictement_positif(format!("{c}.q_spec_occ_m3_h"), q),
+        None => r.erreur(
+            format!("{c}.q_spec_occ_m3_h"),
+            None,
+            "débit en occupation requis (Th-BCE 2020 §6.2.3.1.1.1, éq. 383 et 384)",
+        ),
+    }
+    match b.q_spec_inocc_m3_h {
+        Some(q) => r.positif(format!("{c}.q_spec_inocc_m3_h"), q),
+        None => r.erreur(
+            format!("{c}.q_spec_inocc_m3_h"),
+            None,
+            "débit en inoccupation requis, 0 si la ventilation est arrêtée (Th-BCE 2020 \
+             §6.2.3.1.1.1, éq. 385 et 386)",
+        ),
+    }
+    if let Some(k) = b.crdbnr {
+        if !(k > 0.0 && k <= 1.0) {
+            r.erreur(
+                format!("{c}.crdbnr"),
+                Some(k.to_string()),
+                "coefficient de réduction des débits attendu entre 0 (exclu) et 1 (Th-BCE 2020 \
+                 §6.2.3.2.1, tableau 57)",
+            );
+        }
+    }
+    if let Some(cdep) = b.cdep {
+        r.strictement_positif(format!("{c}.cdep"), cdep);
+    }
+    if let Some(a) = b.a_cond_m2 {
+        r.positif(format!("{c}.a_cond_m2"), a);
+    }
+}
+
 fn valider_bouche_conduit(r: &mut RapportValidation, c: &str, b: &BoucheConduit) {
+    for (champ, valeur) in [
+        ("q_spec_occ_m3_h", b.q_spec_occ_m3_h),
+        ("q_spec_inocc_m3_h", b.q_spec_inocc_m3_h),
+        ("crdbnr", b.crdbnr),
+    ] {
+        if let Some(v) = valeur {
+            r.erreur(
+                format!("{c}.{champ}"),
+                Some(v.to_string()),
+                "ne se saisit que dans les usages autres que la maison individuelle ou accolée \
+                 et le logement collectif (Th-BCE 2020 §6.2.3.1.1.1 et §6.2.3.2.1)",
+            );
+        }
+    }
     r.positif(
         format!("{c}.q_spec_conv_pointe_m3_h"),
         b.q_spec_conv_pointe_m3_h,
@@ -1352,15 +1543,94 @@ fn valider_espace_solarise(
     }
 }
 
-/// Th-BCE 2020 §6.2 à 6.5 : système de ventilation d'une zone d'habitation.
+/// Th-BCE 2020 §6.2 à 6.5 : système de ventilation d'une zone.
 fn valider_ventilation(r: &mut RapportValidation, c: &str, v: &Ventilation, zone: &Zone) {
     let bouches = || zone.groupes.iter().flat_map(|g| &g.bouches_conduits);
+    // Hors habitation, les bouches ne servent pas au Bbio (débits conventionnels du tableau
+    // 56-1) : chaque groupe n'en a pas forcément, mais le système de la zone en a au moins une.
+    if !zone.usage.est_habitation() && bouches().next().is_none() && !zone.groupes.is_empty() {
+        r.erreur(
+            c.to_owned(),
+            None,
+            "au moins une bouche de ventilation requise dans un groupe de la zone : ses débits \
+             en occupation et en inoccupation sont ceux du système (Th-BCE 2020 §6.2.3.1.1.1)",
+        );
+    }
     // Une zone sans groupe, ou sans bouche, est déjà signalée par ailleurs.
     let sans_bouche = bouches().next().is_none();
     let a_reprise = sans_bouche || bouches().any(|b| b.isouf == Isouf::Reprise);
     let a_soufflage = bouches().any(|b| b.isouf == Isouf::Soufflage);
     let cs = format!("{c}.systeme");
+    let habitation = zone.usage.est_habitation();
+    // §6.4.3 et §6.5.3.3 : puissances en débit de base et de pointe en habitation (éq. 641 et
+    // 643), en occupation et en inoccupation dans les autres usages (éq. 636 à 639).
+    let puissances =
+        |r: &mut RapportValidation, nature: &str, p: &crate::entree::VentilateurSimpleFlux| {
+            let (requis, exclus, regle_requis, regle_exclus) = if habitation {
+                (
+                [
+                    ("p_vent_base_w", p.p_vent_base_w),
+                    ("p_vent_pointe_w", p.p_vent_pointe_w),
+                ],
+                [
+                    ("p_vent_occ_w", p.p_vent_occ_w),
+                    ("p_vent_inocc_w", p.p_vent_inocc_w),
+                ],
+                "puissance requise en maison individuelle ou accolée et en logement collectif \
+                 (Th-BCE 2020 §6.5.3.3, éq. 641 et 643)",
+                "ne se saisit que dans les usages autres que la maison individuelle ou accolée \
+                 et le logement collectif (Th-BCE 2020 §6.5.3.3, éq. 636 à 639)",
+            )
+            } else {
+                (
+                    [
+                        ("p_vent_occ_w", p.p_vent_occ_w),
+                        ("p_vent_inocc_w", p.p_vent_inocc_w),
+                    ],
+                    [
+                        ("p_vent_base_w", p.p_vent_base_w),
+                        ("p_vent_pointe_w", p.p_vent_pointe_w),
+                    ],
+                    "puissance requise dans les usages autres que la maison individuelle ou \
+                 accolée et le logement collectif (Th-BCE 2020 §6.5.3.3, éq. 636 à 639)",
+                    "ne se saisit qu'en maison individuelle ou accolée et en logement collectif \
+                 (Th-BCE 2020 §6.5.3.3, éq. 641 et 643)",
+                )
+            };
+            for (champ, valeur) in requis {
+                match valeur {
+                    Some(v) => r.positif(format!("{cs}.{nature}.{champ}"), v),
+                    None => r.erreur(format!("{cs}.{nature}.{champ}"), None, regle_requis),
+                }
+            }
+            for (champ, valeur) in exclus {
+                if let Some(v) = valeur {
+                    r.erreur(
+                        format!("{cs}.{nature}.{champ}"),
+                        Some(v.to_string()),
+                        regle_exclus,
+                    );
+                }
+            }
+        };
     match &v.systeme {
+        SystemeVentilation::MecaniqueBassePression(_) if !habitation => r.erreur(
+            cs.clone(),
+            Some(nom_json(&v.systeme)),
+            "l'extraction mécanique basse pression est propre aux logements collectifs à \
+             conduits individuels ou de type shunt (Th-BCE 2020 §6.4)",
+        ),
+        SystemeVentilation::DoubleFlux(_) if !habitation => r.hors_perimetre(
+            cs.clone(),
+            Some(nom_json(&v.systeme)),
+            "ventilation double flux et centrale de traitement d'air en usage non résidentiel \
+             (Th-BCE 2020 §6.2.3.1.2 et §6.3)",
+        ),
+        SystemeVentilation::CentraleTraitementAir if !habitation => r.hors_perimetre(
+            cs.clone(),
+            Some(nom_json(&v.systeme)),
+            "centrale de traitement d'air (Th-BCE 2020 §6.3, types 2 à 4)",
+        ),
         SystemeVentilation::SimpleFluxExtraction(p)
         | SystemeVentilation::MecaniqueBassePression(p) => {
             let nature = if matches!(v.systeme, SystemeVentilation::SimpleFluxExtraction(_)) {
@@ -1368,8 +1638,7 @@ fn valider_ventilation(r: &mut RapportValidation, c: &str, v: &Ventilation, zone
             } else {
                 "mecanique_basse_pression"
             };
-            r.positif(format!("{cs}.{nature}.p_vent_base_w"), p.p_vent_base_w);
-            r.positif(format!("{cs}.{nature}.p_vent_pointe_w"), p.p_vent_pointe_w);
+            puissances(r, nature, p);
             if a_soufflage {
                 r.erreur(
                     cs.clone(),
@@ -1383,14 +1652,7 @@ fn valider_ventilation(r: &mut RapportValidation, c: &str, v: &Ventilation, zone
             }
         }
         SystemeVentilation::SimpleFluxInsufflation(p) => {
-            r.positif(
-                format!("{cs}.simple_flux_insufflation.p_vent_base_w"),
-                p.p_vent_base_w,
-            );
-            r.positif(
-                format!("{cs}.simple_flux_insufflation.p_vent_pointe_w"),
-                p.p_vent_pointe_w,
-            );
+            puissances(r, "simple_flux_insufflation", p);
             if a_reprise && !sans_bouche {
                 r.erreur(
                     cs.clone(),
