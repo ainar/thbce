@@ -3,12 +3,12 @@
 //! chaque élément de code qu'il désigne par `fichier.rs::Element` y est défini.
 //!
 //! Sont contrôlés les fragments de code en ligne (entre accents graves, hors blocs de code) qui
-//! ressemblent à un chemin — sans espace, avec une barre oblique — et
-//! les cibles des liens Markdown relatifs. Un fragment contenant `<`, `*`, `{` ou `…` est un
-//! gabarit et n'est pas contrôlé. Un chemin se résout depuis la racine du dépôt, puis depuis
-//! `crates/thbce-core/src/` (forme courte des modules du moteur). Pour `chemin.rs::A::b`, le
-//! fichier doit définir `b` (`fn`, `struct`, `enum`, `const`, `static`, `type`, `trait`, `mod`
-//! ou variante d'énumération en début de ligne).
+//! ressemblent à un chemin — sans espace, avec une barre oblique — et les cibles des liens
+//! Markdown relatifs. Un fragment contenant `<`, `*`, `{` ou `…` est un gabarit et n'est pas
+//! contrôlé, pas plus qu'un fichier produit sous `target/`. Un chemin se résout depuis la racine
+//! du dépôt, puis depuis `crates/thbce-core/src/` (forme courte des modules du moteur). Pour
+//! `chemin.rs::A::b`, le fichier doit définir `b` (`fn`, `struct`, `enum`, `const`, `static`,
+//! `type`, `trait`, `mod` ou variante d'énumération en début de ligne).
 
 use std::path::{Path, PathBuf};
 
@@ -54,6 +54,8 @@ fn est_chemin(s: &str) -> bool {
         && !s.starts_with('-')
         && !s.starts_with("http")
         && !s.starts_with("//")
+        // Fichiers produits par les commandes (`target/`), absents d'un clone neuf.
+        && !s.starts_with("target/")
         && s.contains('/')
 }
 
@@ -163,6 +165,7 @@ mod tests {
         assert!(est_chemin("calcul/mod.rs::calculer"));
         assert!(est_chemin(".cargo/config.toml"));
         assert!(!est_chemin("//!"));
+        assert!(!est_chemin("target/pages/annexe-iii-p0763.png"));
         assert!(!est_chemin("changelog.d/<lot>.md"));
         assert!(!est_chemin("cargo run -p xtask -- typescript"));
         assert!(!est_chemin("THBCE_METEO=/chemin"));
