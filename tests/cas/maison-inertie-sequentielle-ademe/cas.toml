@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Variante de la maison d'exemple (tests/cas/maison-climat-ademe) à inertie séquentielle lourde (Cms_surf = 850 kJ/(K.m²), tableau 54) dont la surface d'échange Ams_surf = 1,5 m²/m² est inférieure à celle de l'inertie quotidienne moyenne (Amq_surf = 2,5 m²/m², tableau 53) : la masse séquentielle échange avec la masse quotidienne (§5.21.3.4, éq. 353 à 356). Inertie annuelle par défaut. Météo ouverte ADEME (station de Tours, zone H2b), résultat non réglementaire. DH figé (instantané de non-régression, relecture du lot 5) : 1 167,1 °C.h, contre 1 555,1 °C.h pour la maison d'exemple ; sur la météo réglementaire, 587,7 °C.h contre 1 042,9 °C.h. Le Bbio, calculé avec la seule inertie quotidienne (§5.21.3.10), est inchangé."
+source = "aucune : valeurs calculées par le moteur (instantané). Ce n'est pas un cas de référence."
+meteo = "ademe"
+
+[tolerances]
+dh_c_h = 0.0001

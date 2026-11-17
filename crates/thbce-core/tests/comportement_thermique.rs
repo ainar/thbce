@@ -244,6 +244,49 @@ fn equilibre_sans_sollicitation() {
     assert_temperatures(&r.moy, [10.0; 5]);
 }
 
+#[test]
+fn temperature_de_masse_avec_un_flux_d_inertie_sequentielle() {
+    // Éq. (365), calculée à la main avec φmq_seq + φmq_ann = 1 000 W, à partir de l'équilibre à
+    // 10 °C de `equilibre_sans_sollicitation` : sans autre apport, φmtot vaut
+    // (Hgemq + U3)·10 °C, si bien que
+    // θmq(h) = [10·(Cmq/3,6 − D) + 10·2D + 1 000]/(Cmq/3,6 + D) = 10 + 1 000/(Cmq/3,6 + D),
+    // avec D = 0,5·(U3 + Hgemq).
+    // Groupe de 100 m², inertie moyenne (tableau 53) : Amq = 2,5 × 100 = 250 m²,
+    // Cmq = 165 × 100 = 16 500 kJ/K ; his = 2,5 + 1,2 × 5,5 = 9,1 W/(m².K) ;
+    // Hgmqs = 9,1 × 250 = 2 275 W/K (éq. 326) ; Hgemq = 1/(1/49 − 1/2 275) (éq. 339) ;
+    // Hgis = 4,5 × 100/(1/2,5 − 1/9,1) (éq. 323) ; Hgei = 0,04 × 1 006 = 40,24 W/K (éq. 333) ;
+    // U1 = 1/(1/Hgei + 1/Hgis), U2 = U1 + 13, U3 = 1/(1/U2 + 1/Hgmqs) (éq. 362 à 364).
+    let hg_mqs = 9.1 * 250.0;
+    let hg_emq = 1.0 / (1.0 / 49.0 - 1.0 / hg_mqs);
+    let hg_is = 450.0 / (1.0 / 2.5 - 1.0 / 9.1);
+    let hg_ei = 0.04 * 1006.0;
+    let u1 = 1.0 / (1.0 / hg_ei + 1.0 / hg_is);
+    let u3 = 1.0 / (1.0 / (u1 + 13.0) + 1.0 / hg_mqs);
+    let d = 0.5 * (u3 + hg_emq);
+    let attendu: f64 = 10.0 + 1000.0 / (16_500.0 / 3.6 + d);
+    // Ordre de grandeur : 1 kW pendant une heure sur 4,6 MJ/K, environ 0,22 K.
+    assert!((attendu - 10.2158).abs() < 1e-4, "{attendu}");
+    let s = Sollicitations {
+        air: AirEquivalent::melange(&[AirEntrant {
+            qm_kg_s: 0.04,
+            theta_c: 10.0,
+            omega_kg_kg: 0.0,
+        }]),
+        theta_e_c: 10.0,
+        phi_sl_w: 0.0,
+        phi_sh_w: 0.0,
+        fs1_w: 0.0,
+        fs3_w: 0.0,
+        phi_conv_w: 0.0,
+        phi_rad_w: 0.0,
+        ..sollicitations()
+    };
+    let r = groupe().resoudre(&s, 10.0, 1000.0, 0.0, 0.0).unwrap();
+    assert_proche!(r.fin.theta_mq_c, attendu);
+    // Température de masse moyenne du pas de temps (question Q34, point 3).
+    assert_proche!(r.moy.theta_mq_c, (10.0 + attendu) / 2.0);
+}
+
 /// Fait tourner le modèle à sollicitations constantes jusqu'au régime permanent.
 fn regime_permanent(
     g: &GroupeThermique,

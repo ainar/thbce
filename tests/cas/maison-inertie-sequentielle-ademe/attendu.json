@@ -1,0 +1,16 @@
+{
+  "reglementaire": false,
+  "batiments": [
+    {
+      "id": "maison",
+      "bbio_pts": 63.8,
+      "dh_c_h": 1167.1,
+      "zones": [
+        {
+          "id": "logement",
+          "dh_c_h": 1167.1
+        }
+      ]
+    }
+  ]
+}
