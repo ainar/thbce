@@ -9,7 +9,7 @@
 //! `Cep_maxmoyen` (p. 30), `Icénergie_maxmoyen` (p. 31 et 32). L'extension est calculée seule :
 //! `Sref` et nombre de logements de l'extension (Q87).
 
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, clippy::float_cmp)]
 
 use thbce_core::entree::{
     CategorieContraintes as C, ExtensionSaisie, ParametresExigences, ZoneBruit as B,
