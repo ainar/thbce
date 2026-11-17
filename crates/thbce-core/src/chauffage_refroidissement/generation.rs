@@ -978,7 +978,15 @@ impl GenerationHoraire {
                 // Systèmes solaires combinés : premiers sollicités aussi pour le chauffage, en
                 // saison de chauffage (fiches 9.19 et 9.20).
                 let ssc = st.ssc.is_some();
-                let q_req_ch = if ssc && e.aut_ch { q_ar[0] } else { 0.0 };
+                // Éq. (2117) : « θch_max^gen » est la température de départ de dimensionnement
+                // la plus haute des réseaux hydrauliques de chauffage de la génération, requise
+                // par la validation pour un système solaire combiné (lecture Q52) ; sans elle,
+                // le ballon ne contribue pas au chauffage.
+                let theta_ch_max = self.theta_dist_ch_max_c;
+                let q_req_ch = match theta_ch_max {
+                    Some(_) if ssc && e.aut_ch => q_ar[0],
+                    _ => 0.0,
+                };
                 let s = st.pas(
                     &EntreesAssemblage {
                         q_req_ecs_wh: q_ar[2],
@@ -990,7 +998,7 @@ impl GenerationHoraire {
                         isr_w_m2: isr,
                         mois,
                         q_req_ch_wh: q_req_ch,
-                        theta_ch_max_c: self.theta_dist_ch_max_c.unwrap_or(theta_aval[0]),
+                        theta_ch_max_c: theta_ch_max.unwrap_or(f64::NAN),
                         theta_aval_ch_c: theta_aval[0],
                     },
                     &mut |i, poste, q_req, theta_aval| {
@@ -998,7 +1006,7 @@ impl GenerationHoraire {
                     },
                 );
                 q_ar[2] = s.q_rest_ecs_wh;
-                if ssc && e.aut_ch {
+                if ssc && e.aut_ch && theta_ch_max.is_some() {
                     q_ar[0] = s.q_rest_ch_wh;
                     q_puise_ch += s.q_puise_ch_wh;
                 }
