@@ -771,6 +771,7 @@ fn resultats_generations(b: &BatimentHoraire) -> Vec<ResultatsGeneration> {
                             v_puise_l: k.v_p_l,
                             theta_haut_min_c: k.theta_haut_min_c,
                             nbh_temp_insuff_max: k.nbh_temp_insuff_max,
+                            nbh_report_e: k.nbh_report_e,
                             idcet: s.identification.map(|i| ResultatsIdCet {
                                 ua_s_w_k: i.triplet.ua_s_w_k,
                                 cop_pivot: i.triplet.cop_pivot,
@@ -817,6 +818,15 @@ fn avertissements_generations(id_bat: &str, b: &BatimentHoraire) -> Vec<String> 
             let (court, long) = g.sous_dimensionnement(k);
             if k == 0 {
                 for s in &g.stockages {
+                    let n = s.cumuls.nbh_report_e;
+                    if n > crate::ecs::assemblage_ballon::SEUIL_REPORT_PUISAGE_H {
+                        v.push(format!(
+                            "bâtiment « {id_bat} », génération « {} », ballon « {} » : pendant \
+                             {n} heures de l'année, l'énergie demandée n'a pas pu être \
+                             entièrement puisée dans le ballon (Th-BCE 2020 §9.9.3.2.3, éq. 1780)",
+                            g.id, s.id
+                        ));
+                    }
                     let n = s.cumuls.nbh_temp_insuff_max;
                     if n > crate::ecs::assemblage_ballon::SEUIL_TEMPERATURE_INSUFFISANTE_H {
                         v.push(format!(

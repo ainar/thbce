@@ -476,6 +476,11 @@ pub struct ResultatsStockage {
     /// Plus longue suite d'heures où la zone haute est restée sous la consigne (éq. 1959) ; le
     /// texte juge le ballon incohérent avec le projet au-delà de 168 heures.
     pub nbh_temp_insuff_max: u32,
+    /// « nbhreport_e » : nombre d'heures de l'année où l'énergie demandée n'a pas pu être
+    /// entièrement puisée dans le ballon (éq. 1780) ; le texte affiche une alerte au-delà de
+    /// 24 heures.
+    #[serde(default)]
+    pub nbh_report_e: u32,
     /// Paramètres Th-BCE identifiés à partir de l'essai d'un chauffe-eau thermodynamique
     /// (§9.22).
     #[serde(default, skip_serializing_if = "Option::is_none")]
