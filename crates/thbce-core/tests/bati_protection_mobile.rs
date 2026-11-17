@@ -323,9 +323,13 @@ fn ce_que_la_version_ne_prend_pas_en_charge() {
         false,
     );
     assert!(GestionResolue::nouvelle(&venitien, 1).is_none());
-    // Usage hors de la famille « habitation » : matrices non transcrites.
+    // Familles dont les matrices ne sont pas transcrites : enseignement (usage 4),
+    // restauration (13), hôpitaux (20), autres (17). La famille « bureau » l'est (usage 3).
     let volet = pm(TypePm::Volet, GestionPm::ManuelleMotorisee, true, false);
-    assert!(GestionResolue::nouvelle(&volet, 3).is_none());
+    for usage in [4, 13, 17, 20] {
+        assert!(GestionResolue::nouvelle(&volet, usage).is_none(), "{usage}");
+    }
+    assert!(GestionResolue::nouvelle(&volet, 3).is_some());
 }
 
 #[test]
@@ -341,4 +345,29 @@ fn permeabilite_des_protections_mobiles() {
     assert_proche!(a_ouv_max_avec_pm_m2(2.0, 0.5, 0.10), 1.1);
     assert_proche!(a_ouv_max_avec_pm_m2(2.0, 0.5, 1.0), 2.0);
     assert_proche!(a_ouv_max_avec_pm_m2(2.0, 1.0, 0.0), 0.0);
+}
+
+/// Famille « bureau » (figure 36, usage 3, Pocc = 0,5) : mêmes règles que l'habitation, avec la
+/// matrice de la famille.
+#[test]
+fn volet_motorise_en_bureaux() {
+    let g = GestionResolue::nouvelle(
+        &pm(TypePm::Volet, GestionPm::ManuelleMotorisee, true, false),
+        3,
+    )
+    .unwrap();
+    // Hiver, de jour, 20 000 lux : Rprot0 = 5 %, Ecl1 = 80 000 → 0,05 + 0,95 × 0,25 = 0,2875
+    // dans la part occupée (Pocc = 0,5) ; 10 % (inoccupation, jour) dans le reste.
+    // Éq. (209) : Rprot1 = 0,5 × 0,2875 + 0,5 × 0,1 = 0,19375.
+    let p = g.protections(&occupe(20_000.0, SaisonGpm::Hiver));
+    assert_proche!(p.part_gpm, 0.5);
+    assert_proche!(p.r_prot1_part_gpm, 0.2875);
+    assert_proche!(p.r_prot1_hors_part_gpm, 0.10);
+    assert_proche!(p.r_prot(), 0.19375);
+    // Mi-saison : seuil à 100 000 lux, 0,05 + 0,95 × 0,2 = 0,24.
+    assert_proche!(
+        g.protections(&occupe(20_000.0, SaisonGpm::MiSaison))
+            .r_prot1_part_gpm,
+        0.24
+    );
 }

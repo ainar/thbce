@@ -25,7 +25,7 @@
 //!
 //! Les figures 36 et 39 (famille « bureau », p. 197 et 200) sont transcrites des images du PDF
 //! de l'annexe III (623 × 413 pixels, agrandies trois fois), le Journal officiel n'étant pas
-//! versionné pour ces figures : une seule lecture, à confirmer (`docs/questions.md`, Q61).
+//! versionné pour ces figures : une seule lecture, à confirmer (`docs/questions/Q061.md`).
 //!
 //! Sont transcrites les lignes de gestion manuelle des familles « habitation, hôtellerie et
 //! hébergement » et « bureau ». Les matrices des autres familles (figures 37 à 37-3 et 40 à
