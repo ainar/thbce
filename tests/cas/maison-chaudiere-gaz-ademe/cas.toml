@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Maison d'exemple (tests/cas/maison-climat-ademe) chauffée par un plancher chauffant à eau (réseaux de la variante maison-plancher-ademe, départ de dimensionnement 35 °C) et dont l'ECS est produite par un ballon de 200 L, tous deux alimentés par une chaudière gaz à condensation de 18 kW (§8.19, type 102) à valeurs par défaut (éq. 1072 à 1077 : rendements, pertes à l'arrêt et auxiliaires), pertes par les parois avec ventilateur (p_Qp.g_arret = 0,75), en volume chauffé ; génération en cascade à la température de ses réseaux, ballon chauffé par la chaudière (échangeur en zone basse). Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : le Bbio et les grandeurs d'enveloppe et de ventilation sont ceux de la maison d'exemple, le calcul du Bbio ne dépendant pas des systèmes (§8.1.3.1). Ce n'est pas un cas de référence."
+meteo = "ademe"

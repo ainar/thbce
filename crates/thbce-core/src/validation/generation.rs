@@ -967,6 +967,14 @@ fn valider_reseau(r: &mut RapportValidation, c: &str, x: &ReseauChaleurFroidSais
         let lettre = if froid { 'F' } else { 'C' };
         let bon =
             id.len() == 5 && id[..4].chars().all(|ch| ch.is_ascii_digit()) && id.ends_with(lettre);
+        if bon && thbce_data::reseaux_chaleur::reseau(id).is_none() {
+            r.erreur(
+                format!("{c}.identifiant_reseau"),
+                Some(id.clone()),
+                "identifiant absent de l'annexe 7 de l'arrêté du 15 septembre 2006 : omettre le \
+                 champ pour employer les lignes « autres réseaux »",
+            );
+        }
         if !bon {
             r.erreur(
                 format!("{c}.identifiant_reseau"),

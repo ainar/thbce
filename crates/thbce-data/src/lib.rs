@@ -10,6 +10,7 @@
 pub mod departement;
 pub mod ponderation_dynamique;
 pub mod protections_mobiles;
+pub mod reseaux_chaleur;
 pub mod scenarios;
 pub mod temperature_base;
 pub mod zones_climatiques;
