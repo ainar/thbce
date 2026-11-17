@@ -239,6 +239,95 @@ pub struct ResultatsExigences {
     /// Indicateurs exigés qui n'ont pas pu être calculés ni donc vérifiés ; vide en général.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub indicateurs_manquants: Vec<String>,
+    /// Régime d'exigences d'une extension ou d'une construction de petite surface (arrêté du
+    /// 4 août 2021, articles 3 et 50-3 ; article R. 172-1 du CCH ; Q86 à Q88) ; absent pour une
+    /// construction neuve dont la `Sref` atteint 50 m². Les exigences ci-dessus (article
+    /// R. 172-4) restent calculées : les exigences alternatives « peuvent être appliquées à la
+    /// place » des résultats minimaux.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub regime_alternatif: Option<RegimeAlternatif>,
+}
+
+/// Nature des travaux pour le choix du régime d'exigences (fiche 4.4 ; FA03 v2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum NatureTravaux {
+    /// Construction d'un bâtiment neuf.
+    Construction,
+    /// Extension horizontale d'un bâtiment existant.
+    Extension,
+    /// Extension verticale (surélévation).
+    Surelevation,
+}
+
+/// Famille d'usage des tableaux de la FA03 v2 (article R. 172-1 du CCH, I et III ; article
+/// 50-3, I) : usage principal de la partie calculée (Q86).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FamilleUsage {
+    /// Maisons individuelles ou accolées (usage 1).
+    MaisonIndividuelle,
+    /// Logements collectifs, bureaux, enseignement primaire ou secondaire (usages 2 à 5 ;
+    /// article R. 172-1, I).
+    CollectifBureauxEnseignement,
+    /// Bâtiments tertiaires spécifiques et industriels ou artisanaux (usages 6 à 28 ; article
+    /// R. 172-1, III).
+    TertiaireSpecifiqueOuIndustriel,
+}
+
+/// Régime d'exigences applicable (FA03 v2, « Que recouvrent les trois régimes des
+/// extensions ? »).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RegimeExigences {
+    /// Résultats minimaux de l'article R. 172-4 (« RE2020 complète » ; pour une extension, avec
+    /// les adaptations de l'article 50-2, sans effet sur le calcul) : `exigences` ci-dessus.
+    Complet,
+    /// Exigences alternatives de l'article 50-3, II (« RE2020 intermédiaire ») : `Bbio_max`
+    /// (1° de l'article R. 172-4), `Icconstruction_max` (4°, hors du moteur) et `DH_max` (5°),
+    /// avec des exigences de moyens ciblées (articles 22 à 26 et 29, hors du moteur).
+    Intermediaire,
+    /// Exigences alternatives de l'article 50-3, III : exigences de moyens seulement (parois,
+    /// ponts thermiques, émetteurs, éclairage…), aucune exigence de résultat ; hors du moteur.
+    ExigencesDeMoyens,
+    /// Hors du champ de la RE2020 : construction ou extension de moins de 50 m², extension de
+    /// moins de 150 m² et de 30 % de l'existant, pour les usages de l'article R. 172-1, III
+    /// (usages 6 à 28).
+    HorsChamp,
+    /// Permis déposé en 2022 : la RE2020 ne s'applique qu'à compter du 1er janvier 2023
+    /// (arrêté du 4 août 2021, article 3, II) ; seule la RT 2012 s'applique.
+    Rt2012,
+}
+
+/// Régime d'exigences d'une extension ou d'une construction de petite surface.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct RegimeAlternatif {
+    /// Nature des travaux.
+    pub nature: NatureTravaux,
+    /// Famille d'usage retenue (usage principal de la partie calculée, Q86).
+    pub famille: FamilleUsage,
+    /// Surface considérée, en m² : `Sref` du bâtiment calculé, plus celle des autres extensions
+    /// du même bâtiment (article 50-3, I).
+    pub sref_consideree_m2: f64,
+    /// Part de la surface considérée dans la `Sref` des locaux existants, en % ; absente pour
+    /// une construction et sans `sref_existant_m2`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub part_existant_pct: Option<f64>,
+    /// Régime applicable.
+    pub regime: RegimeExigences,
+    /// Vérifications du régime intermédiaire (article 50-3, II) : Bbio et DH de chaque groupe ;
+    /// vide pour les autres régimes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub verifications: Vec<VerificationExigence>,
+    /// Conformité aux exigences de résultat du régime que le moteur évalue : régime complet,
+    /// celle des `exigences` ; régime intermédiaire, Bbio et DH (`Icconstruction` et les
+    /// exigences de moyens sont hors du moteur) ; absente pour les autres régimes, qui n'ont pas
+    /// d'exigence de résultat.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conforme: Option<bool>,
+    /// Indicateurs exigés par le régime intermédiaire qui n'ont pas pu être calculés.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub indicateurs_manquants: Vec<String>,
 }
 
 /// Indicateurs réglementaires d'un bâtiment.
@@ -363,6 +452,16 @@ impl ResultatsIndicateurs {
                 v.maximum = a(v.maximum);
                 v.marge = a(v.marge);
                 v.marge_pct = a(v.marge_pct);
+            }
+            if let Some(r) = &mut e.regime_alternatif {
+                r.sref_consideree_m2 = a(r.sref_consideree_m2);
+                r.part_existant_pct = r.part_existant_pct.map(a);
+                for v in &mut r.verifications {
+                    v.valeur = a(v.valeur);
+                    v.maximum = a(v.maximum);
+                    v.marge = a(v.marge);
+                    v.marge_pct = a(v.marge_pct);
+                }
             }
         }
     }

@@ -30,6 +30,7 @@ mod generation;
 mod photovoltaique;
 mod solaire;
 mod systemes;
+mod usages_batiment;
 mod ventilation;
 // Famille à venir : ACV (Icconstruction, annexe II) — `mod acv;`.
 
@@ -279,6 +280,7 @@ pub fn valider(projet: &Projet) -> RapportValidation {
         solaire::valider_chauffe_eau_solaires(&mut r, &cb, bat, &refs);
         collectif::valider_collectif(&mut r, &cb, bat);
         valider_exigences(&mut r, &cb, bat, &projet.localisation);
+        usages_batiment::valider_usages_batiment(&mut r, &cb, bat);
     }
     // Contrôles de cohérence entre composants, une fois chaque élément valide : ils demandent
     // de résoudre l'enveloppe des groupes.
