@@ -7,7 +7,7 @@ Moteur de calcul de la méthode **Th-BCE 2020**, la méthode réglementaire de l
 
 ## État
 
-Version **0.1.0**. Le moteur calcule, au pas horaire sur une année, la **maison individuelle ou accolée**, le **logement collectif** et, depuis le lot 0a (non publié), les **bureaux** :
+Version **0.1.0**. Le moteur calcule, au pas horaire sur une année, la **maison individuelle ou accolée**, le **logement collectif** et, depuis les lots 0a et 0c1 (non publiés), les **bureaux**, l'**enseignement primaire et secondaire**, les **médiathèques et bibliothèques**, les **bâtiments universitaires** et les **établissements d'accueil de la petite enfance** :
 
 - **Bbio** (calcul Th-B), **DH** (confort d'été, calcul Th-D sur la météo à séquence caniculaire), consommations par poste et par énergie (calcul Th-C), **Cep**, **Cep,nr** et **Ic énergie** (pondération dynamique de l'article 11) ;
 - si l'entrée décrit les données de l'annexe de l'article R. 172-4 du CCH (`exigences`), les **exigences maximales** (Bbio_max, Cep_max, Cep,nr_max, Icénergie_max, DH_max et leurs modulations) et la **conformité** ;
@@ -170,9 +170,9 @@ Voir [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Limites connues
 
-- **Périmètre** : maison individuelle ou accolée, logement collectif et bureaux ; les 25 autres usages sont refusés. En bureaux : ventilation simple flux seulement (double flux et centrales de traitement d'air refusés), locaux d'éclairage de volume normal, ni ascenseurs ni parkings. Extensions de bâtiment non traitées.
+- **Périmètre** : maison individuelle ou accolée, logement collectif, bureaux, enseignement (usages 4, 5 et 7), médiathèques et bibliothèques, petite enfance ; les 20 autres usages sont refusés. Dans ces usages non résidentiels : ventilation simple flux seulement (double flux et centrales de traitement d'air refusés), locaux d'éclairage de volume normal, ni ascenseurs ni parkings. Extensions de bâtiment non traitées.
 - **Aucune validation contre un cas de référence** (COMETH ou RSEE d'un logiciel évalué) : les lectures du texte Q8 à Q54 de [`docs/questions/`](docs/questions/README.md) restent des hypothèses ; les paramètres à tester en premier en cas d'écart y sont listés.
-- **Exigences** : valeurs transcrites pour les 28 usages (celles de l'habitation et des bureaux servent ; les autres usages ne sont pas calculés) ; catégorie de contraintes extérieures et zone de bruit saisies pour le bâtiment, la zone ou le groupe (le moteur contrôle la catégorie selon le chapitre V de l'annexe de l'article R. 172-4, mais ne détermine pas la classe de bruit des baies) ; Icconstruction et les exigences de moyens hors du moteur.
+- **Exigences** : valeurs transcrites pour les 28 usages (celles des usages 1 à 7 et 12 servent ; les autres usages ne sont pas calculés) ; catégorie de contraintes extérieures et zone de bruit saisies pour le bâtiment, la zone ou le groupe (le moteur contrôle la catégorie selon le chapitre V de l'annexe de l'article R. 172-4, mais ne détermine pas la classe de bruit des baies) ; Icconstruction et les exigences de moyens hors du moteur.
 - **Pas de lecteur RSEE XML** : le schéma XSD n'est pas public.
 - **Systèmes refusés** : ventilation naturelle, hybride, aération, centrales de traitement d'air, puits climatiques ou hydrauliques, échangeur rotatif, préchauffage, humidification, rafraîchissement évaporatif, surventilation mécanique ; brasseurs d'air ; gestion des générateurs en alternance, boucles d'eau, DRV, cogénération, PAC au gaz ou hybrides, PAC sur eau ou sur sol, triple service, second ballon, récupération de chaleur sur les eaux grises ; stores vénitiens, gestion automatique des protections mobiles ; Titres V.
 - **Calage horaire** : un décalage d'une heure est possible entre le fichier météo et le calendrier de la méthode (Q25).

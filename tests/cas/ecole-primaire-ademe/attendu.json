@@ -1,0 +1,67 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H1b"
+  },
+  "batiments": [
+    {
+      "id": "ecole",
+      "sref_m2": 1500.0,
+      "bbio_pts": 101.2,
+      "dh_c_h": 1267.8,
+      "cep_kwhep_m2": 78.3,
+      "cep_nr_kwhep_m2": 78.3,
+      "ic_energie_kgco2_m2": 394.8,
+      "bbio": {
+        "annuel": {
+          "b_ch_kwh_m2": 17.7,
+          "b_fr_kwh_m2": 14.6,
+          "b_ecl_kwh_m2": 7.3,
+          "bbio_pts": 101.2
+        }
+      },
+      "indicateurs": {
+        "cef_kwhef_m2": 56.2,
+        "exigences": {
+          "bbio_max_pts": 81.6,
+          "cep_max_kwhep_m2": 82.8,
+          "cep_nr_max_kwhep_m2": 74.8,
+          "ic_energie_max_kgco2_m2": 161.0,
+          "conforme": false
+        },
+        "electricite_consommee": {
+          "chauffage_kwh": 238.8,
+          "refroidissement_kwh": 5739.1,
+          "ecs_kwh": 6365.5,
+          "eclairage_kwh": 6807.8,
+          "auxiliaires_ventilation_kwh": 5581.8,
+          "auxiliaires_distribution_kwh": 817.9
+        }
+      },
+      "zones": [
+        {
+          "id": "ecole",
+          "ventilation": {
+            "c_aux_vent_kwh": 5581.8
+          },
+          "groupes": [
+            {
+              "id": "ecole",
+              "debits_bbio": {
+                "q_spec_repris_m3_h": -10800.0,
+                "q_spec_souffle_m3_h": 10800.0
+              }
+            }
+          ]
+        }
+      ],
+      "distributions_ecs_intergroupes": [
+        {
+          "id": "boucle-ecs",
+          "w_aux_kwh": 433.4,
+          "pertes_vc_kwh": 4406.6
+        }
+      ]
+    }
+  ]
+}

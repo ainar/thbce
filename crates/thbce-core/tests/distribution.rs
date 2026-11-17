@@ -372,6 +372,63 @@ mod ecs {
         assert_eq!((s.q_w_prim_wh, s.theta_retour_c), (1000.0, 10.0));
     }
 
+    /// Éq. (47), (1736), (1744), (1747) et (1748) : réseau intergroupe arrêté pendant les
+    /// vacances d'une zone d'enseignement (lecture Q71).
+    #[test]
+    fn distribution_intergroupe_arretee_en_vacances() {
+        use thbce_core::ecs::distribution_ecs::{id_encl, w_circ_prim_wh};
+        // Éq. (1736) : le réseau fonctionne dès qu'une distribution reliée fonctionne.
+        assert!(id_encl([false, true]));
+        assert!(!id_encl([false, false]));
+        let avec_gestion: ReseauEcsIntergroupe = serde_json::from_str(
+            r#"{"boucle": {"l_vc_m": 20, "l_hvc_m": 10, "u_w_mk": 0.3, "rechauffeur": true,
+                "p_circ_w": 40, "arret_circulateurs_vacances": true}}"#,
+        )
+        .unwrap();
+        // Réseau arrêté : ni pertes (éq. 1744), ni réchauffeur (éq. 1746), ni circulateurs
+        // (éq. 1747) ; les besoins des groupes passent tels quels.
+        let s = pas_intergroupe(&avec_gestion, &[(300.0, 55.0)], false, 10.0, 0.0, 1.0);
+        assert_eq!(
+            (
+                s.phi_pertes_vc_wh,
+                s.phi_pertes_hvc_wh,
+                s.w_rechauf_wh,
+                s.w_aux_wh
+            ),
+            (0.0, 0.0, 0.0, 0.0)
+        );
+        assert_eq!(s.q_w_prim_wh, 300.0);
+        // En service : 0,3 × 20 × 32,5 = 195 Wh et 0,3 × 10 × 52,5 = 157,5 Wh compensés par le
+        // réchauffeur ; 40 Wh de circulateurs.
+        let s = pas_intergroupe(&avec_gestion, &[(300.0, 55.0)], true, 10.0, 0.0, 1.0);
+        assert_proche!(s.w_rechauf_wh, 195.0 + 157.5);
+        assert_eq!((s.w_aux_wh, s.q_w_prim_wh), (40.0, 300.0));
+        // Sans gestion (« Typegest_circ-e = 0 », éq. 1748) : circulateurs permanents, pertes
+        // nulles pendant l'arrêt (éq. 1744).
+        let sans_gestion: ReseauEcsIntergroupe = serde_json::from_str(
+            r#"{"boucle": {"l_vc_m": 20, "l_hvc_m": 10, "u_w_mk": 0.3, "rechauffeur": false,
+                "p_circ_w": 40, "arret_circulateurs_vacances": false}}"#,
+        )
+        .unwrap();
+        let s = pas_intergroupe(&sans_gestion, &[(300.0, 55.0)], false, 10.0, 0.0, 1.0);
+        assert_eq!((s.w_aux_wh, s.phi_pertes_vc_wh), (40.0, 0.0));
+        if let ReseauEcsIntergroupe::Boucle(b) = &sans_gestion {
+            assert_eq!(w_circ_prim_wh(b, false), 40.0);
+        }
+        if let ReseauEcsIntergroupe::Boucle(b) = &avec_gestion {
+            assert_eq!(
+                (w_circ_prim_wh(b, false), w_circ_prim_wh(b, true)),
+                (0.0, 40.0)
+            );
+        }
+        // Réseau tracé arrêté : traceur à l'arrêt (pertes nulles).
+        let trace: ReseauEcsIntergroupe =
+            serde_json::from_str(r#"{"trace": {"l_vc_m": 10, "l_hvc_m": 0, "u_w_mk": 0.2}}"#)
+                .unwrap();
+        let s = pas_intergroupe(&trace, &[(1000.0, 55.0)], false, 10.0, 0.0, 1.0);
+        assert_eq!(s.w_aux_wh, 0.0);
+    }
+
     #[test]
     fn recuperation_eq_2355_a_2365() {
         let f = FluxVolumeChauffe {

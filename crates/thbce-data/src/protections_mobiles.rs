@@ -514,14 +514,23 @@ mod tests {
     fn matrices_de_la_famille_enseignement() {
         for u in [4, 5, 7, 12] {
             let (f, p) = famille_et_parts(u).unwrap();
-            assert_eq!((f, p.p_occ, p.p_derog), (FamilleGpm::Enseignement, 0.7, 0.4));
+            assert_eq!(
+                (f, p.p_occ, p.p_derog),
+                (FamilleGpm::Enseignement, 0.7, 0.4)
+            );
         }
         let (v, s) = matrices(FamilleGpm::Enseignement).unwrap();
         // Volet, occupation, gestion manuelle non motorisée, été chaud : 15 %, 60 000 lux, 20 %,
         // 40 000 lux, 90 % la nuit.
         let l = v.occupation_non_motorisee[3];
         assert_eq!(
-            (l.r_prot0, l.ecl1_lux, l.r_prot_avec_pm2, l.ecl2_lux, l.r_prot_nuit),
+            (
+                l.r_prot0,
+                l.ecl1_lux,
+                l.r_prot_avec_pm2,
+                l.ecl2_lux,
+                l.r_prot_nuit
+            ),
             (0.15, 60_000.0, 0.20, 40_000.0, 0.90)
         );
         // Volet, occupation motorisée, mi-saison : 5 %, 100 000 lux, 5 %, 80 000 lux.
@@ -539,11 +548,20 @@ mod tests {
         // 10 % la nuit ; motorisée, été frais : 25 %, 30 000 lux, 45 %.
         let l = s.occupation_non_motorisee[0];
         assert_eq!(
-            (l.r_prot0, l.ecl1_lux, l.r_prot_avec_pm2, l.ecl2_lux, l.r_prot_nuit),
+            (
+                l.r_prot0,
+                l.ecl1_lux,
+                l.r_prot_avec_pm2,
+                l.ecl2_lux,
+                l.r_prot_nuit
+            ),
             (0.15, 60_000.0, 0.10, 60_000.0, 0.10)
         );
         let l = s.occupation_motorisee[2];
-        assert_eq!((l.r_prot0, l.ecl1_lux, l.r_prot_avec_pm2), (0.25, 30_000.0, 0.45));
+        assert_eq!(
+            (l.r_prot0, l.ecl1_lux, l.r_prot_avec_pm2),
+            (0.25, 30_000.0, 0.45)
+        );
         // Store enroulable, inoccupation : 10 % la nuit dans les quatre lignes.
         for t in [&s.inoccupation_non_motorisee, &s.inoccupation_motorisee] {
             assert!(t.iter().all(|l| l.r_prot_nuit == 0.10));

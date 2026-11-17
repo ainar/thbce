@@ -134,9 +134,10 @@ fn codes_de_retour() {
     );
     // 3 : usage hors périmètre de cette version.
     // Commerces, permis de 2027 (les commerces ne sont soumis qu'à partir du 1er mai 2026, Q68).
-    let ecole = texte
-        .replace("maison_individuelle", "commerces")
-        .replace("\"annee_depot_permis\": 2025", "\"annee_depot_permis\": 2027");
+    let ecole = texte.replace("maison_individuelle", "commerces").replace(
+        "\"annee_depot_permis\": 2025",
+        "\"annee_depot_permis\": 2027",
+    );
     let ecole = fichier("ecole.json", &ecole);
     let h2b = meteo("h2b-bis.csv", ZoneClimatique::H2b);
     let s = thbce(&["calcul", ecole.to_str().unwrap(), "--meteo", &h2b]);
@@ -160,7 +161,10 @@ fn codes_de_retour() {
         "mixte.json",
         &texte
             .replace("maison_individuelle", "commerces")
-            .replace("\"annee_depot_permis\": 2025", "\"annee_depot_permis\": 2027")
+            .replace(
+                "\"annee_depot_permis\": 2025",
+                "\"annee_depot_permis\": 2027",
+            )
             .replace("\"shab_m2\": 96.44", "\"shab_m2\": -1"),
     );
     assert_eq!(

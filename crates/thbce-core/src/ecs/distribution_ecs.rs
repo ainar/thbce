@@ -194,6 +194,9 @@ pub struct SortiesDistributionEcsIntergroupe {
     pub phi_pertes_vc_wh: f64,
     /// « Φpertes_hvc_prim-e », en Wh.
     pub phi_pertes_hvc_wh: f64,
+    /// « idencl-e(j) » (éq. 1736) : réseau en fonctionnement ; transmis à la génération
+    /// (éq. 1007).
+    pub id_encl: bool,
 }
 
 /// Pas de temps d'une distribution d'ECS intergroupe (§9.8.3).
@@ -254,6 +257,7 @@ pub fn pas_intergroupe_selon_depart(
     };
     match reseau {
         ReseauEcsIntergroupe::Aucun => SortiesDistributionEcsIntergroupe {
+            id_encl,
             q_w_prim_wh: q_2nd,
             theta_moy_c: theta_depart,
             theta_depart_c: theta_depart,
@@ -282,6 +286,7 @@ pub fn pas_intergroupe_selon_depart(
                 q_2nd + vc + hvc
             };
             SortiesDistributionEcsIntergroupe {
+                id_encl,
                 q_w_prim_wh: q,
                 theta_moy_c: theta_moy,
                 theta_depart_c: theta_depart,
@@ -298,6 +303,7 @@ pub fn pas_intergroupe_selon_depart(
             let (vc, hvc) = pertes(t.l_vc_m, t.l_hvc_m, t.u_w_mk, theta_depart);
             let w_aux = vc + hvc;
             SortiesDistributionEcsIntergroupe {
+                id_encl,
                 q_w_prim_wh: q_2nd,
                 theta_moy_c: theta_depart,
                 theta_depart_c: theta_depart,

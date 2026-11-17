@@ -775,12 +775,17 @@ impl SystemesBatiment {
                 origines.push(Origine::Reseau(k));
             }
             let mut w_rechauf = 0.0;
+            // Éq. (1007) : la production d'ECS de la génération est activée tant qu'au moins un
+            // de ses réseaux d'ECS est en fonctionnement (« idencl^gen(j) », lecture Q71) ; une
+            // génération sans réseau d'ECS garde la valeur 1 (sans effet).
+            let mut id_encl_gen: Option<bool> = None;
             for (k, d) in self.ecs.iter().enumerate() {
                 if d.generation != ig {
                     continue;
                 }
                 let s = &self.sorties_ecs[k];
                 w_rechauf += s.w_rechauf_wh;
+                id_encl_gen = Some(id_encl_gen.unwrap_or(false) || s.id_encl);
                 vus.push(ReseauVu {
                     poste: Poste::Ecs,
                     hydraulique: true,
@@ -856,8 +861,9 @@ impl SystemesBatiment {
                     reseaux: &vus,
                     aut_ch,
                     aut_fr,
-                    // Éq. (1007) : génération d'ECS en fonctionnement toute l'année (Q45).
-                    id_encl: true,
+                    // Éq. (1007) : toute l'année, sauf pendant les vacances des zones
+                    // d'enseignement qu'elle seule dessert (Q45 point 4, Q71).
+                    id_encl: id_encl_gen.unwrap_or(true),
                     theta_ext_c,
                     b_therm,
                     w_rechauf_wh: w_rechauf,
