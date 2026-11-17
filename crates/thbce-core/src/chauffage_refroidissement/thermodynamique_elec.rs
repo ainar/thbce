@@ -860,6 +860,7 @@ impl GenerateurThermodynamique {
             phi_rejet_wh: phi_rejet * rdim,
             q_prelec_wh: 0.0,
             r_fonct_ecs: if e.fonction == Poste::Ecs { p.lr } else { 0.0 },
+            q_cef_aux_elec_wh: 0.0,
         }
     }
 }

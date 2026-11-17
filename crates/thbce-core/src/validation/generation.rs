@@ -10,11 +10,12 @@ use crate::chauffage_refroidissement::thermodynamique_elec::{
 use crate::ecs::gestion_regulation_ballon::THETA_C_ECS_C;
 use crate::ecs::idcet;
 use crate::entree::{
-    Batiment, FonctionEffetJoule, FonctionReseau, FonctionnementCompresseurSaisi,
-    FonctionnementContinu, Generation, GestionTemperatureGeneration, NatureGenerateur,
-    PerformancesPac, PositionGeneration, ReseauIntergroupes, SourceAmontSaisie, SystemeVentilation,
-    TechnologieChauffagePac, TechnologieRefroidissementPac, ThermodynamiqueElectriqueSaisi,
-    TypePriorite,
+    Batiment, ChaudiereSaisie, FonctionChaleur, FonctionEffetJoule, FonctionReseau,
+    FonctionnementCompresseurSaisi, FonctionnementContinu, Generation,
+    GestionTemperatureGeneration, NatureGenerateur, PerformancesPac, PoeleSaisi,
+    PositionGeneration, ReseauChaleurFroidSaisi, ReseauIntergroupes, SourceAmontSaisie,
+    SystemeVentilation, TechnologieChauffagePac, TechnologieRefroidissementPac,
+    ThermodynamiqueElectriqueSaisi, TypePriorite,
 };
 use crate::entree::{PertesBallon, TechnologieEcsPac};
 
@@ -34,6 +35,23 @@ pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
             t.refroidissement.is_some(),
             t.ecs.is_some(),
         ],
+        NatureGenerateur::Chaudiere(c) => [
+            c.fonction != FonctionChaleur::Ecs,
+            false,
+            c.fonction != FonctionChaleur::Chauffage,
+        ],
+        NatureGenerateur::PoeleOuInsert(_) => [true, false, false],
+        NatureGenerateur::ReseauDeChaleurOuDeFroid(ReseauChaleurFroidSaisi::Chaleur {
+            fonction,
+            ..
+        }) => [
+            *fonction != FonctionChaleur::Ecs,
+            false,
+            *fonction != FonctionChaleur::Chauffage,
+        ],
+        NatureGenerateur::ReseauDeChaleurOuDeFroid(ReseauChaleurFroidSaisi::Froid { .. }) => {
+            [false, true, false]
+        }
         _ => [false; 3],
     }
 }
@@ -175,19 +193,17 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
                     bat,
                 );
             }
+            NatureGenerateur::Chaudiere(c) => {
+                valider_chaudiere(r, &format!("{cg}.nature.chaudiere"), c);
+            }
+            NatureGenerateur::PoeleOuInsert(p) => {
+                valider_poele(r, &format!("{cg}.nature.poele_ou_insert"), p);
+            }
+            NatureGenerateur::ReseauDeChaleurOuDeFroid(n) => {
+                valider_reseau(r, &format!("{cg}.nature.reseau_de_chaleur_ou_de_froid"), n);
+            }
             autre => {
                 let (nom, quoi) = match autre {
-                    NatureGenerateur::Chaudiere => (
-                        "chaudiere",
-                        "chaudière au gaz, au fioul ou au bois (§8.19, lot 6d)",
-                    ),
-                    NatureGenerateur::PoeleOuInsert => {
-                        ("poele_ou_insert", "poêle ou insert (§8.22, lot 6d)")
-                    }
-                    NatureGenerateur::ReseauDeChaleurOuDeFroid => (
-                        "reseau_de_chaleur_ou_de_froid",
-                        "réseau de chaleur ou de froid (§8.28, lot 6d)",
-                    ),
                     NatureGenerateur::AutreGenerateurACombustion => (
                         "autre_generateur_a_combustion",
                         "autre générateur à combustion (§8.20, après v1)",
@@ -351,6 +367,34 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
                         ),
                     );
                 }
+            }
+        }
+    }
+    // Chaudières et sous-stations de réseau de chaleur : fluide aval eau ; poêles et inserts :
+    // air ambiant (§8.19.2, §8.22 et §8.17.3.1).
+    for (k, x) in g.generateurs.iter().enumerate() {
+        let hydraulique = match &x.nature {
+            NatureGenerateur::Chaudiere(_) | NatureGenerateur::ReseauDeChaleurOuDeFroid(_) => true,
+            NatureGenerateur::PoeleOuInsert(_) => false,
+            _ => continue,
+        };
+        for p in 0..2 {
+            if postes_assures(&x.nature)[p] && types[p] == Some(!hydraulique) {
+                r.erreur(
+                    format!("{c}.generateurs[{k}].nature"),
+                    None,
+                    format!(
+                        "générateur incohérent avec les réseaux de {} de la génération : {} \
+                         (Th-BCE 2020 §8.17.3.1)",
+                        noms[p],
+                        if hydraulique {
+                            "une chaudière ou une sous-station de réseau de chaleur alimente des \
+                             réseaux hydrauliques"
+                        } else {
+                            "un poêle ou un insert alimente des réseaux fictifs (air)"
+                        }
+                    ),
+                );
             }
         }
     }
@@ -657,8 +701,8 @@ fn valider_stockages(r: &mut RapportValidation, c: &str, g: &Generation, bat: &B
                         format!("{cs}.base.generateur"),
                         Some(x.id.clone()),
                         "le générateur de base d'un ballon d'ECS assure l'ECS : générateur à \
-                         effet Joule de fonction `ecs` ou générateur thermodynamique pourvu \
-                         d'un mode `ecs`",
+                         effet Joule de fonction `ecs`, chaudière ou réseau de chaleur assurant \
+                         l'ECS, ou générateur thermodynamique pourvu d'un mode `ecs`",
                     );
                 }
                 if x.rdim != s.nb_assemblages {
@@ -807,6 +851,132 @@ fn valider_stockages(r: &mut RapportValidation, c: &str, g: &Generation, bat: &B
                 ),
             ),
             Some(_) => {}
+        }
+    }
+}
+
+/// Th-BCE 2020 §8.19 : chaudière au gaz, au fioul ou au bois.
+fn valider_chaudiere(r: &mut RapportValidation, c: &str, x: &ChaudiereSaisie) {
+    use crate::entree::TypeChaudiereSaisi as T;
+    r.plage(format!("{c}.pn_gen_kw"), x.pn_gen_kw, 0.0, f64::MAX);
+    r.strictement_positif(format!("{c}.pn_gen_kw"), x.pn_gen_kw);
+    let bois = x.type_chaudiere == T::Bois;
+    if bois && x.combustible_bois.is_none() {
+        r.erreur(
+            format!("{c}.combustible_bois"),
+            None,
+            "« TypeCombustibleBois » requis pour une chaudière au bois (Th-BCE 2020 §8.19.2)",
+        );
+    }
+    if !bois && x.combustible_bois.is_some() {
+        r.erreur(
+            format!("{c}.combustible_bois"),
+            None,
+            "sans objet : le combustible bois ne concerne que les chaudières au bois",
+        );
+    }
+    if !bois && x.gpl && matches!(x.type_chaudiere, T::FioulStandard | T::FioulCondensation) {
+        r.erreur(
+            format!("{c}.gpl"),
+            None,
+            "sans objet : le gaz de pétrole liquéfié ne concerne que les chaudières au gaz",
+        );
+    }
+    if bois && x.gpl {
+        r.erreur(
+            format!("{c}.gpl"),
+            None,
+            "sans objet : le gaz de pétrole liquéfié ne concerne que les chaudières au gaz",
+        );
+    }
+    let aux = &x.auxiliaires;
+    if bois
+        && x.alimentation_bois.is_none()
+        && (aux.w_aux_nom_w.is_none() || aux.w_aux_int_w.is_none())
+    {
+        r.erreur(
+            format!("{c}.alimentation_bois"),
+            None,
+            "« Alim_Chaudière_Bois » requis pour une chaudière au bois dont les auxiliaires sont \
+             par défaut (Th-BCE 2020 §8.19.3.1.4, tableau 119)",
+        );
+    }
+    if let Some(rd) = &x.rendements {
+        for (nom, v) in [("r_pn_pct", rd.r_pn_pct), ("r_pint_pct", rd.r_pint_pct)] {
+            if !(v > 0.0 && v < 100.0) {
+                r.erreur(
+                    format!("{c}.rendements.{nom}"),
+                    Some(v.to_string()),
+                    "Générateur à combustion : la saisie des performances du générateur à \
+                     combustion conduit à des rendements sur PCS égaux ou supérieurs à l'unité \
+                     (Th-BCE 2020 §8.19.3.1) ; rendement strictement positif",
+                );
+            }
+        }
+        if let Some(p) = rd.p_int_kw {
+            r.strictement_positif(format!("{c}.rendements.p_int_kw"), p);
+        }
+    }
+    for (nom, v) in [
+        ("auxiliaires.w_aux_nom_w", aux.w_aux_nom_w),
+        ("auxiliaires.w_aux_int_w", aux.w_aux_int_w),
+        ("auxiliaires.w_veille_w", aux.w_veille_w),
+        ("q_po_30_w", x.q_po_30_w),
+    ] {
+        if let Some(v) = v {
+            r.plage(format!("{c}.{nom}"), v, 0.0, f64::MAX);
+        }
+    }
+}
+
+/// Th-BCE 2020 §8.22 : poêle ou insert.
+fn valider_poele(r: &mut RapportValidation, c: &str, x: &PoeleSaisi) {
+    r.strictement_positif(format!("{c}.pn_gen_kw"), x.pn_gen_kw);
+    r.plage(format!("{c}.pn_gen_kw"), x.pn_gen_kw, 0.0, 100.0);
+    r.strictement_positif(format!("{c}.eta_pct"), x.eta_pct);
+    r.plage(format!("{c}.eta_pct"), x.eta_pct, 0.0, 100.0);
+    r.plage(format!("{c}.p_aux_vent_w"), x.p_aux_vent_w, 0.0, f64::MAX);
+}
+
+/// Th-BCE 2020 §8.28 : sous-station d'un réseau de chaleur ou de froid.
+fn valider_reseau(r: &mut RapportValidation, c: &str, x: &ReseauChaleurFroidSaisi) {
+    let (id, p_ess, froid) = match x {
+        ReseauChaleurFroidSaisi::Chaleur {
+            identifiant_reseau,
+            classe_isolation_secondaire,
+            p_ess_kw,
+            ..
+        } => {
+            if !(1..=4).contains(classe_isolation_secondaire) {
+                r.erreur(
+                    format!("{c}.chaleur.classe_isolation_secondaire"),
+                    Some(classe_isolation_secondaire.to_string()),
+                    "classe d'isolation du réseau secondaire de 1 à 4 (Th-BCE 2020 §8.28.3.1, \
+                     tableau 247)",
+                );
+            }
+            (identifiant_reseau, *p_ess_kw, false)
+        }
+        ReseauChaleurFroidSaisi::Froid {
+            identifiant_reseau,
+            p_ess_kw,
+        } => (identifiant_reseau, *p_ess_kw, true),
+    };
+    r.strictement_positif(format!("{c}.p_ess_kw"), p_ess);
+    if let Some(id) = id {
+        let lettre = if froid { 'F' } else { 'C' };
+        let bon =
+            id.len() == 5 && id[..4].chars().all(|ch| ch.is_ascii_digit()) && id.ends_with(lettre);
+        if !bon {
+            r.erreur(
+                format!("{c}.identifiant_reseau"),
+                Some(id.clone()),
+                format!(
+                    "identifiant de réseau de {} : quatre chiffres suivis de « {lettre} » \
+                     (annexe 7 de l'arrêté du 15 septembre 2006)",
+                    if froid { "froid" } else { "chaleur" }
+                ),
+            );
         }
     }
 }

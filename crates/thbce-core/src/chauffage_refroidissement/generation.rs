@@ -18,7 +18,10 @@
 use super::calculs_generation::{
     classe_charge, CumulsCef, CumulsGenerateur, Energie, MatriceCef, Poste,
 };
+use super::chaudieres_gaz_fioul_bois::Chaudiere;
 use super::generateur_direct_a_effet_joule::GenerateurEffetJoule;
+use super::poeles_et_inserts::Poele;
+use super::reseau_de_chaleur_et_de_froid::ReseauChaleurFroid;
 use super::sources_amont::SourceAmontGenerateur;
 use super::thermodynamique_elec::GenerateurThermodynamique;
 use crate::ecs::assemblage_ballon::{AssemblageBallon, EntreesAssemblage};
@@ -144,6 +147,10 @@ pub struct SortiesAppel {
     pub q_prelec_wh: f64,
     /// « Rfonct_ecs » : part du pas de temps employée à pleine charge pour l'ECS.
     pub r_fonct_ecs: f64,
+    /// Électricité des auxiliaires propres à ajouter à la case électricité du poste de
+    /// l'appel (générateurs à combustion : `Waux,pro`, éq. 1117) ; nulle pour un générateur
+    /// dont la consommation principale est déjà de l'électricité.
+    pub q_cef_aux_elec_wh: f64,
 }
 
 impl Default for SortiesAppel {
@@ -161,6 +168,7 @@ impl Default for SortiesAppel {
             phi_rejet_wh: 0.0,
             q_prelec_wh: 0.0,
             r_fonct_ecs: 0.0,
+            q_cef_aux_elec_wh: 0.0,
         }
     }
 }
@@ -198,6 +206,12 @@ pub enum Generateur {
     EffetJoule(GenerateurEffetJoule),
     /// Type 503 : générateur thermodynamique à compression électrique (§8.23).
     Thermodynamique(Box<GenerateurThermodynamique>),
+    /// Types 100 à 102, 200, 201 et 400 : chaudière au gaz, au fioul ou au bois (§8.19).
+    Chaudiere(Box<Chaudiere>),
+    /// Types 403 et 404 : poêle ou insert à bois (§8.22).
+    Poele(Poele),
+    /// Types 600 et 601 : sous-station de réseau de chaleur ou de froid (§8.28).
+    Reseau(ReseauChaleurFroid),
     /// Générateur idéal, pour les tests.
     Ideal(GenerateurIdeal),
 }
@@ -208,6 +222,18 @@ impl Generateur {
         match self {
             Self::EffetJoule(g) => FonctionGenerateur::mono(g.fonction),
             Self::Thermodynamique(g) => g.fonction(),
+            Self::Chaudiere(g) => match (g.chauffage, g.ecs) {
+                (true, true) => FonctionGenerateur::ChauffageEcs,
+                (false, true) => FonctionGenerateur::Ecs,
+                _ => FonctionGenerateur::Chauffage,
+            },
+            Self::Poele(_) => FonctionGenerateur::Chauffage,
+            Self::Reseau(g) => match (g.froid, g.chauffage, g.ecs) {
+                (true, _, _) => FonctionGenerateur::Refroidissement,
+                (_, true, true) => FonctionGenerateur::ChauffageEcs,
+                (_, false, true) => FonctionGenerateur::Ecs,
+                _ => FonctionGenerateur::Chauffage,
+            },
             Self::Ideal(g) => g.fonction,
         }
     }
@@ -220,6 +246,9 @@ impl Generateur {
         match self {
             Self::EffetJoule(g) => g.p_max_w(),
             Self::Thermodynamique(g) => g.pn_gen_tot_w(poste),
+            Self::Chaudiere(g) => g.pn_gen_tot_w(),
+            Self::Poele(g) => g.pn_gen_tot_w(),
+            Self::Reseau(g) => g.pn_gen_tot_w(),
             // Sans puissance nominale : parts égales en mode sans priorité.
             Self::Ideal(_) => 1.0,
         }
@@ -230,7 +259,18 @@ impl Generateur {
         match self {
             Self::EffetJoule(g) => g.appel(e),
             Self::Thermodynamique(g) => g.appel(e),
+            Self::Chaudiere(g) => g.appel(e),
+            Self::Poele(g) => g.appel(e),
+            Self::Reseau(g) => g.appel(e),
             Self::Ideal(g) => g.appel(e),
+        }
+    }
+
+    /// Fin du pas de temps : les générateurs à mémoire d'un pas de temps (chaudières,
+    /// éq. 1089, 1105 et 1106) conservent l'état du pas qui s'achève.
+    pub fn fin_de_pas(&mut self) {
+        if let Self::Chaudiere(g) = self {
+            g.fin_de_pas();
         }
     }
 }
@@ -277,6 +317,10 @@ impl JeuDonnees {
     pub fn ajouter(&mut self, poste: Poste, r_pui_dispo: f64, s: &SortiesAppel) {
         let p = poste.indice();
         self.q_cef.ajouter(poste, s.energie, s.q_cef_wh);
+        if s.q_cef_aux_elec_wh != 0.0 {
+            self.q_cef
+                .ajouter(poste, Energie::Electricite, s.q_cef_aux_elec_wh);
+        }
         self.q_cons_wh += s.q_cons_wh;
         self.q_fou_wh[p] += s.q_fou_wh;
         self.q_prelec_wh += s.q_prelec_wh;
@@ -535,6 +579,7 @@ impl GenerationHoraire {
             FonctionEffetJoule, GestionTemperatureGeneration, NatureGenerateur, PositionGeneration,
             TypePriorite,
         };
+        let en_vc = g.position == PositionGeneration::EnVolumeChauffe;
         let mut generateurs: Vec<GenerateurHoraire> = g
             .generateurs
             .iter()
@@ -563,6 +608,20 @@ impl GenerationHoraire {
                             pn_gen_w: j.pn_gen_w,
                             rdim,
                         })
+                    }
+                    NatureGenerateur::Chaudiere(c) => {
+                        let (ch, defauts) = resoudre_chaudiere(c, rdim, en_vc)?;
+                        valeurs_par_defaut = defauts;
+                        Generateur::Chaudiere(Box::new(ch))
+                    }
+                    NatureGenerateur::PoeleOuInsert(p) => Generateur::Poele(Poele {
+                        pn_gen_kw: p.pn_gen_kw,
+                        eta_pct: p.eta_pct,
+                        p_aux_vent_w: p.p_aux_vent_w,
+                        rdim,
+                    }),
+                    NatureGenerateur::ReseauDeChaleurOuDeFroid(r) => {
+                        Generateur::Reseau(resoudre_reseau(r, rdim, en_vc)?)
                     }
                     // Natures refusées par la validation.
                     _ => return None,
@@ -1016,6 +1075,9 @@ impl GenerationHoraire {
                 }
             }
         }
+        for g in &mut self.generateurs {
+            g.modele.fin_de_pas();
+        }
         self.sorties = SortiesGeneration {
             q_cef,
             phi_vc_tot_wh: phi_vc,
@@ -1273,6 +1335,202 @@ struct ContexteAppel {
     theta_amb_c: f64,
     aut_ch: bool,
     relance_ch: bool,
+}
+
+/// Chaudière résolue à partir de sa saisie : statuts des rendements (§8.19.3.1) et valeurs par
+/// défaut (§8.19.3.1.4), ces dernières signalées.
+fn resoudre_chaudiere(
+    c: &crate::entree::ChaudiereSaisie,
+    rdim: f64,
+    en_volume_chauffe: bool,
+) -> Option<(Chaudiere, Vec<ValeurParDefaut>)> {
+    use super::chaudieres_gaz_fioul_bois::{
+        valeurs_par_defaut, AlimentationBois, CombustibleBois, TypeChaudiere,
+        TAUX_CHARGE_INTERMEDIAIRE, W_VEILLE_DEFAUT_W,
+    };
+    use crate::entree::{
+        AlimentationBoisSaisie as A, CombustibleBoisSaisi as B, FonctionChaleur,
+        PertesParoisChaudiere, StatutRendementChaudiere, TypeChaudiereSaisi as T,
+    };
+    let type_chaudiere = match c.type_chaudiere {
+        T::GazStandard => TypeChaudiere::GazStandard,
+        T::GazBasseTemperature => TypeChaudiere::GazBasseTemperature,
+        T::GazCondensation => TypeChaudiere::GazCondensation,
+        T::FioulStandard => TypeChaudiere::FioulStandard,
+        T::FioulCondensation => TypeChaudiere::FioulCondensation,
+        T::Bois => TypeChaudiere::Bois(match c.combustible_bois? {
+            B::Buches => CombustibleBois::Buches,
+            B::Granules => CombustibleBois::Granules,
+            B::Plaquettes => CombustibleBois::Plaquettes,
+        }),
+    };
+    let alim = c.alimentation_bois.map(|a| match a {
+        A::ManuelTirageNaturel => AlimentationBois::ManuelTirageNaturel,
+        A::ManuelAirPulse => AlimentationBois::ManuelAirPulse,
+        A::AutomatiqueTirageNaturel => AlimentationBois::AutomatiqueTirageNaturel,
+        A::AutomatiqueAirPulse => AlimentationBois::AutomatiqueAirPulse,
+    });
+    let mut defauts = Vec::new();
+    let mut defaut = |champ: &str, valeur: f64, regle: &str| {
+        defauts.push(ValeurParDefaut {
+            champ: champ.to_owned(),
+            valeur,
+            regle: regle.to_owned(),
+        });
+    };
+    let pn = c.pn_gen_kw;
+    let p_int = c.rendements.and_then(|r| r.p_int_kw).unwrap_or_else(|| {
+        let p = TAUX_CHARGE_INTERMEDIAIRE * pn;
+        defaut(
+            "rendements.p_int_kw",
+            p,
+            "Th-BCE 2020 §8.19.2 : « Pint » est la puissance utile à 30 % de charge ; \
+                 30 % de Pn_gen (lecture Q49)",
+        );
+        p
+    });
+    let v = valeurs_par_defaut(type_chaudiere, alim, pn, p_int, c.gpl);
+    let rendements = match c.rendements {
+        Some(r) => {
+            let k = match r.statut {
+                StatutRendementChaudiere::Certifie => 1.0,
+                StatutRendementChaudiere::Justifie => 0.9,
+                StatutRendementChaudiere::Declare => 0.8,
+            };
+            (k * r.r_pn_pct, k * r.r_pint_pct)
+        }
+        None => {
+            defaut(
+                "rendements.r_pn_pct",
+                v.r_pn_pct,
+                "Th-BCE 2020 §8.19.3.1.4, éq. (1072) : rendement sur PCS à pleine charge par \
+                 défaut",
+            );
+            defaut(
+                "rendements.r_pint_pct",
+                v.r_pint_pct,
+                "Th-BCE 2020 §8.19.3.1.4, éq. (1073) : rendement sur PCS à 30 % de charge par \
+                 défaut",
+            );
+            (v.r_pn_pct, v.r_pint_pct)
+        }
+    };
+    let mut aux = |valeur: Option<f64>, champ: &str, defaut_v: f64, regle: &str| {
+        valeur.unwrap_or_else(|| {
+            defaut(champ, defaut_v, regle);
+            defaut_v
+        })
+    };
+    let w_nom = aux(
+        c.auxiliaires.w_aux_nom_w,
+        "auxiliaires.w_aux_nom_w",
+        v.w_aux_nom_w,
+        "Th-BCE 2020 §8.19.3.1.4, éq. (1076), tableau 119",
+    );
+    let w_int = aux(
+        c.auxiliaires.w_aux_int_w,
+        "auxiliaires.w_aux_int_w",
+        v.w_aux_int_w,
+        "Th-BCE 2020 §8.19.3.1.4, éq. (1077), tableau 119",
+    );
+    let w_veille = aux(
+        c.auxiliaires.w_veille_w,
+        "auxiliaires.w_veille_w",
+        W_VEILLE_DEFAUT_W,
+        "Th-BCE 2020 §8.19.3.1.4, éq. (1075)",
+    );
+    let q_po_30 = aux(
+        c.q_po_30_w,
+        "q_po_30_w",
+        v.q_po_30_w,
+        "Th-BCE 2020 §8.19.3.1.4, éq. (1074), tableau 118",
+    );
+    let p_qp_arret = match c.pertes_parois {
+        PertesParoisChaudiere::SansVentilateur => 0.50,
+        PertesParoisChaudiere::AvecVentilateur => 0.75,
+        PertesParoisChaudiere::AvecClapet => 1.0,
+    };
+    let (chauffage, ecs) = match c.fonction {
+        FonctionChaleur::Chauffage => (true, false),
+        FonctionChaleur::Ecs => (false, true),
+        FonctionChaleur::ChauffageEcs => (true, true),
+    };
+    Some((
+        Chaudiere::nouvelle(
+            type_chaudiere,
+            c.gpl,
+            chauffage,
+            ecs,
+            rdim,
+            en_volume_chauffe,
+            pn,
+            p_int,
+            rendements,
+            (w_nom, w_int, w_veille),
+            q_po_30,
+            p_qp_arret,
+        ),
+        defauts,
+    ))
+}
+
+/// Sous-station résolue à partir de sa saisie (tableaux 247 et 248).
+fn resoudre_reseau(
+    r: &crate::entree::ReseauChaleurFroidSaisi,
+    rdim: f64,
+    en_volume_chauffe: bool,
+) -> Option<ReseauChaleurFroid> {
+    use super::reseau_de_chaleur_et_de_froid::{LectureHss, TypeReseauChaleur};
+    use crate::entree::{FonctionChaleur, ReseauChaleurFroidSaisi as R, TypeReseauChaleurSaisi};
+    Some(match r {
+        R::Chaleur {
+            fonction,
+            type_reseau,
+            classe_isolation_secondaire,
+            p_ess_kw,
+            ..
+        } => {
+            let t = match type_reseau {
+                TypeReseauChaleurSaisi::EauChaudeBasseTemperature => {
+                    TypeReseauChaleur::EauChaudeBasseTemperature
+                }
+                TypeReseauChaleurSaisi::EauChaudeHauteTemperature => {
+                    TypeReseauChaleur::EauChaudeHauteTemperature
+                }
+                TypeReseauChaleurSaisi::VapeurBassePression => {
+                    TypeReseauChaleur::VapeurBassePression
+                }
+                TypeReseauChaleurSaisi::VapeurHautePression => {
+                    TypeReseauChaleur::VapeurHautePression
+                }
+            };
+            let (theta_prs_c, d_ss) = t.theta_prs_et_dss();
+            ReseauChaleurFroid {
+                froid: false,
+                chauffage: *fonction != FonctionChaleur::Ecs,
+                ecs: *fonction != FonctionChaleur::Chauffage,
+                rdim,
+                en_volume_chauffe,
+                p_ess_kw: *p_ess_kw,
+                b_ss: t.b_ss(*classe_isolation_secondaire),
+                d_ss,
+                theta_prs_c,
+                lecture_hss: LectureHss::Litterale,
+            }
+        }
+        R::Froid { p_ess_kw, .. } => ReseauChaleurFroid {
+            froid: true,
+            chauffage: false,
+            ecs: false,
+            rdim,
+            en_volume_chauffe,
+            p_ess_kw: *p_ess_kw,
+            b_ss: 0.0,
+            d_ss: 0.0,
+            theta_prs_c: 0.0,
+            lecture_hss: LectureHss::Litterale,
+        },
+    })
 }
 
 #[cfg(test)]

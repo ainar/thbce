@@ -15,18 +15,23 @@
 //!
 //! - [`generation`] : assemblage et gestion/régulation de la génération (§8.14 et §8.17) ;
 //! - [`generateur_direct_a_effet_joule`] : générateur direct à effet Joule (§8.18) ;
+//! - [`chaudieres_gaz_fioul_bois`], [`poeles_et_inserts`], [`reseau_de_chaleur_et_de_froid`] :
+//!   générateurs à combustion et sous-stations (§8.19, §8.22 et §8.28) ;
 //! - [`thermodynamique_elec`] : générateurs thermodynamiques à compression électrique (§8.23) ;
 //! - [`sources_amont`] : sources amont sur air des générateurs thermodynamiques (§8.26) ;
 //! - [`calculs_generation`] : matrices et cumuls des consommations (§8.29).
 
 pub mod bilan_hydrique;
 pub mod calculs_generation;
+pub mod chaudieres_gaz_fioul_bois;
 pub mod distribution;
 pub mod emetteurs;
 pub mod emission;
 pub mod generateur_direct_a_effet_joule;
 pub mod generation;
+pub mod poeles_et_inserts;
 pub mod relances;
+pub mod reseau_de_chaleur_et_de_froid;
 pub mod saisons_fonctionnement;
 pub mod sources_amont;
 pub mod systemes_groupe;
