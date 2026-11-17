@@ -283,10 +283,14 @@ pub fn c1(gest_ecl: GestEcl, c1_tableau_78: &[f64; 4]) -> f64 {
 /// - 4, extinction automatique : courbe de la gestion manuelle jusqu'à `Eiref` (le point D est
 ///   sur le segment BG si `Eiref < 700`, sur le segment GJ sinon), nul au-delà.
 ///
-/// Quand `Eiref` ne dépasse pas `Eimin` (100 lux : circulations et salles de réunion des
-/// bureaux, par exemple), le point E précède le point B : `C2` reste égal à 1 jusqu'à `Eimin`,
-/// « éclairement naturel minimum en deçà duquel l'éclairage artificiel est indispensable »,
-/// puis suit les points situés au-delà (lecture Q58).
+/// Quand `Eiref` ne dépasse pas `Eimin` (100 lux : circulations et salle de réunion des
+/// bureaux, par exemple), lecture de `docs/questions/Q058.md` :
+/// - gestions 3 et 4 : le tableau 79 dit « pour Einat > EiRef, C2 = 0 », sans condition ; le
+///   basculement se fait à `Eiref`, même en dessous de 100 lux (la gestion 3 n'a pas de
+///   point B) ;
+/// - gestion 2 : le point E précède le point B ; `C2` reste égal à 1 jusqu'à `Eimin`,
+///   « éclairement naturel minimum en deçà duquel l'éclairage artificiel est indispensable »,
+///   puis suit les points situés au-delà.
 pub fn c2(grad_ecl: GradEcl, einat_lux: f64, e_ref_lux: f64) -> f64 {
     match grad_ecl {
         GradEcl::Aucune => 1.0,
@@ -303,14 +307,14 @@ pub fn c2(grad_ecl: GradEcl, einat_lux: f64, e_ref_lux: f64) -> f64 {
             }
         }
         GradEcl::AllumageEtExtinctionAutomatiques => {
-            if einat_lux <= e_ref_lux.max(EI_MIN_LUX) {
+            if einat_lux <= e_ref_lux {
                 1.0
             } else {
                 0.0
             }
         }
         GradEcl::ExtinctionAutomatique => {
-            if einat_lux <= e_ref_lux.max(EI_MIN_LUX) {
+            if einat_lux <= e_ref_lux {
                 interpoler(&POINTS_C2_MANUEL, einat_lux)
             } else {
                 0.0

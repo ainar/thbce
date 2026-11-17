@@ -68,6 +68,6 @@
 | Q58 | Éclairage : coefficient C2 quand l'éclairement de référence ne dépasse pas 100 lux (fiche 7.1, tableaux 78 et 79, lot 0a) | lecture du lot 0a, à confirmer par un cas de référence |
 | Q59 | Éclairage mobilier des bureaux (§7.1.3.2.3, lot 0a) : quels locaux sont des « locaux de bureaux » | lecture du lot 0a, à confirmer par un cas de référence |
 | Q60 | Ventilation hors habitation (fiches 6.2 et 6.5, lot 0a) : (1) débits conventionnels du Bbio comptés par groupe ; (2) plancher de 60 m³/h ; (3) périmètre : simple flux seulement | lecture du lot 0a, à confirmer par un cas de référence |
-| Q61 | Protections mobiles de la famille « bureau » (fiche 5.9, figures 34, 36 et 39, tableau 34, lot 0a) : matrices lues sur les images du PDF | transcription à relire une seconde fois |
+| Q61 | Protections mobiles de la famille « bureau » (fiche 5.9, figures 34, 36 et 39, tableau 34, lot 0a) : matrices lues sur les images du PDF | relu deux fois |
 | Q62 | Indicateurs hors habitation (fiches 13.1 à 13.4, article 10, lot 0a) : (1) surface de référence ; (2) facteur d'émission de l'éclairage ; (3) exigences non transcrites ; (4) forfait de refroidissement | lecture du lot 0a, à confirmer par un cas de référence |
 | Q63 | Scénarios des usages autres que l'habitation (fiche 4.1, lot 0a) : occupants par local, indicateurs fractionnaires, locaux des scénarios et du tableau 78 | lecture du lot 0a, à confirmer par un cas de référence |

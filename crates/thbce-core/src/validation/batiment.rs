@@ -173,11 +173,12 @@ fn valider_groupe(
     );
     for (i, b) in g.bouches_conduits.iter().enumerate() {
         let cb = format!("{c}.bouches_conduits[{i}]");
-        // Un usage non calculé garde les contrôles de l'habitation : son refus (code 3) ne
-        // doit pas être masqué par des erreurs de saisie propres aux usages non résidentiels.
-        if zone.usage.est_habitation() || !zone.usage.est_pris_en_charge() {
+        // Un usage non calculé n'a pas de contrôle de ses bouches : qu'elles soient saisies à
+        // la manière de l'habitation ou du non résidentiel, son refus (code 3) ne doit pas être
+        // masqué par une erreur de saisie (code 2).
+        if zone.usage.est_habitation() {
             valider_bouche_conduit(r, &cb, b);
-        } else {
+        } else if zone.usage.est_pris_en_charge() {
             valider_bouche_conduit_non_residentielle(r, &cb, b);
         }
     }

@@ -539,7 +539,9 @@ fn valider_ecs_groupe(
                 r.erreur(
                     format!("{ce}.nu"),
                     e.nu.map(|n| n.to_string()),
-                    "le nombre d'unités ne se saisit pas en maison individuelle ou accolée ni en                      logement collectif : il se déduit des adultes équivalents (Th-BCE 2020                      §9.6.3.2.2.2)",
+                    "le nombre d'unités ne se saisit pas en maison individuelle ou accolée ni en \
+                     logement collectif : il se déduit des adultes équivalents (Th-BCE 2020 \
+                     §9.6.3.2.2.2)",
                 );
             }
         } else {
@@ -547,7 +549,8 @@ fn valider_ecs_groupe(
                 r.erreur(
                     format!("{ce}.nb_logements"),
                     Some(e.nb_logements.to_string()),
-                    "le nombre de logements desservis ne se saisit qu'en maison individuelle ou                      accolée et en logement collectif (Th-BCE 2020 §9.5.2)",
+                    "le nombre de logements desservis ne se saisit qu'en maison individuelle ou \
+                     accolée et en logement collectif (Th-BCE 2020 §9.5.2)",
                 );
             }
             if let Some(nu) = e.nu {

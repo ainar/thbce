@@ -57,6 +57,10 @@ pub struct EntreesIndicateurs<'a> {
     pub consommations: &'a ConsommationsPostes,
     /// Générations du bâtiment (consommations de chaque générateur), dans l'ordre de l'entrée.
     pub generations: &'a [ResultatsGeneration],
+    /// « Cecl » de chaque zone sur l'année (calcul Th-C), en kWh, dans l'ordre des zones.
+    pub c_ecl_zones_kwh: &'a [f64],
+    /// Éclairage des parties communes et des parkings du bâtiment sur l'année, en kWh.
+    pub c_ecl_collectif_kwh: f64,
 }
 
 /// Sélection d'un poste dans les consommations des générations.
@@ -249,23 +253,44 @@ pub fn raccorde_rcu(bat: &Batiment) -> bool {
         })
 }
 
-/// Part de la surface de référence du bâtiment qui relève d'usages autres que l'habitation,
-/// de 0 à 1 : 0 pour un bâtiment d'habitation, 1 pour un bâtiment tertiaire.
-fn part_sref_non_residentielle(bat: &Batiment, zones: &[ResultatsZone]) -> f64 {
-    let (mut total, mut tertiaire) = (0.0, 0.0);
-    for (z, r) in bat.zones.iter().zip(zones) {
-        total += r.sref_m2;
-        if !z.usage.est_habitation() {
-            tertiaire += r.sref_m2;
+/// Part de l'éclairage du bâtiment qui relève d'usages autres que l'habitation, de 0 à 1 : 0
+/// pour un bâtiment d'habitation, 1 pour un bâtiment sans zone d'habitation.
+///
+/// Arrêté du 4 août 2021, article 10 : le facteur d'émission de l'électricité d'éclairage
+/// diffère « dans un bâtiment résidentiel » et « dans un bâtiment tertiaire ». Dans un bâtiment
+/// qui réunit les deux, lecture de `docs/questions/Q062.md` : prorata des consommations
+/// d'éclairage des zones (`c_ecl_zones_kwh`, une valeur par zone, calcul Th-C ;
+/// `non_residentielle` dit, zone par zone, si l'usage est autre que l'habitation), l'éclairage
+/// des parties communes et des parkings (`c_ecl_collectif_kwh`, §7.2 et §10.4) revenant à
+/// l'habitation. Sans consommation d'éclairage, prorata des surfaces de référence.
+pub fn part_eclairage_non_residentielle(
+    non_residentielle: &[bool],
+    sref_zones_m2: &[f64],
+    c_ecl_zones_kwh: &[f64],
+    c_ecl_collectif_kwh: f64,
+) -> f64 {
+    if !non_residentielle.iter().any(|x| *x) {
+        return 0.0;
+    }
+    if non_residentielle.iter().all(|x| *x) {
+        return 1.0;
+    }
+    let part = |valeurs: &[f64], a_l_habitation: f64| {
+        if valeurs.len() != non_residentielle.len() {
+            return None;
         }
-    }
-    if tertiaire <= 0.0 || total <= 0.0 {
-        0.0
-    } else if tertiaire >= total {
-        1.0
-    } else {
-        tertiaire / total
-    }
+        let (mut total, mut tertiaire) = (a_l_habitation, 0.0);
+        for (x, t) in valeurs.iter().zip(non_residentielle) {
+            total += x;
+            if *t {
+                tertiaire += x;
+            }
+        }
+        (total > 0.0).then(|| (tertiaire / total).clamp(0.0, 1.0))
+    };
+    part(c_ecl_zones_kwh, c_ecl_collectif_kwh)
+        .or_else(|| part(sref_zones_m2, 0.0))
+        .unwrap_or(0.0)
 }
 
 /// Calcule les indicateurs d'un bâtiment. Renvoie aussi les avertissements du calcul.
@@ -382,9 +407,20 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
     parts.push(("ecs", elec(UsageElectricite::Ecs), importee.ecs_kwh));
     // Article 10 : l'éclairage n'a pas le même facteur d'émission « dans un bâtiment
     // résidentiel » et « dans un bâtiment tertiaire ». Dans un bâtiment qui réunit des zones
-    // d'habitation et d'autres usages, l'éclairage importé est réparti au prorata des surfaces
-    // de référence (lecture Q62).
-    let part_tertiaire = part_sref_non_residentielle(bat, e.zones);
+    // d'habitation et d'autres usages, l'éclairage importé est réparti au prorata des
+    // consommations d'éclairage des zones (lecture Q62).
+    let non_residentielle: Vec<bool> = bat
+        .zones
+        .iter()
+        .map(|z| !z.usage.est_habitation())
+        .collect();
+    let sref_zones: Vec<f64> = e.zones.iter().map(|r| r.sref_m2).collect();
+    let part_tertiaire = part_eclairage_non_residentielle(
+        &non_residentielle,
+        &sref_zones,
+        e.c_ecl_zones_kwh,
+        e.c_ecl_collectif_kwh,
+    );
     if part_tertiaire < 1.0 {
         parts.push((
             "eclairage",
@@ -673,5 +709,28 @@ mod tests {
         // Σ des années 1 à 50 de l'article 11 (année 0 exclue, éq. 74).
         let s = somme_f_co2();
         assert!((s - 39.543).abs() < 1e-9, "{s}");
+    }
+
+    /// Article 10 et lecture Q62 : part de l'éclairage au facteur du tertiaire.
+    #[test]
+    fn part_de_l_eclairage_non_residentielle() {
+        let f = part_eclairage_non_residentielle;
+        let eg = |a: f64, b: f64| assert!((a - b).abs() < 1e-12, "{a} {b}");
+        // Bâtiment d'habitation, bâtiment de bureaux : pas de partage.
+        eg(
+            f(&[false, false], &[100.0, 50.0], &[400.0, 200.0], 30.0),
+            0.0,
+        );
+        eg(f(&[true], &[1000.0], &[12000.0], 0.0), 1.0);
+        // Bâtiment mixte, à la main : 300 m² de logements (1 200 kWh d'éclairage, 300 kWh de
+        // parties communes) et 100 m² de bureaux (1 500 kWh) : 1 500 / 3 000 = 0,5, alors que
+        // le prorata des surfaces donnerait 0,25.
+        eg(
+            f(&[false, true], &[300.0, 100.0], &[1200.0, 1500.0], 300.0),
+            0.5,
+        );
+        // Sans consommation d'éclairage : prorata des surfaces de référence.
+        eg(f(&[false, true], &[300.0, 100.0], &[0.0, 0.0], 0.0), 0.25);
+        eg(f(&[false, true], &[300.0, 100.0], &[], 0.0), 0.25);
     }
 }
