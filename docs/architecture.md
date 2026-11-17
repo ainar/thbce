@@ -65,7 +65,7 @@ Point d'entrée unique : `calcul/mod.rs::calculer` (projet, météo, options →
 2. Distributions intergroupes d'ECS (§9.8) : `ecs/distribution_ecs.rs::pas_intergroupe_selon_depart`.
 3. Générations (§8.14 et §8.17) : conditions des sources amont (§8.26), puis `chauffage_refroidissement/generation/gestion.rs::pas`. Dans la génération : demandes avec report (éq. 993 à 1016), températures de fonctionnement, **stockages d'abord** pour l'ECS (ballons `ecs/assemblage_ballon.rs`, solaire `ecs/boucle_solaire.rs`, productions collectives `ecs/cesci.rs` ; systèmes solaires combinés aussi pour le chauffage), puis générateurs instantanés dans l'ordre ECS, refroidissement, chauffage (lecture Q46), chaque générateur par `chauffage_refroidissement/generation/generateurs.rs::appel` ; auxiliaires amont (§8.17.3.8) ; matrice des consommations `chauffage_refroidissement/calculs_generation.rs::MatriceCef` (§8.17.3.9, tableau 252) ; cumuls (§8.29).
 4. Chaleur puisée dans les espaces tampons (éq. 109) ; attribution des consommations aux groupes (éq. 1484 à 1486, `cumuls_cef_groupes`).
-5. Pertes et consommations récupérables (§11.1) : `pertes/pertes_recuperables.rs::recuperation_wh`, injectées dans le modèle thermique **au pas suivant** (Th-C ; Th-D selon Q45).
+5. Pertes et consommations récupérables (§11.1) : `pertes/pertes_recuperables.rs::recuperation_wh`, injectées dans le modèle thermique **au pas suivant**, en Th-C et en Th-D (lecture Q45, `Lectures::recuperation_th_d`).
 6. À la bascule des saisons, nouvelles autorisations effectives (§8.4, `chauffage_refroidissement/saisons_fonctionnement.rs`).
 
 Le photovoltaïque et les postes du logement collectif ne sont pas dans la boucle : voir §1.5.
@@ -135,10 +135,10 @@ Chaque recette se termine par : tests ciblés (§5), fragment `changelog.d/<lot>
 Exemple à imiter : le poêle ou insert à bois (§8.22, lot 6d).
 
 1. Saisie : variante de `entree/generation/mod.rs::NatureGenerateur` et type dans un fichier de famille (`entree/generation/combustion.rs::PoeleSaisi`).
-2. Validation : `validation/generation/mod.rs::postes_assures` (postes assurés), branche dans `valider_generation`, contrôles dans un fichier de famille (`validation/generation/combustion.rs::valider_poele`).
+2. Validation : `validation/generation/mod.rs::postes_assures` (postes assurés) et branche dans `validation/generation/mod.rs::valider_generation`, contrôles dans un fichier de famille (`validation/generation/combustion.rs::valider_poele`). Selon les postes assurés, les règles de montage qui nomment des natures de générateurs : `validation/ecs.rs` (ballons, chauffe-eau thermodynamiques) et `validation/solaire.rs` (appoints des chauffe-eau solaires).
 3. Modèle : un fichier par fiche dans `chauffage_refroidissement/` (`chauffage_refroidissement/poeles_et_inserts.rs::Poele`), qui répond au contrat `EntreesAppel` → `SortiesAppel` de `chauffage_refroidissement/generation/mod.rs` (figure 112).
-4. Branchement : variante de `chauffage_refroidissement/generation/generateurs.rs::Generateur` et ses branches (`fonction`, `pn_gen_tot_w`, `appel`, `fin_de_pas` s'il a une mémoire) ; branche de la nature dans `chauffage_refroidissement/generation/resolution.rs::resoudre` (valeurs par défaut signalées ici).
-5. Énergie pour Cep et Ic : `indicateurs/sorties_th_c.rs::vecteur_generateur`.
+4. Branchement : variante de `chauffage_refroidissement/generation/generateurs.rs::Generateur` et ses quatre branches (`fonction`, `pn_gen_tot_w`, `appel`, `fin_de_pas` s'il garde l'état d'un pas) ; aiguillage de la nature dans `chauffage_refroidissement/generation/resolution.rs::resoudre` (valeurs par défaut signalées ici).
+5. Énergie pour Cep, Cep,nr et Ic : `indicateurs/sorties_th_c.rs::vecteur_generateur` (correspondance nature × colonne de la matrice : gaz, GPL, bois, réseau de chaleur ou de froid) et `indicateurs/sorties_th_c.rs::raccorde_rcu` pour un réseau de chaleur.
 6. Résultats : seulement s'il a des sorties propres (`resultats/generation.rs`, `calcul/generation.rs`).
 7. Tests : à la main dans le fichier du modèle (`chauffage_refroidissement/poeles_et_inserts.rs`, test `poele_a_la_main`), bout en bout `crates/thbce-io/tests/combustion.rs` (dont un test ignoré sur la météo réglementaire), exemple `tests/cas/maison-poele-granules-ademe`.
 
@@ -157,9 +157,9 @@ Exemple à imiter : le double flux (§6.3, lot 6a). Variante existante de `entre
 
 Aucun usage non résidentiel n'est encore calculé ; l'exemple à imiter est l'ajout du logement collectif (usage 2) à côté de la maison (usage 1).
 
-1. `entree/usages.rs::UsageZone::est_pris_en_charge` (les 28 variantes existent déjà).
-2. Scénarios : tables de `crates/thbce-data/src/scenarios/` (générées par `cargo run -p xtask -- scenarios`), constantes par usage dans `scenarios/scenarios_conventionnels.rs`.
-3. Repérer chaque règle propre à l'habitation : `grep -rn "est_habitation\|LogementCollectif\|usage.numero()" crates/thbce-core/src` (validation de la zone `validation/batiment.rs`, surfaces de référence `calcul/batiment.rs`, éclairage `eclairage/`, ventilation, ECS, exigences `indicateurs/exigences.rs`, forfait `indicateurs/forfait_refroidissement.rs::coef_kwh_fr_par_dh`).
+1. `entree/usages.rs::UsageZone::est_pris_en_charge` (les 28 variantes existent déjà ; `est_habitation` sépare les règles résidentielles).
+2. Tables par usage : scénarios de `crates/thbce-data/src/scenarios/` (générés par `cargo run -p xtask -- scenarios`) et constantes par usage de `scenarios/scenarios_conventionnels.rs` ; éclairage (`eclairage/mod.rs`, `eclairage/parties_communes.rs`) ; typologie du réseau de ventilation (`ventilation/ventilation_projet.rs::VentilationProjet::nouvelle`) ; ascenseurs et parkings (`deplacements/mod.rs`) ; longueurs de distribution d'ECS par défaut (`calcul/ecs.rs`, `ecs/distribution_ecs.rs`) ; exigences (`indicateurs/exigences.rs`) et forfait de refroidissement (`indicateurs/forfait_refroidissement.rs::coef_kwh_fr_par_dh`) ; surfaces de référence (`calcul/batiment.rs`).
+3. Validation : quelques lignes par famille (`validation/batiment.rs`, `validation/ventilation.rs`, `validation/systemes.rs`, `validation/collectif.rs`, `validation/exigences.rs`). Pour tout repérer : `grep -rn "est_habitation\|est_pris_en_charge\|LogementCollectif\|MaisonIndividuelle\|usage.numero()" crates/thbce-core/src`.
 4. Tests : `crates/thbce-io/tests/collectif.rs`, exemple `tests/cas/immeuble-collectif-ademe`.
 
 ### 3.4 Ajouter un champ d'entrée
