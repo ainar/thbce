@@ -1355,6 +1355,73 @@ pub struct Generation {
     /// l'ECS et pour le chauffage.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub systemes_solaires_combines: Vec<SystemeSolaireCombine>,
+    /// Productions solaires collectives à appoints décentralisés du logement collectif
+    /// (fiches 9.16 et 9.17) : CESCI (capteurs collectifs, ballons individuels à appoint
+    /// intégré ou séparé) et CESCAI (capteurs et ballon solaire collectifs, ballons
+    /// individuels à appoint intégré). Une génération en porte au plus une, qui assure toute son
+    /// ECS.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub chauffe_eau_solaires_collectifs: Vec<ChauffeEauSolaireCollectif>,
+}
+
+/// Production centralisée à appoints décentralisés (« PCAD », fiches 9.16 et 9.17) : un champ
+/// de capteurs et une boucle solaire collectifs, des ensembles de ballons individuels
+/// identiques et, pour un CESCAI, un ballon solaire central relié aux ballons individuels par
+/// le réseau d'ECS intergroupe bouclé.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ChauffeEauSolaireCollectif {
+    /// Identifiant, unique parmi les générateurs et assemblages de la génération.
+    pub id: Id,
+    /// « Type_PCAD ».
+    pub type_pcad: TypePcad,
+    /// Orientation, inclinaison et masques du plan des capteurs (fiche 3.2).
+    pub exposition_capteurs: Exposition,
+    /// Capteurs solaires du champ collectif (« A » : superficie totale du champ).
+    pub capteurs: CapteursSolaires,
+    /// Boucle solaire collective ; ses échangeurs sont ceux de tous les ballons qu'elle
+    /// chauffe. Un CESCI est régulé sur l'ensoleillement (éq. 1981).
+    pub boucle: BoucleSolaireSaisie,
+    /// Ballon solaire central d'un CESCAI (« ballon base seule », éq. 2065 et 2066) ; sans
+    /// objet pour un CESCI.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ballon_central: Option<BallonSaisi>,
+    /// Ensembles de ballons individuels strictement identiques (« nbens », au moins un).
+    pub ensembles: Vec<EnsembleBallons>,
+}
+
+/// « Type_PCAD » (tableaux 294 et 295).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TypePcad {
+    /// 0 : CESCI, chauffe-eau solaire collectif individualisé, appoint intégré aux ballons
+    /// individuels (« Typeprod_stockage = 1 », éq. 1979).
+    Cesci,
+    /// 1 : CESCAI, chauffe-eau solaire collectif à appoint individuel : ballon solaire central,
+    /// ballons individuels à appoint intégré (éq. 2063 à 2065).
+    Cescai,
+    /// 2 : CESCI-AS, appoint séparé instantané (« Typeprod_stockage = 3 », éq. 1979) : les
+    /// générateurs instantanés d'ECS de la génération complètent l'eau préchauffée.
+    CesciAppointSepare,
+}
+
+/// Ensemble de ballons individuels strictement identiques d'une production collective
+/// (« {B} », fiches 9.16 et 9.17).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EnsembleBallons {
+    /// Identifiant, unique dans la production.
+    pub id: Id,
+    /// « nbsto^B » : nombre de ballons de l'ensemble (au moins 1).
+    pub nb_ballons: u32,
+    /// Ballon individuel ; l'échangeur solaire ou du réseau intergroupe et sa sonde sont en zone
+    /// basse (éq. 1980 et 2066).
+    pub ballon: BallonSaisi,
+    /// Appoint intégré de chaque ballon (CESCI et CESCAI) : générateur de la génération
+    /// assurant l'ECS, dont `rdim` est le nombre de ballons ; sans objet pour un CESCI à appoint
+    /// séparé.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub appoint: Option<AppointBallon>,
 }
 
 /// Système solaire combiné (fiches 9.19 et 9.20), un assemblage par objet (« nbassembl = 1 »,

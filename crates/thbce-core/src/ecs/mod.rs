@@ -12,17 +12,20 @@
 //! - [`idcet`] : saisie des chauffe-eau thermodynamiques à compression électrique (§9.22) ;
 //! - [`boucle_solaire`] : fiche `C_GEN_Boucle solaire` (§9.15) ;
 //! - [`chauffe_eau_solaire`] : chauffe-eau solaires individuels, ballon à base solaire (§9.14
-//!   et §9.15) et saisie des kits CESI (§9.23).
+//!   et §9.15) et saisie des kits CESI (§9.23) ;
+//! - [`cesci`] : productions solaires collectives à appoints décentralisés, CESCI (§9.16) et
+//!   CESCAI (§9.17).
 //!
 //! La production d'ECS, instantanée (§9.1) ou avec stockage (§9.2), passe par la génération
 //! (`chauffage_refroidissement::generation`).
 //!
-//! Lectures : `docs/questions.md`, Q45, Q48 et Q52.
+//! Lectures : `docs/questions.md`, Q45, Q48, Q52 et Q53.
 
 pub mod assemblage_ballon;
 pub mod ballon_de_stockage;
 pub mod besoins_ecs;
 pub mod boucle_solaire;
+pub mod cesci;
 pub mod chauffe_eau_solaire;
 pub mod distribution_ecs;
 pub mod gestion_regulation_ballon;

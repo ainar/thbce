@@ -451,12 +451,19 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
         e_prod_pv_mensuel_kwh: b.prod_pv_mensuel_wh.iter().map(|x| x / 1000.0).collect(),
         e_prod_pv_ac_mensuel_kwh: b.prod_pv_ac_mensuel_wh.iter().map(|x| x / 1000.0).collect(),
     });
+    // Chauffe-eau solaires individuels et systèmes combinés, puis productions solaires
+    // collectives (CESCI, CESCAI).
     let solaire: f64 = e
         .generations
         .iter()
         .flat_map(|g| &g.stockages)
         .filter_map(|s| s.solaire.as_ref().map(|b| b.e_sol_kwh))
-        .sum();
+        .sum::<f64>()
+        + e.generations
+            .iter()
+            .flat_map(|g| &g.solaires_collectifs)
+            .map(|c| c.solaire.e_sol_kwh)
+            .sum::<f64>();
 
     let exigences = params.map(|pa| {
         let mut zones = Vec::new();

@@ -302,7 +302,11 @@ fn un_usage_hors_perimetre_est_signale_puis_refuse_au_calcul() {
     p.batiments[0].zones[0].groupes[0].su_m2 = Some(96.44);
     let r = valider(&p);
     assert!(r.est_valide(), "{:?}", r.erreurs);
-    assert_eq!(chemins(&r.avertissements), ["batiments[0].zones[0].usage"]);
+    // Usage non calculé, et (lot 7) zone ignorée dans les exigences.
+    assert_eq!(
+        chemins(&r.avertissements),
+        ["batiments[0].zones[0].usage", "batiments[0].zones[0].usage"]
+    );
     let e = calculer(
         &p,
         &MeteoProjet::synthetique(ZoneClimatique::H2b),

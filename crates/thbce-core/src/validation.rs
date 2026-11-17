@@ -1442,12 +1442,11 @@ fn valider_exigences(r: &mut RapportValidation, cb: &str, bat: &crate::entree::B
         0.0,
         f64::INFINITY,
     );
-    // Les exigences ne sont transcrites que pour les usages 1 et 2 (Q54).
-    let mut habitation = false;
+    // Les exigences ne sont transcrites que pour les usages 1 et 2 (Q54). Un bâtiment sans zone
+    // d'habitation n'est pas une erreur de saisie des exigences : ses usages sont refusés par le
+    // calcul (« non pris en charge »), avec un message plus précis.
     for (iz, z) in bat.zones.iter().enumerate() {
-        if z.usage.est_habitation() {
-            habitation = true;
-        } else {
+        if !z.usage.est_habitation() {
             r.avertissement(
                 format!("{cb}.zones[{iz}].usage"),
                 Some(z.usage.numero().to_string()),
@@ -1455,13 +1454,6 @@ fn valider_exigences(r: &mut RapportValidation, cb: &str, bat: &crate::entree::B
                  zone ignorée dans les exigences",
             );
         }
-    }
-    if !habitation {
-        r.erreur(
-            c.clone(),
-            None,
-            "exigences : aucune zone de maison individuelle ou de logement collectif",
-        );
     }
     let maisons = bat
         .zones
