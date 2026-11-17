@@ -481,6 +481,18 @@ pub struct ResultatsStockage {
     /// 24 heures.
     #[serde(default)]
     pub nbh_report_e: u32,
+    /// « Vz » : volumes des quatre zones d'un ballon, de bas en haut, en L (un des assemblages
+    /// identiques).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub v_zones_l: Vec<f64>,
+    /// « θbz » : températures des zones au début du calcul, de bas en haut, en °C.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub theta_zones_debut_c: Vec<f64>,
+    /// « θbz » : températures des zones à la fin du calcul, de bas en haut, en °C. Avec
+    /// `v_zones_l` et `theta_zones_debut_c`, elles donnent la variation du stock de chaleur des
+    /// ballons sur l'année, qui ferme leur bilan.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub theta_zones_fin_c: Vec<f64>,
     /// Boucle solaire d'un chauffe-eau solaire (§9.15), pour l'ensemble des assemblages
     /// identiques.
     #[serde(default, skip_serializing_if = "Option::is_none")]
