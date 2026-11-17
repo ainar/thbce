@@ -653,6 +653,11 @@ impl GenerationHoraire {
                 generateurs.iter().position(|x| x.id == id)
             })
         }));
+        stockages.extend(g.systemes_solaires_combines.iter().filter_map(|c| {
+            crate::ecs::chauffe_eau_solaire::resoudre_ssc(c, catalogue, |id| {
+                generateurs.iter().position(|x| x.id == id)
+            })
+        }));
         let gestion = |x: Option<GestionTemperatureGeneration>| match x {
             Some(GestionTemperatureGeneration::Constante { theta_wm_c }) => {
                 GestionTemperature::Constante(theta_wm_c)
@@ -855,11 +860,20 @@ impl GenerationHoraire {
         // En ECS, les générateurs de base et d'appoint d'un ballon sont pilotés par leur
         // assemblage (§8.17.3.4) : ils ne comptent pas parmi les générateurs instantanés.
         let pilote = |i: usize| {
-            poste == Poste::Ecs
-                && self
-                    .stockages
-                    .iter()
-                    .any(|s| s.base.generateur == i || s.appoint.is_some_and(|a| a.generateur == i))
+            self.stockages.iter().any(|s| {
+                let du_ballon =
+                    s.base.generateur == i || s.appoint.is_some_and(|a| a.generateur == i);
+                match poste {
+                    Poste::Ecs => du_ballon,
+                    // L'appoint raccordé d'un système solaire combiné assure aussi le chauffage
+                    // pour le compte de l'assemblage (éq. 2150).
+                    Poste::Chauffage => {
+                        s.ssc.is_some_and(|p| p.raccorde)
+                            && s.appoint.is_some_and(|a| a.generateur == i)
+                    }
+                    Poste::Refroidissement => false,
+                }
+            })
         };
         let mut v: Vec<usize> = (0..self.generateurs.len())
             .filter(|&i| self.generateurs[i].modele.fonction().assure(poste) && !pilote(i))
@@ -944,7 +958,9 @@ impl GenerationHoraire {
         let mut q_fou_sto = 0.0;
         let mut phi_pertes_sto = 0.0;
         let mut w_pompes_solaires = 0.0;
+        let mut w_pompes_solaires_ch = 0.0;
         let mut phi_vc_boucles = 0.0;
+        let mut q_puise_ch = 0.0;
         if e.id_encl && !self.stockages.is_empty() {
             let mut stockages = std::mem::take(&mut self.stockages);
             let theta_depart = e
@@ -959,6 +975,10 @@ impl GenerationHoraire {
                     (Some(sol), Some(climat)) => sol.capteurs.isr_w_m2(climat, e.h),
                     _ => 0.0,
                 };
+                // Systèmes solaires combinés : premiers sollicités aussi pour le chauffage, en
+                // saison de chauffage (fiches 9.19 et 9.20).
+                let ssc = st.ssc.is_some();
+                let q_req_ch = if ssc && e.aut_ch { q_ar[0] } else { 0.0 };
                 let s = st.pas(
                     &EntreesAssemblage {
                         q_req_ecs_wh: q_ar[2],
@@ -969,12 +989,20 @@ impl GenerationHoraire {
                         theta_ext_c: e.theta_ext_c,
                         isr_w_m2: isr,
                         mois,
+                        q_req_ch_wh: q_req_ch,
+                        theta_ch_max_c: self.theta_dist_ch_max_c.unwrap_or(theta_aval[0]),
+                        theta_aval_ch_c: theta_aval[0],
                     },
-                    &mut |i, q_req, theta_aval| {
-                        self.appeler_pour_ballon(i, q_req, theta_aval, theta_amb, e)
+                    &mut |i, poste, q_req, theta_aval| {
+                        self.appeler_pour_ballon(i, poste, q_req, theta_aval, theta_amb, e)
                     },
                 );
                 q_ar[2] = s.q_rest_ecs_wh;
+                if ssc && e.aut_ch {
+                    q_ar[0] = s.q_rest_ch_wh;
+                    q_puise_ch += s.q_puise_ch_wh;
+                }
+                w_pompes_solaires_ch += s.w_pompe_ch_wh;
                 q_fou_sto += s.q_fou_ecs_wh;
                 phi_pertes_sto += s.phi_pertes_wh;
                 w_pompes_solaires += s.w_pompe_wh;
@@ -1037,7 +1065,7 @@ impl GenerationHoraire {
         let mut phi_vc = 0.0;
         // Énergie fournie aux réseaux : celle des générateurs instantanés et, en ECS, celle
         // des ballons (l'énergie des générateurs de ballon va au stockage).
-        let mut q_fou = [0.0, 0.0, q_fou_sto];
+        let mut q_fou = [q_puise_ch, 0.0, q_fou_sto];
         let instantanes_ecs = self.generateurs_du_poste(Poste::Ecs);
         for (i, g) in self.generateurs.iter().enumerate() {
             q_cef.ajouter_matrice(&g.jeu.q_cef);
@@ -1053,8 +1081,14 @@ impl GenerationHoraire {
         self.cumuls.phi_pertes_sto_wh += phi_pertes_sto;
         let q_ar = [q_ar[0], q_ar[1], q_ar_ecs];
         q_cef.ajouter(Poste::Ecs, Energie::Electricite, e.w_rechauf_wh);
-        // Éq. (1972) : pompes des boucles solaires d'une production d'ECS seule, au poste ECS.
-        q_cef.ajouter(Poste::Ecs, Energie::Electricite, w_pompes_solaires);
+        // Éq. (1972), (2135) et (2151) : pompes des boucles solaires, au poste ECS ou réparties
+        // entre le chauffage et l'ECS pour un système solaire combiné.
+        q_cef.ajouter(
+            Poste::Ecs,
+            Energie::Electricite,
+            w_pompes_solaires - w_pompes_solaires_ch,
+        );
+        q_cef.ajouter(Poste::Chauffage, Energie::Electricite, w_pompes_solaires_ch);
         if !self.en_volume_chauffe {
             phi_vc = 0.0;
         }
@@ -1263,6 +1297,7 @@ impl GenerationHoraire {
     fn appeler_pour_ballon(
         &mut self,
         i: usize,
+        poste: Poste,
         q_req_wh: f64,
         theta_aval_c: f64,
         theta_amb_c: f64,
@@ -1271,6 +1306,30 @@ impl GenerationHoraire {
         let Some(g) = self.generateurs.get_mut(i) else {
             return 0.0;
         };
+        if poste == Poste::Chauffage {
+            // Appoint raccordé d'un système solaire combiné (éq. 2150) : appel de chauffage
+            // d'un générateur instantané, après l'ECS (éq. 1293).
+            if !e.aut_ch || g.jeu.ia_refroidi {
+                return 0.0;
+            }
+            let r_pui_dispo = 1.0 - g.jeu.r_fonct_ecs;
+            if r_pui_dispo <= 0.0 {
+                return 0.0;
+            }
+            let source = e.sources.get(i).copied().unwrap_or_default();
+            let s = g.modele.appel(&EntreesAppel {
+                fonction: Poste::Chauffage,
+                q_req_wh,
+                theta_amont_c: source.theta_amont_c,
+                theta_aval_c,
+                r_pui_dispo,
+                ecs_seule: false,
+                theta_amb_c,
+                air_extrait_w_k: source.air_extrait_w_k,
+            });
+            g.jeu.ajouter(Poste::Chauffage, r_pui_dispo, &s);
+            return s.q_fou_wh;
+        }
         let ecs_seule = g.modele.fonction() == FonctionGenerateur::Ecs || !e.aut_ch;
         if !(q_req_wh > 0.0 || ecs_seule) {
             return 0.0;

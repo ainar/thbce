@@ -1283,6 +1283,70 @@ pub struct Generation {
     /// premiers sollicités pour l'ECS (§8.17.3.6).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub chauffe_eau_solaires: Vec<ChauffeEauSolaire>,
+    /// Systèmes solaires combinés (fiches 9.18 à 9.20) : un ballon à quatre zones chauffé par
+    /// une boucle solaire, qui assure l'ECS et une partie du chauffage par l'échangeur d'une
+    /// boucle de chauffage en zone 2, avec un appoint intégré en zone 3. Premiers sollicités pour
+    /// l'ECS et pour le chauffage.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub systemes_solaires_combines: Vec<SystemeSolaireCombine>,
+}
+
+/// Système solaire combiné (fiches 9.19 et 9.20), un assemblage par objet (« nbassembl = 1 »,
+/// éq. 2133 et 2147).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SystemeSolaireCombine {
+    /// Identifiant, unique parmi les assemblages de la génération.
+    pub id: Id,
+    /// Orientation, inclinaison et masques du plan des capteurs (fiche 3.2).
+    pub exposition_capteurs: Exposition,
+    /// Capteurs solaires.
+    pub capteurs: CapteursSolaires,
+    /// Boucle solaire (échangeur en zone 1, éq. 2128 et 2142).
+    pub boucle: BoucleSolaireSaisie,
+    /// Ballon de stockage.
+    pub ballon: BallonSaisi,
+    /// Appoint intégré en zone 3, sonde en zone 3 (éq. 2130 et 2144), consigne de 55 °C.
+    pub appoint: AppointSsc,
+    /// Appoint de chauffage : indépendant (« Typeprod_stockage = 4 », fiche 9.19) ou raccordé
+    /// à l'assemblage (« = 5 », fiche 9.20).
+    pub raccordement: RaccordementSsc,
+}
+
+/// Appoint intégré d'un système solaire combiné.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AppointSsc {
+    /// Identifiant d'un générateur de la génération : générateur à effet Joule de fonction
+    /// `ecs` avec un appoint de chauffage indépendant ; générateur assurant le chauffage et
+    /// l'ECS (chaudière, pompe à chaleur double service) avec un appoint raccordé.
+    pub generateur: Id,
+    /// « typegest_ap ».
+    pub programmation: ProgrammationBallon,
+    /// « faux » : fraction du volume chauffée par l'appoint, strictement entre 0 et 1.
+    /// Absente : 0,5 (§9.9.3.1), signalée.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub f_aux: Option<f64>,
+    /// « Δθap » : hystérésis, en K. Absente : 2 K.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delta_theta_k: Option<f64>,
+}
+
+/// Raccordement de l'appoint de chauffage d'un système solaire combiné.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum RaccordementSsc {
+    /// 4 : appoint de chauffage par un système indépendant (les autres générateurs de
+    /// chauffage de la génération) ; la boucle de chauffage fonctionne si la zone de son
+    /// échangeur dépasse l'ambiance de `Δθreg^bcl_ch` (éq. 2120).
+    Independant {
+        /// « Δθreg^bcl_ch », en K (sans valeur conventionnelle dans le texte).
+        delta_theta_reg_boucle_chauffage_k: f64,
+    },
+    /// 5 : appoint de chauffage par le générateur d'appoint du ballon, appelé une seconde fois
+    /// (éq. 2150) ; la boucle de chauffage ne fonctionne que si le ballon couvre toute la
+    /// demande (éq. 2123 à 2125).
+    Raccorde,
 }
 
 /// Chauffe-eau solaire individuel : assemblage « ballon base solaire » (§9.14, fiche 9.15),

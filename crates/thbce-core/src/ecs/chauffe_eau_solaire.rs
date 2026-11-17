@@ -9,6 +9,7 @@
 //!
 //! Lectures : `docs/questions.md`, Q52.
 
+use super::assemblage_ballon::ParametresSsc;
 use super::assemblage_ballon::{AssemblageBallon, RegulationGenerateur};
 use super::ballon_de_stockage::{ua_s_defaut_w_k, Ballon, NatureBallon, F_AUX_DEFAUT};
 use super::boucle_solaire::{
@@ -18,9 +19,10 @@ use super::boucle_solaire::{
 };
 use super::gestion_regulation_ballon::{nb_iter_vp, Programmation, DELTA_THETA_DEFAUT_K};
 use crate::entree::{
-    AppointCesi, Catalogue, ChauffeEauSolaire, DescriptionCesi, NatureBallonSaisie,
-    PerformancesCapteurs, PertesBallon, ProgrammationBallon, RegulationBoucleSaisie,
-    TransfertBoucle, TypeCapteurSolaire,
+    AppointCesi, BallonSaisi, BoucleSolaireSaisie, CapteursSolaires, Catalogue, ChauffeEauSolaire,
+    DescriptionCesi, NatureBallonSaisie, PerformancesCapteurs, PertesBallon, ProgrammationBallon,
+    RaccordementSsc, RegulationBoucleSaisie, SystemeSolaireCombine, TransfertBoucle,
+    TypeCapteurSolaire,
 };
 use crate::resultats::ValeurParDefaut;
 
@@ -78,122 +80,8 @@ pub fn resoudre(
             boucle,
             ballon,
         } => {
-            let a = capteurs.surface_m2;
-            let (eta0, a1, a2) = match capteurs.performances {
-                PerformancesCapteurs::Certifiees {
-                    eta0,
-                    a1_w_m2k,
-                    a2_w_m2k2,
-                } => (eta0, a1_w_m2k, a2_w_m2k2),
-                PerformancesCapteurs::ParDefaut { type_capteur } => {
-                    let p = performances_par_defaut(match type_capteur {
-                        TypeCapteurSolaire::NonVitre => TypeCapteur::NonVitre,
-                        TypeCapteurSolaire::Vitre => TypeCapteur::Vitre,
-                        TypeCapteurSolaire::Tubulaire => TypeCapteur::Tubulaire,
-                    });
-                    let regle = "Th-BCE 2020 §9.15.3.1, tableau 293 : performances par défaut \
-                                 des capteurs solaires";
-                    defauts.push(defaut("capteurs.performances.eta0", p.0, regle));
-                    defauts.push(defaut("capteurs.performances.a1_w_m2k", p.1, regle));
-                    defauts.push(defaut("capteurs.performances.a2_w_m2k2", p.2, regle));
-                    p
-                }
-            };
-            let ua_hx = match boucle.transfert {
-                TransfertBoucle::Echangeur { ua_hx_w_k } => Some(ua_hx_w_k.unwrap_or_else(|| {
-                    let v = UA_HX_CONV_W_K_M2 * a;
-                    defauts.push(defaut(
-                        "boucle.transfert.echangeur.ua_hx_w_k",
-                        v,
-                        "Th-BCE 2020 §9.15.2, tableau 292 : (UA)hx conventionnel, 100·A",
-                    ));
-                    v
-                })),
-                TransfertBoucle::SansEchangeur => None,
-            };
-            let alpha_p = boucle.alpha_p.unwrap_or_else(|| {
-                defauts.push(defaut(
-                    "boucle.alpha_p",
-                    ALPHA_P_CONV,
-                    "Th-BCE 2020 §9.15.2, tableau 292 : αp conventionnel",
-                ));
-                ALPHA_P_CONV
-            });
-            let m_cp = boucle.m_cp_w_k.unwrap_or_else(|| {
-                let v = M_CP_CONV_W_K_M2 * a;
-                defauts.push(defaut(
-                    "boucle.m_cp_w_k",
-                    v,
-                    "Th-BCE 2020 §9.15.2, tableau 292 : débit calorifique conventionnel, 58·A",
-                ));
-                v
-            });
-            let regulation = match boucle.regulation {
-                // Éq. (1968) : maisons individuelles et logements collectifs.
-                RegulationBoucleSaisie::Temperature => RegulationBoucle::Temperature {
-                    delta_theta_reg_k: DELTA_THETA_REG_HABITATION_K,
-                },
-                RegulationBoucleSaisie::Irradiance { isr_min_w_m2 } => {
-                    RegulationBoucle::Irradiance {
-                        isr_min_w_m2: isr_min_w_m2.unwrap_or_else(|| {
-                            defauts.push(defaut(
-                                "boucle.regulation.irradiance.isr_min_w_m2",
-                                ISR_MIN_CONV_W_M2,
-                                "Th-BCE 2020 §9.15.2, tableau 292 : seuil d'ensoleillement \
-                                 conventionnel",
-                            ));
-                            ISR_MIN_CONV_W_M2
-                        }),
-                    }
-                }
-            };
-            let v = ballon.v_tot_l;
-            let ua_s = match ballon.pertes {
-                PertesBallon::Certifie { ua_s_w_k } => ua_s_w_k,
-                PertesBallon::Justifie { ua_s_w_k } => 1.1 * ua_s_w_k,
-                PertesBallon::ParDefaut { nature } => {
-                    let ua = ua_s_defaut_w_k(
-                        match nature {
-                            NatureBallonSaisie::EffetJouleHorizontal => {
-                                NatureBallon::EffetJouleHorizontal
-                            }
-                            NatureBallonSaisie::EffetJouleVertical => {
-                                NatureBallon::EffetJouleVertical
-                            }
-                            NatureBallonSaisie::Autre => NatureBallon::Autre,
-                        },
-                        v,
-                    );
-                    defauts.push(defaut(
-                        "ballon.pertes.par_defaut",
-                        ua,
-                        "Th-BCE 2020 §9.9.3.1, tableau 282 et éq. (1768) : coefficient de \
-                         pertes par défaut du ballon, en W/K",
-                    ));
-                    ua
-                }
-            };
-            (
-                BoucleSolaire {
-                    a_m2: a,
-                    eta0,
-                    a1_w_m2k: a1,
-                    a2_w_m2k2: a2,
-                    k_theta: capteurs.k_theta,
-                    ua_te_w_k: boucle.ua_te_w_k,
-                    ua_ti_w_k: boucle.ua_ti_w_k,
-                    ua_hx_w_k: ua_hx,
-                    p_np_w: boucle.p_np_w,
-                    alpha_p,
-                    m_cp_w_k: m_cp,
-                    regulation,
-                },
-                v,
-                ua_s,
-                ballon.theta_max_c,
-                boucle.h_rel_ech.unwrap_or(0.0),
-                None,
-            )
+            let (b, v, ua, tmax, h) = resoudre_composants(capteurs, boucle, ballon, &mut defauts);
+            (b, v, ua, tmax, h, None)
         }
         DescriptionCesi::Kit(k) => {
             let (boucle, v, ua) = parametres_kit(k);
@@ -281,6 +169,208 @@ pub fn resoudre(
         cumuls: CumulsBoucle::default(),
     }));
     Some(a)
+}
+
+/// Résout un système solaire combiné saisi et validé (fiches 9.18 à 9.20) ; `appoint(id)`
+/// donne l'indice du générateur d'appoint dans la génération.
+pub fn resoudre_ssc(
+    c: &SystemeSolaireCombine,
+    catalogue: &Catalogue,
+    appoint: impl Fn(&str) -> Option<usize>,
+) -> Option<AssemblageBallon> {
+    let mut defauts = Vec::new();
+    let (boucle, v_tot, ua_s, theta_max, h_rel_ech) =
+        resoudre_composants(&c.capteurs, &c.boucle, &c.ballon, &mut defauts);
+    let a = &c.appoint;
+    let f_aux = a.f_aux.unwrap_or_else(|| {
+        defauts.push(ValeurParDefaut {
+            champ: "appoint.f_aux".to_owned(),
+            valeur: F_AUX_DEFAUT,
+            regle: "Th-BCE 2020 §9.9.3.1 : fraction du ballon chauffée par l'appoint par défaut"
+                .to_owned(),
+        });
+        F_AUX_DEFAUT
+    });
+    if a.delta_theta_k.is_none() {
+        defauts.push(ValeurParDefaut {
+            champ: "appoint.delta_theta_k".to_owned(),
+            valeur: DELTA_THETA_DEFAUT_K,
+            regle: "Th-BCE 2020 §9.10.3.2.2 : hystérésis du thermostat par défaut, 2 K".to_owned(),
+        });
+    }
+    let mut assemblage = AssemblageBallon::nouveau(
+        c.id.clone(),
+        // Éq. (2133) et (2147) : un seul assemblage.
+        1.0,
+        Ballon::nouveau(v_tot, ua_s, Some(f_aux), theta_max),
+        RegulationGenerateur {
+            generateur: usize::MAX,
+            programmation: Programmation::Permanent,
+            delta_theta_k: DELTA_THETA_DEFAUT_K,
+            // Éq. (2128) et (2142) : échangeur solaire en zone 1.
+            z_gen: 0,
+            z_reg: 0,
+            h_rel_ech,
+        },
+        Some(RegulationGenerateur {
+            generateur: appoint(&a.generateur)?,
+            programmation: match a.programmation {
+                ProgrammationBallon::Permanent => Programmation::Permanent,
+                ProgrammationBallon::Nuit => Programmation::Nuit,
+                ProgrammationBallon::Jour => Programmation::Jour,
+            },
+            delta_theta_k: a.delta_theta_k.unwrap_or(DELTA_THETA_DEFAUT_K),
+            // Éq. (2130) et (2144) : échangeur et sonde de l'appoint en zone 3.
+            z_gen: 2,
+            z_reg: 2,
+            h_rel_ech: 0.0,
+        }),
+        nb_iter_vp(Some(f_aux)),
+    );
+    assemblage.valeurs_par_defaut = defauts;
+    assemblage.ssc = Some(match c.raccordement {
+        RaccordementSsc::Independant {
+            delta_theta_reg_boucle_chauffage_k,
+        } => ParametresSsc {
+            raccorde: false,
+            delta_theta_reg_bcl_k: delta_theta_reg_boucle_chauffage_k,
+        },
+        RaccordementSsc::Raccorde => ParametresSsc {
+            raccorde: true,
+            delta_theta_reg_bcl_k: 0.0,
+        },
+    });
+    assemblage.solaire = Some(Box::new(BoucleSolaireHoraire {
+        boucle,
+        capteurs: CapteursExposes::nouveaux(&c.exposition_capteurs, catalogue),
+        cumuls: CumulsBoucle::default(),
+    }));
+    Some(assemblage)
+}
+
+/// Paramètres d'une boucle solaire et de son ballon décrits composant par composant :
+/// `(boucle, Vtot, (UA)S, θmax, hrelech)` ; les valeurs par défaut appliquées sont ajoutées à
+/// `defauts`.
+fn resoudre_composants(
+    capteurs: &CapteursSolaires,
+    boucle: &BoucleSolaireSaisie,
+    ballon: &BallonSaisi,
+    defauts: &mut Vec<ValeurParDefaut>,
+) -> (BoucleSolaire, f64, f64, f64, f64) {
+    let defaut = |champ: &str, valeur: f64, regle: &str| ValeurParDefaut {
+        champ: champ.to_owned(),
+        valeur,
+        regle: regle.to_owned(),
+    };
+    let a = capteurs.surface_m2;
+    let (eta0, a1, a2) = match capteurs.performances {
+        PerformancesCapteurs::Certifiees {
+            eta0,
+            a1_w_m2k,
+            a2_w_m2k2,
+        } => (eta0, a1_w_m2k, a2_w_m2k2),
+        PerformancesCapteurs::ParDefaut { type_capteur } => {
+            let p = performances_par_defaut(match type_capteur {
+                TypeCapteurSolaire::NonVitre => TypeCapteur::NonVitre,
+                TypeCapteurSolaire::Vitre => TypeCapteur::Vitre,
+                TypeCapteurSolaire::Tubulaire => TypeCapteur::Tubulaire,
+            });
+            let regle = "Th-BCE 2020 §9.15.3.1, tableau 293 : performances par défaut \
+                         des capteurs solaires";
+            defauts.push(defaut("capteurs.performances.eta0", p.0, regle));
+            defauts.push(defaut("capteurs.performances.a1_w_m2k", p.1, regle));
+            defauts.push(defaut("capteurs.performances.a2_w_m2k2", p.2, regle));
+            p
+        }
+    };
+    let ua_hx = match boucle.transfert {
+        TransfertBoucle::Echangeur { ua_hx_w_k } => Some(ua_hx_w_k.unwrap_or_else(|| {
+            let v = UA_HX_CONV_W_K_M2 * a;
+            defauts.push(defaut(
+                "boucle.transfert.echangeur.ua_hx_w_k",
+                v,
+                "Th-BCE 2020 §9.15.2, tableau 292 : (UA)hx conventionnel, 100·A",
+            ));
+            v
+        })),
+        TransfertBoucle::SansEchangeur => None,
+    };
+    let alpha_p = boucle.alpha_p.unwrap_or_else(|| {
+        defauts.push(defaut(
+            "boucle.alpha_p",
+            ALPHA_P_CONV,
+            "Th-BCE 2020 §9.15.2, tableau 292 : αp conventionnel",
+        ));
+        ALPHA_P_CONV
+    });
+    let m_cp = boucle.m_cp_w_k.unwrap_or_else(|| {
+        let v = M_CP_CONV_W_K_M2 * a;
+        defauts.push(defaut(
+            "boucle.m_cp_w_k",
+            v,
+            "Th-BCE 2020 §9.15.2, tableau 292 : débit calorifique conventionnel, 58·A",
+        ));
+        v
+    });
+    let regulation = match boucle.regulation {
+        // Éq. (1968) : maisons individuelles et logements collectifs.
+        RegulationBoucleSaisie::Temperature => RegulationBoucle::Temperature {
+            delta_theta_reg_k: DELTA_THETA_REG_HABITATION_K,
+        },
+        RegulationBoucleSaisie::Irradiance { isr_min_w_m2 } => RegulationBoucle::Irradiance {
+            isr_min_w_m2: isr_min_w_m2.unwrap_or_else(|| {
+                defauts.push(defaut(
+                    "boucle.regulation.irradiance.isr_min_w_m2",
+                    ISR_MIN_CONV_W_M2,
+                    "Th-BCE 2020 §9.15.2, tableau 292 : seuil d'ensoleillement \
+                         conventionnel",
+                ));
+                ISR_MIN_CONV_W_M2
+            }),
+        },
+    };
+    let v = ballon.v_tot_l;
+    let ua_s = match ballon.pertes {
+        PertesBallon::Certifie { ua_s_w_k } => ua_s_w_k,
+        PertesBallon::Justifie { ua_s_w_k } => 1.1 * ua_s_w_k,
+        PertesBallon::ParDefaut { nature } => {
+            let ua = ua_s_defaut_w_k(
+                match nature {
+                    NatureBallonSaisie::EffetJouleHorizontal => NatureBallon::EffetJouleHorizontal,
+                    NatureBallonSaisie::EffetJouleVertical => NatureBallon::EffetJouleVertical,
+                    NatureBallonSaisie::Autre => NatureBallon::Autre,
+                },
+                v,
+            );
+            defauts.push(defaut(
+                "ballon.pertes.par_defaut",
+                ua,
+                "Th-BCE 2020 §9.9.3.1, tableau 282 et éq. (1768) : coefficient de \
+                 pertes par défaut du ballon, en W/K",
+            ));
+            ua
+        }
+    };
+    (
+        BoucleSolaire {
+            a_m2: a,
+            eta0,
+            a1_w_m2k: a1,
+            a2_w_m2k2: a2,
+            k_theta: capteurs.k_theta,
+            ua_te_w_k: boucle.ua_te_w_k,
+            ua_ti_w_k: boucle.ua_ti_w_k,
+            ua_hx_w_k: ua_hx,
+            p_np_w: boucle.p_np_w,
+            alpha_p,
+            m_cp_w_k: m_cp,
+            regulation,
+        },
+        v,
+        ua_s,
+        ballon.theta_max_c,
+        boucle.h_rel_ech.unwrap_or(0.0),
+    )
 }
 
 #[cfg(test)]

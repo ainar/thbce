@@ -37,7 +37,7 @@ use crate::resultats::{
     ResultatsConfortEte, ResultatsDebitsBbio, ResultatsDistributionGroupe, ResultatsEcsEmetteur,
     ResultatsEcsIntergroupe, ResultatsEmetteur, ResultatsEnveloppe, ResultatsEspaceTampon,
     ResultatsEspaceTamponMode, ResultatsGenerateur, ResultatsGeneration, ResultatsGroupe,
-    ResultatsIdCet, ResultatsIntergroupes, ResultatsSaisons, ResultatsStockage,
+    ResultatsIdCet, ResultatsIntergroupes, ResultatsSaisons, ResultatsSsc, ResultatsStockage,
     ResultatsSystemesGroupe, ResultatsVentilationGroupe, ResultatsVentilationMode,
     ResultatsVentilationZone, ResultatsZone, ValeurParDefaut,
 };
@@ -773,6 +773,10 @@ fn resultats_generations(b: &BatimentHoraire) -> Vec<ResultatsGeneration> {
                             theta_haut_min_c: k.theta_haut_min_c,
                             nbh_temp_insuff_max: k.nbh_temp_insuff_max,
                             nbh_report_e: k.nbh_report_e,
+                            ssc: s.ssc.map(|_| ResultatsSsc {
+                                q_puise_ch_kwh: k.q_puise_ch_wh / 1000.0,
+                                q_fou_ch_appoint_kwh: k.q_fou_ch_ap_wh / 1000.0,
+                            }),
                             solaire: s.solaire.as_ref().map(|b| {
                                 let c = &b.cumuls;
                                 ResultatsBoucleSolaire {

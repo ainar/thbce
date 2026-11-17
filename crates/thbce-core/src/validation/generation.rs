@@ -146,6 +146,7 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
     if g.generateurs.is_empty()
         && g.chauffe_eau_thermodynamiques.is_empty()
         && g.chauffe_eau_solaires.is_empty()
+        && g.systemes_solaires_combines.is_empty()
     {
         r.erreur(
             format!("{c}.generateurs"),
@@ -161,11 +162,15 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
             s.base.generateur == id || s.appoint.as_ref().is_some_and(|a| a.generateur == id)
         }) || g.chauffe_eau_solaires.iter().any(
             |s| matches!(&s.appoint, crate::entree::AppointCesi::Integre(a) if a.generateur == id),
-        )
+        ) || g
+            .systemes_solaires_combines
+            .iter()
+            .any(|s| s.appoint.generateur == id)
     };
     let avec_stockage = !g.stockages.is_empty()
         || !g.chauffe_eau_thermodynamiques.is_empty()
-        || !g.chauffe_eau_solaires.is_empty();
+        || !g.chauffe_eau_solaires.is_empty()
+        || !g.systemes_solaires_combines.is_empty();
     if avec_stockage && g.priorite == Some(TypePriorite::SansPriorite) {
         r.erreur(
             format!("{c}.priorite"),
@@ -244,6 +249,10 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
         if assures[2]
             && matches!(x.nature, NatureGenerateur::ThermodynamiqueElectrique(_))
             && !g.stockages.iter().any(|s| s.base.generateur == x.id)
+            && !g
+                .systemes_solaires_combines
+                .iter()
+                .any(|s| s.appoint.generateur == x.id)
         {
             r.erreur(
                 format!("{cg}.nature.thermodynamique_electrique.ecs"),
@@ -309,7 +318,12 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
         }
     }
     // Cohérence du montage (§8.17.3.1).
-    let assure = |p: usize| nb[p] > 0 || (p == 2 && avec_stockage);
+    // Un système solaire combiné assure lui-même une partie du chauffage (fiches 9.19 et 9.20).
+    let assure = |p: usize| {
+        nb[p] > 0
+            || (p == 2 && avec_stockage)
+            || (p == 0 && !g.systemes_solaires_combines.is_empty())
+    };
     let mut types: [Option<bool>; 2] = [None; 2];
     for (i, d) in bat.distributions_intergroupes.iter().enumerate() {
         if d.generation != g.id {
@@ -660,7 +674,8 @@ fn valider_stockages(r: &mut RapportValidation, c: &str, g: &Generation, bat: &B
             .iter()
             .map(|s| &s.id)
             .chain(g.chauffe_eau_thermodynamiques.iter().map(|x| &x.id))
-            .chain(g.chauffe_eau_solaires.iter().map(|x| &x.id)),
+            .chain(g.chauffe_eau_solaires.iter().map(|x| &x.id))
+            .chain(g.systemes_solaires_combines.iter().map(|x| &x.id)),
     );
     let zone_valide = |r: &mut RapportValidation, chemin: String, z: u8| {
         if !(1..=4).contains(&z) {

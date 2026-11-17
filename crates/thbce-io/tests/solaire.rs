@@ -258,8 +258,156 @@ fn validation_des_chauffe_eau_solaires() {
     assert!(messages(&p)
         .iter()
         .any(|x| x.contains("appoint.integre.generateur")));
+    // Système solaire combiné : valide tel quel ; un appoint raccordé doit assurer le
+    // chauffage et l'ECS ; la génération doit alimenter un réseau de chauffage.
+    let ssc = cas("maison-ssc-ademe");
+    assert!(messages(&ssc).is_empty(), "{:?}", messages(&ssc));
+    let mut p = ssc.clone();
+    p.batiments[0].generations[0].systemes_solaires_combines[0].raccordement =
+        serde_json::from_str(r#""raccorde""#).unwrap();
+    assert!(messages(&p)
+        .iter()
+        .any(|x| x.contains("assurant le chauffage et l'ECS")));
+    let mut p = ssc;
+    p.batiments[0].distributions_intergroupes.clear();
+    p.batiments[0].zones[0].groupes[0].distributions.clear();
+    assert!(messages(&p)
+        .iter()
+        .any(|x| x.contains("un système solaire combiné assure le chauffage")));
     // Génération réduite au chauffe-eau solaire, sans appoint : admise.
     let mut p = variante(&maison, |v| v["appoint"] = "aucun".into());
     p.batiments[0].generations[1].generateurs.clear();
     assert!(messages(&p).is_empty(), "{:?}", messages(&p));
+}
+
+/// Système solaire combiné (fiches 9.18 à 9.20) : bilans et contribution au chauffage.
+fn verifier_ssc(meteo_de: impl Fn(&Projet) -> MeteoProjet, titre: &str) {
+    let maison = cas("maison-ssc-ademe");
+    let m = meteo_de(&maison);
+    let r = brut(&maison, &m);
+    let b = &r.batiments[0];
+    let g = &b.generations[0];
+    let st = &g.stockages[0];
+    let sol = st.solaire.as_ref().unwrap();
+    let ssc = st.ssc.unwrap();
+    // Bilan du ballon : solaire + appoint = ECS + chauffage puisé + pertes + écrêtement, à la
+    // variation du stock près (500 L, 1,163 × 500 × 80 K = 47 kWh).
+    let ecart = st.q_fou_sto_base_kwh + st.q_fou_sto_ap_kwh
+        - st.q_fou_ecs_kwh
+        - ssc.q_puise_ch_kwh
+        - st.pertes_kwh
+        - sol.ecretement_kwh;
+    assert!(ecart.abs() < 47.0, "{titre} : {ecart}");
+    // Le ballon contribue au chauffage ; l'énergie fournie en chauffage par la génération est
+    // la chaleur puisée et celle des générateurs.
+    assert!(ssc.q_puise_ch_kwh > 0.0, "{titre}");
+    let gen_ch: f64 = g.generateurs.iter().map(|x| x.q_fou_ch_kwh).sum();
+    assert!(
+        (g.q_fou_ch_kwh - ssc.q_puise_ch_kwh - gen_ch).abs() < 1e-6,
+        "{titre}"
+    );
+    assert!(
+        (g.q_fou_ch_kwh + g.q_rep_fin_kwh - g.q_ch_kwh).abs() < 1e-6,
+        "{titre}"
+    );
+    // Appoint indépendant : toute la consommation de l'appoint du ballon va à l'ECS (note 2 de
+    // l'éq. 2135) ; la pompe est répartie entre les deux postes.
+    let c = &g.consommations.annuel;
+    let appoint = g
+        .generateurs
+        .iter()
+        .find(|x| x.id == "resistance-ssc")
+        .unwrap();
+    assert!(
+        (c.ecs.electricite_kwh - appoint.q_fou_ecs_kwh - sol.w_pompe_kwh).abs() < sol.w_pompe_kwh,
+        "{titre}"
+    );
+    assert!(
+        (c.ecs.electricite_kwh + c.chauffage.electricite_kwh
+            - g.generateurs
+                .iter()
+                .map(|x| x.consommations.total_kwh())
+                .sum::<f64>()
+            - sol.w_pompe_kwh)
+            .abs()
+            < 1e-6,
+        "{titre}"
+    );
+    let reference = brut(&cas("maison-plancher-ademe"), &m);
+    let br = &reference.batiments[0];
+    assert_eq!(b.bbio_pts, br.bbio_pts);
+    let total = |r: &Resultats| {
+        r.batiments[0]
+            .consommations
+            .as_ref()
+            .unwrap()
+            .annuel
+            .total_kwh()
+    };
+    println!(
+        "{titre} : SSC 10 m², 500 L, appoint indépendant ; énergie solaire {:.1} kWh, chauffage \
+         puisé {:.1} kWh sur {:.1} kWh de demande ({:.1} %), ECS {:.1} kWh dont appoint {:.1} \
+         kWh, pompe {:.1} kWh, pertes du ballon {:.1} kWh ; consommations {:.1} kWh contre {:.1} \
+         kWh pour la variante à PAC et chauffe-eau thermodynamique ; DH {:.1} °C.h (variante \
+         {:.1})",
+        sol.e_sol_kwh,
+        ssc.q_puise_ch_kwh,
+        g.q_ch_kwh,
+        100.0 * ssc.q_puise_ch_kwh / g.q_ch_kwh,
+        st.q_fou_ecs_kwh,
+        st.q_fou_sto_ap_kwh,
+        sol.w_pompe_kwh,
+        st.pertes_kwh,
+        total(&r),
+        total(&reference),
+        b.dh_c_h.unwrap(),
+        br.dh_c_h.unwrap(),
+    );
+
+    // Appoint raccordé (fiche 9.20) : la chaudière à condensation de la variante au gaz,
+    // appelée pour l'ECS du ballon puis pour le chauffage restant (éq. 2150).
+    let mut gaz = cas("maison-chaudiere-gaz-ademe");
+    let ssc_saisi = maison.batiments[0].generations[0].systemes_solaires_combines[0].clone();
+    {
+        let gg = &mut gaz.batiments[0].generations[0];
+        gg.stockages.clear();
+        let mut v = serde_json::to_value(&ssc_saisi).unwrap();
+        v["appoint"]["generateur"] = "chaudiere-gaz".into();
+        v["raccordement"] = "raccorde".into();
+        gg.systemes_solaires_combines
+            .push(serde_json::from_value(v).unwrap());
+    }
+    let rg = brut(&gaz, &m);
+    let gg = &rg.batiments[0].generations[0];
+    let sg = gg.stockages[0].ssc.unwrap();
+    let chaudiere = &gg.generateurs[0];
+    assert!((sg.q_fou_ch_appoint_kwh - chaudiere.q_fou_ch_kwh).abs() < 1e-6);
+    assert!(sg.q_puise_ch_kwh > 0.0);
+    assert!((gg.q_fou_ch_kwh + gg.q_rep_fin_kwh - gg.q_ch_kwh).abs() < 1e-6);
+    let ref_gaz = brut(&cas("maison-chaudiere-gaz-ademe"), &m);
+    let gr = &ref_gaz.batiments[0].generations[0].consommations.annuel;
+    let cg = &gg.consommations.annuel;
+    assert!(cg.ecs.gaz_kwh < 0.6 * gr.ecs.gaz_kwh, "{titre}");
+    println!(
+        "{titre} : SSC à appoint raccordé (chaudière gaz) : chauffage puisé {:.1} kWh, chaudière \
+         {:.1} kWh en chauffage ; gaz d'ECS {:.1} kWh contre {:.1} kWh avec le ballon de 200 L, gaz \
+         de chauffage {:.1} kWh contre {:.1} kWh",
+        sg.q_puise_ch_kwh,
+        sg.q_fou_ch_appoint_kwh,
+        cg.ecs.gaz_kwh,
+        gr.ecs.gaz_kwh,
+        cg.chauffage.gaz_kwh,
+        gr.chauffage.gaz_kwh,
+    );
+}
+
+#[test]
+fn systeme_solaire_combine_sur_la_meteo_ademe() {
+    verifier_ssc(meteo_ademe, "ADEME");
+}
+
+#[test]
+#[ignore = "nécessite le fichier météo réglementaire (THBCE_METEO)"]
+fn systeme_solaire_combine_sur_la_meteo_reglementaire() {
+    verifier_ssc(meteo_reglementaire, "réglementaire");
 }
