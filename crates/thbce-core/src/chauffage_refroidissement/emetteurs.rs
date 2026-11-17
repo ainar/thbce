@@ -10,7 +10,7 @@
 //! - énergies requises par émetteur, pertes au dos comprises (éq. 810) ;
 //! - ventilateurs locaux (éq. 811 à 816), en calcul des consommations seulement.
 //!
-//! Lectures : `docs/questions.md`, Q43.
+//! Lectures : `docs/questions/Q043.md`.
 
 use crate::entree::{
     ClasseEmetteurChaud, ClasseEmetteurFroid, Emetteur, GestionVentilateurs, RegulationBatterie,

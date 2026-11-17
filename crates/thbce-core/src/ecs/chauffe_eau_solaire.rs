@@ -7,7 +7,7 @@
 //! (« Type_prod_stockage = 1 »), séparé instantané (« = 3 », éq. 1800 à 1807) ou absent
 //! (« = 0 »). Consigne conventionnelle de 55 °C (éq. 1948).
 //!
-//! Lectures : `docs/questions.md`, Q52.
+//! Lectures : `docs/questions/Q052.md`.
 
 use super::assemblage_ballon::ParametresSsc;
 use super::assemblage_ballon::{AssemblageBallon, RegulationGenerateur};

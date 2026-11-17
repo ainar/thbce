@@ -39,7 +39,7 @@ const SCENARIOS_DE_ZONE: [&str; 7] = [
 ///
 /// La conversion échoue sur toute cellule non numérique qui n'est pas listée ici, et sur toute
 /// correction dont le contenu brut ne correspond plus au classeur. Chaque entrée est une
-/// hypothèse de lecture consignée dans `docs/questions.md`.
+/// hypothèse de lecture consignée dans `docs/questions/`.
 pub const CORRECTIONS: [(&str, usize, usize, &str, f64); 3] = [
     // Q26 : « 0;5 » saisi en texte, semaine 3 du mois d'août, dans le facteur correctif de la
     // semaine d'un local ; la semaine 4 du même mois vaut 0,5. Même saisie dans trois onglets.

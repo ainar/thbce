@@ -7,6 +7,12 @@
 //! cargo run -p xtask -- reseaux-chaleur [--verifier]
 //! cargo run -p xtask -- scenarios [--verifier]
 //! cargo run -p xtask -- typescript [--verifier]
+//! cargo run -p xtask -- questions [--verifier]
+//! cargo run -p xtask -- changelog <version> [--date AAAA-MM-JJ] | --apercu
+//! cargo run -p xtask -- index-texte [--verifier]
+//! cargo run -p xtask -- page <N> | --eq <n> | --tableau <t> [--annexe iii|ii]
+//! cargo run -p xtask -- cas [<nom>…]
+//! cargo run -p xtask -- architecture
 //! cargo run -p xtask -- verifier
 //! cargo run -p xtask -- meteo-synthetique <fichier.csv>
 //! ```
@@ -23,7 +29,17 @@
 //!   `crates/thbce-data/src/reseaux_chaleur/table.rs`.
 //! - `typescript` écrit les définitions TypeScript du module WebAssembly
 //!   (`crates/thbce-wasm/src/types.d.ts`) depuis les JSON Schema d'entrée et de résultats.
-//! - `verifier` contrôle tous les fichiers générés.
+//! - `questions` régénère le tableau de bord `docs/questions/ETAT.md` depuis les
+//!   en-têtes des fichiers `Q<nnn>.md`.
+//! - `changelog` assemble les fragments de `changelog.d/` dans `CHANGELOG.md`.
+//! - `index-texte` écrit l'index des équations, tableaux, figures et fiches des annexes III et II
+//!   dans `docs/reference/index/`.
+//! - `page` produit l'image PNG d'une page du PDF (voir `page.rs`).
+//! - `cas` calcule un ou plusieurs exemples de `tests/cas/` et les compare à leur
+//!   `attendu.json`, comme le harnais `crates/thbce-io/tests/cas.rs` (voir `cas.rs`).
+//! - `architecture` contrôle que les chemins et les éléments cités par `docs/architecture.md`
+//!   existent (voir `architecture.rs`).
+//! - `verifier` contrôle tous les fichiers générés et le guide d'architecture.
 //! - `meteo-synthetique` écrit un jeu météo constant pour les huit zones, au format CSV long,
 //!   pour les tests de bout en bout. Ce jeu n'est pas réglementaire.
 
@@ -34,6 +50,12 @@ use thbce_core::climat::donnees::DESCRIPTION_SYNTHETIQUE;
 use thbce_core::climat::MeteoProjet;
 use thbce_data::ZoneClimatique;
 
+mod architecture;
+mod cas;
+mod changelog;
+mod index_texte;
+mod page;
+mod questions;
 mod reseaux;
 mod scenarios;
 mod temperature_base;
@@ -151,10 +173,24 @@ fn main() -> ExitCode {
             .and_then(|()| temperature_de_base(true))
             .and_then(|()| reseaux_de_chaleur(true))
             .and_then(|()| scenarios_conventionnels(true))
-            .and_then(|()| definitions_typescript(true)),
+            .and_then(|()| definitions_typescript(true))
+            .and_then(|()| questions::commande(true))
+            .and_then(|()| changelog::verifier())
+            .and_then(|()| index_texte::commande(true))
+            .and_then(|()| architecture::commande()),
+        ["architecture"] => architecture::commande(),
+        ["cas", noms @ ..] => cas::commande(noms),
+        ["index-texte"] => index_texte::commande(false),
+        ["index-texte", "--verifier"] => index_texte::commande(true),
+        ["page", reste @ ..] => page::commande(reste),
+        ["questions"] => questions::commande(false),
+        ["questions", "--verifier"] => questions::commande(true),
+        ["changelog", "--apercu"] => changelog::commande(None, None),
+        ["changelog", version] => changelog::commande(Some(version), None),
+        ["changelog", version, "--date", date] => changelog::commande(Some(version), Some(date)),
         ["meteo-synthetique", sortie] => meteo_synthetique(sortie),
         _ => Err(
-            "usage : xtask zones-climatiques [--verifier] | temperature-base [--verifier] | reseaux-chaleur [--verifier] | scenarios [--verifier] | typescript [--verifier] | verifier | meteo-synthetique <fichier.csv>"
+            "usage : xtask zones-climatiques [--verifier] | temperature-base [--verifier] | reseaux-chaleur [--verifier] | scenarios [--verifier] | typescript [--verifier] | questions [--verifier] | changelog <version> [--date AAAA-MM-JJ] | changelog --apercu | index-texte [--verifier] | page <N> [--eq <n>] [--tableau <t>] [--annexe iii|ii] | cas [<nom>…] | architecture | verifier | meteo-synthetique <fichier.csv>"
                 .to_owned(),
         ),
     };

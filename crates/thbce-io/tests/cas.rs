@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Harnais des cas de validation : parcourt `tests/cas/`, calcule chaque entrée et compare aux
 //! résultats attendus avec les tolérances du cas. Format décrit dans `tests/cas/README.md`.
+//!
+//! `xtask/src/cas.rs` (`cargo t-cas <nom>`) reprend ces règles pour lancer un seul exemple :
+//! toute évolution de `tolerance`, de `comparer` ou de `meteo_du_cas` doit y être reportée.
 
 #![allow(clippy::expect_used, clippy::panic, clippy::unwrap_used)]
 

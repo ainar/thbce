@@ -10,7 +10,7 @@ tests/cas/<nom-du-cas>/
 └── cas.toml        # provenance, météo requise, tolérances
 ```
 
-Ajouter un cas se limite à déposer ce dossier : le harnais (`crates/thbce-io/tests/cas.rs`) parcourt `tests/cas/`, calcule chaque entrée et compare.
+Ajouter un cas se limite à déposer ce dossier : le harnais (`crates/thbce-io/tests/cas.rs`) parcourt `tests/cas/`, calcule chaque entrée et compare. Pendant le développement, `cargo t-cas <nom>` calcule un seul cas, affiche ses indicateurs et le compare de la même façon (`cargo t-cas` : tous les cas ; voir `docs/architecture.md`).
 
 ## `attendu.json`
 

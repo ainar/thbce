@@ -5,7 +5,7 @@
 //! La relance bascule les consignes à leur valeur d'occupation quelques heures avant le
 //! basculement prévu par les scénarios. Elle n'est appliquée qu'en calcul des consommations.
 //!
-//! Lectures : `docs/questions.md`, Q43.
+//! Lectures : `docs/questions/Q043.md`.
 
 use crate::entree::{ProgrammationChauffage, ProgrammationRefroidissement};
 

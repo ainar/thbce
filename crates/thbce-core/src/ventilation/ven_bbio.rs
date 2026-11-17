@@ -43,8 +43,8 @@ pub fn h_vent_w_k(qm_souffle_kg_s: f64) -> f64 {
     qm_souffle_kg_s * C_PA_J_KG_K * (1.0 - EPSILON_BBIO)
 }
 
-/// Lecture des débits du système de ventilation conventionnel du Bbio (`docs/questions.md`,
-/// Q36 point 1).
+/// Lecture des débits du système de ventilation conventionnel du Bbio (`docs/questions/Q036.md`,
+/// point 1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LectureDebitsBbio {
     /// Le système conventionnel souffle et extrait : quand les bouches du groupe ne décrivent

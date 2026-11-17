@@ -8,7 +8,7 @@ pub const NB_HEURES_AN: usize = 8760;
 ///
 /// Les codes numériques du texte diffèrent d'une fiche à l'autre (§3.1.2 : « 0-Th-B / 4-Th-D /
 /// 5-Th-BCD » ; §5.21.2 : « 0-Th-B / 1-Th-C » ; §13.5.3 : « Mode = 4 ou 5 »). Décision Q9
-/// (`docs/questions.md`) : le moteur n'expose aucun code ; chaque condition du texte portant sur
+/// (`docs/questions/Q009.md`) : le moteur n'expose aucun code ; chaque condition du texte portant sur
 /// un code est traduite au cas par cas, avec sa référence en commentaire.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ModeCalcul {

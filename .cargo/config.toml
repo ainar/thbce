@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Alias des tests ciblés de la boucle de développement (docs/architecture.md, « Tests
+# ciblés »). Profil `rapide` (Cargo.toml) : optimisé comme `release`, sans LTO, pour des
+# éditions de liens courtes ; résultats identiques à l'octet près (vérifié au lot P4 sur les
+# quinze exemples de tests/cas). Ces alias ne remplacent pas la suite complète, obligatoire
+# avant chaque push : `cargo t-complet` (ou la commande de CONTRIBUTING.md), avec THBCE_METEO
+# et THBCE_METEO_CLASSEUR définis.
+[alias]
+# Tests du moteur : `cargo t-core` (tous), `cargo t-core <filtre>` (par exemple
+# `cargo t-core --lib ventilation::`, `cargo t-core --test emission`).
+t-core = "test --profile rapide -p thbce-core"
+# Tests d'intégration de thbce-io (bout en bout, météo ADEME) : `cargo t-io --test combustion`.
+t-io = "test --profile rapide -p thbce-io"
+# Un ou plusieurs exemples de tests/cas comparés à leur attendu.json : `cargo t-cas <nom>…`
+# (tous sans argument).
+t-cas = "run --profile rapide -q -p xtask -- cas"
+# Tests ignorés sur la météo réglementaire, filtrés par nom : `cargo t-regl <filtre>` ;
+# THBCE_METEO (et THBCE_METEO_CLASSEUR pour le classeur) doivent être définis.
+t-regl = "test --profile rapide --workspace -- --ignored"
+# Suite complète, obligatoire avant chaque push (règle inchangée).
+t-complet = "test --workspace --release -- --include-ignored"
