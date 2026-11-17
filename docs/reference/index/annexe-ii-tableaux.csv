@@ -1,13 +1,13 @@
-tableau,page,titre
-1,7,Cycle de vie du bâtiment et contributions aux impacts
-2,8,Les différents modes de calcul énergétique
-3,14,concordance entre les saisons des équipements de génération et les saisons pour
-4,17,Découpage du cycle de vie du bâtiment en modules
-5,30,Description de la composition physique du bâtiment en lots et sous lots
-6,32,Description de la composition physique de la parcelle
-7,74,Quantité conventionnelle d’eau potable consommée annuellement par les
-8,75,facteurs conventionnels de correction des équipements pour le calcul des
-9,76,facteurs conventionnels de correction des équipements pour le calcul des
-10,76,facteurs conventionnels de correction des équipements pour le calcul des
-11,94,coefficients de conversion de l’énergie finale en énergie
-12,101,Liste des indicateurs environnementaux calculés sur la base de l’analyse du
+tableau,page,tete_de_page,titre
+1,7,0,Cycle de vie du bâtiment et contributions aux impacts
+2,8,0,Les différents modes de calcul énergétique
+3,14,0,concordance entre les saisons des équipements de génération et les saisons pour
+4,17,1,Découpage du cycle de vie du bâtiment en modules
+5,30,0,Description de la composition physique du bâtiment en lots et sous lots
+6,32,0,Description de la composition physique de la parcelle
+7,74,0,Quantité conventionnelle d’eau potable consommée annuellement par les
+8,75,0,facteurs conventionnels de correction des équipements pour le calcul des
+9,76,0,facteurs conventionnels de correction des équipements pour le calcul des
+10,76,0,facteurs conventionnels de correction des équipements pour le calcul des
+11,94,0,coefficients de conversion de l’énergie finale en énergie
+12,101,0,Liste des indicateurs environnementaux calculés sur la base de l’analyse du

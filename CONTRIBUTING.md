@@ -34,7 +34,12 @@ cargo run -p xtask -- page --eq 75 --annexe ii   # annexe II (règles générale
 ```
 
 - `index-texte` lit les extractions de `docs/reference/texte/` et écrit, dans `docs/reference/index/`, les tables CSV `annexe-iii-{equations,tableaux,figures,fiches}.csv` et `annexe-ii-{equations,tableaux,figures}.csv`, ainsi que `anomalies.md` (numéros introuvables, en double, hors séquence : aucun n'est inventé). `xtask verifier` contrôle que ces fichiers sont à jour et que les plages de pages des fiches recoupent `docs/couverture.md`. La méthode est décrite en tête de `xtask/src/index_texte.rs`.
-- Dans `annexe-iii-equations.csv`, `tete_de_page` vaut 1 si le numéro ouvre la page (l'équation peut commencer sur la page précédente : `page --eq` produit alors les deux images), et `doublon` vaut 1 pour les numéros qui apparaissent plusieurs fois dans le texte (`page --eq` demande alors une page précise). Pour un tableau, la page est celle de la légende, qui suit le tableau.
+- Colonnes des CSV (séparateur virgule, champs entre guillemets si besoin) :
+  - `annexe-*-equations.csv` : `equation` (numéro), `page` (page du numéro), `tete_de_page` (1 si le numéro ouvre la page : l'équation peut commencer sur la page précédente), `doublon` (1 pour une occurrence supplémentaire d'un numéro déjà rencontré), `fiche` (annexe III seulement : fiche, ou chapitre, courante à cet endroit du texte).
+  - `annexe-*-tableaux.csv` et `annexe-*-figures.csv` : `tableau` ou `figure` (numéro, suffixe admis : `56-1`), `page` (page de la légende, qui suit le tableau), `tete_de_page` (tableaux : 1 si la légende ouvre la page, le corps du tableau est alors sur la page précédente ; signal heuristique à vérifier sur l'image), `fiche` (annexe III seulement), `titre`.
+  - `annexe-iii-fiches.csv` : `numero` (`5` ou `5.13`), `type` (`chapitre` ou `fiche`), `titre`, `page_debut`, `page_fin`.
+- Exemple : `grep '^1238,' docs/reference/index/annexe-iii-equations.csv` donne la ou les lignes de l'équation (1238) ; plusieurs lignes signalent un numéro en double.
+- `page --eq`, `--tableau` et `--figure` sortent en **code 1** avec un message sur un numéro en double (demander alors `page <N>` avec la page voulue) ou introuvable (voir `docs/reference/index/anomalies.md`). Une équation ou un tableau dont `tete_de_page` vaut 1 produit deux images (page précédente puis page du numéro).
 - `page` appelle `pdftoppm` (paquet `poppler-utils`) et écrit dans `target/pages/` (jamais versionné) ; un message clair s'affiche s'il manque.
 
 ## Code

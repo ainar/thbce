@@ -426,6 +426,8 @@ pub struct Legende {
     pub page: usize,
     /// Titre.
     pub titre: String,
+    /// La légende ouvre la page : le corps du tableau ou de la figure est sur la page précédente.
+    pub en_tete: bool,
     pos: Pos,
 }
 
@@ -446,6 +448,19 @@ fn numero_legende(s: &str) -> Option<(String, &str)> {
         }
     }
     Some((base.to_string(), reste))
+}
+
+/// Les lignes qui précèdent une légende de tableau ne sont que des cellules (au plus douze
+/// lignes courtes, aucun titre numéroté) : le corps du tableau est alors sur la page précédente.
+fn ouvre_la_page(avant: &[String]) -> bool {
+    let non_vides: Vec<&String> = avant.iter().filter(|l| !l.is_empty()).collect();
+    non_vides.len() <= 12
+        && non_vides.iter().all(|l| {
+            l.chars().count() <= 60
+                && entier_initial(l, 2)
+                    .and_then(|(_, r)| r.strip_prefix('.'))
+                    .is_none_or(|r| !r.starts_with(|c: char| c.is_ascii_digit()))
+        })
 }
 
 /// Légendes commençant par `mot` (« Tableau » ou « Figure »).
@@ -491,6 +506,7 @@ pub fn extraire_legendes(texte: &Texte, mot: &str) -> Vec<Legende> {
                 numero,
                 page,
                 titre,
+                en_tete: page > 1 && mot == "Tableau" && ouvre_la_page(&lignes[..j]),
                 pos: (page, j),
             });
         }
@@ -897,12 +913,12 @@ fn csv_legendes(index: &Index, entete: &str, legendes: &[Legende]) -> String {
     tries.sort_by_key(|l| (cle_numero(&l.numero), l.pos));
     let mut s = String::new();
     if index.annexe.avec_fiches {
-        let _ = writeln!(s, "{entete},page,fiche,titre");
+        let _ = writeln!(s, "{entete},page,tete_de_page,fiche,titre");
     } else {
-        let _ = writeln!(s, "{entete},page,titre");
+        let _ = writeln!(s, "{entete},page,tete_de_page,titre");
     }
     for l in tries {
-        let _ = write!(s, "{},{}", l.numero, l.page);
+        let _ = write!(s, "{},{},{}", l.numero, l.page, u8::from(l.en_tete));
         if index.annexe.avec_fiches {
             let _ = write!(s, ",{}", index.section_de(l.pos));
         }
@@ -935,20 +951,47 @@ fn markdown_anomalies(indexes: &[Index]) -> String {
         "<!-- SPDX-License-Identifier: GPL-3.0-or-later -->\n\
          # Anomalies de l'index du texte réglementaire\n\n\
          Fichier généré par `cargo run -p xtask -- index-texte`, ne pas modifier à la main.\n\n\
-         Les anomalies décrivent ce que l'**extraction texte** ne permet pas de retrouver : numéros \
-         introuvables (équation affichée comme image, numéro coupé, légende absente), numéros en \
-         double, numéros hors séquence. Aucun numéro n'est déduit ni inventé : en cas de doute, \
-         lire l'image de la page (`cargo run -p xtask -- page`). Pour l'annexe II, la page est \
-         la page du PDF (la pagination imprimée a une page de retard).\n",
+         Les anomalies sont classées par **nature**, car l'index se fonde sur l'extraction texte \
+         (calque du PDF), qui n'est pas l'image des pages :\n\n\
+         - *Absent de l'extraction* : le numéro n'apparaît pas dans le texte extrait (équation \
+         dessinée comme image, numéro écrit autrement, légende absente). Il peut exister sur \
+         l'image : la lire avant de conclure à une anomalie du PDF.\n\
+         - *En double* : le même numéro apparaît plusieurs fois. Peut être une vraie double \
+         numérotation du PDF (les deux occurrences sont dans l'index, colonne `doublon`) ou un \
+         numéro parasite (cellule de tableau, indice).\n\
+         - *Hors séquence dans l'extraction* : l'ordre du texte extrait n'est pas l'ordre de la \
+         page (calque), ou deux équations sont permutées. L'équation est retenue à sa place \
+         dans le texte ; l'image est en général dans l'ordre : artefact d'extraction probable.\n\n\
+         Aucun numéro n'est déduit ni inventé : en cas de doute, lire l'image de la page \
+         (`cargo run -p xtask -- page`). Pour l'annexe II, la page est la page du PDF (le numéro \
+         imprimé est supérieur d'une unité : PDF 68, imprimé 69).\n",
     );
+    let natures: [(&str, &str); 3] = [
+        ("Absent de l'extraction", ": introuvable"),
+        ("En double", "en double"),
+        ("Hors séquence dans l'extraction", "hors séquence"),
+    ];
     for index in indexes {
         let _ = write!(s, "\n## {}\n", index.annexe.nom);
         for (rubrique, liste) in &index.anomalies {
-            let _ = write!(s, "\n### {rubrique} ({})\n\n", liste.len());
+            let _ = write!(s, "\n### {rubrique} ({})\n", liste.len());
             if liste.is_empty() {
-                s.push_str("Aucune.\n");
+                s.push_str("\nAucune.\n");
             }
-            for a in liste {
+            for (nature, motif) in natures {
+                let groupe: Vec<&String> = liste.iter().filter(|a| a.contains(motif)).collect();
+                if groupe.is_empty() {
+                    continue;
+                }
+                let _ = write!(s, "\n#### {nature} ({})\n\n", groupe.len());
+                for a in groupe {
+                    let _ = writeln!(s, "- {a}");
+                }
+            }
+            for a in liste
+                .iter()
+                .filter(|a| !natures.iter().any(|(_, m)| a.contains(m)))
+            {
                 let _ = writeln!(s, "- {a}");
             }
         }
@@ -1073,7 +1116,7 @@ pub fn pages_de(index: &Index, element: Element<'_>) -> Result<(usize, usize), S
             [] => Err(format!(
                 "{genre} {numero} introuvable dans l'index de l'{nom} (voir {ANOMALIES})"
             )),
-            [seule] => Ok((seule.page, seule.page)),
+            [seule] => Ok((seule.page - usize::from(seule.en_tete), seule.page)),
             plusieurs => Err(format!(
                 "{genre} {numero} en double dans l'{nom} (pages {}) : demander une page avec `page <N>`",
                 plusieurs
