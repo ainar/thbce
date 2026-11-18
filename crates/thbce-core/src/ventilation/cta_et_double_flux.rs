@@ -1,26 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Ventilation mécanique double flux : fiche `C_VEN_CTA et Double_flux` (Th-BCE 2020 §6.3),
-//! pour le seul système compatible avec l'usage résidentiel, le groupe de ventilation double
-//! flux (`Type_ventilation_mecaniq = 1`, §6.3.3.1.3), en mode « zone neutre » (§6.3.3.4).
+//! Ventilation mécanique double flux et centrales de traitement d'air : fiche `C_VEN_CTA et
+//! Double_flux` (Th-BCE 2020 §6.3), en mode « zone neutre » (§6.3.3.4).
 //!
 //! Périmètre :
 //! - préprocesseur : puissance moyenne des ventilateurs en habitation (éq. 390 à 394),
 //!   coefficients de transfert des conduits (éq. 395), statut de l'efficacité (éq. 396 à 398) ;
-//! - au pas horaire : débits massiques soufflés et repris (éq. 420, 429 à 432, 443, 451 à 453,
-//!   456), température de l'air repris à l'entrée de la centrale (éq. 469 à 473), ventilateur
-//!   d'extraction (éq. 474 et 475), bypass (éq. 492, 494 et 495), efficacité de l'échangeur
-//!   (éq. 496 à 505), sécurité antigel (éq. 506 à 511), sorties de l'échangeur (éq. 512 à
-//!   514), ventilateur de soufflage (éq. 517 à 520), pertes des conduits de soufflage
-//!   (éq. 560 à 564), consommation (éq. 565 et 570).
+//! - au pas horaire : débits massiques soufflés et repris (éq. 420 à 425, 429 à 431, 443 à 448,
+//!   451 à 453), air neuf, recyclage et free cooling des centrales de traitement d'air (éq. 433
+//!   à 441), air rejeté (éq. 454 à 456), ventilateurs (éq. 458 à 465, 474 et 519), bypass
+//!   (éq. 492, 494 et 495), efficacité de l'échangeur (éq. 496 à 505) et consommation d'un
+//!   échangeur rotatif (éq. 497), sécurité antigel (éq. 506 à 511, tableau 62), sorties de
+//!   l'échangeur (éq. 512 à 514), boîte de mélange (éq. 515 à 518), batteries de préchauffage
+//!   (éq. 522 à 525) et de prérefroidissement (éq. 539 à 548), air soufflé (éq. 560 à 564),
+//!   consommations (éq. 565 et 570).
 //!
-//! Hors de la première version, refusés par la validation : centrales de traitement d'air
-//! (types 2 à 4), échangeur rotatif (`Pech`), batterie de préchauffage, humidification,
+//! Hors de cette version, refusés par la validation : mode actif des centrales à charge
+//! variable (types 3 et 4 avec batteries chaude ou froide, §6.3.3.5), humidification d'hiver,
 //! rafraîchissement évaporatif, surventilation mécanique, puits climatique ou hydraulique.
-//! L'air neuf est donc l'air extérieur (éq. 413) et, sans boîte de mélange ni batterie, l'air
-//! sort de la centrale à la température de sortie du ventilateur de soufflage (éq. 517, 518,
-//! 535, 546 et 560).
+//! L'air neuf est donc l'air extérieur (éq. 413) et `θextr3 = θextr2` (éq. 484 et 485).
+//!
+//! Les numéros d'équation sont ceux de la fiche 6.3, sauf mention « fiche 6.2 » (les deux
+//! fiches emploient les mêmes numéros, voir `docs/reference/index/anomalies.md`).
 
-use crate::entree::{Bypass, EcoulementEchangeur, StatutEchangeur};
+use crate::entree::{Bypass, EcoulementEchangeur, RegulationAirNeuf, StatutEchangeur, TypeCta};
 
 use super::mecanique_sf::C_PA_J_KG_K;
 
@@ -29,6 +31,231 @@ use super::mecanique_sf::C_PA_J_KG_K;
 pub const EPSILON_UTILE_MAX: f64 = 0.5;
 /// « θs,ech,rep,LIM » par défaut, en °C : « autres cas » du tableau 62.
 pub const THETA_S_ECH_REP_LIM_DEFAUT_C: f64 = 5.0;
+/// « θs,ech,rep,LIM » par défaut d'un échangeur rotatif en bâtiment non résidentiel, en °C
+/// (tableau 62).
+pub const THETA_S_ECH_REP_LIM_ROTATIF_NR_C: f64 = -5.0;
+/// « θs,ech,rep,LIM » par défaut d'un échangeur à plaques en bâtiment non résidentiel, en °C
+/// (tableau 62).
+pub const THETA_S_ECH_REP_LIM_PLAQUES_NR_C: f64 = 0.0;
+/// « Lv » : chaleur de vaporisation de l'eau, en J/kg (tableau 61).
+pub const L_V_J_KG: f64 = 2_501_000.0;
+/// « A », « B », « C » : constantes de l'humidité spécifique à saturation (tableau 61, éq. 477).
+pub const A_SAT: f64 = 18.8161;
+/// Voir [`A_SAT`].
+pub const B_SAT: f64 = 4110.34;
+/// Voir [`A_SAT`].
+pub const C_SAT: f64 = 235.0;
+/// Écart entre la température du fluide de la batterie froide et celle de sa surface, en K
+/// (éq. 539).
+pub const ECART_BATTERIE_FROIDE_K: f64 = 2.0;
+
+/// « θs,ech,rep,LIM » par défaut selon le type d'échangeur et l'usage.
+///
+/// Th-BCE 2020 §6.3.3.4.6.4, tableau 62 : échangeurs rotatifs en bâtiment non résidentiel,
+/// −5 °C ; échangeurs à plaques en bâtiment non résidentiel, 0 °C ; autres cas, 5 °C. Le
+/// bâtiment non résidentiel est lu comme l'usage de la zone autre que l'habitation.
+pub fn theta_s_ech_rep_lim_defaut_c(rotatif: bool, habitation: bool) -> f64 {
+    match (habitation, rotatif) {
+        (true, _) => THETA_S_ECH_REP_LIM_DEFAUT_C,
+        (false, true) => THETA_S_ECH_REP_LIM_ROTATIF_NR_C,
+        (false, false) => THETA_S_ECH_REP_LIM_PLAQUES_NR_C,
+    }
+}
+
+/// Vrai si la centrale fonctionne au débit nominal (mode actif) au pas de temps : en
+/// occupation, en relance, ou en inoccupation après un besoin de chauffage ou de
+/// refroidissement d'un groupe au pas précédent.
+///
+/// Th-BCE 2020 §6.3.3.4.3.2, conditions des éq. (421), (423), (444), (446), (460), (462) et
+/// (464) : `isvent(h) = 1` ou `irelance(h) = 1` ou (`isvent(h−1) = 0` et `Isbesoin_ch(h−1)`)
+/// ou (`isvent(h−1) = 0` et `Isbesoin_fr(h−1)`). Lecture de `irelance(h)` :
+/// `docs/questions/Q090.md`.
+pub fn conditions_debit_nominal(
+    i_vent: bool,
+    relance: bool,
+    i_vent_h1: bool,
+    besoin_ch_h1: bool,
+    besoin_fr_h1: bool,
+) -> bool {
+    i_vent || relance || (!i_vent_h1 && (besoin_ch_h1 || besoin_fr_h1))
+}
+
+/// Régime des débits d'une centrale de traitement d'air en zone neutre : `true` pour les
+/// débits nominaux du mode actif (indice CH), `false` pour ceux de la zone neutre (ZN).
+///
+/// Th-BCE 2020 §6.3.3.4.3.2 : types 2 et 3, débit nominal dans les conditions de
+/// [`conditions_debit_nominal`], sinon zone neutre (éq. 421 à 424, 444 à 447) ; type 4, débit
+/// de zone neutre en toute circonstance hors rafraîchissement adiabatique (éq. 425 et 448).
+pub fn debits_nominaux(type_cta: TypeCta, conditions: bool) -> bool {
+    match type_cta {
+        TypeCta::DebitConstant | TypeCta::DebitConstantTemperatureVariable => conditions,
+        TypeCta::DebitVariable => false,
+    }
+}
+
+/// Puissances des ventilateurs de reprise et de soufflage d'une centrale de traitement d'air
+/// au pas de temps, en W.
+///
+/// Th-BCE 2020 §6.3.3.4.4 : types 2 et 3, puissances du mode actif dans les conditions de
+/// [`conditions_debit_nominal`], de zone neutre en inoccupation sinon (éq. 460 à 463) ; type 4,
+/// puissances de zone neutre en occupation dans ces conditions, en inoccupation sinon (éq. 464
+/// et 465). `ch`, `zn_occ` et `zn_inocc` : couples (reprise, soufflage).
+pub fn p_vent_cta_w(
+    type_cta: TypeCta,
+    conditions: bool,
+    ch: (f64, f64),
+    zn_occ: (f64, f64),
+    zn_inocc: (f64, f64),
+) -> (f64, f64) {
+    match (type_cta, conditions) {
+        (_, false) => zn_inocc,
+        (TypeCta::DebitVariable, true) => zn_occ,
+        (_, true) => ch,
+    }
+}
+
+/// « TauxAN_min » d'une bouche de soufflage : rapport du débit de zone neutre au débit du mode
+/// actif.
+///
+/// Th-BCE 2020 fiche 6.2, éq. (393) en occupation et (397) en inoccupation. 1 si le débit du
+/// mode actif est nul.
+pub fn taux_an_min(q_zn_m3_h: f64, q_ch_m3_h: f64) -> f64 {
+    if q_ch_m3_h > 0.0 {
+        q_zn_m3_h / q_ch_m3_h
+    } else {
+        1.0
+    }
+}
+
+/// « qm,air_neuf(h) » : débit d'air neuf d'une centrale de traitement d'air, en kg/s.
+///
+/// Th-BCE 2020 §6.3.3.4.3.3, éq. (435) à (439) : débit minimal (hygiénique) si l'air neuf est
+/// plus froid que `θENC` ; interpolation jusqu'au débit soufflé entre `θENC` et `θENF` ;
+/// au-delà, débit minimal en régulation standard, tout air neuf en régulation optimisée si
+/// l'air neuf est plus froid que l'air repris (`θi,moy`, moyenne barycentrique des débits
+/// repris).
+#[allow(clippy::too_many_arguments)]
+pub fn qm_air_neuf_kg_s(
+    qm_air_neuf_min_kg_s: f64,
+    qm_sou_cond_kg_s: f64,
+    theta_an_c: f64,
+    theta_enc_c: f64,
+    theta_enf_c: f64,
+    regulation: RegulationAirNeuf,
+    theta_i_moy_c: f64,
+) -> f64 {
+    if theta_an_c <= theta_enc_c {
+        // Éq. (435).
+        qm_air_neuf_min_kg_s
+    } else if theta_an_c < theta_enf_c {
+        // Éq. (436).
+        qm_air_neuf_min_kg_s
+            + (qm_sou_cond_kg_s - qm_air_neuf_min_kg_s) * (theta_an_c - theta_enc_c)
+                / (theta_enf_c - theta_enc_c)
+    } else {
+        match regulation {
+            // Éq. (437).
+            RegulationAirNeuf::Standard => qm_air_neuf_min_kg_s,
+            // Éq. (438) et (439).
+            RegulationAirNeuf::Optimisee if theta_an_c < theta_i_moy_c => qm_sou_cond_kg_s,
+            RegulationAirNeuf::Optimisee => qm_air_neuf_min_kg_s,
+        }
+    }
+}
+
+/// « θsouf,mel(h) » ou « ωsouf,mel(h) » : grandeur de l'air soufflé après la boîte de mélange.
+///
+/// Th-BCE 2020 §6.3.3.4.7, éq. (515) et (516) : moyenne de l'air repris recyclé (après le
+/// ventilateur d'extraction, `θextr2`, `ωextr2`) et de l'air neuf après l'échangeur (`θsouf1`,
+/// `ωsouf1`), pondérée par les débits recyclé et d'air neuf.
+pub fn melange(qm_sou_cond_kg_s: f64, qm_air_neuf_kg_s: f64, x_extr2: f64, x_souf1: f64) -> f64 {
+    ((qm_sou_cond_kg_s - qm_air_neuf_kg_s) * x_extr2 + qm_air_neuf_kg_s * x_souf1)
+        / qm_sou_cond_kg_s
+}
+
+/// Sortie de la batterie de préchauffage : `(θsouf,prechaud, Qprechaud)` en °C et en Wh.
+///
+/// Th-BCE 2020 §6.3.3.4.9.1, éq. (522) à (525) : si `θext < θex,prechaud`, l'air est porté à
+/// la consigne `θcons,prechaud` s'il est plus froid ; sinon la batterie est sans effet.
+pub fn prechauffage(
+    theta_souf2_c: f64,
+    theta_ext_c: f64,
+    theta_cons_c: f64,
+    theta_ex_c: f64,
+    qm_sou_cond_kg_s: f64,
+) -> (f64, f64) {
+    if theta_ext_c < theta_ex_c {
+        let theta = theta_cons_c.max(theta_souf2_c);
+        (
+            theta,
+            C_PA_J_KG_K * qm_sou_cond_kg_s * (theta - theta_souf2_c).max(0.0),
+        )
+    } else {
+        (theta_souf2_c, 0.0)
+    }
+}
+
+/// « ωsat(θ) » : humidité spécifique à saturation, en kg/kg (éq. 541 et 477).
+pub fn omega_sat_kg_kg(theta_c: f64) -> f64 {
+    0.001 * libm::exp(A_SAT - B_SAT / (theta_c + C_SAT))
+}
+
+/// Sortie de la batterie de prérefroidissement.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Prerefroidissement {
+    /// « θsouf,3(h) », en °C.
+    pub theta_souf3_c: f64,
+    /// « ωsouf,3(h) », en kg/kg.
+    pub omega_souf3_kg_kg: f64,
+    /// « Qprefroid(h) », en Wh, négatif ou nul.
+    pub q_prefroid_wh: f64,
+}
+
+/// Batterie de prérefroidissement régulée sur la température extérieure.
+///
+/// Th-BCE 2020 §6.3.3.4.10, éq. (539) à (548) : active si `θext > θex,prefroid` ; surface de
+/// la batterie à `θdim,fr + 2 °C`, facteur de bypass `BP`, déshumidification `Δωfr`, sortie à
+/// la consigne `θcons,prefroid` au plus. L'énergie de l'éq. (545) est lue avec
+/// `MIN(θsouf3 − θsouf2 ; 0)` (`docs/questions/Q091.md`) : négative, comme toute demande de
+/// froid (éq. 603), sensible et latente.
+pub fn prerefroidissement(
+    theta_souf2_c: f64,
+    omega_souf2_kg_kg: f64,
+    theta_ext_c: f64,
+    theta_cons_c: f64,
+    theta_ex_c: f64,
+    theta_dim_fr_c: f64,
+    qm_sou_cond_kg_s: f64,
+) -> Prerefroidissement {
+    if theta_ext_c <= theta_ex_c || theta_souf2_c <= theta_cons_c {
+        // Éq. (546) à (548) ; sans écart à la consigne, BP = 1 (éq. 540) et rien ne change.
+        return Prerefroidissement {
+            theta_souf3_c: theta_souf2_c,
+            omega_souf3_kg_kg: omega_souf2_kg_kg,
+            q_prefroid_wh: 0.0,
+        };
+    }
+    // Éq. (539) et (540).
+    let theta_batt = theta_dim_fr_c + ECART_BATTERIE_FROIDE_K;
+    let bp = if theta_souf2_c > theta_batt {
+        ((theta_cons_c - theta_batt) / (theta_souf2_c - theta_batt)).min(1.0)
+    } else {
+        1.0
+    };
+    // Éq. (541) à (543).
+    let d_omega = (omega_sat_kg_kg(theta_batt) - omega_souf2_kg_kg).min(0.0) * (1.0 - bp);
+    let omega_souf3 = omega_souf2_kg_kg + d_omega;
+    // Éq. (544).
+    let theta_souf3 = theta_souf2_c - (theta_souf2_c - theta_cons_c).max(0.0);
+    // Éq. (545), lecture Q91.
+    let q = qm_sou_cond_kg_s
+        * (C_PA_J_KG_K * (theta_souf3 - theta_souf2_c).min(0.0) + L_V_J_KG * d_omega);
+    Prerefroidissement {
+        theta_souf3_c: theta_souf3,
+        omega_souf3_kg_kg: omega_souf3,
+        q_prefroid_wh: q,
+    }
+}
 
 /// « εt » : efficacité de l'échangeur en représentation simplifiée, après prise en compte du
 /// statut de la valeur saisie.
@@ -243,6 +470,94 @@ mod tests {
         assert!(!delta_bypass(&b, false, 26.0, 25.0));
         // Intérieur sous la consigne d'été.
         assert!(!delta_bypass(&b, false, 15.0, 21.0));
+    }
+
+    #[test]
+    fn valeurs_par_defaut_du_tableau_62() {
+        assert_eq!(theta_s_ech_rep_lim_defaut_c(false, true), 5.0);
+        assert_eq!(theta_s_ech_rep_lim_defaut_c(true, true), 5.0);
+        assert_eq!(theta_s_ech_rep_lim_defaut_c(true, false), -5.0);
+        assert_eq!(theta_s_ech_rep_lim_defaut_c(false, false), 0.0);
+    }
+
+    #[test]
+    fn regime_et_ventilateurs_des_cta() {
+        // Occupation, relance, besoin au pas précédent en inoccupation.
+        assert!(conditions_debit_nominal(true, false, true, false, false));
+        assert!(conditions_debit_nominal(false, true, false, false, false));
+        assert!(conditions_debit_nominal(false, false, false, true, false));
+        assert!(conditions_debit_nominal(false, false, false, false, true));
+        // Besoin au pas précédent, mais en occupation au pas précédent : zone neutre.
+        assert!(!conditions_debit_nominal(false, false, true, true, false));
+        assert!(debits_nominaux(TypeCta::DebitConstant, true));
+        assert!(debits_nominaux(
+            TypeCta::DebitConstantTemperatureVariable,
+            true
+        ));
+        assert!(!debits_nominaux(TypeCta::DebitVariable, true));
+        assert!(!debits_nominaux(TypeCta::DebitConstant, false));
+        let (ch, occ, inocc) = ((300.0, 310.0), (150.0, 160.0), (40.0, 50.0));
+        assert_eq!(
+            p_vent_cta_w(TypeCta::DebitConstant, true, ch, occ, inocc),
+            ch
+        );
+        assert_eq!(
+            p_vent_cta_w(TypeCta::DebitConstant, false, ch, occ, inocc),
+            inocc
+        );
+        assert_eq!(
+            p_vent_cta_w(TypeCta::DebitVariable, true, ch, occ, inocc),
+            occ
+        );
+        assert_eq!(
+            p_vent_cta_w(TypeCta::DebitVariable, false, ch, occ, inocc),
+            inocc
+        );
+        assert_eq!(taux_an_min(1000.0, 4000.0), 0.25);
+        assert_eq!(taux_an_min(1000.0, 0.0), 1.0);
+    }
+
+    #[test]
+    fn air_neuf_et_melange_a_la_main() {
+        // Débit minimal 0,4 kg/s, soufflé 1,6 kg/s, plage tout air neuf de 12 à 18 °C.
+        let an = |t: f64, r: RegulationAirNeuf, ti: f64| {
+            qm_air_neuf_kg_s(0.4, 1.6, t, 12.0, 18.0, r, ti)
+        };
+        assert_eq!(an(5.0, RegulationAirNeuf::Standard, 22.0), 0.4);
+        // 15 °C : la moitié de la plage, 0,4 + 1,2 × 3/6 = 1,0 kg/s.
+        assert!((an(15.0, RegulationAirNeuf::Standard, 22.0) - 1.0).abs() < 1e-12);
+        assert_eq!(an(20.0, RegulationAirNeuf::Standard, 22.0), 0.4);
+        assert_eq!(an(20.0, RegulationAirNeuf::Optimisee, 22.0), 1.6);
+        assert_eq!(an(24.0, RegulationAirNeuf::Optimisee, 22.0), 0.4);
+        // Mélange : 1,2 kg/s recyclés à 21 °C, 0,4 kg/s d'air neuf à 15 °C : 19,5 °C.
+        assert!((melange(1.6, 0.4, 21.0, 15.0) - 19.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn batteries_a_la_main() {
+        // Préchauffage : air à 8 °C porté à 16 °C, 0,5 kg/s : 1006 × 0,5 × 8 = 4 024 Wh.
+        let (t, q) = prechauffage(8.0, -2.0, 16.0, 10.0, 0.5);
+        assert_eq!(t, 16.0);
+        assert!((q - 4024.0).abs() < 1e-9);
+        // Air extérieur au-dessus du seuil : sans effet.
+        assert_eq!(prechauffage(8.0, 12.0, 16.0, 10.0, 0.5), (8.0, 0.0));
+        // Air déjà plus chaud que la consigne : sans effet.
+        assert_eq!(prechauffage(18.0, -2.0, 16.0, 10.0, 0.5), (18.0, 0.0));
+
+        // Prérefroidissement : air à 30 °C et 12 g/kg, consigne 18 °C, fluide à 7 °C (surface
+        // à 9 °C), 0,5 kg/s. BP = 9/21 ; ωsat(9 °C) = 10⁻³ exp(18,8161 − 4110,34/244).
+        let r = prerefroidissement(30.0, 0.012, 32.0, 18.0, 25.0, 7.0, 0.5);
+        let omega_sat = 0.001 * libm::exp(18.8161 - 4110.34 / 244.0);
+        let d_omega = (omega_sat - 0.012) * (1.0 - 9.0 / 21.0);
+        assert!(d_omega < 0.0);
+        assert_eq!(r.theta_souf3_c, 18.0);
+        assert!((r.omega_souf3_kg_kg - (0.012 + d_omega)).abs() < 1e-15);
+        let q = 0.5 * (1006.0 * -12.0 + 2_501_000.0 * d_omega);
+        assert!((r.q_prefroid_wh - q).abs() < 1e-9);
+        // Air extérieur sous le seuil : sans effet.
+        let r = prerefroidissement(30.0, 0.012, 20.0, 18.0, 25.0, 7.0, 0.5);
+        assert_eq!(r.q_prefroid_wh, 0.0);
+        assert_eq!(r.theta_souf3_c, 30.0);
     }
 
     #[test]

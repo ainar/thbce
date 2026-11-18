@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Restitution des résultats de la ventilation.
 
+use crate::bati::assemblage_zone::CumulsVentilation;
 use crate::climat::calendrier::date_scenario;
 use crate::conventions::NB_HEURES_AN;
 use crate::entree::{Groupe, UsageZone};
-use crate::resultats::{ResultatsDebitsBbio, ResultatsVentilationGroupe};
+use crate::resultats::{ResultatsDebitsBbio, ResultatsVentilationGroupe, ResultatsVentilationMode};
 use crate::scenarios::ScenariosZone;
 use crate::ventilation::bouche_conduit::{
     debits_bbio_non_residentiel, debits_specifiques_bbio_groupe,
@@ -21,6 +22,23 @@ use crate::ventilation::ventilation_projet::VentilationProjet;
 /// Hors habitation, la puissance est celle de l'occupation ou de l'inoccupation selon
 /// l'indicateur de ventilation de la zone (éq. 636 à 639) ; `p_vent_w` restitue alors celle de
 /// l'occupation.
+/// Fonctionnement annuel du système de ventilation du projet dans un calcul (éq. 494, 508,
+/// 523 et 545).
+pub(super) fn resultats_mode(
+    v: &VentilationProjet,
+    c: &CumulsVentilation,
+) -> ResultatsVentilationMode {
+    ResultatsVentilationMode {
+        nbh_bypass: c.nbh_bypass,
+        q_ag_kwh: c.w_ag_wh / 1000.0,
+        q_prechaud_kwh: v.prechauffage.as_ref().map(|_| c.q_prechaud_wh / 1000.0),
+        q_prefroid_kwh: v
+            .prerefroidissement
+            .as_ref()
+            .map(|_| c.q_prefroid_wh / 1000.0),
+    }
+}
+
 pub(super) fn ventilation_groupe(
     v: &VentilationProjet,
     g: usize,
@@ -31,7 +49,11 @@ pub(super) fn ventilation_groupe(
     let p_vent_inocc_w = v.p_vent_groupe_selon_w(g, false);
     let selon_occupation = v.selon_occupation();
     let mut mensuel = vec![0.0; 12];
-    for h in 0..NB_HEURES_AN {
+    // Hors habitation, consommation relevée pendant le calcul des consommations (éq. 570).
+    if let Some(r) = v.releve.as_ref().and_then(|r| r.mensuel_groupes_kwh.get(g)) {
+        mensuel.copy_from_slice(r);
+    }
+    for h in (0..NB_HEURES_AN).filter(|_| v.releve.is_none()) {
         let m = usize::from(date_scenario(h).mois) - 1;
         let p = if selon_occupation && scenarios.evaluer(h).i_vent <= 0.0 {
             p_vent_inocc_w
@@ -69,6 +91,9 @@ pub(super) fn puissance_horaire_w(
     v: &VentilationProjet,
     scenarios: &ScenariosZone,
 ) -> Option<Vec<f64>> {
+    if let Some(r) = &v.releve {
+        return Some(r.serie_wh.clone());
+    }
     v.selon_occupation().then(|| {
         (0..NB_HEURES_AN)
             .map(|h| {

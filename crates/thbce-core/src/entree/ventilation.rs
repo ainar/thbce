@@ -47,10 +47,178 @@ pub enum SystemeVentilation {
     Hybride,
     /// Aération par ouverture des fenêtres (§6.7) : non prise en charge dans cette version.
     Aeration,
+    /// Centrale de traitement d'air sans description : forme de la version 0.1, refusée ;
+    /// décrire la centrale par la variante `cta`.
+    CentraleTraitementAir,
     /// Centrale de traitement d'air (§6.3, `Type_ventilation_mecaniq` de 2 à 4) : réservée au
     /// non résidentiel (§6.2.3.1.2 : « La CTA est employée uniquement dans le non
     /// résidentiel »).
-    CentraleTraitementAir,
+    Cta(Cta),
+}
+
+impl SystemeVentilation {
+    /// Nom JSON de la variante d'une centrale double flux (`double_flux` ou `cta`), `None` pour
+    /// les autres systèmes.
+    pub fn nom_centrale(&self) -> Option<&'static str> {
+        match self {
+            Self::DoubleFlux(_) => Some("double_flux"),
+            Self::Cta(_) => Some("cta"),
+            _ => None,
+        }
+    }
+
+    /// Échangeur d'une centrale double flux ou d'une CTA.
+    pub fn echangeur(&self) -> Option<&Echangeur> {
+        match self {
+            Self::DoubleFlux(d) => d.echangeur.as_ref(),
+            Self::Cta(c) => c.echangeur.as_ref(),
+            _ => None,
+        }
+    }
+
+    /// Batterie de préchauffage d'une centrale double flux ou d'une CTA (§6.3.3.4.9.1).
+    pub fn batterie_prechauffage(&self) -> Option<&BatteriePrechauffage> {
+        match self {
+            Self::DoubleFlux(d) => d.batterie_prechauffage.as_ref(),
+            Self::Cta(c) => c.batterie_prechauffage.as_ref(),
+            _ => None,
+        }
+    }
+
+    /// Batterie de prérefroidissement d'une centrale double flux ou d'une CTA (§6.3.3.4.10).
+    pub fn batterie_prerefroidissement(&self) -> Option<&BatteriePrerefroidissement> {
+        match self {
+            Self::DoubleFlux(d) => d.batterie_prerefroidissement.as_ref(),
+            Self::Cta(c) => c.batterie_prerefroidissement.as_ref(),
+            _ => None,
+        }
+    }
+}
+
+/// Th-BCE 2020 §6.3.3.1 — type de centrale de traitement d'air (« Type_ventilation_mecaniq »).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TypeCta {
+    /// 2 : centrale de prétraitement d'air à débit constant.
+    DebitConstant,
+    /// 3 : centrale de traitement d'air à débit constant et température variable.
+    DebitConstantTemperatureVariable,
+    /// 4 : centrale de traitement d'air à débit variable.
+    DebitVariable,
+}
+
+/// « Type_régul_AN » : régulation du taux d'air neuf hors de la plage de fonctionnement en tout
+/// air neuf (§6.3.3.4.3.3, éq. 437 à 439).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RegulationAirNeuf {
+    /// 0 : régulation standard (par défaut) : débit d'air neuf minimal (éq. 437).
+    Standard,
+    /// 1 : régulation optimisée : tout air neuf si l'air neuf est plus froid que l'air repris
+    /// (éq. 438 et 439).
+    Optimisee,
+}
+
+/// Th-BCE 2020 §6.3.2, tableau 61 — centrale de traitement d'air (types 2 à 4), en usage
+/// autre que l'habitation.
+///
+/// Les débits des bouches se saisissent par bouche (`bouches_conduits` des groupes) : débit
+/// en mode actif `q_spec_ch_m3_h` (« qsoufflé,CH »), débits de zone neutre en occupation et en
+/// inoccupation `q_spec_occ_m3_h` et `q_spec_inocc_m3_h` (« qsoufflé,ZN,occ »,
+/// « qsoufflé,ZN,inocc », §6.2.3.1.2).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Cta {
+    /// « Type_ventilation_mecaniq » de 2 à 4.
+    pub type_cta: TypeCta,
+    /// « Pvent,rep,CH » : puissance du ventilateur de reprise en mode actif (nominal), en W.
+    pub p_vent_rep_ch_w: f64,
+    /// « Pvent,sou,CH » : puissance du ventilateur de soufflage en mode actif, en W.
+    pub p_vent_sou_ch_w: f64,
+    /// « Pvent,rep,ZN occ » : puissance du ventilateur de reprise en zone neutre en
+    /// occupation, en W.
+    pub p_vent_rep_zn_occ_w: f64,
+    /// « Pvent,sou,ZN occ » : la même pour le ventilateur de soufflage, en W.
+    pub p_vent_sou_zn_occ_w: f64,
+    /// « Pvent,rep,ZN inocc » : puissance du ventilateur de reprise en zone neutre en
+    /// inoccupation, en W.
+    pub p_vent_rep_zn_inocc_w: f64,
+    /// « Pvent,sou,ZN inocc » : la même pour le ventilateur de soufflage, en W.
+    pub p_vent_sou_zn_inocc_w: f64,
+    /// « θENC » : borne basse de la plage de température d'air neuf de fonctionnement en tout
+    /// air neuf, en °C (éq. 435 et 436).
+    pub theta_enc_c: f64,
+    /// « θENF » : borne haute de cette plage, en °C, supérieure à `theta_enc_c`.
+    pub theta_enf_c: f64,
+    /// « Type_régul_AN ». Absent : régulation standard, « par défaut » selon le texte, signalé
+    /// dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub regulation_air_neuf: Option<RegulationAirNeuf>,
+    /// Échangeur air extrait / air neuf. Absent : pas d'échangeur (éq. 496).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub echangeur: Option<Echangeur>,
+    /// Batterie de préchauffage régulée sur la température d'air neuf (« Is_prechaud ») :
+    /// centrale à débit constant (`debit_constant`) seulement (§6.3.3.4.9).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub batterie_prechauffage: Option<BatteriePrechauffage>,
+    /// Batterie de prérefroidissement (« Is_prefroid ») : centrale à débit constant seulement
+    /// (§6.3.3.4.10).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub batterie_prerefroidissement: Option<BatteriePrerefroidissement>,
+    /// Batterie de chauffage régulée selon la charge thermique (« Is_chaud », mode actif du
+    /// §6.3.3.5) : non prise en charge dans cette version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub batterie_chaude: Option<bool>,
+    /// Batterie de refroidissement régulée selon la charge (« Is_froid », mode actif) : non
+    /// prise en charge dans cette version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub batterie_froide: Option<bool>,
+    /// Humidificateur d'hiver (« Is_ChaudHR ») : non pris en charge dans cette version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub humidification: Option<bool>,
+    /// Rafraîchissement évaporatif (« Type_humidification_Eté ») : non pris en charge dans
+    /// cette version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rafraichissement_evaporatif: Option<bool>,
+    /// Rafraîchissement par surventilation mécanique (§6.12) : non pris en charge dans cette
+    /// version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub surventilation_mecanique: Option<bool>,
+}
+
+/// Th-BCE 2020 §6.3.3.4.9.1 — batterie de préchauffage régulée sur la température extérieure.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BatteriePrechauffage {
+    /// « θcons_prechaud » : température de consigne de soufflage du préchauffage, en °C (éq.
+    /// 522).
+    pub theta_cons_c: f64,
+    /// « θex_prechaud » : température extérieure au-dessus de laquelle le préchauffage n'est
+    /// pas autorisé, en °C.
+    pub theta_ex_c: f64,
+    /// Génération qui fournit l'énergie du préchauffage (« Qprechaud », éq. 523), par un
+    /// réseau de distribution de CTA fictif (fiche 8.11, éq. 939) : identifiant d'une
+    /// génération du bâtiment pourvue d'un générateur de chauffage.
+    pub generation: Id,
+}
+
+/// Th-BCE 2020 §6.3.3.4.10 — batterie de prérefroidissement régulée sur la température
+/// extérieure.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BatteriePrerefroidissement {
+    /// « θcons_prefroid » : température de consigne de soufflage du prérefroidissement, en °C
+    /// (éq. 540 et 544).
+    pub theta_cons_c: f64,
+    /// « θex_prefroid » : température extérieure au-dessous de laquelle le prérefroidissement
+    /// n'est pas autorisé, en °C.
+    pub theta_ex_c: f64,
+    /// « θdim,fr » : température nominale moyenne du fluide dans la batterie, en °C (éq. 539).
+    pub theta_dim_fr_c: f64,
+    /// Génération qui fournit le froid (« Qprefroid », éq. 545), par un réseau de distribution
+    /// de CTA fictif (fiche 8.11, éq. 939) : identifiant d'une génération du bâtiment pourvue
+    /// d'un générateur de refroidissement.
+    pub generation: Id,
 }
 
 /// Th-BCE 2020 §6.4.3 et §6.5.2 — ventilateur d'un système simple flux : puissances en débit
@@ -79,27 +247,58 @@ pub struct VentilateurSimpleFlux {
     pub p_vent_inocc_w: Option<f64>,
 }
 
-/// Th-BCE 2020 §6.3.2, tableau 61 — groupe de ventilation double flux en habitation.
+/// Th-BCE 2020 §6.3.2, tableau 61 — groupe de ventilation double flux
+/// (`Type_ventilation_mecaniq = 1`), en habitation et dans les autres usages.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DoubleFlux {
     /// « Pvent,base,rep » : puissance électrique du ventilateur de reprise en débit de base, en W.
-    pub p_vent_base_rep_w: f64,
+    /// Requise en maison individuelle ou accolée et en logement collectif ; ne pas la saisir
+    /// dans les autres usages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_vent_base_rep_w: Option<f64>,
     /// « Pvent,pointe,rep » : puissance électrique du ventilateur de reprise en débit de pointe,
-    /// en W.
-    pub p_vent_pointe_rep_w: f64,
+    /// en W. Requise en habitation comme `p_vent_base_rep_w`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_vent_pointe_rep_w: Option<f64>,
     /// « Pvent,base,sou » : puissance électrique du ventilateur de soufflage en débit de base, en
-    /// W.
-    pub p_vent_base_sou_w: f64,
+    /// W. Requise en habitation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_vent_base_sou_w: Option<f64>,
     /// « Pvent,pointe,sou » : puissance électrique du ventilateur de soufflage en débit de
-    /// pointe, en W.
-    pub p_vent_pointe_sou_w: f64,
-    /// Échangeur statique. Absent : pas d'échangeur (`type_échangeur = 0`, éq. 496).
+    /// pointe, en W. Requise en habitation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_vent_pointe_sou_w: Option<f64>,
+    /// « Pvent,rep,occ » : puissance du ventilateur de reprise en occupation, en usage autre
+    /// que l'habitation, en W (éq. 458). Requise dans ces usages ; ne pas la saisir en
+    /// habitation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_vent_rep_occ_w: Option<f64>,
+    /// « Pvent,sou,occ » : la même pour le ventilateur de soufflage, en W (éq. 458).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_vent_sou_occ_w: Option<f64>,
+    /// « Pvent,rep,inocc » : puissance du ventilateur de reprise en inoccupation, en usage
+    /// autre que l'habitation, en W (éq. 459) ; 0 si le ventilateur est arrêté.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_vent_rep_inocc_w: Option<f64>,
+    /// « Pvent,inocc,sou » : la même pour le ventilateur de soufflage, en W (éq. 459).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_vent_sou_inocc_w: Option<f64>,
+    /// Échangeur. Absent : pas d'échangeur (`type_échangeur = 0`, éq. 496).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub echangeur: Option<Echangeur>,
-    /// Batterie de préchauffage (« Is_prechaud ») : non prise en charge dans cette version.
+    /// Forme de la version 0.1 : `true` est refusé ; décrire la batterie par
+    /// `batterie_prechauffage`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prechauffage: Option<bool>,
+    /// Batterie de préchauffage régulée sur la température d'air neuf (« Is_prechaud »,
+    /// §6.3.3.4.9.1).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub batterie_prechauffage: Option<BatteriePrechauffage>,
+    /// Batterie de prérefroidissement (« Is_prefroid », §6.3.3.4.10) : la zone doit compter au
+    /// moins un groupe climatisé (éq. 389).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub batterie_prerefroidissement: Option<BatteriePrerefroidissement>,
     /// Humidificateur d'hiver (« Is_ChaudHR ») : non pris en charge dans cette version.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub humidification: Option<bool>,
@@ -119,9 +318,13 @@ pub struct DoubleFlux {
 pub struct Echangeur {
     /// Représentation de l'échangeur (« idniveau_detail_echangeur »).
     pub representation: RepresentationEchangeur,
-    /// Échangeur rotatif (« Pech », échangeur à roue) : non pris en charge dans cette version.
+    /// Échangeur rotatif (échangeur à roue). Absent : échangeur à plaques (statique).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rotatif: Option<bool>,
+    /// « Pech » : puissance de l'échangeur rotatif, en W (éq. 497) ; requise pour un échangeur
+    /// rotatif, sans objet sinon.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_ech_w: Option<f64>,
     /// Bypass de l'échangeur (« isbypass = 1 ») et sa régulation. Absent : pas de bypass.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bypass: Option<Bypass>,
@@ -136,8 +339,9 @@ pub struct Echangeur {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generation_antigel: Option<Id>,
     /// « θs,ech,rep,LIM » : température limite basse de sortie côté rejet, en °C (de −10 à
-    /// 10). Absente : 5 °C, valeur par défaut du tableau 62 (« autres cas »), signalée dans les
-    /// résultats.
+    /// 10). Absente : valeur par défaut du tableau 62, signalée dans les résultats : dans les
+    /// usages autres que l'habitation, −5 °C pour un échangeur rotatif et 0 °C pour un
+    /// échangeur à plaques ; 5 °C en habitation (« autres cas »).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub theta_s_ech_rep_lim_c: Option<f64>,
 }
@@ -336,6 +540,13 @@ pub struct BoucheConduit {
     /// `q_spec_occ_m3_h`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub q_spec_inocc_m3_h: Option<f64>,
+    /// « qsoufflé,CH » : débit de la bouche en mode actif (hors zone neutre), en m³/h, positif,
+    /// pour une bouche reliée à une centrale de traitement d'air (§6.2.3.1.2, éq. 391 et 394) ;
+    /// requis dans ce cas, sans objet sinon. Les débits de zone neutre sont alors
+    /// `q_spec_occ_m3_h` (« qsoufflé,ZN,occ ») et `q_spec_inocc_m3_h` (« qsoufflé,ZN,inocc »),
+    /// au plus égaux à celui-ci ; les taux d'air neuf minimaux en découlent (éq. 393 et 397).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub q_spec_ch_m3_h: Option<f64>,
     /// « Crdbnr » : coefficient de réduction des débits en occupation, en non résidentiel
     /// (§6.2.3.2.1, tableau 57) : 1 sans régulation des débits, 0,9 avec un dispositif de
     /// détection d'utilisation du local, 0,8 avec un comptage d'occupants ou des sondes de CO2 ;
