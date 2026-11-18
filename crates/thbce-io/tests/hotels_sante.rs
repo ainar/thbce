@@ -305,7 +305,10 @@ fn meteo_reglementaire(p: &Projet) -> MeteoProjet {
 #[test]
 #[ignore = "météo réglementaire absente du dépôt (THBCE_METEO)"]
 fn hotels_sante_sur_meteo_reglementaire() {
-    for (p, attendu) in [(hotel(), HOTEL), (ehpad(), EHPAD)] {
+    // Exigences non respectées sur la météo réglementaire.
+    let hotel_nr: &[&str] = &["bbio", "cep", "cep_nr", "dh"];
+    let ehpad_nr: &[&str] = &["dh"];
+    for (p, attendu, non_resp) in [(hotel(), HOTEL, hotel_nr), (ehpad(), EHPAD, ehpad_nr)] {
         let r = calculer(&p, &meteo_reglementaire(&p), &Options { arrondir: false }).unwrap();
         assert!(r.reglementaire);
         let v = phares(&r);
@@ -331,10 +334,12 @@ fn hotels_sante_sur_meteo_reglementaire() {
             .map(|v| v.indicateur.as_str())
             .collect();
         println!("non respectées : {nr:?}");
+        assert_eq!(nr, non_resp);
+        assert!(!ex.conforme);
     }
 }
 
 /// Hôtel, météo réglementaire H2b (lot 0c2) : Bbio, DH, Cep, Cep,nr, Ic énergie.
-const HOTEL: [f64; 5] = [0.0; 5];
+const HOTEL: [f64; 5] = [103.6, 1253.6, 193.4, 193.4, 229.6];
 /// EHPAD, météo réglementaire H2b.
-const EHPAD: [f64; 5] = [0.0; 5];
+const EHPAD: [f64; 5] = [160.2, 1310.1, 188.8, 188.8, 230.0];

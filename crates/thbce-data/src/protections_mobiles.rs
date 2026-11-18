@@ -32,7 +32,7 @@
 //! entier puis sur la seule zone des valeurs (lot 0c1, `docs/questions/Q072.md`).
 //!
 //! Les figures 37-2 et 40-2 (famille « hôpitaux nuit », p. 199 et 202) sont transcrites des
-//! images du PDF, lues deux fois (lot 0c2, `docs/questions/Q074.md`).
+//! images du PDF, lues deux fois (lot 0c2, `docs/questions/Q075.md`).
 //!
 //! Sont transcrites les lignes de gestion manuelle des familles « habitation, hôtellerie et
 //! hébergement », « bureau », « enseignement » et « hôpitaux nuit ». Les matrices des autres
@@ -432,7 +432,7 @@ pub const STORE_ENROULABLE_ENSEIGNEMENT: MatriceManuelle = MatriceManuelle {
 
 /// Figure 37-2 (p. 199) : première protection mobile de type volet, famille « hôpitaux nuit »
 /// (usage 20, figure 34), lignes de gestion manuelle. Image du PDF de l'annexe III, lue deux
-/// fois (page entière à 200 dpi, puis zone des valeurs à 400 dpi), lot 0c2, `Q074`.
+/// fois (page entière à 200 dpi, puis zone des valeurs à 400 dpi), lot 0c2, `Q075`.
 #[rustfmt::skip]
 pub const VOLET_HOPITAUX: MatriceManuelle = MatriceManuelle {
     //                             Rprot0  Ecl1       Rprot(PM2)  Ecl2       nuit
