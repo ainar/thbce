@@ -8,7 +8,8 @@ use super::RapportValidation;
 use crate::entree::{
     Batiment, FonctionChaleur, FonctionEffetJoule, FonctionReseau, Generation,
     GestionTemperatureGeneration, NatureGenerateur, PositionGeneration, ReseauChaleurFroidSaisi,
-    ReseauIntergroupes, TechnologieChauffagePac, TechnologieRefroidissementPac, TypePriorite,
+    ReseauIntergroupes, SystemeVentilation, TechnologieChauffagePac, TechnologieRefroidissementPac,
+    TypePriorite,
 };
 use combustion::{valider_chaudiere, valider_poele};
 use reseaux_chaleur::valider_reseau;
@@ -115,6 +116,43 @@ pub(super) fn valider_generations(r: &mut RapportValidation, cb: &str, bat: &Bat
                 1,
                 "au prérefroidissement",
             );
+        }
+        // Éq. (940) : batteries régulées sur la charge des centrales à charge variable.
+        if let SystemeVentilation::Cta(cta) = &v.systeme {
+            for (present, champ, id, poste, role) in [
+                (
+                    cta.batterie_chaude == Some(true),
+                    "generation_batterie_chaude",
+                    &cta.generation_batterie_chaude,
+                    0,
+                    "à la batterie chaude",
+                ),
+                (
+                    cta.batterie_froide == Some(true),
+                    "generation_batterie_froide",
+                    &cta.generation_batterie_froide,
+                    1,
+                    "à la batterie froide",
+                ),
+            ] {
+                let c = format!("{cs}.{champ}");
+                match (id, present) {
+                    (None, true) => r.erreur(
+                        c,
+                        None,
+                        "génération requise : l'énergie de la batterie régulée sur la charge \
+                         (Th-BCE 2020 §6.3.3.5.8, éq. 598 et 611) est demandée à une génération \
+                         du bâtiment par un réseau de CTA (§8.11.3, éq. 940)",
+                    ),
+                    (Some(id), false) => r.erreur(
+                        c,
+                        Some(id.clone()),
+                        "sans objet sans batterie régulée sur la charge",
+                    ),
+                    (Some(id), true) => designee(r, c, id, poste, role),
+                    (None, false) => {}
+                }
+            }
         }
         let Some(e) = v.systeme.echangeur() else {
             continue;

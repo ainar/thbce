@@ -564,19 +564,8 @@ pub(super) fn valider_ventilation(
                     }
                 }
             }
+            valider_mode_actif(r, &cc, zone, cta);
             for (champ, present, regle) in [
-                (
-                    "batterie_chaude",
-                    cta.batterie_chaude,
-                    "batterie de chauffage régulée selon la charge : mode actif des centrales \
-                     à charge variable (Th-BCE 2020 §6.3.3.5)",
-                ),
-                (
-                    "batterie_froide",
-                    cta.batterie_froide,
-                    "batterie de refroidissement régulée selon la charge : mode actif des \
-                     centrales à charge variable (Th-BCE 2020 §6.3.3.5)",
-                ),
                 (
                     "humidification",
                     cta.humidification,
@@ -677,6 +666,150 @@ pub(super) fn valider_ventilation(
             "ratio des fuites en volume chauffé requis quand les surfaces de conduits sont \
              saisies (Th-BCE 2020 §6.2.3.4)",
         );
+    }
+}
+
+/// Th-BCE 2020 §6.3.3.5 : batteries chaude et froide régulées sur la charge d'une centrale à
+/// charge variable (mode actif, lecture `docs/questions/Q095.md`).
+fn valider_mode_actif(r: &mut RapportValidation, cc: &str, zone: &Zone, cta: &crate::entree::Cta) {
+    let chaude = cta.batterie_chaude == Some(true);
+    let froide = cta.batterie_froide == Some(true);
+    let type_4 = cta.type_cta == TypeCta::DebitVariable;
+    if (chaude || froide) && cta.type_cta == TypeCta::DebitConstant {
+        r.erreur(
+            format!("{cc}.type_cta"),
+            Some("debit_constant".into()),
+            "le mode actif (batteries régulées sur la charge) n'est autorisé que pour les \
+             centrales à conditions variables en fonction de la charge, types 3 et 4 (Th-BCE \
+             2020 §6.3.3.5)",
+        );
+    }
+    let emetteur = |froid: bool| {
+        zone.groupes.iter().flat_map(|g| &g.emetteurs).any(|e| {
+            if froid {
+                e.refroidissement
+                    .as_ref()
+                    .is_some_and(|f| f.centrale == Some(true))
+            } else {
+                e.chauffage
+                    .as_ref()
+                    .is_some_and(|c| c.centrale == Some(true))
+            }
+        })
+    };
+    // Champs propres à chaque batterie : (présente, champ, valeur, requis).
+    let champs = [
+        (
+            chaude,
+            "theta_sou_nom_chaud_c",
+            cta.theta_sou_nom_chaud_c,
+            type_4,
+        ),
+        (
+            froide,
+            "theta_sou_nom_froid_c",
+            cta.theta_sou_nom_froid_c,
+            type_4,
+        ),
+        (froide, "theta_dim_fr_c", cta.theta_dim_fr_c, true),
+    ];
+    for (presente, champ, valeur, requis) in champs {
+        let c = format!("{cc}.{champ}");
+        match (valeur, presente && requis) {
+            (None, true) => r.erreur(
+                c,
+                None,
+                "requis pour une batterie régulée sur la charge (Th-BCE 2020 §6.3.3.5.8, éq. \
+                 585, 591 et 604 ; températures nominales en type 4 seulement)",
+            ),
+            (Some(x), false) => r.erreur(
+                c,
+                Some(x.to_string()),
+                "sans objet : pas de batterie régulée sur la charge correspondante, ou centrale \
+                 à débit constant (type 3, éq. 583 et 584)",
+            ),
+            (Some(x), true) => r.plage(c, x, -50.0, 100.0),
+            (None, false) => {}
+        }
+    }
+    for (presente, froid, champ) in [
+        (chaude, false, "batterie_chaude"),
+        (froide, true, "batterie_froide"),
+    ] {
+        if presente && !emetteur(froid) {
+            r.erreur(
+                format!("{cc}.{champ}"),
+                Some("true".into()),
+                "la batterie régulée sur la charge assure la demande des émetteurs contenus dans \
+                 les bouches de soufflage (Th-BCE 2020 §6.3.2, tableau 61, « Qsys_ch^g,s ») : \
+                 au moins un émetteur d'un groupe de la zone doit le déclarer (`centrale`)",
+            );
+        }
+    }
+}
+
+/// Th-BCE 2020 §6.3.2, tableau 61 : émetteur contenu dans les bouches de soufflage de la
+/// centrale de la zone (`centrale`, lecture `docs/questions/Q095.md`). `c` est le chemin de
+/// l'émetteur, `g` son groupe et `zone` la zone du groupe.
+pub fn valider_emetteur_centrale(
+    r: &mut RapportValidation,
+    c: &str,
+    e: &crate::entree::Emetteur,
+    g: &crate::entree::Groupe,
+    zone: &Zone,
+) {
+    let cta = match zone.ventilation.as_ref().map(|v| &v.systeme) {
+        Some(SystemeVentilation::Cta(cta)) => Some(cta),
+        _ => None,
+    };
+    for (present, fonction, batterie) in [
+        (
+            e.chauffage
+                .as_ref()
+                .is_some_and(|x| x.centrale == Some(true)),
+            "chauffage",
+            cta.is_some_and(|x| x.batterie_chaude == Some(true)),
+        ),
+        (
+            e.refroidissement
+                .as_ref()
+                .is_some_and(|x| x.centrale == Some(true)),
+            "refroidissement",
+            cta.is_some_and(|x| x.batterie_froide == Some(true)),
+        ),
+    ] {
+        if !present {
+            continue;
+        }
+        let cf = format!("{c}.{fonction}.centrale");
+        if !batterie {
+            r.erreur(
+                cf.clone(),
+                Some("true".into()),
+                "un émetteur contenu dans les bouches de soufflage suppose une centrale de \
+                 traitement d'air de la zone pourvue de la batterie régulée sur la charge de \
+                 même fonction (Th-BCE 2020 §6.3.3.5)",
+            );
+        }
+        if e.ventilateurs.is_some() {
+            r.erreur(
+                format!("{c}.ventilateurs"),
+                None,
+                "un émetteur contenu dans les bouches de soufflage d'une centrale n'a pas de \
+                 ventilateurs locaux (Th-BCE 2020 §6.3.3.5 et §8.1.3.8)",
+            );
+        }
+        if !g
+            .bouches_conduits
+            .iter()
+            .any(|b| b.isouf == Isouf::Soufflage)
+        {
+            r.erreur(
+                cf,
+                Some("true".into()),
+                "le groupe n'a pas de bouche de soufflage de la centrale (Th-BCE 2020 §6.3.2)",
+            );
+        }
     }
 }
 

@@ -178,6 +178,21 @@ fn valider_systemes_groupe(r: &mut RapportValidation, c: &str, g: &Groupe, bat: 
         }
     }
     r.ids_uniques(&format!("{c}.emetteurs"), g.emetteurs.iter().map(|e| &e.id));
+    if let Some(zone) = bat
+        .zones
+        .iter()
+        .find(|z| z.groupes.iter().any(|x| std::ptr::eq(x, g)))
+    {
+        for (i, e) in g.emetteurs.iter().enumerate() {
+            super::ventilation::valider_emetteur_centrale(
+                r,
+                &format!("{c}.emetteurs[{i}]"),
+                e,
+                g,
+                zone,
+            );
+        }
+    }
     r.ids_uniques(
         &format!("{c}.distributions"),
         g.distributions.iter().map(|d| &d.id),

@@ -166,13 +166,39 @@ pub struct Cta {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub batterie_prerefroidissement: Option<BatteriePrerefroidissement>,
     /// Batterie de chauffage régulée selon la charge thermique (« Is_chaud », mode actif du
-    /// §6.3.3.5) : non prise en charge dans cette version.
+    /// §6.3.3.5) : centrales de types 3 et 4 seulement. Elle assure la demande des émetteurs
+    /// de chauffage contenus dans les bouches de soufflage (`centrale` des émetteurs) ;
+    /// requiert `generation_batterie_chaude` et, en type 4, `theta_sou_nom_chaud_c`
+    /// (`docs/questions/Q095.md`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub batterie_chaude: Option<bool>,
-    /// Batterie de refroidissement régulée selon la charge (« Is_froid », mode actif) : non
-    /// prise en charge dans cette version.
+    /// Génération qui fournit l'énergie de la batterie chaude (« Qchaud(rec) », éq. 598), par un
+    /// réseau de distribution de CTA fictif (fiche 8.11, éq. 940) : identifiant d'une
+    /// génération du bâtiment pourvue d'un générateur de chauffage.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generation_batterie_chaude: Option<Id>,
+    /// « θsou_nom_chaud » : température de soufflage nominale aux bouches en chauffage d'une
+    /// centrale à débit variable (type 4), en °C (éq. 585). Sans objet en type 3.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub theta_sou_nom_chaud_c: Option<f64>,
+    /// Batterie de refroidissement régulée selon la charge (« Is_froid », mode actif du
+    /// §6.3.3.5) : centrales de types 3 et 4 seulement ; requiert
+    /// `generation_batterie_froide`, `theta_dim_fr_c` et, en type 4, `theta_sou_nom_froid_c`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub batterie_froide: Option<bool>,
+    /// Génération qui fournit le froid de la batterie froide (« Qfroid(rec) », éq. 611), par un
+    /// réseau de CTA fictif (fiche 8.11, éq. 940) : identifiant d'une génération du bâtiment
+    /// pourvue d'un générateur de refroidissement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generation_batterie_froide: Option<Id>,
+    /// « θsou,nom,froid » : température de soufflage nominale aux bouches en refroidissement
+    /// d'une centrale à débit variable (type 4), en °C (éq. 591). Sans objet en type 3.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub theta_sou_nom_froid_c: Option<f64>,
+    /// « θdim,fr » : température nominale du fluide dans la batterie froide ou l'évaporateur, en
+    /// °C (éq. 604).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub theta_dim_fr_c: Option<f64>,
     /// Humidificateur d'hiver (« Is_ChaudHR ») : non pris en charge dans cette version.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub humidification: Option<bool>,

@@ -128,6 +128,18 @@ pub struct BatteriesCta {
     pub prechauffage: Option<usize>,
     /// Génération de la batterie de prérefroidissement.
     pub prerefroidissement: Option<usize>,
+    /// Génération de la batterie chaude régulée sur la charge (mode actif, éq. 940).
+    pub chaude: Option<usize>,
+    /// Génération de la batterie froide régulée sur la charge (mode actif, éq. 940).
+    pub froide: Option<usize>,
+}
+
+/// Description saisie d'une centrale de traitement d'air (types 2 à 4).
+fn cta_saisie(s: Option<&SystemeVentilation>) -> Option<&crate::entree::Cta> {
+    match s {
+        Some(SystemeVentilation::Cta(c)) => Some(c),
+        _ => None,
+    }
 }
 
 /// Origine d'une demande reçue par une génération.
@@ -589,6 +601,14 @@ impl SystemesBatiment {
                     prerefroidissement: s
                         .and_then(SystemeVentilation::batterie_prerefroidissement)
                         .and_then(|b| position(&b.generation)),
+                    chaude: cta_saisie(s)
+                        .filter(|c| c.batterie_chaude == Some(true))
+                        .and_then(|c| c.generation_batterie_chaude.as_ref())
+                        .and_then(position),
+                    froide: cta_saisie(s)
+                        .filter(|c| c.batterie_froide == Some(true))
+                        .and_then(|c| c.generation_batterie_froide.as_ref())
+                        .and_then(position),
                 }
             })
             .collect();
@@ -609,7 +629,9 @@ impl SystemesBatiment {
                             || (0..n_ecs).any(|k| ecs[k].generation == ig && a_ecs[k][igr] > 0.0)
                             || antigel[*iz] == Some(ig)
                             || batteries_cta[*iz].prechauffage == Some(ig)
-                            || batteries_cta[*iz].prerefroidissement == Some(ig);
+                            || batteries_cta[*iz].prerefroidissement == Some(ig)
+                            || batteries_cta[*iz].chaude == Some(ig)
+                            || batteries_cta[*iz].froide == Some(ig);
                         if desservi {
                             *a_gr
                         } else {
@@ -865,6 +887,9 @@ impl SystemesBatiment {
             for (iz, z) in zones.iter().enumerate() {
                 let b = self.batteries_cta[iz];
                 let v = z.sorties_ventilation;
+                let m = z.mode_actif;
+                // Éq. (940) : énergies du mode actif des centrales à charge variable, sur leur
+                // réseau de CTA fictif (lecture Q95).
                 for (poste, g, q) in [
                     (Poste::Chauffage, b.prechauffage, v.q_prechaud_wh),
                     (
@@ -872,6 +897,8 @@ impl SystemesBatiment {
                         b.prerefroidissement,
                         -v.q_prefroid_wh,
                     ),
+                    (Poste::Chauffage, b.chaude, m.q_chaud_wh),
+                    (Poste::Refroidissement, b.froide, -m.q_froid_wh),
                 ] {
                     if g != Some(ig) {
                         continue;
