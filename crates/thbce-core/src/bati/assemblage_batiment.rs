@@ -116,6 +116,10 @@ pub struct SystemesBatiment {
     pub cumuls_cef_groupes: Vec<CumulsCef>,
     /// Énergie de la sécurité antigel transmise aux générations, par zone, en Wh.
     pub cumuls_antigel_wh: Vec<f64>,
+    /// Pour chaque zone, générations qui fournissent l'énergie des batteries de préchauffage
+    /// et de prérefroidissement de sa centrale double flux, par des réseaux de CTA fictifs
+    /// (fiche 8.11, éq. 937 et 939).
+    pub batteries_cta: Vec<BatteriesCta>,
     /// « Φrejet » : puissance puisée dans chaque espace tampon par les évaporateurs des
     /// générateurs thermodynamiques sur air ambiant au dernier pas de temps, en W (§5.4.3.2,
     /// éq. 109).
@@ -149,6 +153,15 @@ pub struct CollectifEauxGrisesResolu {
     pub l_vnc_m: f64,
 }
 
+/// Générations reliées aux batteries de prétraitement d'une centrale double flux.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct BatteriesCta {
+    /// Génération de la batterie de préchauffage.
+    pub prechauffage: Option<usize>,
+    /// Génération de la batterie de prérefroidissement.
+    pub prerefroidissement: Option<usize>,
+}
+
 /// Origine d'une demande reçue par une génération.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Origine {
@@ -158,6 +171,8 @@ enum Origine {
     Ecs(usize),
     /// Sécurité antigel du double flux d'une zone.
     Antigel(usize),
+    /// Batterie de préchauffage ou de prérefroidissement de la centrale d'une zone.
+    BatterieCta(usize),
 }
 
 /// Distribution d'ECS intergroupe, prête pour le calcul.
@@ -591,14 +606,30 @@ impl SystemesBatiment {
         let antigel: Vec<Option<usize>> = bat
             .zones
             .iter()
-            .map(|z| match z.ventilation.as_ref().map(|v| &v.systeme) {
-                Some(SystemeVentilation::DoubleFlux(d)) => d
-                    .echangeur
+            .map(|z| {
+                z.ventilation
                     .as_ref()
+                    .and_then(|v| v.systeme.echangeur())
                     .filter(|e| e.antigel == Some(true))
                     .and_then(|e| e.generation_antigel.as_ref())
-                    .and_then(|id| generations.iter().position(|g| g == id)),
-                _ => None,
+                    .and_then(|id| generations.iter().position(|g| g == id))
+            })
+            .collect();
+        // Fiche 8.11 : batteries de prétraitement des centrales double flux.
+        let batteries_cta: Vec<BatteriesCta> = bat
+            .zones
+            .iter()
+            .map(|z| {
+                let position = |id: &String| generations.iter().position(|g| g == id);
+                let s = z.ventilation.as_ref().map(|v| &v.systeme);
+                BatteriesCta {
+                    prechauffage: s
+                        .and_then(SystemeVentilation::batterie_prechauffage)
+                        .and_then(|b| position(&b.generation)),
+                    prerefroidissement: s
+                        .and_then(SystemeVentilation::batterie_prerefroidissement)
+                        .and_then(|b| position(&b.generation)),
+                }
             })
             .collect();
         let groupes: Vec<(usize, f64)> = zones
@@ -616,7 +647,9 @@ impl SystemesBatiment {
                         let desservi = (0..n)
                             .any(|k| intergroupes[k].generation == ig && a_desservie[k][igr] > 0.0)
                             || (0..n_ecs).any(|k| ecs[k].generation == ig && a_ecs[k][igr] > 0.0)
-                            || antigel[*iz] == Some(ig);
+                            || antigel[*iz] == Some(ig)
+                            || batteries_cta[*iz].prechauffage == Some(ig)
+                            || batteries_cta[*iz].prerefroidissement == Some(ig);
                         if desservi {
                             *a_gr
                         } else {
@@ -673,6 +706,7 @@ impl SystemesBatiment {
             groupes,
             cumuls_cef_groupes: vec![CumulsCef::default(); nb_groupes],
             cumuls_antigel_wh: vec![0.0; nb_zones],
+            batteries_cta,
             phi_rejet_et_w: vec![0.0; ids_et.len()],
             aut_gen: vec![(false, false); generations.len()],
             generations,
@@ -963,6 +997,36 @@ impl SystemesBatiment {
                 });
                 origines.push(Origine::Antigel(iz));
             }
+            // Fiche 8.11 : réseaux de CTA fictifs des batteries de préchauffage et de
+            // prérefroidissement (éq. 939), à la température après la boîte de mélange (éq. 951).
+            for (iz, z) in zones.iter().enumerate() {
+                let b = self.batteries_cta[iz];
+                let v = z.sorties_ventilation;
+                for (poste, g, q) in [
+                    (Poste::Chauffage, b.prechauffage, v.q_prechaud_wh),
+                    (
+                        Poste::Refroidissement,
+                        b.prerefroidissement,
+                        -v.q_prefroid_wh,
+                    ),
+                ] {
+                    if g != Some(ig) {
+                        continue;
+                    }
+                    vus.push(ReseauVu {
+                        poste,
+                        hydraulique: false,
+                        q_sys_wh: q,
+                        theta_moy_c: 0.0,
+                        theta_dep_c: 0.0,
+                        theta_i_aval_eq_c: v.theta_souf_mel_c,
+                        relance: false,
+                        rat_surf_dess: 0.0,
+                        phi_pertes_prim_wh: 0.0,
+                    });
+                    origines.push(Origine::BatterieCta(iz));
+                }
+            }
             let b_therm = self.et_generation[ig]
                 .and_then(|i| espaces_tampons.get(i))
                 .map_or(1.0, |e| e.b_therm);
@@ -1100,6 +1164,36 @@ impl SystemesBatiment {
                                 somme(g) / total
                             } else {
                                 self.rat_surf_ecs[k].get(igr).copied().unwrap_or(0.0)
+                            }
+                        }
+                        // Éq. (945) à (948) : groupes de la zone au prorata de leurs débits
+                        // soufflés, sinon de leurs surfaces (lecture Q93).
+                        Origine::BatterieCta(iz) => {
+                            let souffle = |gr: &super::assemblage_groupe::GroupeHoraire| {
+                                gr.debits.q_souffle_m3_h.max(0.0)
+                            };
+                            let dans_zone =
+                                |i: &usize| self.groupes.get(*i).is_some_and(|(z, _)| *z == iz);
+                            let total: f64 = groupes
+                                .iter()
+                                .enumerate()
+                                .filter(|(i, _)| dans_zone(i))
+                                .map(|(_, gr)| souffle(gr))
+                                .sum();
+                            if !dans_zone(&igr) {
+                                0.0
+                            } else if total > 0.0 {
+                                souffle(g) / total
+                            } else {
+                                let a: f64 = self
+                                    .groupes
+                                    .iter()
+                                    .filter(|(z, _)| *z == iz)
+                                    .map(|(_, a)| a)
+                                    .sum();
+                                self.groupes
+                                    .get(igr)
+                                    .map_or(0.0, |(_, x)| if a > 0.0 { x / a } else { 0.0 })
                             }
                         }
                         // Groupes de la zone ventilée, au prorata de leurs surfaces.

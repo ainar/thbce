@@ -4,8 +4,8 @@
 
 use super::{nom_json, RapportValidation};
 use crate::entree::{
-    BoucheConduit, EntreesAir, Isouf, RepresentationEchangeur, SystemeVentilation, Ventilation,
-    Zone,
+    BatteriePrechauffage, BatteriePrerefroidissement, BoucheConduit, Echangeur, EntreesAir, Isouf,
+    RepresentationEchangeur, SystemeVentilation, TypeCta, Ventilation, Zone,
 };
 use crate::ventilation::bouche_conduit::{q_spec_conv_base_m3_h, DUGD_BBIO_H};
 use crate::ventilation::debits_air_cep::{trav_zone_conventionnel, EntreeAir};
@@ -180,6 +180,7 @@ pub(super) fn valider_bouche_conduit(r: &mut RapportValidation, c: &str, b: &Bou
     for (champ, valeur) in [
         ("q_spec_occ_m3_h", b.q_spec_occ_m3_h),
         ("q_spec_inocc_m3_h", b.q_spec_inocc_m3_h),
+        ("q_spec_ch_m3_h", b.q_spec_ch_m3_h),
         ("crdbnr", b.crdbnr),
     ] {
         if let Some(v) = valeur {
@@ -346,23 +347,51 @@ pub(super) fn valider_ventilation(
                 }
             }
         };
+    // §6.2.3.1.2 : débit du mode actif des bouches, propre aux centrales de traitement d'air.
+    let est_cta = matches!(v.systeme, SystemeVentilation::Cta(_));
+    for (ig, g) in zone.groupes.iter().enumerate() {
+        for (ib, b) in g.bouches_conduits.iter().enumerate() {
+            let cb = format!("{}.groupes[{ig}].bouches_conduits[{ib}]", zone_chemin(c));
+            match (est_cta && !habitation, b.q_spec_ch_m3_h) {
+                (true, None) => r.erreur(
+                    format!("{cb}.q_spec_ch_m3_h"),
+                    None,
+                    "débit du mode actif requis pour une bouche reliée à une centrale de \
+                     traitement d'air (Th-BCE 2020 §6.2.3.1.2, éq. 391 et 394)",
+                ),
+                (true, Some(q)) => {
+                    r.strictement_positif(format!("{cb}.q_spec_ch_m3_h"), q);
+                    for (champ, zn) in [
+                        ("q_spec_occ_m3_h", b.q_spec_occ_m3_h),
+                        ("q_spec_inocc_m3_h", b.q_spec_inocc_m3_h),
+                    ] {
+                        if zn.is_some_and(|zn| zn > q) {
+                            r.erreur(
+                                format!("{cb}.{champ}"),
+                                zn.map(|x| x.to_string()),
+                                "le débit de zone neutre ne peut dépasser le débit du mode actif \
+                                 (Th-BCE 2020 §6.2.3.1.2, taux d'air neuf minimal des éq. 393 \
+                                 et 397 au plus égal à 1)",
+                            );
+                        }
+                    }
+                }
+                (false, Some(q)) if !habitation => r.erreur(
+                    format!("{cb}.q_spec_ch_m3_h"),
+                    Some(q.to_string()),
+                    "ne se saisit que pour une bouche reliée à une centrale de traitement d'air \
+                     (Th-BCE 2020 §6.2.3.1.2)",
+                ),
+                _ => {}
+            }
+        }
+    }
     match &v.systeme {
         SystemeVentilation::MecaniqueBassePression(_) if !habitation => r.erreur(
             cs.clone(),
             Some(nom_json(&v.systeme)),
             "l'extraction mécanique basse pression est propre aux logements collectifs à \
              conduits individuels ou de type shunt (Th-BCE 2020 §6.4)",
-        ),
-        SystemeVentilation::DoubleFlux(_) if !habitation => r.hors_perimetre(
-            cs.clone(),
-            Some(nom_json(&v.systeme)),
-            "ventilation double flux et centrale de traitement d'air en usage non résidentiel \
-             (Th-BCE 2020 §6.2.3.1.2 et §6.3)",
-        ),
-        SystemeVentilation::CentraleTraitementAir if !habitation => r.hors_perimetre(
-            cs.clone(),
-            Some(nom_json(&v.systeme)),
-            "centrale de traitement d'air (Th-BCE 2020 §6.3, types 2 à 4)",
         ),
         SystemeVentilation::SimpleFluxExtraction(p)
         | SystemeVentilation::MecaniqueBassePression(p) => {
@@ -400,10 +429,49 @@ pub(super) fn valider_ventilation(
         }
         SystemeVentilation::DoubleFlux(df) => {
             let cd = format!("{cs}.double_flux");
-            r.positif(format!("{cd}.p_vent_base_rep_w"), df.p_vent_base_rep_w);
-            r.positif(format!("{cd}.p_vent_pointe_rep_w"), df.p_vent_pointe_rep_w);
-            r.positif(format!("{cd}.p_vent_base_sou_w"), df.p_vent_base_sou_w);
-            r.positif(format!("{cd}.p_vent_pointe_sou_w"), df.p_vent_pointe_sou_w);
+            // Éq. (390) à (394) en habitation ; (458) et (459) dans les autres usages.
+            let hab = [
+                ("p_vent_base_rep_w", df.p_vent_base_rep_w),
+                ("p_vent_pointe_rep_w", df.p_vent_pointe_rep_w),
+                ("p_vent_base_sou_w", df.p_vent_base_sou_w),
+                ("p_vent_pointe_sou_w", df.p_vent_pointe_sou_w),
+            ];
+            let nr = [
+                ("p_vent_rep_occ_w", df.p_vent_rep_occ_w),
+                ("p_vent_sou_occ_w", df.p_vent_sou_occ_w),
+                ("p_vent_rep_inocc_w", df.p_vent_rep_inocc_w),
+                ("p_vent_sou_inocc_w", df.p_vent_sou_inocc_w),
+            ];
+            let (requis, exclus, regle_requis, regle_exclus) = if habitation {
+                (
+                    hab,
+                    nr,
+                    "puissance requise en maison individuelle ou accolée et en logement \
+                     collectif (Th-BCE 2020 §6.3.3.3.1, éq. 391 à 394)",
+                    "ne se saisit que dans les usages autres que la maison individuelle ou \
+                     accolée et le logement collectif (Th-BCE 2020 §6.3.3.4.4, éq. 458 et 459)",
+                )
+            } else {
+                (
+                    nr,
+                    hab,
+                    "puissance requise dans les usages autres que la maison individuelle ou \
+                     accolée et le logement collectif (Th-BCE 2020 §6.3.3.4.4, éq. 458 et 459)",
+                    "ne se saisit qu'en maison individuelle ou accolée et en logement collectif \
+                     (Th-BCE 2020 §6.3.3.3.1, éq. 391 à 394)",
+                )
+            };
+            for (champ, valeur) in requis {
+                match valeur {
+                    Some(x) => r.positif(format!("{cd}.{champ}"), x),
+                    None => r.erreur(format!("{cd}.{champ}"), None, regle_requis),
+                }
+            }
+            for (champ, valeur) in exclus {
+                if let Some(x) = valeur {
+                    r.erreur(format!("{cd}.{champ}"), Some(x.to_string()), regle_exclus);
+                }
+            }
             if !(a_reprise && a_soufflage) && !sans_bouche {
                 r.erreur(
                     cs.clone(),
@@ -412,8 +480,15 @@ pub(super) fn valider_ventilation(
                      (Th-BCE 2020 §6.3)",
                 );
             }
+            if df.prechauffage == Some(true) && df.batterie_prechauffage.is_none() {
+                r.erreur(
+                    format!("{cd}.prechauffage"),
+                    Some("true".into()),
+                    "décrire la batterie de préchauffage par `batterie_prechauffage` (Th-BCE \
+                     2020 §6.3.3.4.9.1)",
+                );
+            }
             for (champ, present) in [
-                ("prechauffage", df.prechauffage),
                 ("humidification", df.humidification),
                 (
                     "rafraichissement_evaporatif",
@@ -425,44 +500,112 @@ pub(super) fn valider_ventilation(
                     r.hors_perimetre(format!("{cd}.{champ}"), Some("true".into()), champ);
                 }
             }
+            valider_batteries(
+                r,
+                &cd,
+                zone,
+                df.batterie_prechauffage.as_ref(),
+                df.batterie_prerefroidissement.as_ref(),
+            );
             if let Some(e) = &df.echangeur {
-                let ce = format!("{cd}.echangeur");
-                match &e.representation {
-                    RepresentationEchangeur::Simplifiee(s) => r.plage(
-                        format!("{ce}.representation.simplifiee.epsilon_saisi"),
-                        s.epsilon_saisi,
-                        0.0,
-                        1.0,
+                valider_echangeur(r, &format!("{cd}.echangeur"), e);
+            }
+        }
+        SystemeVentilation::Cta(cta) if !habitation => {
+            let cc = format!("{cs}.cta");
+            for (champ, p) in [
+                ("p_vent_rep_ch_w", cta.p_vent_rep_ch_w),
+                ("p_vent_sou_ch_w", cta.p_vent_sou_ch_w),
+                ("p_vent_rep_zn_occ_w", cta.p_vent_rep_zn_occ_w),
+                ("p_vent_sou_zn_occ_w", cta.p_vent_sou_zn_occ_w),
+                ("p_vent_rep_zn_inocc_w", cta.p_vent_rep_zn_inocc_w),
+                ("p_vent_sou_zn_inocc_w", cta.p_vent_sou_zn_inocc_w),
+            ] {
+                r.positif(format!("{cc}.{champ}"), p);
+            }
+            r.plage(
+                format!("{cc}.theta_enc_c"),
+                cta.theta_enc_c,
+                f64::NEG_INFINITY,
+                f64::INFINITY,
+            );
+            if cta.theta_enf_c.is_nan() || cta.theta_enf_c <= cta.theta_enc_c {
+                r.erreur(
+                    format!("{cc}.theta_enf_c"),
+                    Some(cta.theta_enf_c.to_string()),
+                    "la borne haute de la plage de fonctionnement en tout air neuf doit dépasser \
+                     la borne basse (Th-BCE 2020 §6.3.3.4.3.3, éq. 436)",
+                );
+            }
+            if !(a_reprise && a_soufflage) && !sans_bouche {
+                r.erreur(
+                    cs.clone(),
+                    None,
+                    "une centrale de traitement d'air a des bouches de reprise et des bouches de \
+                     soufflage (Th-BCE 2020 §6.3)",
+                );
+            }
+            // §6.3.3.4.9 et §6.3.3.4.10 : prétraitement des types 1 et 2 seulement.
+            if cta.type_cta != TypeCta::DebitConstant {
+                for (champ, present) in [
+                    ("batterie_prechauffage", cta.batterie_prechauffage.is_some()),
+                    (
+                        "batterie_prerefroidissement",
+                        cta.batterie_prerefroidissement.is_some(),
                     ),
-                    RepresentationEchangeur::Detaillee(d) => {
-                        r.positif(format!("{ce}.representation.detaillee.ua_w_k"), d.ua_w_k);
-                    }
-                }
-                if e.rotatif == Some(true) {
-                    r.hors_perimetre(
-                        format!("{ce}.rotatif"),
-                        Some("true".into()),
-                        "échangeur rotatif",
-                    );
-                }
-                if let Some(t) = e.theta_s_ech_rep_lim_c {
-                    r.plage(format!("{ce}.theta_s_ech_rep_lim_c"), t, -10.0, 10.0);
-                }
-                if let Some(b) = &e.bypass {
-                    for (champ, t) in [
-                        ("theta_ext_bypass_hiver_c", b.theta_ext_bypass_hiver_c),
-                        ("theta_ext_bypass_ete_c", b.theta_ext_bypass_ete_c),
-                        ("theta_int_bypass_hiver_c", b.theta_int_bypass_hiver_c),
-                        ("theta_int_bypass_ete_c", b.theta_int_bypass_ete_c),
-                    ] {
-                        r.plage(
-                            format!("{ce}.bypass.{champ}"),
-                            t,
-                            f64::NEG_INFINITY,
-                            f64::INFINITY,
+                ] {
+                    if present {
+                        r.erreur(
+                            format!("{cc}.{champ}"),
+                            None,
+                            "le prétraitement de l'air ne s'applique qu'aux doubles flux et aux \
+                             centrales à débit constant (Th-BCE 2020 §6.3.3.4.9 et 6.3.3.4.10)",
                         );
                     }
                 }
+            }
+            for (champ, present, regle) in [
+                (
+                    "batterie_chaude",
+                    cta.batterie_chaude,
+                    "batterie de chauffage régulée selon la charge : mode actif des centrales \
+                     à charge variable (Th-BCE 2020 §6.3.3.5)",
+                ),
+                (
+                    "batterie_froide",
+                    cta.batterie_froide,
+                    "batterie de refroidissement régulée selon la charge : mode actif des \
+                     centrales à charge variable (Th-BCE 2020 §6.3.3.5)",
+                ),
+                (
+                    "humidification",
+                    cta.humidification,
+                    "humidification d'hiver (Th-BCE 2020 §6.3.3.4.9.2)",
+                ),
+                (
+                    "rafraichissement_evaporatif",
+                    cta.rafraichissement_evaporatif,
+                    "rafraîchissement évaporatif (Th-BCE 2020 §6.3.3.4.5.3 et 6.3.3.4.11)",
+                ),
+                (
+                    "surventilation_mecanique",
+                    cta.surventilation_mecanique,
+                    "rafraîchissement par surventilation mécanique (Th-BCE 2020 §6.12)",
+                ),
+            ] {
+                if present == Some(true) {
+                    r.hors_perimetre(format!("{cc}.{champ}"), Some("true".into()), regle);
+                }
+            }
+            valider_batteries(
+                r,
+                &cc,
+                zone,
+                cta.batterie_prechauffage.as_ref(),
+                cta.batterie_prerefroidissement.as_ref(),
+            );
+            if let Some(e) = &cta.echangeur {
+                valider_echangeur(r, &format!("{cc}.echangeur"), e);
             }
         }
         SystemeVentilation::NaturelleParConduits
@@ -473,11 +616,17 @@ pub(super) fn valider_ventilation(
             "ventilation naturelle, hybride ou par ouverture des fenêtres (Th-BCE 2020 §6.6 et \
              §6.7)",
         ),
-        SystemeVentilation::CentraleTraitementAir => r.erreur(
+        SystemeVentilation::CentraleTraitementAir if !habitation => r.erreur(
+            cs.clone(),
+            Some(nom_json(&v.systeme)),
+            "décrire la centrale de traitement d'air par la variante `cta` (Th-BCE 2020 §6.3.2, \
+             tableau 61)",
+        ),
+        SystemeVentilation::CentraleTraitementAir | SystemeVentilation::Cta(_) => r.erreur(
             cs.clone(),
             None,
             "centrale de traitement d'air : réservée au non résidentiel (Th-BCE 2020 §6.2.3.1.2 \
-             et §6.3.3.1.3)",
+             et §6.3.3.1.2)",
         ),
     }
     if let Some(p) = v.puits {
@@ -528,5 +677,108 @@ pub(super) fn valider_ventilation(
             "ratio des fuites en volume chauffé requis quand les surfaces de conduits sont \
              saisies (Th-BCE 2020 §6.2.3.4)",
         );
+    }
+}
+
+/// Chemin de la zone à partir de celui de son système de ventilation.
+fn zone_chemin(c: &str) -> &str {
+    c.strip_suffix(".ventilation").unwrap_or(c)
+}
+
+/// Th-BCE 2020 §6.3.2, tableau 61, et §6.3.3.4.6 : échangeur d'une centrale double flux.
+fn valider_echangeur(r: &mut RapportValidation, ce: &str, e: &Echangeur) {
+    match &e.representation {
+        RepresentationEchangeur::Simplifiee(s) => r.plage(
+            format!("{ce}.representation.simplifiee.epsilon_saisi"),
+            s.epsilon_saisi,
+            0.0,
+            1.0,
+        ),
+        RepresentationEchangeur::Detaillee(d) => {
+            r.positif(format!("{ce}.representation.detaillee.ua_w_k"), d.ua_w_k);
+        }
+    }
+    match (e.rotatif == Some(true), e.p_ech_w) {
+        (true, Some(p)) => r.positif(format!("{ce}.p_ech_w"), p),
+        (true, None) => r.erreur(
+            format!("{ce}.p_ech_w"),
+            None,
+            "puissance de l'échangeur rotatif requise (Th-BCE 2020 §6.3.3.4.6.3, éq. 497)",
+        ),
+        (false, Some(p)) => r.erreur(
+            format!("{ce}.p_ech_w"),
+            Some(p.to_string()),
+            "ne se saisit que pour un échangeur rotatif (« Pech », échangeur à roue)",
+        ),
+        (false, None) => {}
+    }
+    if let Some(t) = e.theta_s_ech_rep_lim_c {
+        r.plage(format!("{ce}.theta_s_ech_rep_lim_c"), t, -10.0, 10.0);
+    }
+    if let Some(b) = &e.bypass {
+        for (champ, t) in [
+            ("theta_ext_bypass_hiver_c", b.theta_ext_bypass_hiver_c),
+            ("theta_ext_bypass_ete_c", b.theta_ext_bypass_ete_c),
+            ("theta_int_bypass_hiver_c", b.theta_int_bypass_hiver_c),
+            ("theta_int_bypass_ete_c", b.theta_int_bypass_ete_c),
+        ] {
+            r.plage(
+                format!("{ce}.bypass.{champ}"),
+                t,
+                f64::NEG_INFINITY,
+                f64::INFINITY,
+            );
+        }
+    }
+}
+
+/// Th-BCE 2020 §6.3.3.2.2 et §6.3.3.2.4 : batteries de préchauffage et de prérefroidissement.
+fn valider_batteries(
+    r: &mut RapportValidation,
+    c: &str,
+    zone: &Zone,
+    pre: Option<&BatteriePrechauffage>,
+    fr: Option<&BatteriePrerefroidissement>,
+) {
+    let fini = |r: &mut RapportValidation, chemin: String, t: f64| {
+        r.plage(chemin, t, f64::NEG_INFINITY, f64::INFINITY);
+    };
+    if let Some(p) = pre {
+        fini(
+            r,
+            format!("{c}.batterie_prechauffage.theta_cons_c"),
+            p.theta_cons_c,
+        );
+        fini(
+            r,
+            format!("{c}.batterie_prechauffage.theta_ex_c"),
+            p.theta_ex_c,
+        );
+    }
+    if let Some(f) = fr {
+        let cf = format!("{c}.batterie_prerefroidissement");
+        fini(r, format!("{cf}.theta_cons_c"), f.theta_cons_c);
+        fini(r, format!("{cf}.theta_ex_c"), f.theta_ex_c);
+        fini(r, format!("{cf}.theta_dim_fr_c"), f.theta_dim_fr_c);
+        // Éq. (389).
+        if !zone.groupes.iter().any(|g| g.iclim == Some(true)) {
+            r.erreur(
+                cf.clone(),
+                None,
+                "une centrale ne peut contenir de batterie de prérefroidissement que si elle est \
+                 reliée à au moins un groupe climatisé (Th-BCE 2020 §6.3.3.2.4, éq. 389)",
+            );
+        }
+        // Éq. (387).
+        if let Some(p) = pre {
+            if p.theta_ex_c >= f.theta_ex_c {
+                r.erreur(
+                    format!("{c}.batterie_prechauffage.theta_ex_c"),
+                    Some(p.theta_ex_c.to_string()),
+                    "la température extérieure d'autorisation du préchauffage doit être \
+                     inférieure à celle du prérefroidissement (Th-BCE 2020 §6.3.3.2.2, éq. 387)",
+                );
+            }
+        }
     }
 }

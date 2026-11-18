@@ -71,6 +71,10 @@ pub struct CumulsVentilation {
     pub nbh_bypass: u32,
     /// Énergie fournie pour la sécurité antigel, en Wh (éq. 508).
     pub w_ag_wh: f64,
+    /// Énergie fournie par la batterie de préchauffage, en Wh (éq. 523).
+    pub q_prechaud_wh: f64,
+    /// Énergie fournie par la batterie de prérefroidissement, en Wh, négative (éq. 545).
+    pub q_prefroid_wh: f64,
 }
 
 impl ZoneHoraire {
@@ -274,28 +278,46 @@ impl ZoneHoraire {
         // §6.2.3.2.2.1 : hors habitation, les débits des bouches suivent l'indicateur de
         // ventilation de la zone (éq. 400 à 402 ; débits conventionnels du §6.2.3.1.3 en Bbio).
         let i_vent = scenarios.i_vent > 0.0;
+        // État des groupes au pas précédent vu par le système du projet ; une centrale de
+        // traitement d'air en déduit son régime de débits (§6.3.3.4.3.2, lecture Q90).
+        if let Some(v) = &mut self.ventilation {
+            self.etats_ventilation.clear();
+            let mode = self.mode;
+            self.etats_ventilation
+                .extend(self.groupes.iter().zip(&self.sorties).map(|(g, s)| {
+                    let sy = g.systemes.as_ref().map(|sy| &sy.sorties);
+                    EtatGroupeVentilation {
+                        theta_i_fin_c: g.etat.fin.theta_i_c,
+                        omega_i_fin_kg_kg: g.etat.omega_i_fin_kg_kg,
+                        // Q42 point 9 : saison effective de chauffage (fiche 8.4) en calcul des
+                        // consommations ; autorisation propre dans les autres modes.
+                        saison_de_chauffage: if mode == ModeCalcul::ThC {
+                            g.etat.aut_eff.0
+                        } else {
+                            g.etat.saisons.aut_ch
+                        },
+                        // Éq. (410) : saison effective d'un groupe climatisé, en calcul des
+                        // consommations seulement (aucun refroidissement en Th-D, §13.5.3.1).
+                        saison_de_refroidissement: mode == ModeCalcul::ThC
+                            && g.i_clim
+                            && g.etat.aut_eff.1,
+                        relance: sy.is_some_and(|x| x.relance),
+                        besoin_ch: s.is_some_and(|x| x.q_sys_ch_wh > 0.0),
+                        besoin_fr: s.is_some_and(|x| x.q_sys_fr_wh < 0.0),
+                    }
+                }));
+            v.preparer_pas(i_vent, &self.etats_ventilation);
+        }
         for (ig, g) in self.groupes.iter_mut().enumerate() {
             match (&self.ventilation, g.debits_bbio_non_residentiel) {
                 (Some(v), _) if v.selon_occupation() => {
-                    g.debits = v.debits_groupe_selon(ig, i_vent);
+                    g.debits = v.debits_groupe_pas(ig);
                 }
                 (None, Some((occ, inocc))) => g.debits = if i_vent { occ } else { inocc },
                 _ => {}
             }
         }
         if let Some(v) = &mut self.ventilation {
-            self.etats_ventilation.clear();
-            self.etats_ventilation
-                .extend(self.groupes.iter().map(|g| EtatGroupeVentilation {
-                    theta_i_fin_c: g.etat.fin.theta_i_c,
-                    // Q42 point 9 : saison effective de chauffage (fiche 8.4) en calcul des
-                    // consommations ; autorisation propre dans les autres modes.
-                    saison_de_chauffage: if self.mode == ModeCalcul::ThC {
-                        g.etat.aut_eff.0
-                    } else {
-                        g.etat.saisons.aut_ch
-                    },
-                }));
             self.sorties_ventilation = v.pas(
                 ext.te_c,
                 c.omega_e_kg_kg,
@@ -303,8 +325,11 @@ impl ZoneHoraire {
                 &mut self.air_souffle,
                 i_vent,
             );
+            v.enregistrer(h);
             self.cumuls_ventilation.nbh_bypass += u32::from(self.sorties_ventilation.bypass);
             self.cumuls_ventilation.w_ag_wh += self.sorties_ventilation.w_ag_wh;
+            self.cumuls_ventilation.q_prechaud_wh += self.sorties_ventilation.q_prechaud_wh;
+            self.cumuls_ventilation.q_prefroid_wh += self.sorties_ventilation.q_prefroid_wh;
         } else {
             for (a, g) in self.air_souffle.iter_mut().zip(&self.groupes) {
                 *a = AirSouffle {

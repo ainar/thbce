@@ -275,6 +275,51 @@ export interface Batiment {
   zones: Zone[];
 }
 
+/** Th-BCE 2020 §6.3.3.4.9.1 — batterie de préchauffage régulée sur la température extérieure. */
+export interface BatteriePrechauffage {
+  /**
+   * Génération qui fournit l'énergie du préchauffage (« Qprechaud », éq. 523), par un
+   * réseau de distribution de CTA fictif (fiche 8.11, éq. 939) : identifiant d'une
+   * génération du bâtiment pourvue d'un générateur de chauffage.
+   */
+  generation: string;
+  /**
+   * « θcons_prechaud » : température de consigne de soufflage du préchauffage, en °C (éq.
+   * 522).
+   */
+  theta_cons_c: number;
+  /**
+   * « θex_prechaud » : température extérieure au-dessus de laquelle le préchauffage n'est
+   * pas autorisé, en °C.
+   */
+  theta_ex_c: number;
+}
+
+/**
+ * Th-BCE 2020 §6.3.3.4.10 — batterie de prérefroidissement régulée sur la température
+ * extérieure.
+ */
+export interface BatteriePrerefroidissement {
+  /**
+   * Génération qui fournit le froid (« Qprefroid », éq. 545), par un réseau de distribution
+   * de CTA fictif (fiche 8.11, éq. 939) : identifiant d'une génération du bâtiment pourvue
+   * d'un générateur de refroidissement.
+   */
+  generation: string;
+  /**
+   * « θcons_prefroid » : température de consigne de soufflage du prérefroidissement, en °C
+   * (éq. 540 et 544).
+   */
+  theta_cons_c: number;
+  /** « θdim,fr » : température nominale moyenne du fluide dans la batterie, en °C (éq. 539). */
+  theta_dim_fr_c: number;
+  /**
+   * « θex_prefroid » : température extérieure au-dessous de laquelle le prérefroidissement
+   * n'est pas autorisé, en °C.
+   */
+  theta_ex_c: number;
+}
+
 /** Besoins et besoin bioclimatique d'un mois ou de l'année (Th-BCE 2020 §13.1.2, sorties). */
 export interface BesoinsBbio {
   /**
@@ -360,6 +405,14 @@ export interface BoucheConduit {
   id: string;
   /** « Isouf » : sens du circuit. */
   isouf: Isouf;
+  /**
+   * « qsoufflé,CH » : débit de la bouche en mode actif (hors zone neutre), en m³/h, positif,
+   * pour une bouche reliée à une centrale de traitement d'air (§6.2.3.1.2, éq. 391 et 394) ;
+   * requis dans ce cas, sans objet sinon. Les débits de zone neutre sont alors
+   * `q_spec_occ_m3_h` (« qsoufflé,ZN,occ ») et `q_spec_inocc_m3_h` (« qsoufflé,ZN,inocc »),
+   * au plus égaux à celui-ci ; les taux d'air neuf minimaux en découlent (éq. 393 et 397).
+   */
+  q_spec_ch_m3_h?: number | null;
   /**
    * « qspec,rep,conv_base » ou « qspec,souffle,conv_base » : débit volumique spécifique
    * conventionnel en base, en m³/h, positif et au plus égal au débit de pointe. À saisir sauf
@@ -813,6 +866,84 @@ export interface ContributionAcv {
   ic: PhasesAcv;
 }
 
+/**
+ * Th-BCE 2020 §6.3.2, tableau 61 — centrale de traitement d'air (types 2 à 4), en usage
+ * autre que l'habitation.
+ *
+ * Les débits des bouches se saisissent par bouche (`bouches_conduits` des groupes) : débit
+ * en mode actif `q_spec_ch_m3_h` (« qsoufflé,CH »), débits de zone neutre en occupation et en
+ * inoccupation `q_spec_occ_m3_h` et `q_spec_inocc_m3_h` (« qsoufflé,ZN,occ »,
+ * « qsoufflé,ZN,inocc », §6.2.3.1.2).
+ */
+export interface Cta {
+  /**
+   * Batterie de chauffage régulée selon la charge thermique (« Is_chaud », mode actif du
+   * §6.3.3.5) : non prise en charge dans cette version.
+   */
+  batterie_chaude?: boolean | null;
+  /**
+   * Batterie de refroidissement régulée selon la charge (« Is_froid », mode actif) : non
+   * prise en charge dans cette version.
+   */
+  batterie_froide?: boolean | null;
+  /**
+   * Batterie de préchauffage régulée sur la température d'air neuf (« Is_prechaud ») :
+   * centrale à débit constant (`debit_constant`) seulement (§6.3.3.4.9).
+   */
+  batterie_prechauffage?: BatteriePrechauffage | null;
+  /**
+   * Batterie de prérefroidissement (« Is_prefroid ») : centrale à débit constant seulement
+   * (§6.3.3.4.10).
+   */
+  batterie_prerefroidissement?: BatteriePrerefroidissement | null;
+  /** Échangeur air extrait / air neuf. Absent : pas d'échangeur (éq. 496). */
+  echangeur?: Echangeur | null;
+  /** Humidificateur d'hiver (« Is_ChaudHR ») : non pris en charge dans cette version. */
+  humidification?: boolean | null;
+  /** « Pvent,rep,CH » : puissance du ventilateur de reprise en mode actif (nominal), en W. */
+  p_vent_rep_ch_w: number;
+  /**
+   * « Pvent,rep,ZN inocc » : puissance du ventilateur de reprise en zone neutre en
+   * inoccupation, en W.
+   */
+  p_vent_rep_zn_inocc_w: number;
+  /**
+   * « Pvent,rep,ZN occ » : puissance du ventilateur de reprise en zone neutre en
+   * occupation, en W.
+   */
+  p_vent_rep_zn_occ_w: number;
+  /** « Pvent,sou,CH » : puissance du ventilateur de soufflage en mode actif, en W. */
+  p_vent_sou_ch_w: number;
+  /** « Pvent,sou,ZN inocc » : la même pour le ventilateur de soufflage, en W. */
+  p_vent_sou_zn_inocc_w: number;
+  /** « Pvent,sou,ZN occ » : la même pour le ventilateur de soufflage, en W. */
+  p_vent_sou_zn_occ_w: number;
+  /**
+   * Rafraîchissement évaporatif (« Type_humidification_Eté ») : non pris en charge dans
+   * cette version.
+   */
+  rafraichissement_evaporatif?: boolean | null;
+  /**
+   * « Type_régul_AN ». Absent : régulation standard, « par défaut » selon le texte, signalé
+   * dans les résultats.
+   */
+  regulation_air_neuf?: RegulationAirNeuf | null;
+  /**
+   * Rafraîchissement par surventilation mécanique (§6.12) : non pris en charge dans cette
+   * version.
+   */
+  surventilation_mecanique?: boolean | null;
+  /**
+   * « θENC » : borne basse de la plage de température d'air neuf de fonctionnement en tout
+   * air neuf, en °C (éq. 435 et 436).
+   */
+  theta_enc_c: number;
+  /** « θENF » : borne haute de cette plage, en °C, supérieure à `theta_enc_c`. */
+  theta_enf_c: number;
+  /** « Type_ventilation_mecaniq » de 2 à 4. */
+  type_cta: TypeCta;
+}
+
 /** « Idcycle » (§9.22.3.2.3, tableau 305). */
 export type CycleSoutirage = "s" | "m" | "l" | "xl" | "xxl";
 
@@ -1022,30 +1153,65 @@ export interface DonneesService {
   transport_terres_kgco2_tkm?: number | null;
 }
 
-/** Th-BCE 2020 §6.3.2, tableau 61 — groupe de ventilation double flux en habitation. */
+/**
+ * Th-BCE 2020 §6.3.2, tableau 61 — groupe de ventilation double flux
+ * (`Type_ventilation_mecaniq = 1`), en habitation et dans les autres usages.
+ */
 export interface DoubleFlux {
-  /** Échangeur statique. Absent : pas d'échangeur (`type_échangeur = 0`, éq. 496). */
+  /**
+   * Batterie de préchauffage régulée sur la température d'air neuf (« Is_prechaud »,
+   * §6.3.3.4.9.1).
+   */
+  batterie_prechauffage?: BatteriePrechauffage | null;
+  /**
+   * Batterie de prérefroidissement (« Is_prefroid », §6.3.3.4.10) : la zone doit compter au
+   * moins un groupe climatisé (éq. 389).
+   */
+  batterie_prerefroidissement?: BatteriePrerefroidissement | null;
+  /** Échangeur. Absent : pas d'échangeur (`type_échangeur = 0`, éq. 496). */
   echangeur?: Echangeur | null;
   /** Humidificateur d'hiver (« Is_ChaudHR ») : non pris en charge dans cette version. */
   humidification?: boolean | null;
-  /** « Pvent,base,rep » : puissance électrique du ventilateur de reprise en débit de base, en W. */
-  p_vent_base_rep_w: number;
+  /**
+   * « Pvent,base,rep » : puissance électrique du ventilateur de reprise en débit de base, en W.
+   * Requise en maison individuelle ou accolée et en logement collectif ; ne pas la saisir
+   * dans les autres usages.
+   */
+  p_vent_base_rep_w?: number | null;
   /**
    * « Pvent,base,sou » : puissance électrique du ventilateur de soufflage en débit de base, en
-   * W.
+   * W. Requise en habitation.
    */
-  p_vent_base_sou_w: number;
+  p_vent_base_sou_w?: number | null;
   /**
    * « Pvent,pointe,rep » : puissance électrique du ventilateur de reprise en débit de pointe,
-   * en W.
+   * en W. Requise en habitation comme `p_vent_base_rep_w`.
    */
-  p_vent_pointe_rep_w: number;
+  p_vent_pointe_rep_w?: number | null;
   /**
    * « Pvent,pointe,sou » : puissance électrique du ventilateur de soufflage en débit de
-   * pointe, en W.
+   * pointe, en W. Requise en habitation.
    */
-  p_vent_pointe_sou_w: number;
-  /** Batterie de préchauffage (« Is_prechaud ») : non prise en charge dans cette version. */
+  p_vent_pointe_sou_w?: number | null;
+  /**
+   * « Pvent,rep,inocc » : puissance du ventilateur de reprise en inoccupation, en usage
+   * autre que l'habitation, en W (éq. 459) ; 0 si le ventilateur est arrêté.
+   */
+  p_vent_rep_inocc_w?: number | null;
+  /**
+   * « Pvent,rep,occ » : puissance du ventilateur de reprise en occupation, en usage autre
+   * que l'habitation, en W (éq. 458). Requise dans ces usages ; ne pas la saisir en
+   * habitation.
+   */
+  p_vent_rep_occ_w?: number | null;
+  /** « Pvent,inocc,sou » : la même pour le ventilateur de soufflage, en W (éq. 459). */
+  p_vent_sou_inocc_w?: number | null;
+  /** « Pvent,sou,occ » : la même pour le ventilateur de soufflage, en W (éq. 458). */
+  p_vent_sou_occ_w?: number | null;
+  /**
+   * Forme de la version 0.1 : `true` est refusé ; décrire la batterie par
+   * `batterie_prechauffage`.
+   */
   prechauffage?: boolean | null;
   /**
    * Rafraîchissement évaporatif (« Type_humidification_Eté ») : non pris en charge dans
@@ -1106,14 +1272,20 @@ export interface Echangeur {
    * avec `antigel`, sans objet sinon.
    */
   generation_antigel?: string | null;
+  /**
+   * « Pech » : puissance de l'échangeur rotatif, en W (éq. 497) ; requise pour un échangeur
+   * rotatif, sans objet sinon.
+   */
+  p_ech_w?: number | null;
   /** Représentation de l'échangeur (« idniveau_detail_echangeur »). */
   representation: RepresentationEchangeur;
-  /** Échangeur rotatif (« Pech », échangeur à roue) : non pris en charge dans cette version. */
+  /** Échangeur rotatif (échangeur à roue). Absent : échangeur à plaques (statique). */
   rotatif?: boolean | null;
   /**
    * « θs,ech,rep,LIM » : température limite basse de sortie côté rejet, en °C (de −10 à
-   * 10). Absente : 5 °C, valeur par défaut du tableau 62 (« autres cas »), signalée dans les
-   * résultats.
+   * 10). Absente : valeur par défaut du tableau 62, signalée dans les résultats : dans les
+   * usages autres que l'habitation, −5 °C pour un échangeur rotatif et 0 °C pour un
+   * échangeur à plaques ; 5 °C en habitation (« autres cas »).
    */
   theta_s_ech_rep_lim_c?: number | null;
 }
@@ -3255,6 +3427,12 @@ export interface RegimeAlternatif {
  */
 export type RegimeExigences = "complet" | "intermediaire" | "exigences_de_moyens" | "hors_champ" | "rt2012";
 
+/**
+ * « Type_régul_AN » : régulation du taux d'air neuf hors de la plage de fonctionnement en tout
+ * air neuf (§6.3.3.4.3.3, éq. 437 à 439).
+ */
+export type RegulationAirNeuf = "standard" | "optimisee";
+
 /** « idregul_batt » (§8.1.2). */
 export type RegulationBatterie = "debit_regule" | "temperature_constante";
 
@@ -4625,6 +4803,16 @@ export interface ResultatsVentilationMode {
   nbh_bypass: number;
   /** Énergie fournie pour la sécurité antigel de l'échangeur, en kWh (éq. 508). */
   q_ag_kwh: number;
+  /**
+   * Énergie fournie par la batterie de préchauffage, en kWh (éq. 523) ; absente sans
+   * batterie. Demandée à la génération désignée en calcul des consommations.
+   */
+  q_prechaud_kwh?: number | null;
+  /**
+   * Énergie fournie par la batterie de prérefroidissement, en kWh, négative (éq. 545,
+   * lecture Q91) ; absente sans batterie.
+   */
+  q_prefroid_kwh?: number | null;
 }
 
 /** Système de ventilation du projet d'une zone (Th-BCE 2020 §6.2 à 6.5). */
@@ -4795,7 +4983,9 @@ export type SystemeVentilation = {
   mecanique_basse_pression: VentilateurSimpleFlux;
 } | {
   double_flux: DoubleFlux;
-} | "naturelle_par_conduits" | "hybride" | "aeration" | "centrale_traitement_air";
+} | "naturelle_par_conduits" | "hybride" | "aeration" | "centrale_traitement_air" | {
+  cta: Cta;
+};
 
 /** « Taux » et « Statut_taux » (§8.23.3.6, éq. 1277). */
 export interface TauxAuxiliaires {
@@ -4886,6 +5076,9 @@ export type TypeCapteurSolaire = "non_vitre" | "vitre" | "tubulaire";
 
 /** Déclinaison d'une chaudière (§8.19.3.1, tableau 115). */
 export type TypeChaudiereSaisi = "gaz_standard" | "gaz_basse_temperature" | "gaz_condensation" | "fioul_standard" | "fioul_condensation" | "bois";
+
+/** Th-BCE 2020 §6.3.3.1 — type de centrale de traitement d'air (« Type_ventilation_mecaniq »). */
+export type TypeCta = "debit_constant" | "debit_constant_temperature_variable" | "debit_variable";
 
 /** Type de donnée environnementale (§2.4.2, §2.5.2, §2.6). */
 export type TypeDonneeEnvironnementale = "fdes_individuelle" | "fdes_collective" | "pep_individuel" | "pep_collectif" | "donnee_configuree" | "donnee_par_defaut";

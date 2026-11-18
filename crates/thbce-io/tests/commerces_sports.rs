@@ -438,19 +438,11 @@ fn saisie_des_grands_volumes() {
         assert!(u.est_pris_en_charge(), "{u:?}");
     }
 
-    // Un système hors périmètre reste refusé : double flux en usage non résidentiel.
+    // Un système hors périmètre reste refusé : puits climatique (le double flux et la centrale
+    // de traitement d'air en zone neutre sont calculés depuis le lot 1-ven).
     let mut p = commerce();
-    let maison = exemple("maison-double-flux-ademe");
-    p.batiments[0].zones[0]
-        .ventilation
-        .as_mut()
-        .unwrap()
-        .systeme = maison.batiments[0].zones[0]
-        .ventilation
-        .as_ref()
-        .unwrap()
-        .systeme
-        .clone();
+    p.batiments[0].zones[0].ventilation.as_mut().unwrap().puits =
+        Some(thbce_core::entree::Puits::Climatique);
     assert!(valider(&p).seulement_hors_perimetre());
 }
 

@@ -303,6 +303,8 @@ impl Resultats {
                     v.c_aux_vent_kwh = a(v.c_aux_vent_kwh);
                     for m in [&mut v.th_d, &mut v.th_c].into_iter().flatten() {
                         m.q_ag_kwh = a(m.q_ag_kwh);
+                        m.q_prechaud_kwh = m.q_prechaud_kwh.map(a);
+                        m.q_prefroid_kwh = m.q_prefroid_kwh.map(a);
                     }
                 }
                 if let Some(c) = &mut z.consommations_collectif {

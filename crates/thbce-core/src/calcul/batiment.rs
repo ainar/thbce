@@ -5,7 +5,9 @@
 use super::dh_le_plus_defavorable;
 use super::emission_distribution::resultats_systemes;
 use super::enveloppe::{defauts_groupe, enveloppe_groupe, resultats_baies};
-use super::ventilation::{debits_bbio_groupe, puissance_horaire_w, ventilation_groupe};
+use super::ventilation::{
+    debits_bbio_groupe, puissance_horaire_w, resultats_mode, ventilation_groupe,
+};
 use crate::bati::assemblage_groupe::{GroupeHoraire, THETA_INITIALE_C};
 use crate::bati::assemblage_zone::ZoneHoraire;
 use crate::conventions::NB_HEURES_AN;
@@ -13,7 +15,7 @@ use crate::entree::{Groupe, Projet, UsageZone, Zone};
 use crate::indicateurs::sorties_th_b::{sorties, EnergiesMensuelles};
 use crate::resultats::{
     ResultatsConfort, ResultatsConfortEte, ResultatsGroupe, ResultatsSaisons,
-    ResultatsVentilationMode, ResultatsVentilationZone, ResultatsZone,
+    ResultatsVentilationZone, ResultatsZone,
 };
 use crate::ventilation::ventilation_projet::VentilationProjet;
 
@@ -60,7 +62,13 @@ pub(super) fn restituer_zone(
     // Système de ventilation du projet, préparé hors de la boucle horaire : en habitation, la
     // puissance des ventilateurs est constante (éq. 392 et 394, 641 et 643), et la
     // consommation se somme heure par heure (éq. 565, 645).
-    let ventilation = VentilationProjet::nouvelle(zone, THETA_INITIALE_C);
+    // Hors habitation, la centrale double flux relève sa consommation pendant le calcul des
+    // consommations (éq. 565 et 570) : le système du calcul Th-C est restitué.
+    let ventilation = th_c
+        .ventilation
+        .clone()
+        .filter(|v| v.releve.is_some())
+        .or_else(|| VentilationProjet::nouvelle(zone, THETA_INITIALE_C));
     let groupes: Vec<ResultatsGroupe> = zone
         .groupes
         .iter()
@@ -122,14 +130,14 @@ pub(super) fn restituer_zone(
                     Some(serie) => serie.iter().sum::<f64>() / 1000.0,
                     None => v.p_vent_w() * NB_HEURES_AN as f64 / 1000.0,
                 },
-                th_d: th_d.ventilation.as_ref().map(|_| ResultatsVentilationMode {
-                    nbh_bypass: th_d.cumuls_ventilation.nbh_bypass,
-                    q_ag_kwh: th_d.cumuls_ventilation.w_ag_wh / 1000.0,
-                }),
-                th_c: th_c.ventilation.as_ref().map(|_| ResultatsVentilationMode {
-                    nbh_bypass: th_c.cumuls_ventilation.nbh_bypass,
-                    q_ag_kwh: th_c.cumuls_ventilation.w_ag_wh / 1000.0,
-                }),
+                th_d: th_d
+                    .ventilation
+                    .as_ref()
+                    .map(|_| resultats_mode(v, &th_d.cumuls_ventilation)),
+                th_c: th_c
+                    .ventilation
+                    .as_ref()
+                    .map(|_| resultats_mode(v, &th_c.cumuls_ventilation)),
                 valeurs_par_defaut: v.valeurs_par_defaut.clone(),
             }),
             consommations: None,
