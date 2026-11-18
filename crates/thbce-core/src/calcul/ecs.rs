@@ -7,8 +7,8 @@ use crate::ecs::assemblage_ballon::AssemblageBallon;
 use crate::ecs::distribution_ecs::{l_vc_2nd_e_defaut_m, EmetteurEcsResolu};
 use crate::entree::UsageZone;
 use crate::resultats::{
-    ResultatsEchangeurEcs, ResultatsEcsEmetteur, ResultatsEcsIntergroupe, ResultatsIdCet, ResultatsSsc, ResultatsStockage,
-    ValeurParDefaut,
+    ResultatsEchangeurEcs, ResultatsEcsEmetteur, ResultatsEcsIntergroupe, ResultatsIdCet,
+    ResultatsSsc, ResultatsStockage, ValeurParDefaut,
 };
 
 /// Résultats d'un assemblage avec ballon de stockage d'ECS (§9.14).

@@ -14,8 +14,8 @@
 //! et stockage de chauffage sont refusés par la validation. Lectures : `docs/questions/Q048.md`.
 
 use super::ballon_de_stockage::{Ballon, NB_ZONES, RHO_CW_WH_L_K};
-use super::echangeur_ballon::EchangeurEcs;
 use super::boucle_solaire::{BoucleSolaireHoraire, EntreesBoucle, SortiesBoucle};
+use super::echangeur_ballon::EchangeurEcs;
 use super::gestion_regulation_ballon::{
     active, boucle_puisage, boucle_puisage_appoint_separe, f_p, q_req_sto_wh, Programmation,
     Puisage, THETA_C_ECS_C,
@@ -310,11 +310,9 @@ impl AssemblageBallon {
                 let v = q_h / (RHO_CW_WH_L_K * (e.theta_depart_c - e.theta_entrant_c)) / 1000.0;
                 self.dernier_puisage = Some((v, e.theta_entrant_c, e.theta_depart_c));
             }
-            let (v_ef, theta_ef, theta_dep) = self.dernier_puisage.unwrap_or((
-                0.0,
-                e.theta_entrant_c,
-                e.theta_depart_c,
-            ));
+            let (v_ef, theta_ef, theta_dep) =
+                self.dernier_puisage
+                    .unwrap_or((0.0, e.theta_entrant_c, e.theta_depart_c));
             let (puisage, w) = ech.puiser(
                 &mut self.ballon,
                 e.q_req_ecs_wh / nb,
@@ -674,7 +672,11 @@ mod tests {
             let mut g1 = |_: usize, _: Poste, q: f64, _: f64| q.min(2000.0);
             let mut gn = |_: usize, _: Poste, q: f64, _: f64| q.min(2000.0 * n);
             for h in 0..48_u8 {
-                let q = if h % 24 >= 7 && h % 24 < 21 { 1500.0 } else { 0.0 };
+                let q = if h % 24 >= 7 && h % 24 < 21 {
+                    1500.0
+                } else {
+                    0.0
+                };
                 let a = un.pas(&entrees(q, h % 24), &mut g1);
                 let b = plusieurs.pas(&entrees(q * n, h % 24), &mut gn);
                 assert!((b.q_fou_ecs_wh - a.q_fou_ecs_wh * n).abs() < 1e-6);

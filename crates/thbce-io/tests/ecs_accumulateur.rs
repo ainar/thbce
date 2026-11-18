@@ -178,15 +178,14 @@ fn refus() {
     assert!(v.erreurs[0].chemin.ends_with("stockages[0].echangeur"));
     // « faux » sans objet : quatre zones égales.
     let mut p = restaurant();
-    p.batiments[0].generations[1].stockages[0].appoint =
-        Some(thbce_core::entree::AppointBallon {
-            generateur: "resistance".into(),
-            programmation: thbce_core::entree::ProgrammationBallon::Permanent,
-            z_ap: 3,
-            z_reg: 3,
-            f_aux: Some(0.5),
-            delta_theta_k: None,
-        });
+    p.batiments[0].generations[1].stockages[0].appoint = Some(thbce_core::entree::AppointBallon {
+        generateur: "resistance".into(),
+        programmation: thbce_core::entree::ProgrammationBallon::Permanent,
+        z_ap: 3,
+        z_reg: 3,
+        f_aux: Some(0.5),
+        delta_theta_k: None,
+    });
     let v = valider(&p);
     assert!(v
         .erreurs
@@ -194,7 +193,9 @@ fn refus() {
         .any(|e| e.chemin.ends_with("appoint.f_aux") && !e.hors_perimetre));
     // Température maximale du ballon sous la consigne de 60 °C (collectif).
     let mut p = restaurant();
-    p.batiments[0].generations[1].stockages[0].ballon.theta_max_c = 58.0;
+    p.batiments[0].generations[1].stockages[0]
+        .ballon
+        .theta_max_c = 58.0;
     assert!(valider(&p)
         .erreurs
         .iter()

@@ -5,15 +5,15 @@
 //! Un nouveau générateur ajoute ici la branche de sa nature dans [`GenerationHoraire::resoudre`].
 
 use super::*;
-use crate::ecs::echangeur_ballon::{
-    ApplicationAccumulateur, CirculateurPrimaire, EchangeurEcs, MOD_MIN_DEFAUT,
-};
-use crate::entree::{ApplicationAccumulateurSaisie, NatureEchangeurSaisie};
 use crate::chauffage_refroidissement::chaudieres_gaz_fioul_bois::Chaudiere;
 use crate::chauffage_refroidissement::generateur_direct_a_effet_joule::GenerateurEffetJoule;
 use crate::chauffage_refroidissement::poeles_et_inserts::Poele;
 use crate::chauffage_refroidissement::reseau_de_chaleur_et_de_froid::ReseauChaleurFroid;
 use crate::chauffage_refroidissement::thermodynamique_elec::GenerateurThermodynamique;
+use crate::ecs::echangeur_ballon::{
+    ApplicationAccumulateur, CirculateurPrimaire, EchangeurEcs, MOD_MIN_DEFAUT,
+};
+use crate::entree::{ApplicationAccumulateurSaisie, NatureEchangeurSaisie};
 
 impl GenerationHoraire {
     /// Résout une génération saisie et validée ; `ids_et` et `ids_zones` donnent les
@@ -225,9 +225,7 @@ impl GenerationHoraire {
                 ))
             });
             // Accumulateur en eau technique : quatre zones de volumes égaux (éq. 1874).
-            let f_aux = appoint
-                .filter(|_| s.echangeur.is_none())
-                .map(|(_, f)| f);
+            let f_aux = appoint.filter(|_| s.echangeur.is_none()).map(|(_, f)| f);
             let mut a = AssemblageBallon::nouveau(
                 s.id.clone(),
                 f64::from(s.nb_assemblages.max(1)),

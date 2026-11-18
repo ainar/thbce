@@ -128,8 +128,7 @@ pub fn ua_echangeur_externe_w_k(p_ech_kw: f64, theta_cons_c: f64, q_v_prim_nom_m
     let q_min = q_ecs.min(q_v_prim_nom_m3_h);
     let q_max = q_ecs.max(q_v_prim_nom_m3_h);
     // Éq. (1877) et (1878).
-    let eps_nom =
-        (theta_cons_c - 5.0 - 15.0) / (theta_cons_c - 15.0) * q_min / q_ecs;
+    let eps_nom = (theta_cons_c - 5.0 - 15.0) / (theta_cons_c - 15.0) * q_min / q_ecs;
     let rd = q_min / q_max;
     // Éq. (1880) et (1881) : l'efficacité croît avec UA.
     let eps = |ua: f64| {
@@ -189,10 +188,7 @@ pub fn debit_ecs_moyen(v_ef_m3: f64, theta_ef_c: f64, theta_depart_c: f64) -> Op
     } else {
         // Éq. (1871), (1870) et (1873).
         let y = 0.8 / libm::sqrt(n - 1.0);
-        Some((
-            0.06 * n * 6.0 * r_temp * y,
-            (n * y * 0.13).min(1.0),
-        ))
+        Some((0.06 * n * 6.0 * r_temp * y, (n * y * 0.13).min(1.0)))
     }
 }
 
@@ -267,9 +263,10 @@ impl EchangeurEcs {
                 q_v_prim_nom_m3_h,
                 circulateur,
             ),
-            NatureEchangeur::Interne => {
-                (self.puiser_interne(ballon, q_unit_wh, theta_ef_c, theta_depart_c, qv_ef), 0.0)
-            }
+            NatureEchangeur::Interne => (
+                self.puiser_interne(ballon, q_unit_wh, theta_ef_c, theta_depart_c, qv_ef),
+                0.0,
+            ),
         }
     }
 
@@ -304,8 +301,8 @@ impl EchangeurEcs {
         let rd = q_min / qv_aval.max(qv_prim);
         let eps = efficacite_contre_courant(nut, rd);
         // Éq. (1892).
-        let theta_entree_ech = theta_retour_aval
-            + qv_aval / (eps * q_min) * (theta_depart_c - theta_retour_aval);
+        let theta_entree_ech =
+            theta_retour_aval + qv_aval / (eps * q_min) * (theta_depart_c - theta_retour_aval);
         let mut reste = q_unit_wh;
         let mut v_total = 0.0;
         for _ in 0..self.nb_iter_vp {
@@ -394,7 +391,11 @@ impl EchangeurEcs {
             let mut d_theta = [0.0; NB_ZONES];
             let mut somme = 0.0;
             for z in 0..NB_ZONES {
-                let base = if z == 0 { theta_retour_aval } else { theta_entrant };
+                let base = if z == 0 {
+                    theta_retour_aval
+                } else {
+                    theta_entrant
+                };
                 q_max[z] = ballon.v_l[z] * RHO_CW_WH_L_K * (ballon.theta_c[z] - base).max(0.0);
                 d_theta[z] = ((ballon.theta_c[z] - theta_retour_aval - somme)
                     / (1.0 / nut_z[z] + 0.5))
@@ -407,8 +408,8 @@ impl EchangeurEcs {
             let mut preleve = [0.0; NB_ZONES];
             if theta_sortie_ballon >= theta_depart_c && theta_sortie_ballon > theta_retour_aval {
                 for z in 0..NB_ZONES {
-                    preleve[z] = q_max[z]
-                        .min(d_theta[z] / (theta_sortie_ballon - theta_retour_aval) * q_w);
+                    preleve[z] =
+                        q_max[z].min(d_theta[z] / (theta_sortie_ballon - theta_retour_aval) * q_w);
                 }
             }
             let q_pris: f64 = preleve.iter().sum();
@@ -419,8 +420,8 @@ impl EchangeurEcs {
                 break;
             }
             // Les températures des zones sont recalculées, sans pertes ni apports.
-            for z in 0..NB_ZONES {
-                ballon.theta_c[z] -= preleve[z] / (RHO_CW_WH_L_K * ballon.v_l[z]);
+            for (z, p) in preleve.iter().enumerate() {
+                ballon.theta_c[z] -= p / (RHO_CW_WH_L_K * ballon.v_l[z]);
             }
             ballon.melanger();
         }
@@ -449,8 +450,14 @@ mod tests {
 
     #[test]
     fn consignes_du_tableau_288() {
-        assert_eq!(ApplicationAccumulateur::selon_volume(300.0).theta_cons_c(), 55.0);
-        assert_eq!(ApplicationAccumulateur::selon_volume(500.0).theta_cons_c(), 60.0);
+        assert_eq!(
+            ApplicationAccumulateur::selon_volume(300.0).theta_cons_c(),
+            55.0
+        );
+        assert_eq!(
+            ApplicationAccumulateur::selon_volume(500.0).theta_cons_c(),
+            60.0
+        );
     }
 
     /// Débits équilibrés (qprim,nom = qECS,nom) : `εnom = 35/40` donne `NUT = ε/(1 − ε) = 7`,
@@ -466,7 +473,10 @@ mod tests {
     #[test]
     fn ua_interne() {
         let ua = ua_echangeur_interne_w_k(10.0, 55.0);
-        assert!((ua - 10_000.0 / 35.0 * 2.0794415416798357).abs() < 1e-9, "{ua}");
+        assert!(
+            (ua - 10_000.0 / 35.0 * 2.0794415416798357).abs() < 1e-9,
+            "{ua}"
+        );
     }
 
     /// 30 L d'eau chaude à 55 °C pour de l'eau froide à 15 °C : un seul puisage équivalent de
@@ -557,14 +567,14 @@ mod tests {
         let nut: f64 = ua / 4.0 / (qv * 1163.0);
         let mut d = [0.0_f64; 4];
         let mut somme = 0.0_f64;
-        for z in 0..4 {
-            d[z] = ((55.0 - 15.0 - somme) / (1.0 / nut + 0.5)).max(0.0);
-            somme += d[z];
+        for dz in d.iter_mut() {
+            *dz = ((55.0 - 15.0 - somme) / (1.0 / nut + 0.5)).max(0.0);
+            somme += *dz;
         }
         let theta_sortie = 15.0 + somme;
         assert!(theta_sortie >= 45.0);
-        for z in 0..4 {
-            let q_z: f64 = (d[z] / (theta_sortie - 15.0) * 500.0).min(75.0 * 1.163 * 40.0);
+        for (z, dz) in d.iter().enumerate() {
+            let q_z: f64 = (dz / (theta_sortie - 15.0) * 500.0).min(75.0 * 1.163 * 40.0);
             let attendu = 55.0 - q_z / (1.163 * 75.0);
             assert!((b.theta_c[z] - attendu).abs() < 1e-9, "zone {z}");
         }

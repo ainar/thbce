@@ -4,9 +4,9 @@
 
 use super::generation::postes_assures;
 use super::RapportValidation;
+use crate::ecs::echangeur_ballon::{ApplicationAccumulateur, THETA_CONS_COLLECTIF_C};
 use crate::ecs::gestion_regulation_ballon::THETA_C_ECS_C;
 use crate::ecs::idcet;
-use crate::ecs::echangeur_ballon::{ApplicationAccumulateur, THETA_CONS_COLLECTIF_C};
 use crate::entree::{
     ApplicationAccumulateurSaisie, Batiment, FonctionEffetJoule, Generation, NatureEchangeurSaisie,
     NatureGenerateur, PertesBallon, ReseauEcsIntergroupe, SourceAmontSaisie,
@@ -284,9 +284,10 @@ fn valider_accumulateur(
     }
     // Réseau d'ECS bouclé : le réchauffage de boucle (éq. 1883 et 1909 à 1913) demande le
     // débit de la boucle, que la fiche 9.8 ne restitue pas (Q48 point 8, Q106).
-    let bouclee = bat.distributions_ecs_intergroupes.iter().any(|d| {
-        d.generation == g.id && matches!(d.reseau, ReseauEcsIntergroupe::Boucle(_))
-    });
+    let bouclee = bat
+        .distributions_ecs_intergroupes
+        .iter()
+        .any(|d| d.generation == g.id && matches!(d.reseau, ReseauEcsIntergroupe::Boucle(_)));
     if bouclee {
         r.hors_perimetre(
             format!("{cs}.echangeur"),

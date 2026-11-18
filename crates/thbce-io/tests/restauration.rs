@@ -375,7 +375,11 @@ fn refus() {
         .unwrap()
         .systeme
         .clone();
-    p.batiments[0].zones[0].ventilation.as_mut().unwrap().systeme = double_flux;
+    p.batiments[0].zones[0]
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .systeme = double_flux;
     let v = valider(&p);
     assert!(v.seulement_hors_perimetre(), "{:?}", v.erreurs);
     assert!(v
