@@ -163,16 +163,13 @@ fn incoherences_et_absences() {
             .any(|m| m.contains("expo_br") && m.contains("incohérente")),
         "{m:?}"
     );
-    // Sans classe saisie pour le bâtiment, la zone se déduit des `expo_br` saisis des baies (BR1).
+    // Sans `bruit` sur aucune baie, les `expo_br` seuls ne fixent pas la classe de la zone : ni
+    // saisie, ni déduction possible.
     let mut x = maison();
     x["batiments"][0]["exigences"]
         .as_object_mut()
         .unwrap()
         .remove("zone_bruit");
-    assert!(messages(&x).is_empty(), "{:?}", messages(&x));
-    assert_eq!(resultats(&x), resultats(&maison()));
-    // Ni saisie, ni déduction possible.
-    baies(&mut x)[1].as_object_mut().unwrap().remove("expo_br");
     let m = messages(&x);
     assert!(
         m.iter()

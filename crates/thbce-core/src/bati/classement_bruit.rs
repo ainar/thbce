@@ -183,19 +183,27 @@ pub fn classe_partie<I: IntoIterator<Item = Option<ExpoBr>>>(classes: I) -> Opti
     }
 }
 
+/// Classe d'une partie déduite de ses baies, seulement si l'une au moins porte une
+/// détermination détaillée (`bruit`) : sans elle, les `expo_br` seuls ne servent qu'à `Cpr` et ne
+/// fixent pas la classe de la partie, qui reste saisie comme avant (Q203).
+fn classe_de_baies<'a>(
+    bat: &Batiment,
+    baies: impl Iterator<Item = &'a Baie> + Clone,
+) -> Option<ZoneBruit> {
+    if !baies.clone().any(|b| b.bruit.is_some()) {
+        return None;
+    }
+    classe_partie(baies.map(|b| classe_baie(bat, b)))
+}
+
 /// Classe d'un groupe déduite de ses baies (`None` si indéterminable).
 pub fn classe_groupe(bat: &Batiment, g: &Groupe) -> Option<ZoneBruit> {
-    classe_partie(g.baies.iter().map(|b| classe_baie(bat, b)))
+    classe_de_baies(bat, g.baies.iter())
 }
 
 /// Classe d'une zone déduite de ses baies (`None` si indéterminable).
 pub fn classe_zone(bat: &Batiment, z: &Zone) -> Option<ZoneBruit> {
-    classe_partie(
-        z.groupes
-            .iter()
-            .flat_map(|g| g.baies.iter())
-            .map(|b| classe_baie(bat, b)),
-    )
+    classe_de_baies(bat, z.groupes.iter().flat_map(|g| g.baies.iter()))
 }
 
 /// Vrai si une baie du projet porte une détermination détaillée.
