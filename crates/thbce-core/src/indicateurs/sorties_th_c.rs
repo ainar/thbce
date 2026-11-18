@@ -663,8 +663,19 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
             verifications: tete,
             conforme,
             indicateurs_manquants: manquants,
+            regime_alternatif: None,
         }
     });
+    // Extensions et constructions de petite surface (fiche 4.4, article 50-3 ; Q86 à Q88).
+    let mut exigences = exigences;
+    if let (Some(x), Some(pa)) = (&mut exigences, params) {
+        let zones: Vec<(u8, f64)> = parties.iter().map(|(p, _)| (p.usage, p.sref_m2)).collect();
+        x.regime_alternatif =
+            super::extensions::regime_alternatif(bat, pa, sref, &zones, e.zone_climatique, x);
+        if let Some(r) = &x.regime_alternatif {
+            avertissements.extend(super::extensions::avertissement(&bat.id, r));
+        }
+    }
     if params.is_none() {
         avertissements.push(format!(
             "bâtiment {} : `exigences` non saisi : exigences maximales et conformité non \
@@ -695,7 +706,7 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
 }
 
 /// Vérifie `valeur ≤ maximum` et calcule la marge.
-fn verifier(
+pub(crate) fn verifier(
     indicateur: &str,
     groupe: Option<String>,
     valeur: f64,

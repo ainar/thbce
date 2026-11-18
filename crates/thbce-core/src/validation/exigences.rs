@@ -374,6 +374,7 @@ pub(super) fn valider_exigences(
         0.0,
         f64::INFINITY,
     );
+    valider_extension(r, &c, bat, e);
     let maisons = bat
         .zones
         .iter()
@@ -385,5 +386,54 @@ pub(super) fn valider_exigences(
             "la modulation selon les combles aménagés ne vaut que pour les maisons individuelles \
              ou accolées : sans effet",
         );
+    }
+}
+
+/// Borne haute des surfaces d'une extension et de l'existant, en m².
+const SREF_MAX_M2: f64 = 1e6;
+/// Borne basse de la surface existante, en m² (strictement positive, sans valeur infime).
+const SREF_EXISTANT_MIN_M2: f64 = 1.0;
+
+/// Extension d'un bâtiment existant (`exigences.extension`, fiche 4.4 ; article 50-3 de
+/// l'arrêté du 4 août 2021 ; Q86) : la `Sref` des locaux existants fixe la part de l'extension
+/// (seuils de 30 %), qui ne sert qu'aux usages autres que maison individuelle.
+fn valider_extension(
+    r: &mut RapportValidation,
+    c: &str,
+    bat: &crate::entree::Batiment,
+    e: &crate::entree::ParametresExigences,
+) {
+    let Some(x) = &e.extension else {
+        return;
+    };
+    let c = format!("{c}.extension");
+    // Bornes réalistes : une valeur extrême (1e308, 1e-300) rendrait la surface cumulée ou la
+    // part de l'existant non finie.
+    r.plage(
+        format!("{c}.sref_autres_extensions_m2"),
+        x.sref_autres_extensions_m2,
+        0.0,
+        SREF_MAX_M2,
+    );
+    let autre_que_maison = bat
+        .zones
+        .iter()
+        .any(|z| z.usage != crate::entree::UsageZone::MaisonIndividuelle);
+    match x.sref_existant_m2 {
+        Some(s) if s.is_finite() && s < SREF_EXISTANT_MIN_M2 => r.erreur(
+            format!("{c}.sref_existant_m2"),
+            Some(s.to_string()),
+            format!("doit être compris entre {SREF_EXISTANT_MIN_M2} et {SREF_MAX_M2}"),
+        ),
+        Some(s) => r.plage(format!("{c}.sref_existant_m2"), s, 0.0, SREF_MAX_M2),
+        None if autre_que_maison => r.erreur(
+            format!("{c}.sref_existant_m2"),
+            None,
+            "surface de référence des locaux existants obligatoire pour une extension \
+             comprenant une zone d'usage autre que maison individuelle : elle fixe la part de \
+             l'extension (seuils de 30 %, article 50-3, I de l'arrêté du 4 août 2021 ; article \
+             R. 172-1, III du CCH)",
+        ),
+        None => {}
     }
 }

@@ -513,6 +513,7 @@ mod tests {
             parcelle_raccordement_gaz: false,
             zones: Vec::new(),
             mois_depot_permis: None,
+            extension: None,
         }
     }
 

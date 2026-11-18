@@ -23,6 +23,7 @@ fn parametres(annee: u16, categorie: C, bruit: B) -> ParametresExigences {
         parcelle_raccordement_gaz: false,
         zones: Vec::new(),
         mois_depot_permis: None,
+        extension: None,
     }
 }
 
