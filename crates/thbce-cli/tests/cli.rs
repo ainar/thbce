@@ -125,7 +125,10 @@ fn codes_de_retour() {
             .code(),
         Some(2)
     );
-    let texte = std::fs::read_to_string(entree()).unwrap();
+    // Fins de ligne normalisées : sous Windows, git peut livrer le fichier en CRLF.
+    let texte = std::fs::read_to_string(entree())
+        .unwrap()
+        .replace("\r\n", "\n");
     let invalide = fichier(
         "invalide.json",
         &texte.replace("\"shab_m2\": 96.44", "\"shab_m2\": -1"),
