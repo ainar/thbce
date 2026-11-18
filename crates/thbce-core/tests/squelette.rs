@@ -313,7 +313,9 @@ fn un_element_hors_perimetre_est_refuse_comme_hors_perimetre() {
     // Élément reconnu mais hors du périmètre de cette version : erreur marquée `hors_perimetre`.
     assert_eq!(
         chemins(&r.erreurs),
-        [format!("batiments[0].generations[0].generateurs[{k}].nature")]
+        [format!(
+            "batiments[0].generations[0].generateurs[{k}].nature"
+        )]
     );
     assert!(r.seulement_hors_perimetre());
     assert_eq!(r.erreurs[0].valeur.as_deref(), Some("cogeneration"));

@@ -7,6 +7,7 @@ use crate::bati::baie::{BaieResolue, EnsembleBaies, Protections};
 use crate::bati::espace_tampon::assemblage::EspaceTamponHoraire;
 use crate::bati::paroi_opaque::EnsembleParois;
 use crate::bati::pont_thermique::EnsemblePonts;
+use crate::bati::protection_mobile::GestionResolue;
 use crate::bati::surventilation::H_TTF_CAS_GENERAL_M;
 use crate::entree::{Catalogue, Groupe, UsageZone};
 use crate::resultats::{
@@ -49,7 +50,11 @@ pub(super) fn defauts_groupe(groupe: &Groupe, catalogue: &Catalogue) -> Vec<Vale
 
 /// Valeurs par défaut appliquées à chaque baie d'un groupe (Th-BCE 2020 §5.10.3.6.3, éq. 215,
 /// 216 et 218).
-pub(super) fn resultats_baies(groupe: &Groupe, catalogue: &Catalogue) -> Vec<ResultatsBaie> {
+pub(super) fn resultats_baies(
+    groupe: &Groupe,
+    catalogue: &Catalogue,
+    usage: UsageZone,
+) -> Vec<ResultatsBaie> {
     groupe
         .baies
         .iter()
@@ -59,8 +64,18 @@ pub(super) fn resultats_baies(groupe: &Groupe, catalogue: &Catalogue) -> Vec<Res
                 .baies
                 .iter()
                 .find(|t| t.id == b.type_baie)
-                .and_then(|t| BaieResolue::nouvelle(b, t, catalogue))
-                .map(|r| r.valeurs_par_defaut)
+                .and_then(|t| {
+                    let mut r = BaieResolue::nouvelle(b, t, catalogue)?;
+                    // Matrices conventionnelles de la gestion automatique (lot 1-env).
+                    if let Some(pm) = &t.protection_mobile {
+                        GestionResolue::nouvelle_signalee(
+                            pm,
+                            usage.numero(),
+                            &mut r.valeurs_par_defaut,
+                        );
+                    }
+                    Some(r.valeurs_par_defaut)
+                })
                 .unwrap_or_default(),
         })
         .collect()

@@ -375,10 +375,7 @@ fn refus() {
     gens.push(cogen);
     let v = valider(&p);
     assert!(v.seulement_hors_perimetre(), "{:?}", v.erreurs);
-    assert!(v
-        .erreurs
-        .iter()
-        .all(|e| e.chemin.ends_with(".nature")));
+    assert!(v.erreurs.iter().all(|e| e.chemin.ends_with(".nature")));
     // Permis de 2025 : usage non soumis à la RE2020 avant le 1er mai 2026 (Q68).
     let mut p = restaurant();
     let x = p.batiments[0].exigences.as_mut().unwrap();

@@ -18,7 +18,8 @@ fn thbce(args: &[&str]) -> Output {
 
 /// Début de la liste des générateurs du cas de démonstration, auquel on ajoute une cogénération
 /// (élément hors périmètre).
-const GENERATEURS: &str = "\"generateurs\": [\n            {\n              \"id\": \"panneaux-rayonnants\",";
+const GENERATEURS: &str =
+    "\"generateurs\": [\n            {\n              \"id\": \"panneaux-rayonnants\",";
 const AVEC_COGENERATION: &str = "\"generateurs\": [\n            {\n              \"id\": \"cogeneration\",\n              \"rdim\": 1,\n              \"nature\": \"cogeneration\"\n            },\n            {\n              \"id\": \"panneaux-rayonnants\",";
 
 fn entree() -> String {
