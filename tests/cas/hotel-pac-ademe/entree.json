@@ -722,11 +722,11 @@
           "generateurs": [
             {
               "id": "resistance",
-              "rdim": 3,
+              "rdim": 6,
               "nature": {
                 "effet_joule": {
                   "fonction": "ecs",
-                  "pn_gen_w": 6000
+                  "pn_gen_w": 9000
                 }
               }
             }
@@ -734,9 +734,9 @@
           "stockages": [
             {
               "id": "ballon",
-              "nb_assemblages": 3,
+              "nb_assemblages": 6,
               "ballon": {
-                "v_tot_l": 300,
+                "v_tot_l": 500,
                 "pertes": {
                   "defaut": {
                     "nature": "effet_joule_vertical"

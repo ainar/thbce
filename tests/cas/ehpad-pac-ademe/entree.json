@@ -382,7 +382,7 @@
           "generateurs": [
             {
               "id": "pac-air-eau",
-              "rdim": 18,
+              "rdim": 26,
               "priorite_chauffage": 1,
               "nature": {
                 "thermodynamique_electrique": {
@@ -463,11 +463,11 @@
           "generateurs": [
             {
               "id": "resistance",
-              "rdim": 4,
+              "rdim": 8,
               "nature": {
                 "effet_joule": {
                   "fonction": "ecs",
-                  "pn_gen_w": 6000
+                  "pn_gen_w": 9000
                 }
               }
             }
@@ -475,9 +475,9 @@
           "stockages": [
             {
               "id": "ballon",
-              "nb_assemblages": 4,
+              "nb_assemblages": 8,
               "ballon": {
-                "v_tot_l": 300,
+                "v_tot_l": 500,
                 "pertes": {
                   "defaut": {
                     "nature": "effet_joule_vertical"
