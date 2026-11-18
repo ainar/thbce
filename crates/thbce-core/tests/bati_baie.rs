@@ -397,3 +397,54 @@ fn ecart_de_l_eq_272_pour_un_groupe_avec_des_baies_horizontales() {
     assert_proche!(e.a_baies_sud_m2(), 12.0);
     assert_proche!(e.a_baies_sud_m2() - e.a_baies_v_m2, 4.0);
 }
+
+#[test]
+fn facteurs_d_un_store_venitien_selon_la_hauteur_du_soleil() {
+    use thbce_core::bati::baie::LamesResolues;
+    use thbce_core::entree::{FacteursLames, LamesStoreVenitien, LamesThBc, LamesThD};
+    // Th-BCE 2020 §5.10.3.6.2.3, éq. (212) et (213) : matrices des p. 235 et 236, directs par
+    // hauteur γ' de 0 à 75° par pas de 15° ; diffus et réfléchi en un seul élément (position
+    // fixe) ; interpolation linéaire entre colonnes, bornée à 0 et 75° (question Q102).
+    let f = |sw1, tl| FacteursLames {
+        sw1,
+        sw2: 0.04,
+        sw3: 0.0,
+        tl_global: tl,
+        tlid: Some(0.01),
+    };
+    let direct: Vec<_> = (0..6)
+        .map(|i| f(0.06 + 0.03 * f64::from(i), 0.02 * f64::from(i)))
+        .collect();
+    let l = LamesStoreVenitien {
+        th_bc: LamesThBc {
+            direct,
+            diffus: vec![f(0.10, 0.08)],
+            reflechi: vec![f(0.08, 0.06)],
+        },
+        th_d: LamesThD {
+            direct: f(0.5, 0.3),
+            diffus: f(0.4, 0.2),
+            reflechi: f(0.3, 0.1),
+        },
+    };
+    let mut defauts = Vec::new();
+    let lames = LamesResolues::nouvelle(&l, false, &mut defauts).unwrap();
+    let p = |gamma| lames.proteges(ModeCalcul::ThB, gamma);
+    // Sur une colonne : valeur saisie.
+    assert!(proche(p(30.0).dir.sw1, 0.12));
+    assert!(proche(p(30.0).tli_dir, 0.04));
+    // Entre deux colonnes : 22,5° est au milieu de 15° (0,09) et 30° (0,12).
+    assert!(proche(p(22.5).dir.sw1, 0.105));
+    assert!(proche(p(22.5).tli_dir, 0.03));
+    // Aux bornes : 0,06 sous 0° (horizon) et 0,21 au-delà de 75°.
+    assert!(proche(p(-5.0).dir.sw1, 0.06));
+    assert!(proche(p(80.0).dir.sw1, 0.21));
+    // Diffus et réfléchi : indépendants de γ' en position fixe.
+    assert!(proche(p(10.0).dif.sw1, 0.10) && proche(p(70.0).dif.sw1, 0.10));
+    assert!(proche(p(10.0).tld_dif, 0.08) && proche(p(10.0).tld_ref, 0.06));
+    // Th-D : lames à 90° (tableau 34), facteurs saisis indépendants de γ'.
+    let d = lames.proteges(ModeCalcul::ThD, 22.5);
+    assert!(proche(d.dir.sw1, 0.5) && proche(d.dif.sw1, 0.4) && proche(d.refl.sw1, 0.3));
+    // Longueurs incompatibles avec la gestion : refus (écarté par la validation).
+    assert!(LamesResolues::nouvelle(&l, true, &mut Vec::new()).is_none());
+}

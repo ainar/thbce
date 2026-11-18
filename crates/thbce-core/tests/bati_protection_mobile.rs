@@ -10,9 +10,12 @@
 
 use thbce_core::bati::protection_mobile::{
     a_ouv_max_avec_pm_m2, jour_gestion_manuelle, r_prot_selon_eclairement, taux_passage_air,
-    ConditionsGpm, GestionResolue, SaisonGpm, TemperaturesMaximales,
+    ConditionsGpm, EtatGpm, GestionResolue, Horloge, SaisonGpm, TemperaturesMaximales,
 };
-use thbce_core::entree::{GestionPm, ProtectionMobile, TypePm, TypoPm};
+use thbce_core::entree::{
+    Automatisme, GestionPm, HorairesJour, LigneAutoVolet, MatriceAutoVolet, ProtectionMobile,
+    RatiosHysteresis, TypeHorloge, TypePm, TypoPm,
+};
 
 fn proche(a: f64, b: f64) -> bool {
     (a - b).abs() <= 1e-12 * (1.0 + b.abs())
@@ -376,4 +379,155 @@ fn volet_motorise_en_bureaux() {
             .r_prot1_part_gpm,
         0.24
     );
+}
+
+/// Matrice d'essai de la gestion automatique : `(haute, basse)` de chaque case, identiques aux
+/// trois saisons et à l'occupation comme à l'inoccupation.
+fn matrice_d_essai() -> MatriceAutoVolet {
+    let r = |haute, basse| RatiosHysteresis { haute, basse };
+    let ligne = LigneAutoVolet {
+        jour_sous_seuil: r(0.2, 0.1),
+        jour_au_dessus: r(0.9, 0.8),
+        nuit: r(1.0, 0.95),
+    };
+    MatriceAutoVolet {
+        occupation: [ligne, ligne, ligne],
+        inoccupation: [ligne, ligne, ligne],
+    }
+}
+
+/// Store enroulable extérieur à gestion automatique, en maison individuelle : seuil de 25 000
+/// lux, limites de température de 25 et 23 °C, vent limite de 12 m/s, jour de 8 h à 19 h.
+fn store_enroulable_automatique() -> GestionResolue {
+    let mut p = pm(
+        TypePm::StoreEnroulable,
+        GestionPm::AutomatiqueAvecDerogation,
+        true,
+        false,
+    );
+    p.detecteur_presence = Some(true);
+    p.automatisme = Some(Automatisme {
+        eclairement_limite_lux: 25_000.0,
+        temperature_limite_haute_c: Some(25.0),
+        temperature_limite_basse_c: Some(23.0),
+        vent_limite_m_s: Some(12.0),
+        horloge: TypeHorloge::Personnalisable,
+        horaires_jour: Some(
+            [HorairesJour {
+                debut_h: 8,
+                fin_h: 19,
+            }; 3],
+        ),
+        matrice: Some(matrice_d_essai()),
+        matrice_sv: None,
+    });
+    GestionResolue::nouvelle(&p, 1).unwrap()
+}
+
+#[test]
+fn gestion_automatique_hysteresis_et_seuil_d_eclairement() {
+    // Th-BCE 2020 §5.9.3.2.8, figure 31 et éq. (186), (187), (190), (191).
+    let g = store_enroulable_automatique();
+    let mut etat = EtatGpm::default();
+    let c = |theta, etp, hleg| ConditionsGpm {
+        theta_op_fin_c: theta,
+        hleg,
+        ..occupe(etp, SaisonGpm::Ete)
+    };
+    // Au-dessus de la limite haute : branche haute ; éclairement au-dessus du seuil : 0,9.
+    let p = g.protections_avec_etat(&c(26.0, 30_000.0, 12), &mut etat);
+    assert_eq!(p.r_prot1_hors_part_gpm, 0.9);
+    // Entre les limites : la branche haute est conservée (hystérésis).
+    let p = g.protections_avec_etat(&c(24.0, 30_000.0, 12), &mut etat);
+    assert_eq!(p.r_prot1_hors_part_gpm, 0.9);
+    // Sous le seuil d'éclairement, toujours en branche haute : 0,2.
+    let p = g.protections_avec_etat(&c(24.0, 10_000.0, 12), &mut etat);
+    assert_eq!(p.r_prot1_hors_part_gpm, 0.2);
+    // Sous la limite basse : branche basse, 0,8 puis 0,1 ; entre les limites, elle est conservée.
+    let p = g.protections_avec_etat(&c(22.0, 30_000.0, 12), &mut etat);
+    assert_eq!(p.r_prot1_hors_part_gpm, 0.8);
+    let p = g.protections_avec_etat(&c(24.0, 10_000.0, 12), &mut etat);
+    assert_eq!(p.r_prot1_hors_part_gpm, 0.1);
+    // Nuit (Hleg = 22 > Hj_fin = 19, puis Hleg = 8 qui n'est pas > Hj_debut = 8) : 0,95 en
+    // branche basse, 1,0 en branche haute.
+    for hleg in [22, 8] {
+        let p = g.protections_avec_etat(&c(24.0, 0.0, hleg), &mut etat);
+        assert_eq!(p.r_prot1_hors_part_gpm, 0.95, "Hleg = {hleg}");
+    }
+    let p = g.protections_avec_etat(&c(26.0, 0.0, 22), &mut etat);
+    assert_eq!(p.r_prot1_hors_part_gpm, 1.0);
+    // Hleg = 19 est encore du jour (Hleg ≤ Hj_fin).
+    let p = g.protections_avec_etat(&c(26.0, 10_000.0, 19), &mut etat);
+    assert_eq!(p.r_prot1_hors_part_gpm, 0.2);
+}
+
+#[test]
+fn gestion_automatique_derogation_vent_et_inoccupation() {
+    let g = store_enroulable_automatique();
+    // Éq. (179) : partGPM = Pocc × Pderog = 0,5 × 0,25 en maison individuelle.
+    let mut etat = EtatGpm::default();
+    let c = ConditionsGpm {
+        theta_op_fin_c: 24.0,
+        hleg: 12,
+        ..occupe(10_000.0, SaisonGpm::Ete)
+    };
+    let p = g.protections_avec_etat(&c, &mut etat);
+    assert_eq!(p.part_gpm, 0.125);
+    assert_eq!(p.r_prot1_hors_part_gpm, 0.1);
+    // Vent de 12 m/s ou plus sur un store enroulable extérieur : la partie automatique remonte
+    // son store (0) ; la partie en dérogation, limitée à 10 m/s, aussi.
+    let vent = ConditionsGpm {
+        v_vent_c_m_s: 12.0,
+        ..c
+    };
+    let p = g.protections_avec_etat(&vent, &mut etat);
+    assert_eq!(p.r_prot1_hors_part_gpm, 0.0);
+    assert_eq!(p.r_prot1_part_gpm, 0.0);
+    // Zone inoccupée : plus de part de dérogation, la matrice d'inoccupation s'applique.
+    let inocc = ConditionsGpm {
+        i_occ_zone: false,
+        i_occ_gpm: 0,
+        ..c
+    };
+    let p = g.protections_avec_etat(&inocc, &mut etat);
+    assert_eq!(p.part_gpm, 0.0);
+    assert_eq!(p.r_prot1_part_gpm, 0.0);
+    assert_eq!(p.r_prot1_hors_part_gpm, 0.1);
+    // Un volet n'a pas de limite de vent (éq. 186).
+    let mut volet = pm(
+        TypePm::Volet,
+        GestionPm::AutomatiqueAvecDerogation,
+        true,
+        false,
+    );
+    volet.detecteur_presence = Some(false);
+    volet.automatisme = Some(Automatisme {
+        eclairement_limite_lux: 25_000.0,
+        temperature_limite_haute_c: Some(25.0),
+        temperature_limite_basse_c: Some(23.0),
+        vent_limite_m_s: None,
+        horloge: TypeHorloge::Aucune,
+        horaires_jour: None,
+        matrice: Some(matrice_d_essai()),
+        matrice_sv: None,
+    });
+    let g = GestionResolue::nouvelle(&volet, 1).unwrap();
+    let mut etat = EtatGpm::default();
+    let p = g.protections_avec_etat(&vent, &mut etat);
+    assert_eq!(p.r_prot1_hors_part_gpm, 0.1);
+}
+
+#[test]
+fn horloge_crepusculaire_et_personnalisable() {
+    // Éq. (182) et (184) : crépusculaire = Etp** ≠ 0 ; personnalisable = Hj_debut < Hleg ≤ Hj_fin.
+    assert!(!Horloge::Crepusculaire.jour(0.0, SaisonGpm::Hiver, 12));
+    assert!(Horloge::Crepusculaire.jour(1.0, SaisonGpm::Hiver, 3));
+    assert!(Horloge::Aucune.jour(0.0, SaisonGpm::Ete, 3));
+    let h = Horloge::Personnalisable([(8, 17), (7, 19), (6, 21)]);
+    assert!(!h.jour(0.0, SaisonGpm::Hiver, 8));
+    assert!(h.jour(0.0, SaisonGpm::Hiver, 17));
+    assert!(!h.jour(0.0, SaisonGpm::Hiver, 18));
+    assert!(h.jour(0.0, SaisonGpm::MiSaison, 19));
+    assert!(h.jour(0.0, SaisonGpm::Ete, 7));
+    assert!(!h.jour(0.0, SaisonGpm::Ete, 6));
 }

@@ -104,7 +104,7 @@ thbce version                # version du moteur et de la méthode (aussi thbce 
 | 2 | entrée invalide : JSON mal formé, saisie fautive, données météo absentes ou d'une autre zone |
 | 3 | entrée correcte mais non calculable par cette version : élément ou usage hors périmètre ([`docs/couverture.md`](docs/couverture.md)), à la validation comme au calcul ; ou calcul impossible |
 
-`thbce valider` applique les mêmes codes : une entrée correcte qui décrit un élément hors du périmètre (usage non résidentiel, ventilation naturelle, store vénitien…) est signalée « non calculé » et renvoie 3. Les erreurs de saisie l'emportent : une entrée qui en contient renvoie 2.
+`thbce valider` applique les mêmes codes : une entrée correcte qui décrit un élément hors du périmètre (usage non résidentiel, ventilation naturelle, cogénération…) est signalée « non calculé » et renvoie 3. Les erreurs de saisie l'emportent : une entrée qui en contient renvoie 2.
 
 Le format RSEE XML n'est pas lu.
 
@@ -176,7 +176,7 @@ Voir [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - **ACV** (annexe II, chapitre 4) : indicateur de changement climatique seulement (Icconstruction, Icbâtiment, StockC, Icded) ; aucune donnée environnementale embarquée, les valeurs d'impact (FDES, PEP, DED, données de service) sont saisies ; eau en calcul simplifié seulement (consommation d'eau saisie pour les usages « N/C » du tableau 7) ; cogénération (sous-lot 8.2), entités programmatiques et export d'énergie (§4.7) non pris en charge.
 
 - **Pas de lecteur RSEE XML** : le schéma XSD n'est pas public.
-- **Systèmes refusés** : ventilation naturelle, hybride, aération, mode actif des centrales de traitement d'air à charge variable (batteries chaude et froide), réseaux de CTA hydrauliques, puits climatiques ou hydrauliques, humidification, rafraîchissement évaporatif, surventilation mécanique ; brasseurs d'air ; gestion des générateurs en alternance, boucles d'eau, DRV, cogénération, PAC au gaz ou hybrides, PAC sur eau ou sur sol, triple service, second ballon, récupération de chaleur sur les eaux grises ; stores vénitiens, gestion automatique des protections mobiles ; Titres V.
+- **Systèmes refusés** : ventilation naturelle, hybride, aération, mode actif des centrales de traitement d'air à charge variable (batteries chaude et froide), réseaux de CTA hydrauliques, puits climatiques ou hydrauliques, humidification, rafraîchissement évaporatif, surventilation mécanique ; brasseurs d'air ; gestion des générateurs en alternance, boucles d'eau, DRV, cogénération, PAC au gaz ou hybrides, PAC sur eau ou sur sol, triple service, second ballon, récupération de chaleur sur les eaux grises ; Titres V.
 - **Calage horaire** : un décalage d'une heure est possible entre le fichier météo et le calendrier de la méthode (Q25).
 - **Sorties non restituées** : indicateurs par occupant (fiche 13.6), sorties Th-C par zone et par groupe (§13.2), valeur annuelle de l'éq. (75) de l'Ic énergie, séries horaires (seulement par l'API Rust).
 
