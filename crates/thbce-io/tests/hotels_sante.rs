@@ -219,7 +219,10 @@ fn usages_20_et_21() {
     assert!(v.est_valide(), "{:?}", v.erreurs);
     let r20 = calcul(&p);
     let [bbio, dh, cep, ..] = phares(&r20);
-    println!("usage 20 : Bbio {bbio:.1} ; DH {dh:.1} ; Cep {cep:.1}");
+    println!(
+        "usage 20 : Bbio {bbio:.1} ; DH {dh:.1} ; Cep {cep:.1} ; éclairage {:.0} kWh",
+        elec(&r20).eclairage_kwh
+    );
     assert!(cep > 0.0 && dh >= 0.0);
     // Grille d'éclairage de l'usage 20 : 0 ou 0,35 ou 1, avec des heures à 0,35.
     let sc = ScenariosZone::nouveau(UsageZone::SanteNuit, &[1500.0], 1).unwrap();
