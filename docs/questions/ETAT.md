@@ -89,3 +89,11 @@
 | Q202 | Classement au bruit : la classe déduite des baies tient lieu de saisie absente ; cohérence avec la saisie directe | tranchée, à confirmer par un cas de référence |
 | Q203 | Classement au bruit : classe d'un groupe ou d'une zone à partir de ses baies (point 4) | tranchée, à confirmer par un cas de référence |
 | Q204 | Classement au bruit : règle de la façade « à défaut d'une détermination détaillée » | tranchée, à confirmer par un cas de référence |
+| Q205 | ACV : module D dans Icconstruction et Iccomposants | tranchée, à confirmer par un cas de référence |
+| Q206 | ACV : coefficient de pondération d'une date non entière | tranchée, à confirmer par un cas de référence |
+| Q207 | ACV : composants spécifiques au chantier | tranchée, à confirmer par un cas de référence |
+| Q208 | ACV : valeurs forfaitaires de l'annexe XI | tranchée, à confirmer par un cas de référence |
+| Q209 | ACV : parenthèse de l'éq. (67) (fluides des lots forfaitaires) | tranchée, à confirmer par un cas de référence |
+| Q210 | ACV : contribution « eau » (calcul simplifié) et eau du chantier | tranchée, à confirmer par un cas de référence |
+| Q211 | ACV : lot 13 (photovoltaïque) et sous-lot 8.2 (cogénération) | tranchée, à confirmer par un cas de référence |
+| Q212 | ACV : module D de la contribution « parcelle » | tranchée, à confirmer par un cas de référence |
