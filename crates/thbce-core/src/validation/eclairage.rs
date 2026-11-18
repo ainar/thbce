@@ -54,12 +54,22 @@ pub(super) fn valider_locaux_eclairage(
         r.plage(format!("{c}.ratio_local"), l.ratio_local, 0.0, 1.0);
         r.plage(format!("{c}.ratio_ecl_nat"), l.ratio_ecl_nat, 0.0, 1.0);
         if local_tableau_78(usage, l.type_local).is_none() {
+            // Usage 7 : le classeur des scénarios a un local de service (15 % de la surface),
+            // le tableau 78 n'en a pas (lecture Q70).
+            let precision = if usage == 7
+                && l.type_local == thbce_data::eclairage::TypeLocal::LocalService
+            {
+                " ; les locaux de service d'un bâtiment universitaire se décrivent avec l'un des \
+                 types de local de l'usage 7 (docs/questions/Q070.md)"
+            } else {
+                ""
+            };
             r.erreur(
                 format!("{c}.type_local"),
                 Some(nom_json(&l.type_local)),
                 format!(
                     "ce type de local n'existe pas pour l'usage n° {usage} (Th-BCE 2020 \
-                     §7.1.3.6.1, tableau 78)"
+                     §7.1.3.6.1, tableau 78){precision}"
                 ),
             );
         } else if est_grand_volume(usage, l.type_local) {

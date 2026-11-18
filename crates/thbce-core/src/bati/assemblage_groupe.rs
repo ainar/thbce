@@ -1106,6 +1106,7 @@ impl GroupeHoraire {
         if let Some(sy) = &mut self.systemes {
             sy.pas_ecs(
                 sc.ah,
+                sc.i_ecs,
                 c.theta_cw_c,
                 e.moy.theta_i_c,
                 theta_e,

@@ -225,6 +225,7 @@ impl SystemesGroupe {
     pub fn pas_ecs(
         &mut self,
         ah: f64,
+        i_ecs: bool,
         theta_cw_c: f64,
         theta_i_c: f64,
         theta_ext_c: f64,
@@ -236,7 +237,7 @@ impl SystemesGroupe {
                 .espace_tampon
                 .and_then(|i| espaces_tampons.get(i))
                 .map_or(1.0, |c| c.b_therm);
-            e.pas(ah, theta_cw_c, theta_i_c, theta_ext_c, b_therm);
+            e.pas(ah, i_ecs, theta_cw_c, theta_i_c, theta_ext_c, b_therm);
         }
     }
 

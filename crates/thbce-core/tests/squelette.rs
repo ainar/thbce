@@ -299,16 +299,18 @@ fn un_projet_vide_est_refuse_sans_panique() {
 #[test]
 fn un_usage_hors_perimetre_est_refuse_comme_hors_perimetre() {
     let mut p = projet();
-    p.batiments[0].zones[0].usage = UsageZone::EnseignementPrimaire;
+    p.batiments[0].zones[0].usage = UsageZone::Commerces;
     p.batiments[0].zones[0].groupes[0].su_m2 = Some(96.44);
+    // Permis de 2027 : les commerces ne sont soumis à la RE2020 qu'à partir du 1er mai 2026
+    // (Q68) ; un permis de 2025 serait une erreur de saisie.
+    if let Some(x) = p.batiments[0].exigences.as_mut() {
+        x.annee_depot_permis = 2027;
+    }
     let r = valider(&p);
     // Usage reconnu mais hors du périmètre de cette version : erreur marquée `hors_perimetre`.
     assert_eq!(chemins(&r.erreurs), ["batiments[0].zones[0].usage"]);
     assert!(r.seulement_hors_perimetre());
-    assert_eq!(
-        r.erreurs[0].valeur.as_deref(),
-        Some("enseignement_primaire")
-    );
+    assert_eq!(r.erreurs[0].valeur.as_deref(), Some("commerces"));
     assert!(r.avertissements.is_empty(), "{:?}", r.avertissements);
     let e = calculer(
         &p,

@@ -8,8 +8,9 @@ use serde::{Deserialize, Serialize};
 
 /// Th-BCE 2020 §4.1.3, tableau 4 — usages d'une zone.
 ///
-/// Les 28 usages sont reconnus à la lecture. La première version du moteur ne calcule que les
-/// usages 1 et 2 (décision Q4) et l'usage 3 (lot 0a) ; les autres sont signalés « non pris en charge ».
+/// Les 28 usages sont reconnus à la lecture. Le moteur calcule les usages 1 et 2 (décision Q4),
+/// l'usage 3 (lot 0a) et les usages 4 à 7 et 12 (lot 0c1) ; les autres sont signalés « non pris
+/// en charge ».
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum UsageZone {
@@ -105,10 +106,20 @@ impl UsageZone {
         }
     }
 
-    /// Usage calculé par la version courante du moteur : habitation (décision Q4) et bureaux
-    /// (lot 0a).
+    /// Usage calculé par la version courante du moteur : habitation (décision Q4), bureaux
+    /// (lot 0a), enseignement primaire et secondaire, médiathèques et bibliothèques, bâtiments
+    /// universitaires et petite enfance (lot 0c1).
     pub fn est_pris_en_charge(self) -> bool {
-        self.est_habitation() || self == Self::Bureaux
+        self.est_habitation()
+            || matches!(
+                self,
+                Self::Bureaux
+                    | Self::EnseignementPrimaire
+                    | Self::EnseignementSecondaire
+                    | Self::MediathequeBibliotheque
+                    | Self::Universitaire
+                    | Self::PetiteEnfance
+            )
     }
 
     /// « ihebergement » : usage d'habitation ou d'hébergement (§4.1.3, tableau 4) — usages 1 et
