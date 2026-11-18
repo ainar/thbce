@@ -113,6 +113,22 @@ pub struct Lectures {
     /// Récupération des pertes et consommations des systèmes (fiche 11.1) en Th-D (Q45). Vrai :
     /// lecture retenue ; faux pour mesurer son effet.
     pub recuperation_th_d: bool,
+    /// Préchauffage de l'eau froide du ballon d'ECS par un récupérateur sur les eaux grises
+    /// (Q108 point 6) : `Texte` modifie seulement `θentrant` (lecture retenue) ; `Deduit` déduit
+    /// la chaleur récupérée de la demande de la génération.
+    pub preechauffage_ecs: LecturePreechauffageEcs,
+}
+
+/// Prise en compte du préchauffage de l'eau froide du ballon (`docs/questions/Q108.md`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LecturePreechauffageEcs {
+    /// §9.21.3 à la lettre : seule `θentrant` change ; la demande à la génération est celle de
+    /// l'émetteur (lecture retenue).
+    #[default]
+    Texte,
+    /// La chaleur `ρw·cw·Vec·(θentrant − θcw)` récupérée sur l'eau froide est déduite de la
+    /// demande de la génération.
+    Deduit,
 }
 
 /// Émission employée par le calcul Th-D (`docs/questions/Q043.md` ; Q40 point 1).
@@ -148,6 +164,7 @@ impl Default for Lectures {
             ventilation_th_d: VentilationThD::default(),
             emission_th_d: EmissionThD::default(),
             recuperation_th_d: true,
+            preechauffage_ecs: LecturePreechauffageEcs::default(),
         }
     }
 }

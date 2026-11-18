@@ -1,0 +1,67 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b",
+    "altcorr_m": 100,
+    "base_ext_c": -6.5
+  },
+  "batiments": [
+    {
+      "id": "maison",
+      "sref_m2": 96.4,
+      "bbio_pts": 63.8,
+      "dh_c_h": 1670.1,
+      "zones": [
+        {
+          "id": "logement",
+          "groupes": [
+            {
+              "id": "volume-chauffe",
+              "enveloppe": {
+                "a_op_m2": 290.0,
+                "h_th_op_w_k": 45.0,
+                "l_pt_m": 40.0,
+                "h_th_pt_w_k": 4.0,
+                "a_baies_m2": 10.0,
+                "h_ges_sp_w_k": 13.0
+              },
+              "systemes": {
+                "ecs": [
+                  {
+                    "id": "sanitaires",
+                    "q_w_kwh": 939.8,
+                    "q_w_2nd_kwh": 1229.6,
+                    "recuperateur": {
+                      "q_w_sans_recuperateur_kwh": 1198.7,
+                      "w_relevage_kwh": 6.3,
+                      "theta_entrant_moyen_c": 24.6
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "cep_kwhep_m2": 79.0,
+      "cep_nr_kwhep_m2": 79.0,
+      "ic_energie_kgco2_m2": 523.6,
+      "indicateurs": {
+        "cef_kwhef_m2": 65.6,
+        "exigences": {
+          "bbio_max_pts": 64.7,
+          "cep_max_kwhep_m2": 70.2,
+          "cep_nr_max_kwhep_m2": 51.5,
+          "ic_energie_max_kgco2_m2": 149.7,
+          "conforme": false
+        }
+      },
+      "distributions_ecs_intergroupes": [
+        {
+          "id": "ecs-individuelle",
+          "theta_entrant_moyen_c": 24.6
+        }
+      ]
+    }
+  ]
+}

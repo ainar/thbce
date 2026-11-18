@@ -36,7 +36,7 @@ use crate::entree::{
 use crate::erreur::Erreur;
 use crate::pertes::pertes_recuperables::{recuperation_wh, FluxVolumeChauffe};
 
-use super::assemblage_groupe::Lectures;
+use super::assemblage_groupe::{LecturePreechauffageEcs, Lectures};
 use super::assemblage_zone::{conditions_exterieures, ZoneHoraire};
 use super::espace_tampon::assemblage::{EspaceTamponHoraire, GroupeVuParEt, LienGroupe};
 use super::espace_tampon::espace_tampon::CoefficientsEt;
@@ -91,6 +91,10 @@ pub struct SystemesBatiment {
     /// Récupération des pertes et consommations des systèmes par les groupes (fiche 11.1) ;
     /// vrai sauf pour mesurer son effet (lecture Q45).
     pub recuperation: bool,
+    /// Variante de la lecture Q108 (point 6) : la chaleur récupérée par le préchauffage de l'eau
+    /// froide du ballon (`θentrant > θcw`) est déduite de la demande de la génération. Faux :
+    /// lecture retenue, le texte ne modifie que `θentrant` (§9.21.3).
+    pub preechauffage_deduit: bool,
     /// Générations (§8.14 et §8.17), dans l'ordre de `generations`.
     pub generations_horaires: Vec<GenerationHoraire>,
     /// Espace tampon qui abrite chaque génération hors volume chauffé.
@@ -299,6 +303,7 @@ impl BatimentHoraire {
         } else {
             let mut s = SystemesBatiment::nouveaux(bat, catalogue, &mut zones);
             s.recuperation = mode != ModeCalcul::ThD || lectures.recuperation_th_d;
+            s.preechauffage_deduit = lectures.preechauffage_ecs == LecturePreechauffageEcs::Deduit;
             s
         };
         Ok(Self {
@@ -675,6 +680,7 @@ impl SystemesBatiment {
             sorties_ecs: vec![SortiesDistributionEcsIntergroupe::default(); n_ecs],
             cumuls_ecs: vec![CumulsEcsIntergroupe::default(); n_ecs],
             recuperation: true,
+            preechauffage_deduit: false,
             collectifs_eaux_grises,
             theta_ep_collectifs: vec![0.0; n_collectifs],
             apports_collectif: Vec::with_capacity(nb_groupes),
@@ -698,6 +704,20 @@ impl SystemesBatiment {
         for (g, a) in zones.iter_mut().flat_map(|z| z.groupes.iter_mut()).zip(eff) {
             g.etat.aut_eff = a;
         }
+    }
+
+    /// « θentrant » du ballon vu par un émetteur d'ECS (éq. 2190 à 2192) : celle du récupérateur
+    /// collectif auquel il est relié, sinon celle que son propre récupérateur a calculée.
+    fn theta_entrant_selon(
+        collectifs: &[CollectifEauxGrisesResolu],
+        theta_ep: &[f64],
+        e: &crate::ecs::distribution_ecs::EmetteurEcsResolu,
+    ) -> f64 {
+        e.recuperateur
+            .as_ref()
+            .and_then(|r| r.collectif.as_deref())
+            .and_then(|id| collectifs.iter().position(|c| c.id == id))
+            .map_or(e.sorties_recuperateur.theta_entrant_c, |k| theta_ep[k])
     }
 
     /// Pas de temps des réseaux intergroupes, après celui des groupes ; à la bascule des
@@ -874,10 +894,32 @@ impl SystemesBatiment {
                 let s = &self.sorties_ecs[k];
                 w_rechauf += s.w_rechauf_wh;
                 id_encl_gen = Some(id_encl_gen.unwrap_or(false) || s.id_encl);
+                // Variante Q108 : chaleur récupérée sur l'eau froide du ballon, `ρw·cw·Vec·(θentrant
+                // − θcw)` de chaque émetteur du réseau (éq. 2181, 2185, 2191).
+                let deduit = if self.preechauffage_deduit && self.gen_avec_recuperateur[ig] {
+                    groupes
+                        .iter()
+                        .filter_map(|g| g.systemes.as_ref())
+                        .flat_map(|sy| sy.ecs.iter())
+                        .filter(|e| e.intergroupe == k)
+                        .map(|e| {
+                            crate::ecs::besoins_ecs::RHO_W_KG_L
+                                * crate::ecs::besoins_ecs::C_W_WH_KG_K
+                                * e.sorties_recuperateur.v_ec_l
+                                * (Self::theta_entrant_selon(
+                                    &self.collectifs_eaux_grises,
+                                    &self.theta_ep_collectifs,
+                                    e,
+                                ) - theta_cw_c)
+                        })
+                        .sum::<f64>()
+                } else {
+                    0.0
+                };
                 vus.push(ReseauVu {
                     poste: Poste::Ecs,
                     hydraulique: true,
-                    q_sys_wh: s.q_w_prim_wh,
+                    q_sys_wh: (s.q_w_prim_wh - deduit).max(0.0),
                     theta_moy_c: s.theta_moy_c,
                     theta_dep_c: s.theta_depart_c,
                     theta_i_aval_eq_c: 0.0,
@@ -955,12 +997,11 @@ impl SystemesBatiment {
                     .filter(|e| self.ecs.get(e.intergroupe).map(|d| d.generation) == Some(ig))
                 {
                     let r = &e.sorties_recuperateur;
-                    let t = e
-                        .recuperateur
-                        .as_ref()
-                        .and_then(|r| r.collectif.as_deref())
-                        .and_then(|id| self.collectifs_eaux_grises.iter().position(|c| c.id == id))
-                        .map_or(r.theta_entrant_c, |k| self.theta_ep_collectifs[k]);
+                    let t = Self::theta_entrant_selon(
+                        &self.collectifs_eaux_grises,
+                        &self.theta_ep_collectifs,
+                        e,
+                    );
                     v += r.v_ec_l;
                     vt += r.v_ec_l * t;
                 }
