@@ -473,6 +473,94 @@ mod tests {
     }
 
     #[test]
+    fn valeurs_par_defaut_du_tableau_62() {
+        assert_eq!(theta_s_ech_rep_lim_defaut_c(false, true), 5.0);
+        assert_eq!(theta_s_ech_rep_lim_defaut_c(true, true), 5.0);
+        assert_eq!(theta_s_ech_rep_lim_defaut_c(true, false), -5.0);
+        assert_eq!(theta_s_ech_rep_lim_defaut_c(false, false), 0.0);
+    }
+
+    #[test]
+    fn regime_et_ventilateurs_des_cta() {
+        // Occupation, relance, besoin au pas précédent en inoccupation.
+        assert!(conditions_debit_nominal(true, false, true, false, false));
+        assert!(conditions_debit_nominal(false, true, false, false, false));
+        assert!(conditions_debit_nominal(false, false, false, true, false));
+        assert!(conditions_debit_nominal(false, false, false, false, true));
+        // Besoin au pas précédent, mais en occupation au pas précédent : zone neutre.
+        assert!(!conditions_debit_nominal(false, false, true, true, false));
+        assert!(debits_nominaux(TypeCta::DebitConstant, true));
+        assert!(debits_nominaux(
+            TypeCta::DebitConstantTemperatureVariable,
+            true
+        ));
+        assert!(!debits_nominaux(TypeCta::DebitVariable, true));
+        assert!(!debits_nominaux(TypeCta::DebitConstant, false));
+        let (ch, occ, inocc) = ((300.0, 310.0), (150.0, 160.0), (40.0, 50.0));
+        assert_eq!(
+            p_vent_cta_w(TypeCta::DebitConstant, true, ch, occ, inocc),
+            ch
+        );
+        assert_eq!(
+            p_vent_cta_w(TypeCta::DebitConstant, false, ch, occ, inocc),
+            inocc
+        );
+        assert_eq!(
+            p_vent_cta_w(TypeCta::DebitVariable, true, ch, occ, inocc),
+            occ
+        );
+        assert_eq!(
+            p_vent_cta_w(TypeCta::DebitVariable, false, ch, occ, inocc),
+            inocc
+        );
+        assert_eq!(taux_an_min(1000.0, 4000.0), 0.25);
+        assert_eq!(taux_an_min(1000.0, 0.0), 1.0);
+    }
+
+    #[test]
+    fn air_neuf_et_melange_a_la_main() {
+        // Débit minimal 0,4 kg/s, soufflé 1,6 kg/s, plage tout air neuf de 12 à 18 °C.
+        let an = |t: f64, r: RegulationAirNeuf, ti: f64| {
+            qm_air_neuf_kg_s(0.4, 1.6, t, 12.0, 18.0, r, ti)
+        };
+        assert_eq!(an(5.0, RegulationAirNeuf::Standard, 22.0), 0.4);
+        // 15 °C : la moitié de la plage, 0,4 + 1,2 × 3/6 = 1,0 kg/s.
+        assert!((an(15.0, RegulationAirNeuf::Standard, 22.0) - 1.0).abs() < 1e-12);
+        assert_eq!(an(20.0, RegulationAirNeuf::Standard, 22.0), 0.4);
+        assert_eq!(an(20.0, RegulationAirNeuf::Optimisee, 22.0), 1.6);
+        assert_eq!(an(24.0, RegulationAirNeuf::Optimisee, 22.0), 0.4);
+        // Mélange : 1,2 kg/s recyclés à 21 °C, 0,4 kg/s d'air neuf à 15 °C : 19,5 °C.
+        assert!((melange(1.6, 0.4, 21.0, 15.0) - 19.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn batteries_a_la_main() {
+        // Préchauffage : air à 8 °C porté à 16 °C, 0,5 kg/s : 1006 × 0,5 × 8 = 4 024 Wh.
+        let (t, q) = prechauffage(8.0, -2.0, 16.0, 10.0, 0.5);
+        assert_eq!(t, 16.0);
+        assert!((q - 4024.0).abs() < 1e-9);
+        // Air extérieur au-dessus du seuil : sans effet.
+        assert_eq!(prechauffage(8.0, 12.0, 16.0, 10.0, 0.5), (8.0, 0.0));
+        // Air déjà plus chaud que la consigne : sans effet.
+        assert_eq!(prechauffage(18.0, -2.0, 16.0, 10.0, 0.5), (18.0, 0.0));
+
+        // Prérefroidissement : air à 30 °C et 12 g/kg, consigne 18 °C, fluide à 7 °C (surface
+        // à 9 °C), 0,5 kg/s. BP = 9/21 ; ωsat(9 °C) = 10⁻³ exp(18,8161 − 4110,34/244).
+        let r = prerefroidissement(30.0, 0.012, 32.0, 18.0, 25.0, 7.0, 0.5);
+        let omega_sat = 0.001 * libm::exp(18.8161 - 4110.34 / 244.0);
+        let d_omega = (omega_sat - 0.012) * (1.0 - 9.0 / 21.0);
+        assert!(d_omega < 0.0);
+        assert_eq!(r.theta_souf3_c, 18.0);
+        assert!((r.omega_souf3_kg_kg - (0.012 + d_omega)).abs() < 1e-15);
+        let q = 0.5 * (1006.0 * -12.0 + 2_501_000.0 * d_omega);
+        assert!((r.q_prefroid_wh - q).abs() < 1e-9);
+        // Air extérieur sous le seuil : sans effet.
+        let r = prerefroidissement(30.0, 0.012, 20.0, 18.0, 25.0, 7.0, 0.5);
+        assert_eq!(r.q_prefroid_wh, 0.0);
+        assert_eq!(r.theta_souf3_c, 30.0);
+    }
+
+    #[test]
     fn antigel_a_la_main() {
         // Air repris à 20 °C, ε = 0,8, limite à 5 °C : θeech,min = 20 + (5 − 20)/0,8 = 1,25 °C.
         assert!((theta_e_ech_min_c(20.0, 5.0, 0.8) - 1.25).abs() < 1e-12);

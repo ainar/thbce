@@ -812,7 +812,7 @@ impl VentilationProjet {
             .iter()
             .filter(|b| b.groupe == g)
             .fold(Debits::default(), |mut d, b| {
-                let debits = b.debits_selon(i_vent);
+                let debits = b.debits_regime(self.regime_statique(i_vent));
                 match debits.isouf {
                     Isouf::Reprise => d.q_rep_m3_h += debits.q_cond_m3_h(),
                     Isouf::Soufflage => d.q_souffle_m3_h += debits.q_cond_m3_h(),

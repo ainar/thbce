@@ -18,13 +18,16 @@ Refus ciblés gardés (code 3), documentés :
 - réseau de CTA hydraulique (8.11, idtype = 1).
 
 ## Fait
-- (rien encore)
+- saisie, validation, modèle (cta_et_double_flux.rs, ventilation_projet.rs), zone (preparer_pas, enregistrer), générations (BatteriesCta), résultats, restitution
+- tests unitaires à la main, crates/thbce-io/tests/cta.rs (dont test ignoré météo réglementaire), exemple tests/cas/bureaux-cta-ademe
+- Q90 à Q94, couverture, changelog.d/1-ventilation.md, architecture, modele-donnees, README, types TS
+- 26 exemples existants conformes sans modification
 
 ## En cours
-- saisie et validation
+- suite complète (fmt, clippy, tests release + ignorés, verifier), puis PR
 
 ## Reste
-- voir périmètre
+- après la PR : mode actif des CTA 3/4 (Q94), humidification, adiabatique, 6.6 à 6.12 (refus ciblés documentés)
 
 ## Dernier SHA poussé
 - aucun
