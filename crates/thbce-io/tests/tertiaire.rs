@@ -238,7 +238,6 @@ fn refus() {
 
     // Les 28 usages sont calculés (lot 0c4) : le refus d'un élément hors périmètre se teste sur un
     // système (double flux ci-dessous).
-    let _ = z;
     // Double flux en non résidentiel : hors périmètre.
     let mut p = bureaux();
     let maison = json::lire_projet(

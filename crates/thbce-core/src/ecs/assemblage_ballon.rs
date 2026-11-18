@@ -591,6 +591,68 @@ mod tests {
         );
     }
 
+    /// Éq. (1952) : `Nbassemblage` assemblages identiques soumis à `n` fois la demande se
+    /// comportent comme un seul assemblage soumis à la demande unitaire (calcul indépendant :
+    /// même ballon, mêmes puissances par générateur), énergies totales multipliées par `n`.
+    /// Q105 : l'augmentation des heures non couvertes avec `Nbassemblage` observée sur un
+    /// exemple vient donc du thermostat (phase du cycle de chauffe), pas de la répartition.
+    #[test]
+    fn plusieurs_assemblages_equivalent_a_un_seul_a_demande_unitaire() {
+        let nouveau = |nb: f64| {
+            AssemblageBallon::nouveau(
+                "ballon",
+                nb,
+                Ballon::nouveau(300.0, 3.0, None, 90.0),
+                regulation(Programmation::Permanent),
+                None,
+                4,
+            )
+        };
+        for n in [2.0_f64, 3.0] {
+            let (mut un, mut plusieurs) = (nouveau(1.0), nouveau(n));
+            let mut g1 = |_: usize, _: Poste, q: f64, _: f64| q.min(2000.0);
+            let mut gn = |_: usize, _: Poste, q: f64, _: f64| q.min(2000.0 * n);
+            for h in 0..48_u8 {
+                let q = if h % 24 >= 7 && h % 24 < 21 { 1500.0 } else { 0.0 };
+                let a = un.pas(&entrees(q, h % 24), &mut g1);
+                let b = plusieurs.pas(&entrees(q * n, h % 24), &mut gn);
+                assert!((b.q_fou_ecs_wh - a.q_fou_ecs_wh * n).abs() < 1e-6);
+                assert!((b.q_rest_ecs_wh - a.q_rest_ecs_wh * n).abs() < 1e-6);
+                assert!((b.q_fou_sto_wh[0] - a.q_fou_sto_wh[0] * n).abs() < 1e-6);
+                assert!((b.phi_pertes_wh - a.phi_pertes_wh * n).abs() < 1e-6);
+                for z in 0..NB_ZONES {
+                    assert!((plusieurs.ballon.theta_c[z] - un.ballon.theta_c[z]).abs() < 1e-9);
+                }
+            }
+        }
+    }
+
+    /// Q105 : la température de départ de la distribution (53 °C) est égale au bas de la bande
+    /// du thermostat (55 − 2 K) : un ballon qui passe sous 53 °C n'est réchauffé qu'au pas
+    /// suivant (la régulation lit la température du pas précédent), et le puisage de ce pas,
+    /// qui précède le chauffage, est reporté (éq. 1795 et 1798).
+    #[test]
+    fn puisage_reporte_dans_le_creux_du_thermostat() {
+        let mut a = AssemblageBallon::nouveau(
+            "ballon",
+            1.0,
+            Ballon::nouveau(200.0, 2.0, None, 90.0),
+            regulation(Programmation::Permanent),
+            None,
+            4,
+        );
+        let mut resistance = |_: usize, _: Poste, q: f64, _: f64| q.min(2000.0);
+        a.ballon.theta_c = [52.8; NB_ZONES];
+        a.ballon.theta_prec_c = [52.8; NB_ZONES];
+        a.ballon.theta_prec2_c = [52.8; NB_ZONES];
+        let s = a.pas(&entrees(1000.0, 9), &mut resistance);
+        assert_eq!(s.q_fou_ecs_wh, 0.0);
+        assert!((s.q_rest_ecs_wh - 1000.0).abs() < 1e-9);
+        // Le pas suivant puise : la base a remonté le ballon.
+        let s = a.pas(&entrees(1000.0, 10), &mut resistance);
+        assert!(s.q_fou_ecs_wh > 0.0);
+    }
+
     #[test]
     fn programmation_de_nuit_et_report() {
         let ballon = Ballon::nouveau(200.0, 2.0, None, 90.0);
