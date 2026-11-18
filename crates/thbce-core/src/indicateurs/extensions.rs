@@ -310,7 +310,7 @@ mod tests {
     fn p(annee: u16, mois: Option<u8>) -> ParametresExigences {
         ParametresExigences {
             categorie_contraintes_exterieures: CategorieContraintes::Categorie1,
-            zone_bruit: ZoneBruit::Br1,
+            zone_bruit: Some(ZoneBruit::Br1),
             annee_depot_permis: annee,
             mois_depot_permis: mois,
             hsp_moy_m: Some(2.5),

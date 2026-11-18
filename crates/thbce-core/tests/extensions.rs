@@ -22,7 +22,7 @@ use thbce_data::ZoneClimatique as Z;
 fn parametres(annee: u16, mois: Option<u8>, existant: Option<f64>) -> ParametresExigences {
     ParametresExigences {
         categorie_contraintes_exterieures: C::Categorie1,
-        zone_bruit: B::Br1,
+        zone_bruit: Some(B::Br1),
         annee_depot_permis: annee,
         mois_depot_permis: mois,
         hsp_moy_m: Some(2.5),

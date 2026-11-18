@@ -21,6 +21,7 @@ use exigences::valider_exigences;
 // nouvelle famille par un `mod` ci-dessous et un appel dans `valider`.
 mod baies;
 mod batiment;
+mod bruit;
 mod collectif;
 mod eclairage;
 mod ecs;
@@ -280,6 +281,7 @@ pub fn valider(projet: &Projet) -> RapportValidation {
         photovoltaique::valider_installations_pv(&mut r, &cb, bat, &refs);
         solaire::valider_chauffe_eau_solaires(&mut r, &cb, bat, &refs);
         collectif::valider_collectif(&mut r, &cb, bat);
+        bruit::valider_bruit(&mut r, &cb, bat);
         valider_exigences(&mut r, &cb, bat, &projet.localisation);
         usages_batiment::valider_usages_batiment(&mut r, &cb, bat);
     }

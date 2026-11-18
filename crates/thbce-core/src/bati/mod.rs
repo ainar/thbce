@@ -5,6 +5,8 @@
 //!   `S2_BAT_assemblage_groupe` (§5.7), enchaînement horaire du calcul du Bbio ;
 //! - [`comportement_thermique`] : fiche `C_BAT_comportement thermique d'un groupe` (§5.21) ;
 //! - [`baie`] : fiches `C_BAT_Baie vitrée` (§5.10) et `C_BAT_ensemble_baies` (§5.14) ;
+//! - [`classement_bruit`] : fiche `FA_Classement_au_bruit_d'une_baie` (§5.11) et chapitre V,
+//!   partie I, de l'annexe de l'article R. 172-4 ;
 //! - [`protection_mobile`] : fiches `C_BAT_Gestion_protections_mobiles` (§5.9) et
 //!   `C_BAT_Perméabilité_des_PM` (§5.12) ;
 //! - [`surventilation`] : fiche `C_BAT_Surventilation naturelle par ouverture des baies pour le
@@ -23,6 +25,7 @@ pub mod assemblage_batiment;
 pub mod assemblage_groupe;
 pub mod assemblage_zone;
 pub mod baie;
+pub mod classement_bruit;
 pub mod comportement_thermique;
 pub mod espace_tampon;
 pub mod inerties_longues;
