@@ -35,7 +35,7 @@ use crate::entree::{
 use crate::erreur::Erreur;
 use crate::pertes::pertes_recuperables::{recuperation_wh, FluxVolumeChauffe};
 
-use super::assemblage_groupe::Lectures;
+use super::assemblage_groupe::{LectureAntigelCta, Lectures};
 use super::assemblage_zone::{conditions_exterieures, ZoneHoraire};
 use super::espace_tampon::assemblage::{EspaceTamponHoraire, GroupeVuParEt, LienGroupe};
 use super::espace_tampon::espace_tampon::CoefficientsEt;
@@ -90,6 +90,10 @@ pub struct SystemesBatiment {
     /// Récupération des pertes et consommations des systèmes par les groupes (fiche 11.1) ;
     /// vrai sauf pour mesurer son effet (lecture Q45).
     pub recuperation: bool,
+    /// Variante de l'éq. (951) pour la sécurité antigel (Q93 point 3) : vrai si la
+    /// température vue par la génération est celle après la boîte de mélange quand le
+    /// préchauffage passe par la même génération ; faux (lecture retenue) : air neuf (éq. 952).
+    pub antigel_souf_mel: bool,
     /// Générations (§8.14 et §8.17), dans l'ordre de `generations`.
     pub generations_horaires: Vec<GenerationHoraire>,
     /// Espace tampon qui abrite chaque génération hors volume chauffé.
@@ -298,6 +302,7 @@ impl BatimentHoraire {
         } else {
             let mut s = SystemesBatiment::nouveaux(bat, catalogue, &mut zones);
             s.recuperation = mode != ModeCalcul::ThD || lectures.recuperation_th_d;
+            s.antigel_souf_mel = lectures.antigel_cta == LectureAntigelCta::MelangeSiPrechauffage;
             s
         };
         Ok(Self {
@@ -672,6 +677,7 @@ impl SystemesBatiment {
             sorties_ecs: vec![SortiesDistributionEcsIntergroupe::default(); n_ecs],
             cumuls_ecs: vec![CumulsEcsIntergroupe::default(); n_ecs],
             recuperation: true,
+            antigel_souf_mel: false,
         };
         s.fixer_autorisations(zones);
         s
@@ -874,7 +880,15 @@ impl SystemesBatiment {
                     q_sys_wh: w_ag,
                     theta_moy_c: 0.0,
                     theta_dep_c: 0.0,
-                    theta_i_aval_eq_c: theta_ext_c,
+                    // Éq. (952) : air neuf (sans puits) ; variante de l'éq. (951) (Q93 point 3) :
+                    // après la boîte de mélange si le préchauffage passe par la même génération.
+                    theta_i_aval_eq_c: if self.antigel_souf_mel
+                        && self.batteries_cta[iz].prechauffage == Some(ig)
+                    {
+                        z.sorties_ventilation.theta_souf_mel_c
+                    } else {
+                        theta_ext_c
+                    },
                     relance: false,
                     // Sans demande, la sécurité antigel ne pèse pas dans les répartitions.
                     rat_surf_dess: 0.0,

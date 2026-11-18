@@ -9,3 +9,9 @@
 ### Modifié
 
 - `cta.batterie_chaude` et `cta.batterie_froide` à `true` ne sont plus refusés (code 3) : ils exigent la génération, les températures nominales (type 4) et un émetteur contenu dans les bouches (erreurs de saisie, code 2). Les résultats des exemples existants ne changent pas.
+
+### Corrigé
+
+- Variante de lecture `VentilationThD::ConventionnelleBbio` (assemblage provisoire du lot 5, non exposée) : elle retirait aussi le système de ventilation du projet du calcul des consommations, où les ventilateurs d'une centrale double flux hors habitation comptaient alors 0 kWh ; elle ne touche plus que le calcul Th-D. Lecture retenue et résultats inchangés.
+- Libellé du point 4 de Q92 (air neuf du mode actif en inoccupation : taux de l'inoccupation appliqué au débit vu par le ventilateur, fuites comprises) ; calcul inchangé.
+- Variantes écartées de Q90 point 1 (relance anticipée) et Q93 point 3 (éq. 951 pour l'antigel) conservées, non exposées, et chiffrées sur l'exemple `bureaux-cta-ademe`.
