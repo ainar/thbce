@@ -15,6 +15,7 @@
 //! ([`super::assemblage_batiment`]) ; la zone reçoit leurs coefficients.
 
 use crate::chauffage_refroidissement::relances::HORIZON_RELANCE;
+use crate::chauffage_refroidissement::relances::{en_relance, ConditionsRelance};
 use crate::climat::calendrier::{jour, nouveau_jour_legal};
 use crate::climat::environnement_proche::{ventc_m_s, Soleil};
 use crate::climat::{ClimatExterieur, ConfortAdaptatif};
@@ -27,12 +28,12 @@ use crate::ventilation::debits_air_cep::{
 };
 use crate::ventilation::ven_bbio::{omega_air_souffle_kg_kg, t_air_souffle_c};
 use crate::ventilation::ventilation_projet::{
-    AirSouffle, EtatGroupeVentilation, PasVentilation, VentilationProjet,
+    AirSouffle, EtatGroupeVentilation, ModeActif, PasVentilation, VentilationProjet,
 };
 
 use super::assemblage_groupe::{
-    nbh_occ_ref, ConditionsPas, GroupeHoraire, Lectures, SortiesPasGroupe, VentilationThD,
-    THETA_INITIALE_C,
+    nbh_occ_ref, ConditionsPas, GroupeHoraire, LectureRelanceCta, Lectures, SortiesPasGroupe,
+    VentilationThD, THETA_INITIALE_C,
 };
 use super::espace_tampon::espace_tampon::CoefficientsEt;
 use super::ConditionsExterieures;
@@ -57,9 +58,13 @@ pub struct ZoneHoraire {
     pub ventilation: Option<VentilationProjet>,
     /// Sorties du système de ventilation du projet au dernier pas de temps calculé.
     pub sorties_ventilation: PasVentilation,
+    /// Mode actif de la centrale au dernier pas de temps calculé (§6.3.3.5).
+    pub mode_actif: ModeActif,
     /// Cumuls annuels du système de ventilation du projet.
     pub cumuls_ventilation: CumulsVentilation,
     etats: Vec<EtatGroupe>,
+    /// État des groupes au pas de temps en cours vu par le mode actif de la centrale.
+    etats_mode_actif: Vec<EtatGroupeVentilation>,
     air_souffle: Vec<AirSouffle>,
     etats_ventilation: Vec<EtatGroupeVentilation>,
 }
@@ -75,6 +80,16 @@ pub struct CumulsVentilation {
     pub q_prechaud_wh: f64,
     /// Énergie fournie par la batterie de prérefroidissement, en Wh, négative (éq. 545).
     pub q_prefroid_wh: f64,
+    /// Nombre de pas de temps où la centrale fonctionne en mode actif (§6.3.3.5).
+    pub nbh_mode_actif: u32,
+    /// Nombre de pas de temps où la batterie régulée sur la charge est sous-dimensionnée (éq.
+    /// 597 et 605).
+    pub nbh_sous_dimensionnement: u32,
+    /// Énergie fournie par la batterie chaude régulée sur la charge, en Wh (éq. 599).
+    pub q_chaud_wh: f64,
+    /// Énergie fournie par la batterie froide régulée sur la charge, latente comprise, en Wh,
+    /// négative (éq. 611).
+    pub q_froid_wh: f64,
 }
 
 impl ZoneHoraire {
@@ -158,9 +173,12 @@ impl ZoneHoraire {
             })
             .collect();
         // Ventilation : système conventionnel de la fiche 6.1 en Th-B (§6.1.3, décision Q36) ;
-        // système du projet en Th-C et en Th-D (lecture Q42).
-        let ventilation = (mode != ModeCalcul::ThB
-            && lectures.ventilation_th_d == VentilationThD::Projet)
+        // système du projet en Th-C et en Th-D (lecture Q42). La variante
+        // `VentilationThD::ConventionnelleBbio` ne touche que le Th-D : en Th-C, le système du
+        // projet reste employé (sans lui, une centrale double flux hors habitation n'aurait pas
+        // de relevé de consommation et ses ventilateurs compteraient 0 kWh).
+        let ventilation = (mode == ModeCalcul::ThC
+            || (mode == ModeCalcul::ThD && lectures.ventilation_th_d == VentilationThD::Projet))
             .then(|| VentilationProjet::nouvelle(zone, THETA_INITIALE_C))
             .flatten();
         if let Some(v) = &ventilation {
@@ -191,6 +209,8 @@ impl ZoneHoraire {
             sorties: vec![None; nb],
             ventilation,
             sorties_ventilation: PasVentilation::default(),
+            mode_actif: ModeActif::default(),
+            etats_mode_actif: Vec::new(),
             cumuls_ventilation: CumulsVentilation::default(),
             etats: Vec::with_capacity(nb),
             air_souffle: vec![AirSouffle::default(); nb],
@@ -301,7 +321,23 @@ impl ZoneHoraire {
                         saison_de_refroidissement: mode == ModeCalcul::ThC
                             && g.i_clim
                             && g.etat.aut_eff.1,
-                        relance: sy.is_some_and(|x| x.relance),
+                        relance: match (g.systemes.as_ref(), g.lectures.relance_cta) {
+                            // Q90 point 1, variante écartée : relance du pas en cours anticipée.
+                            (Some(x), LectureRelanceCta::Anticipee) if mode == ModeCalcul::ThC => {
+                                let mut r = x.relance;
+                                en_relance(&r.pas(&ConditionsRelance {
+                                    aut_ch: g.etat.aut_eff.0,
+                                    aut_fr: g.etat.aut_eff.1,
+                                    p_ch: c.p_ch_avenir,
+                                    p_fr: c.p_fr_avenir,
+                                    theta_ext_c: ext.te_c,
+                                    theta_ext_base_c: c.theta_ext_base_c,
+                                    theta_ii_ch_plus_c: c.theta_ii_ch_plus_c,
+                                    theta_ii_fr_plus_c: c.theta_ii_fr_plus_c,
+                                }))
+                            }
+                            _ => sy.is_some_and(|x| x.relance),
+                        },
                         besoin_ch: s.is_some_and(|x| x.q_sys_ch_wh > 0.0),
                         besoin_fr: s.is_some_and(|x| x.q_sys_fr_wh < 0.0),
                     }
@@ -325,7 +361,6 @@ impl ZoneHoraire {
                 &mut self.air_souffle,
                 i_vent,
             );
-            v.enregistrer(h);
             self.cumuls_ventilation.nbh_bypass += u32::from(self.sorties_ventilation.bypass);
             self.cumuls_ventilation.w_ag_wh += self.sorties_ventilation.w_ag_wh;
             self.cumuls_ventilation.q_prechaud_wh += self.sorties_ventilation.q_prechaud_wh;
@@ -400,6 +435,51 @@ impl ZoneHoraire {
                 self.etats[g].theta_i_fin_c = groupe.etat.fin.theta_i_c;
                 self.etats[g].omega_i_fin_kg_kg = groupe.etat.omega_i_fin_kg_kg;
             }
+        }
+        // §6.3.3.1.5, seconde phase : mode actif d'une centrale à charge variable, après les
+        // groupes, avec les demandes des émetteurs contenus dans ses bouches de soufflage.
+        if let Some(v) = &mut self.ventilation {
+            self.mode_actif = ModeActif::default();
+            if v.cta.as_ref().is_some_and(|c| c.batteries_charge.is_some()) {
+                let (mut q_ch, mut q_fr) = (0.0, 0.0);
+                self.etats_mode_actif.clear();
+                for (g, e) in self.groupes.iter().zip(&self.etats_ventilation) {
+                    let sy = g.systemes.as_ref();
+                    // Lecture Q95 : θi,moy^g(h) du groupe et son humidité à la fin du pas.
+                    self.etats_mode_actif.push(EtatGroupeVentilation {
+                        theta_i_fin_c: sy.map_or(g.etat.fin.theta_i_c, |s| s.sorties.theta_i_moy_c),
+                        omega_i_fin_kg_kg: g.etat.omega_i_fin_kg_kg,
+                        ..*e
+                    });
+                    for (em, q) in sy
+                        .into_iter()
+                        .flat_map(|s| s.emetteurs.iter().zip(&s.sorties.q_em_wh))
+                    {
+                        if em.chaud.is_some_and(|c| c.centrale) {
+                            q_ch += q.0;
+                        }
+                        if em.froid.is_some_and(|f| f.centrale) {
+                            q_fr += q.1;
+                        }
+                    }
+                }
+                self.mode_actif = v.mode_actif(
+                    ext.te_c,
+                    c.omega_e_kg_kg,
+                    &self.etats_ventilation,
+                    &self.etats_mode_actif,
+                    i_vent,
+                    q_ch,
+                    q_fr,
+                );
+                let m = self.mode_actif;
+                let cv = &mut self.cumuls_ventilation;
+                cv.nbh_mode_actif += u32::from(m.actif);
+                cv.nbh_sous_dimensionnement += u32::from(m.sous_dimensionnee);
+                cv.q_chaud_wh += m.q_chaud_wh;
+                cv.q_froid_wh += m.q_froid_wh;
+            }
+            v.enregistrer(h);
         }
         Ok(())
     }

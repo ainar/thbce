@@ -14,9 +14,14 @@
 //!   (éq. 522 à 525) et de prérefroidissement (éq. 539 à 548), air soufflé (éq. 560 à 564),
 //!   consommations (éq. 565 et 570).
 //!
-//! Hors de cette version, refusés par la validation : mode actif des centrales à charge
-//! variable (types 3 et 4 avec batteries chaude ou froide, §6.3.3.5), humidification d'hiver,
-//! rafraîchissement évaporatif, surventilation mécanique, puits climatique ou hydraulique.
+//! - mode actif des centrales à charge variable (types 3 et 4 avec batteries chaude ou froide
+//!   régulées sur la charge, §6.3.3.5) : déperditions en zone neutre (éq. 571), température
+//!   aux bouches (éq. 582 à 594), sortie de la centrale (éq. 589, 595), énergies de chauffage
+//!   et de refroidissement, latente comprise (éq. 596 à 612), ventilateurs (éq. 614) ;
+//!   lectures `docs/questions/Q095.md`.
+//!
+//! Hors de cette version, refusés par la validation : humidification d'hiver, rafraîchissement
+//! évaporatif, surventilation mécanique, puits climatique ou hydraulique.
 //! L'air neuf est donc l'air extérieur (éq. 413) et `θextr3 = θextr2` (éq. 484 et 485).
 //!
 //! Les numéros d'équation sont ceux de la fiche 6.3, sauf mention « fiche 6.2 » (les deux
@@ -255,6 +260,185 @@ pub fn prerefroidissement(
         omega_souf3_kg_kg: omega_souf3,
         q_prefroid_wh: q,
     }
+}
+
+/// « Cpv » : chaleur massique de la vapeur d'eau, en J/(kg.K) (tableau 61).
+pub const C_PV_J_KG_K: f64 = 1830.0;
+/// Température maximale de soufflage possible d'une batterie chaude, en °C (éq. 597).
+pub const THETA_SOUF_MAX_C: f64 = 60.0;
+
+/// « Cpa + Cpv·ω » : chaleur massique de l'air humide, en J/(kg.K) (éq. 571, 583 et 598).
+pub fn cp_air_humide_j_kg_k(omega_kg_kg: f64) -> f64 {
+    C_PA_J_KG_K + C_PV_J_KG_K * omega_kg_kg
+}
+
+/// « θsou,bouches(h) » qui assure la charge des groupes, en °C.
+///
+/// Th-BCE 2020 §6.3.3.5.8.1, éq. (583) et (584) : `θi,moy + (ΣQsys + PZN)/(cp·qm,sou,spec)`,
+/// `ΣQsys` en Wh sur un pas d'une heure (W), positif en chauffage et négatif en
+/// refroidissement ; `PZN` de l'éq. (571), en W.
+pub fn theta_sou_bouches_charge_c(
+    theta_i_moy_c: f64,
+    somme_q_sys_wh: f64,
+    p_zn_w: f64,
+    cp_j_kg_k: f64,
+    qm_sou_spec_kg_s: f64,
+) -> f64 {
+    theta_i_moy_c + (somme_q_sys_wh + p_zn_w) / (cp_j_kg_k * qm_sou_spec_kg_s)
+}
+
+/// Régime d'une centrale en mode actif : taux de charge et température aux bouches.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ChargeCentrale {
+    /// « τCH/FR(h) ».
+    pub tau: f64,
+    /// « θsou,bouches(h) », en °C.
+    pub theta_sou_bouches_c: f64,
+}
+
+/// Taux de charge d'une centrale à débit variable (type 4) soufflant à `θsou,bouches`.
+///
+/// Th-BCE 2020 §6.3.3.5.8.1, éq. (586), (587), (592) et (593) : puissance de la centrale à la
+/// température `theta_sou_c` au-delà de la zone neutre, `Psys,max = cp·qm,sou,spec·(θsou −
+/// θi,moy) − PZN` (signe de `PZN` de l'éq. 586 retenu aussi en refroidissement, où l'éq. 592
+/// imprime `+ PZN` : `docs/questions/Q095.md`), puis `τ = ΣQsys / Psys,max`. Au-delà de 1, ou
+/// si la centrale ne peut pas répondre à sa température nominale (puissance nulle ou de signe
+/// opposé à la demande), la température est relevée (ou abaissée) selon l'éq. (583) ou (584)
+/// et `τ = 1`. Sans report d'énergie des générations au pas précédent dans cette version, les
+/// éq. (588) et (594) sont sans effet.
+pub fn charge_debit_variable(
+    somme_q_sys_wh: f64,
+    theta_sou_c: f64,
+    theta_i_moy_c: f64,
+    p_zn_w: f64,
+    cp_j_kg_k: f64,
+    qm_sou_spec_kg_s: f64,
+) -> ChargeCentrale {
+    let p_max = p_sys_max_w(
+        theta_sou_c,
+        theta_i_moy_c,
+        p_zn_w,
+        cp_j_kg_k,
+        qm_sou_spec_kg_s,
+    );
+    let tau = if p_max * somme_q_sys_wh > 0.0 {
+        somme_q_sys_wh / p_max
+    } else {
+        f64::INFINITY
+    };
+    if tau > 1.0 {
+        ChargeCentrale {
+            tau: 1.0,
+            theta_sou_bouches_c: theta_sou_bouches_charge_c(
+                theta_i_moy_c,
+                somme_q_sys_wh,
+                p_zn_w,
+                cp_j_kg_k,
+                qm_sou_spec_kg_s,
+            ),
+        }
+    } else {
+        ChargeCentrale {
+            tau,
+            theta_sou_bouches_c: theta_sou_c,
+        }
+    }
+}
+
+/// « Psys_CH/FR_max(h) », en W (éq. 586 et 592, lecture Q95 sur le signe de `PZN`).
+pub fn p_sys_max_w(
+    theta_sou_c: f64,
+    theta_i_moy_c: f64,
+    p_zn_w: f64,
+    cp_j_kg_k: f64,
+    qm_sou_spec_kg_s: f64,
+) -> f64 {
+    cp_j_kg_k * qm_sou_spec_kg_s * (theta_sou_c - theta_i_moy_c) - p_zn_w
+}
+
+/// « expH^g,s(h) » d'un conduit de soufflage (éq. 589).
+pub fn exp_h(h_cond_souf_ext_w_k: f64, qm_sou_cond_kg_s: f64) -> f64 {
+    libm::exp(-h_cond_souf_ext_w_k / (C_PA_J_KG_K * qm_sou_cond_kg_s))
+}
+
+/// Énergie de la batterie chaude d'une centrale en mode actif, en Wh.
+///
+/// Th-BCE 2020 §6.3.3.5.8.3, éq. (596), (598) et (599) : `MAX(0 ; τ·cp·qm,sou,cond·(θsouf,CH −
+/// θsouf2))`, `θsouf,CH` étant la température à la sortie de la centrale (éq. 595).
+pub fn q_chaud_rec_wh(
+    tau: f64,
+    cp_j_kg_k: f64,
+    qm_sou_cond_kg_s: f64,
+    theta_souf_ch_c: f64,
+    theta_souf2_c: f64,
+) -> f64 {
+    (tau * cp_j_kg_k * qm_sou_cond_kg_s * (theta_souf_ch_c - theta_souf2_c)).max(0.0)
+}
+
+/// Batterie froide d'une centrale en mode actif.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FroidCentrale {
+    /// « Qfroid(rec)(h) » : énergie sensible et latente, en Wh, négative ou nulle (éq. 611).
+    pub q_froid_wh: f64,
+    /// « Qsys_lat_fr(h) » : part latente, en Wh, négative ou nulle (éq. 610).
+    pub q_lat_wh: f64,
+    /// « ωsouf_CH/FR(h) » : humidité à la sortie de la batterie, en kg/kg (éq. 609 et 612).
+    pub omega_souf_kg_kg: f64,
+    /// Sous-dimensionnement de la batterie (`θsouf,CH/FR < θbatt`, éq. 605).
+    pub sous_dimensionnee: bool,
+}
+
+/// Énergie de la batterie froide d'une centrale en mode actif.
+///
+/// Th-BCE 2020 §6.3.3.5.8.4, éq. (601) à (612) : énergie sensible `MIN(0 ; τ·cp·qm,sou,cond·
+/// (θsouf,CH/FR − θsouf2))` ; si elle n'est pas nulle, surface de la batterie à `θdim,fr +
+/// 2 °C` (éq. 604), facteur de bypass `BP` (éq. 606), déshumidification `Δωfr` (éq. 607 et
+/// 608) et énergie latente `τ·qm,sou,cond·Lv·Δωfr` (éq. 610) ajoutée (éq. 611).
+pub fn froid_rec(
+    tau: f64,
+    cp_j_kg_k: f64,
+    qm_sou_cond_kg_s: f64,
+    theta_souf_fr_c: f64,
+    theta_souf2_c: f64,
+    omega_souf2_kg_kg: f64,
+    theta_dim_fr_c: f64,
+) -> FroidCentrale {
+    // Éq. (602) et (603).
+    let sensible =
+        (tau * cp_j_kg_k * qm_sou_cond_kg_s * (theta_souf_fr_c - theta_souf2_c)).min(0.0);
+    if sensible >= 0.0 {
+        // Éq. (612).
+        return FroidCentrale {
+            q_froid_wh: 0.0,
+            q_lat_wh: 0.0,
+            omega_souf_kg_kg: omega_souf2_kg_kg,
+            sous_dimensionnee: false,
+        };
+    }
+    // Éq. (604) à (606) ; air entrant plus froid que la surface de la batterie : BP = 1, sans
+    // déshumidification (comme pour le prérefroidissement).
+    let theta_batt = theta_dim_fr_c + ECART_BATTERIE_FROIDE_K;
+    let bp = if theta_souf2_c > theta_batt {
+        ((theta_souf_fr_c - theta_batt) / (theta_souf2_c - theta_batt)).min(1.0)
+    } else {
+        1.0
+    };
+    // Éq. (607) à (609).
+    let d_omega = (omega_sat_kg_kg(theta_batt) - omega_souf2_kg_kg).min(0.0) * (1.0 - bp);
+    // Éq. (610) et (611).
+    let lat = tau * qm_sou_cond_kg_s * L_V_J_KG * d_omega;
+    FroidCentrale {
+        q_froid_wh: sensible + lat,
+        q_lat_wh: lat,
+        omega_souf_kg_kg: omega_souf2_kg_kg + d_omega,
+        sous_dimensionnee: theta_souf_fr_c < theta_batt,
+    }
+}
+
+/// « Wvent(rec)(h) » : consommation des ventilateurs d'une centrale en mode actif, en Wh
+/// (éq. 614) : `τ·(Pvent,rep(rec) + Pvent,sou(rec)) + (1 − τ)·Wvent(h)`.
+pub fn w_vent_rec_wh(tau: f64, p_vent_ch_w: (f64, f64), w_vent_zn_wh: f64) -> f64 {
+    tau * (p_vent_ch_w.0 + p_vent_ch_w.1) + (1.0 - tau) * w_vent_zn_wh
 }
 
 /// « εt » : efficacité de l'échangeur en représentation simplifiée, après prise en compte du
@@ -581,5 +765,51 @@ mod tests {
         let (s, r) = sorties_echangeur_c(1.25, 20.0, 0.8);
         assert!((s - 16.25).abs() < 1e-12);
         assert!((r - 5.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn mode_actif_a_la_main() {
+        let proche = |a: f64, b: f64| assert!((a - b).abs() < 1e-9, "{a} ≠ {b}");
+        // Éq. (571) et (583) : cp = 1006 + 1830 × 0,008 = 1020,64 J/(kg.K).
+        let cp = cp_air_humide_j_kg_k(0.008);
+        proche(cp, 1020.64);
+        proche(
+            theta_sou_bouches_charge_c(20.0, 1000.0, -500.0, cp, 0.5),
+            20.0 + 500.0 / 510.32,
+        );
+        // Éq. (586) et (587) : Psys,max = 1006 × 0,5 × (30 − 20) + 1000 = 6 030 W.
+        let c = charge_debit_variable(2000.0, 30.0, 20.0, -1000.0, 1006.0, 0.5);
+        proche(c.tau, 2000.0 / 6030.0);
+        proche(c.theta_sou_bouches_c, 30.0);
+        // τ > 1 : température relevée selon l'éq. (583), τ = 1.
+        let c = charge_debit_variable(8000.0, 30.0, 20.0, -1000.0, 1006.0, 0.5);
+        proche(c.tau, 1.0);
+        proche(c.theta_sou_bouches_c, 20.0 + 7000.0 / 503.0);
+        // Éq. (592) et (593), signe de PZN de l'éq. (586) (lecture Q95) : 503 × (14 − 24) − 500.
+        let c = charge_debit_variable(-2000.0, 14.0, 24.0, 500.0, 1006.0, 0.5);
+        proche(c.tau, 2000.0 / 5530.0);
+        // Nominale inopérante (soufflage plus froid que l'ambiance en chauffage) : éq. (583).
+        let c = charge_debit_variable(1000.0, 18.0, 20.0, 0.0, 1006.0, 0.5);
+        proche(c.tau, 1.0);
+        proche(c.theta_sou_bouches_c, 20.0 + 1000.0 / 503.0);
+        // Éq. (589).
+        proche(exp_h(10.0, 0.5), libm::exp(-10.0 / 503.0));
+        // Éq. (598) et (599).
+        proche(q_chaud_rec_wh(0.5, 1020.0, 0.6, 35.0, 18.0), 5202.0);
+        proche(q_chaud_rec_wh(1.0, 1020.0, 0.6, 15.0, 18.0), 0.0);
+        // Éq. (602) à (611) : sensible 503 × (14 − 26) = −6 036 Wh ; θbatt = 9 °C,
+        // BP = 5/17, ωsat(9 °C) = 0,001·exp(18,8161 − 4110,34/244).
+        let f = froid_rec(1.0, 1006.0, 0.5, 14.0, 26.0, 0.012, 7.0);
+        let w_sat = 0.001 * libm::exp(18.8161 - 4110.34 / 244.0);
+        let d_omega = (w_sat - 0.012) * (1.0 - 5.0 / 17.0);
+        proche(f.q_lat_wh, 0.5 * 2_501_000.0 * d_omega);
+        proche(f.q_froid_wh, -6036.0 + 0.5 * 2_501_000.0 * d_omega);
+        proche(f.omega_souf_kg_kg, 0.012 + d_omega);
+        assert!(!f.sous_dimensionnee);
+        // Éq. (612) : pas de froid, humidité inchangée.
+        let f = froid_rec(1.0, 1006.0, 0.5, 27.0, 26.0, 0.012, 7.0);
+        assert_eq!((f.q_froid_wh, f.omega_souf_kg_kg), (0.0, 0.012));
+        // Éq. (614) : 0,4 × 800 + 0,6 × 600.
+        proche(w_vent_rec_wh(0.4, (300.0, 500.0), 600.0), 680.0);
     }
 }

@@ -933,12 +933,16 @@ export interface ContributionAcv {
 export interface Cta {
   /**
    * Batterie de chauffage régulée selon la charge thermique (« Is_chaud », mode actif du
-   * §6.3.3.5) : non prise en charge dans cette version.
+   * §6.3.3.5) : centrales de types 3 et 4 seulement. Elle assure la demande des émetteurs
+   * de chauffage contenus dans les bouches de soufflage (`centrale` des émetteurs) ;
+   * requiert `generation_batterie_chaude` et, en type 4, `theta_sou_nom_chaud_c`
+   * (`docs/questions/Q095.md`).
    */
   batterie_chaude?: boolean | null;
   /**
-   * Batterie de refroidissement régulée selon la charge (« Is_froid », mode actif) : non
-   * prise en charge dans cette version.
+   * Batterie de refroidissement régulée selon la charge (« Is_froid », mode actif du
+   * §6.3.3.5) : centrales de types 3 et 4 seulement ; requiert
+   * `generation_batterie_froide`, `theta_dim_fr_c` et, en type 4, `theta_sou_nom_froid_c`.
    */
   batterie_froide?: boolean | null;
   /**
@@ -953,6 +957,18 @@ export interface Cta {
   batterie_prerefroidissement?: BatteriePrerefroidissement | null;
   /** Échangeur air extrait / air neuf. Absent : pas d'échangeur (éq. 496). */
   echangeur?: Echangeur | null;
+  /**
+   * Génération qui fournit l'énergie de la batterie chaude (« Qchaud(rec) », éq. 598), par un
+   * réseau de distribution de CTA fictif (fiche 8.11, éq. 940) : identifiant d'une
+   * génération du bâtiment pourvue d'un générateur de chauffage.
+   */
+  generation_batterie_chaude?: string | null;
+  /**
+   * Génération qui fournit le froid de la batterie froide (« Qfroid(rec) », éq. 611), par un
+   * réseau de CTA fictif (fiche 8.11, éq. 940) : identifiant d'une génération du bâtiment
+   * pourvue d'un générateur de refroidissement.
+   */
+  generation_batterie_froide?: string | null;
   /** Humidificateur d'hiver (« Is_ChaudHR ») : non pris en charge dans cette version. */
   humidification?: boolean | null;
   /** « Pvent,rep,CH » : puissance du ventilateur de reprise en mode actif (nominal), en W. */
@@ -989,12 +1005,27 @@ export interface Cta {
    */
   surventilation_mecanique?: boolean | null;
   /**
+   * « θdim,fr » : température nominale du fluide dans la batterie froide ou l'évaporateur, en
+   * °C (éq. 604).
+   */
+  theta_dim_fr_c?: number | null;
+  /**
    * « θENC » : borne basse de la plage de température d'air neuf de fonctionnement en tout
    * air neuf, en °C (éq. 435 et 436).
    */
   theta_enc_c: number;
   /** « θENF » : borne haute de cette plage, en °C, supérieure à `theta_enc_c`. */
   theta_enf_c: number;
+  /**
+   * « θsou_nom_chaud » : température de soufflage nominale aux bouches en chauffage d'une
+   * centrale à débit variable (type 4), en °C (éq. 585). Sans objet en type 3.
+   */
+  theta_sou_nom_chaud_c?: number | null;
+  /**
+   * « θsou,nom,froid » : température de soufflage nominale aux bouches en refroidissement
+   * d'une centrale à débit variable (type 4), en °C (éq. 591). Sans objet en type 3.
+   */
+  theta_sou_nom_froid_c?: number | null;
   /** « Type_ventilation_mecaniq » de 2 à 4. */
   type_cta: TypeCta;
 }
@@ -1577,6 +1608,14 @@ export interface EmetteurEcs {
 /** Caractéristiques d'un émetteur en chauffage (§8.1.2 et §8.1.3.1). */
 export interface EmissionChaud {
   /**
+   * Émetteur contenu dans les bouches de soufflage de la centrale de traitement d'air de la
+   * zone (« émetteur contenu dans le composant bouches-conduits », §6.3.2, tableau 61) :
+   * sa demande est assurée par la batterie régulée sur la charge de la centrale (mode actif,
+   * §6.3.3.5) et passe au réseau de CTA (éq. 940), non au réseau `distribution`
+   * (`docs/questions/Q095.md`). Absent : faux.
+   */
+  centrale?: boolean | null;
+  /**
    * Identifiant du réseau de distribution du groupe (fonction chauffage) qui alimente
    * l'émetteur (§8.7.1).
    */
@@ -1600,6 +1639,14 @@ export interface EmissionChaud {
 
 /** Caractéristiques d'un émetteur en refroidissement (§8.1.2 et §8.1.3.1). */
 export interface EmissionFroid {
+  /**
+   * Émetteur contenu dans les bouches de soufflage de la centrale de traitement d'air de la
+   * zone (« émetteur contenu dans le composant bouches-conduits », §6.3.2, tableau 61) :
+   * sa demande est assurée par la batterie régulée sur la charge de la centrale (mode actif,
+   * §6.3.3.5) et passe au réseau de CTA (éq. 940), non au réseau `distribution`
+   * (`docs/questions/Q095.md`). Absent : faux.
+   */
+  centrale?: boolean | null;
   /** Identifiant du réseau de distribution du groupe (fonction refroidissement). */
   distribution: string;
   /** « Rats_fr » : part de la surface utile du groupe desservie par l'émetteur. */
@@ -5002,8 +5049,28 @@ export interface ResultatsVentilationGroupe {
 export interface ResultatsVentilationMode {
   /** Nombre d'heures où l'échangeur d'un double flux est contourné par son bypass (éq. 494). */
   nbh_bypass: number;
+  /**
+   * Nombre d'heures de fonctionnement en mode actif d'une centrale à charge variable
+   * pourvue de batteries régulées sur la charge (§6.3.3.5) ; absent sans ces batteries.
+   */
+  nbh_mode_actif?: number | null;
+  /**
+   * Nombre d'heures de sous-dimensionnement de ces batteries (soufflage requis au-delà de
+   * 60 °C ou en deçà de la surface de la batterie froide, éq. 597 et 605) ; absent sans elles.
+   */
+  nbh_sous_dimensionnement?: number | null;
   /** Énergie fournie pour la sécurité antigel de l'échangeur, en kWh (éq. 508). */
   q_ag_kwh: number;
+  /**
+   * Énergie fournie par la batterie chaude régulée sur la charge, en kWh (« Qchaud(rec) »,
+   * éq. 599) ; absente sans elle. Demandée à la génération désignée (éq. 940).
+   */
+  q_chaud_kwh?: number | null;
+  /**
+   * Énergie fournie par la batterie froide régulée sur la charge, latente comprise, en kWh,
+   * négative (« Qfroid(rec) », éq. 611) ; absente sans elle.
+   */
+  q_froid_kwh?: number | null;
   /**
    * Énergie fournie par la batterie de préchauffage, en kWh (éq. 523) ; absente sans
    * batterie. Demandée à la génération désignée en calcul des consommations.

@@ -28,6 +28,8 @@ pub(super) fn resultats_mode(
     v: &VentilationProjet,
     c: &CumulsVentilation,
 ) -> ResultatsVentilationMode {
+    // §6.3.3.5 : batteries régulées sur la charge.
+    let batteries = v.cta.as_ref().and_then(|x| x.batteries_charge);
     ResultatsVentilationMode {
         nbh_bypass: c.nbh_bypass,
         q_ag_kwh: c.w_ag_wh / 1000.0,
@@ -36,6 +38,12 @@ pub(super) fn resultats_mode(
             .prerefroidissement
             .as_ref()
             .map(|_| c.q_prefroid_wh / 1000.0),
+        nbh_mode_actif: batteries.map(|_| c.nbh_mode_actif),
+        nbh_sous_dimensionnement: batteries.map(|_| c.nbh_sous_dimensionnement),
+        q_chaud_kwh: batteries.filter(|b| b.chaud).map(|_| c.q_chaud_wh / 1000.0),
+        q_froid_kwh: batteries
+            .and_then(|b| b.froid)
+            .map(|_| c.q_froid_wh / 1000.0),
     }
 }
 

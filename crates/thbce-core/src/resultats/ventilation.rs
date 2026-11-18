@@ -46,6 +46,22 @@ pub struct ResultatsVentilationMode {
     /// lecture Q91) ; absente sans batterie.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub q_prefroid_kwh: Option<f64>,
+    /// Nombre d'heures de fonctionnement en mode actif d'une centrale à charge variable
+    /// pourvue de batteries régulées sur la charge (§6.3.3.5) ; absent sans ces batteries.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nbh_mode_actif: Option<u32>,
+    /// Nombre d'heures de sous-dimensionnement de ces batteries (soufflage requis au-delà de
+    /// 60 °C ou en deçà de la surface de la batterie froide, éq. 597 et 605) ; absent sans elles.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nbh_sous_dimensionnement: Option<u32>,
+    /// Énergie fournie par la batterie chaude régulée sur la charge, en kWh (« Qchaud(rec) »,
+    /// éq. 599) ; absente sans elle. Demandée à la génération désignée (éq. 940).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub q_chaud_kwh: Option<f64>,
+    /// Énergie fournie par la batterie froide régulée sur la charge, latente comprise, en kWh,
+    /// négative (« Qfroid(rec) », éq. 611) ; absente sans elle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub q_froid_kwh: Option<f64>,
 }
 
 /// Ventilation du projet vue d'un groupe (Th-BCE 2020 §6.2 à 6.5).

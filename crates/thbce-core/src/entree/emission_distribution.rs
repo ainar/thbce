@@ -286,6 +286,13 @@ pub struct EmissionChaud {
     /// Identifiant du réseau de distribution du groupe (fonction chauffage) qui alimente
     /// l'émetteur (§8.7.1).
     pub distribution: Id,
+    /// Émetteur contenu dans les bouches de soufflage de la centrale de traitement d'air de la
+    /// zone (« émetteur contenu dans le composant bouches-conduits », §6.3.2, tableau 61) :
+    /// sa demande est assurée par la batterie régulée sur la charge de la centrale (mode actif,
+    /// §6.3.3.5) et passe au réseau de CTA (éq. 940), non au réseau `distribution`
+    /// (`docs/questions/Q095.md`). Absent : faux.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub centrale: Option<bool>,
 }
 
 /// Caractéristiques d'un émetteur en refroidissement (§8.1.2 et §8.1.3.1).
@@ -304,6 +311,13 @@ pub struct EmissionFroid {
     pub ratt: f64,
     /// Identifiant du réseau de distribution du groupe (fonction refroidissement).
     pub distribution: Id,
+    /// Émetteur contenu dans les bouches de soufflage de la centrale de traitement d'air de la
+    /// zone (« émetteur contenu dans le composant bouches-conduits », §6.3.2, tableau 61) :
+    /// sa demande est assurée par la batterie régulée sur la charge de la centrale (mode actif,
+    /// §6.3.3.5) et passe au réseau de CTA (éq. 940), non au réseau `distribution`
+    /// (`docs/questions/Q095.md`). Absent : faux.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub centrale: Option<bool>,
 }
 
 /// Typologie d'émetteur de chaud (§8.1.3.1.3, tableau 85).

@@ -141,6 +141,10 @@ pub struct FonctionEmetteur {
     pub rat: f64,
     /// Indice du réseau de distribution du groupe qui alimente l'émetteur pour cette fonction.
     pub distribution: usize,
+    /// Émetteur contenu dans les bouches de soufflage de la centrale de la zone : sa demande
+    /// passe à la centrale en mode actif (§6.3.3.5, éq. 940), non au réseau `distribution`
+    /// (`docs/questions/Q095.md`).
+    pub centrale: bool,
 }
 
 /// Ventilateurs locaux d'un émetteur, prêts pour le calcul (§8.1.3.8).
@@ -191,6 +195,7 @@ impl EmetteurResolu {
             delta_theta_vt_k: delta_theta_vt_k(&c.variation_temporelle, true),
             rat: c.rats * c.ratt,
             distribution: distribution(&c.distribution).unwrap_or(0),
+            centrale: c.centrale == Some(true),
         });
         let froid = e.refroidissement.as_ref().map(|f| FonctionEmetteur {
             p_em_conv: p_em_conv_fr(f.type_emetteur),
@@ -203,6 +208,7 @@ impl EmetteurResolu {
             delta_theta_vt_k: delta_theta_vt_k(&f.variation_temporelle, false),
             rat: f.rats * f.ratt,
             distribution: distribution(&f.distribution).unwrap_or(0),
+            centrale: f.centrale == Some(true),
         });
         Self {
             id: e.id.clone(),
