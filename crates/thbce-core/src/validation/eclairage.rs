@@ -86,7 +86,10 @@ pub(super) fn valider_locaux_eclairage(
                 ),
             );
         }
-        if toiture_uniforme && est_grand_volume(usage, l.type_local) && l.ratio_ecl_nat != 1.0 {
+        if toiture_uniforme
+            && est_grand_volume(usage, l.type_local)
+            && (l.ratio_ecl_nat - 1.0).abs() > 1e-9
+        {
             r.erreur(
                 format!("{c}.ratio_ecl_nat"),
                 Some(l.ratio_ecl_nat.to_string()),
