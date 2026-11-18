@@ -228,14 +228,16 @@ impl EchangeurEcs {
         }
     }
 
-    /// Puisage d'un pas de temps pour `q_unit_wh` à fournir par ce ballon (éq. 1952), à la
-    /// place de `boucle_puisage` : renvoie le volume puisé (pour un échangeur interne, le
+    /// Puisage d'un pas de temps pour `q_unit_wh` à fournir par ce ballon (éq. 1952, report
+    /// compris), à la place de `boucle_puisage` ; `v_ef_m3` : volume d'eau chaude non mitigée
+    /// puisé aux points de puisage, qui fixe les débits de l'échangeur : renvoie le volume puisé (pour un échangeur interne, le
     /// volume d'eau chaude équivalent à l'énergie prélevée), l'énergie restant à fournir et la
     /// consommation du circulateur primaire, en Wh.
     pub fn puiser(
         &self,
         ballon: &mut Ballon,
         q_unit_wh: f64,
+        v_ef_m3: f64,
         theta_ef_c: f64,
         theta_depart_c: f64,
     ) -> (Puisage, f64) {
@@ -246,9 +248,8 @@ impl EchangeurEcs {
         if !(q_unit_wh > 0.0 && theta_depart_c > theta_ef_c) {
             return (vide, 0.0);
         }
-        // « Vef,ecs » : volume d'eau chaude non mitigée correspondant à la demande (lecture
-        // Q106 : le texte ne le définit pas).
-        let v_ef_m3 = q_unit_wh / (RHO_CW_WH_L_K * (theta_depart_c - theta_ef_c)) / 1000.0;
+        // « Vef,ecs » : volume d'eau chaude non mitigée puisé au pas de temps, pour un
+        // assemblage (lecture Q106 : défini par le texte comme une entrée, sans équation).
         let Some((qv_ef, t_puis)) = debit_ecs_moyen(v_ef_m3, theta_ef_c, theta_depart_c) else {
             return (vide, 0.0);
         };
@@ -494,7 +495,7 @@ mod tests {
         };
         let e = EchangeurEcs::externe(20.0, q_ecs_nom, circ, 55.0, 4);
         let mut b = ballon_uniforme(300.0, 55.0);
-        let (p, w) = e.puiser(&mut b, 2000.0, 15.0, 53.0);
+        let (p, w) = e.puiser(&mut b, 2000.0, 2000.0 / (1.163 * 38.0) / 1000.0, 15.0, 53.0);
         // Calcul indépendant.
         let v_ef: f64 = 2000.0 / (1.163 * 38.0) / 1000.0;
         let r_temp: f64 = 25.0 / 38.0;
@@ -529,7 +530,7 @@ mod tests {
         };
         let e = EchangeurEcs::externe(20.0, 0.5, circ, 55.0, 4);
         let mut b = ballon_uniforme(300.0, 30.0);
-        let (p, w) = e.puiser(&mut b, 2000.0, 15.0, 53.0);
+        let (p, w) = e.puiser(&mut b, 2000.0, 2000.0 / (1.163 * 38.0) / 1000.0, 15.0, 53.0);
         assert_eq!((p.v_p_l, p.q_report_wh), (0.0, 2000.0));
         assert!(w > 0.0);
         assert!(b.theta_c.iter().all(|&t| t == 30.0));
@@ -543,7 +544,7 @@ mod tests {
         let e = EchangeurEcs::interne(10.0, 55.0, 4);
         let mut b = ballon_uniforme(300.0, 55.0);
         let avant = b.energie_wh(15.0);
-        let (p, w) = e.puiser(&mut b, 500.0, 15.0, 45.0);
+        let (p, w) = e.puiser(&mut b, 500.0, 500.0 / (1.163 * 30.0) / 1000.0, 15.0, 45.0);
         assert_eq!(w, 0.0);
         assert!(p.q_report_wh < 1e-9);
         // Calcul indépendant.
@@ -576,7 +577,7 @@ mod tests {
         let e = EchangeurEcs::interne(10.0, 55.0, 4);
         let mut b = ballon_uniforme(300.0, 55.0);
         let avant = b.energie_wh(15.0);
-        let (p, _) = e.puiser(&mut b, 1500.0, 15.0, 45.0);
+        let (p, _) = e.puiser(&mut b, 1500.0, 1500.0 / (1.163 * 30.0) / 1000.0, 15.0, 45.0);
         let apres = b.energie_wh(15.0);
         assert!((avant - apres - (1500.0 - p.q_report_wh)).abs() < 1e-6);
         assert!(p.q_report_wh < 1500.0);
@@ -587,7 +588,7 @@ mod tests {
     fn puisage_interne_ballon_froid() {
         let e = EchangeurEcs::interne(10.0, 55.0, 4);
         let mut b = ballon_uniforme(300.0, 30.0);
-        let (p, _) = e.puiser(&mut b, 1000.0, 15.0, 53.0);
+        let (p, _) = e.puiser(&mut b, 1000.0, 1000.0 / (1.163 * 38.0) / 1000.0, 15.0, 53.0);
         assert_eq!((p.v_p_l, p.q_report_wh), (0.0, 1000.0));
     }
 }

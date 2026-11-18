@@ -6,8 +6,10 @@ use super::generation::postes_assures;
 use super::RapportValidation;
 use crate::ecs::gestion_regulation_ballon::THETA_C_ECS_C;
 use crate::ecs::idcet;
+use crate::ecs::echangeur_ballon::{ApplicationAccumulateur, THETA_CONS_COLLECTIF_C};
 use crate::entree::{
-    Batiment, FonctionEffetJoule, Generation, NatureGenerateur, PertesBallon, SourceAmontSaisie,
+    ApplicationAccumulateurSaisie, Batiment, FonctionEffetJoule, Generation, NatureEchangeurSaisie,
+    NatureGenerateur, PertesBallon, ReseauEcsIntergroupe, SourceAmontSaisie,
 };
 
 /// Th-BCE 2020 §9.9, §9.10, §9.14 et §9.22 : assemblages avec ballon de stockage et
@@ -52,13 +54,27 @@ pub(super) fn valider_stockages(
         {
             r.strictement_positif(format!("{cs}.ballon.pertes.ua_s_w_k"), ua_s_w_k);
         }
-        // Éq. (1948) : consigne conventionnelle de 55 °C, sous la température maximale.
+        // Éq. (1948) : consigne conventionnelle de 55 °C, sous la température maximale ; celle
+        // d'un accumulateur en eau technique est donnée par le tableau 288 (55 ou 60 °C).
+        let consigne = s.echangeur.as_ref().map_or(THETA_C_ECS_C, |x| {
+            match x.application.map(|a| match a {
+                ApplicationAccumulateurSaisie::Individuel => ApplicationAccumulateur::Individuel,
+                ApplicationAccumulateurSaisie::Collectif => ApplicationAccumulateur::Collectif,
+            }) {
+                Some(a) => a.theta_cons_c(),
+                None => ApplicationAccumulateur::selon_volume(s.ballon.v_tot_l).theta_cons_c(),
+            }
+        });
+        debug_assert!(consigne <= THETA_CONS_COLLECTIF_C);
         r.plage(
             format!("{cs}.ballon.theta_max_c"),
             s.ballon.theta_max_c,
-            THETA_C_ECS_C,
+            consigne,
             100.0,
         );
+        if let Some(x) = &s.echangeur {
+            valider_accumulateur(r, &cs, x, s.appoint.as_ref(), g, bat);
+        }
         zone_valide(r, format!("{cs}.base.z_reg"), s.base.z_reg);
         if let Some(d) = s.base.delta_theta_k {
             r.plage(format!("{cs}.base.delta_theta_k"), d, 0.0, 20.0);
@@ -226,5 +242,57 @@ pub(super) fn valider_stockages(
             ),
             Some(_) => {}
         }
+    }
+}
+
+/// Th-BCE 2020 §9.11 et §9.12 : accumulateur d'ECS en eau technique d'un assemblage.
+fn valider_accumulateur(
+    r: &mut RapportValidation,
+    cs: &str,
+    x: &crate::entree::EchangeurEcsSaisi,
+    appoint: Option<&crate::entree::AppointBallon>,
+    g: &Generation,
+    bat: &Batiment,
+) {
+    r.strictement_positif(format!("{cs}.echangeur.p_ech_ecs_kw"), x.p_ech_ecs_kw);
+    if let NatureEchangeurSaisie::Externe {
+        q_v_prim_nom_m3_h,
+        p_circ_prim_nom_w,
+        mod_min,
+        ..
+    } = &x.nature
+    {
+        let ce = format!("{cs}.echangeur.nature.externe");
+        r.strictement_positif(format!("{ce}.q_v_prim_nom_m3_h"), *q_v_prim_nom_m3_h);
+        r.positif(format!("{ce}.p_circ_prim_nom_w"), *p_circ_prim_nom_w);
+        if let Some(m) = mod_min {
+            r.plage(format!("{ce}.mod_min"), *m, 0.0, 1.0);
+        }
+    }
+    // Quatre zones de volumes égaux, quelle que soit la fraction de l'appoint (éq. 1874) :
+    // « faux » est sans objet.
+    if let Some(a) = appoint {
+        if a.f_aux.is_some() {
+            r.erreur(
+                format!("{cs}.appoint.f_aux"),
+                a.f_aux.map(|f| f.to_string()),
+                "sans objet pour un accumulateur en eau technique : le ballon est décomposé en \
+                 quatre zones de volumes égaux, quelle que soit la fraction chauffée par \
+                 l'appoint (Th-BCE 2020 §9.12.3.2.2, éq. 1874 et 1875)",
+            );
+        }
+    }
+    // Réseau d'ECS bouclé : le réchauffage de boucle (éq. 1883 et 1909 à 1913) demande le
+    // débit de la boucle, que la fiche 9.8 ne restitue pas (Q48 point 8, Q106).
+    let bouclee = bat.distributions_ecs_intergroupes.iter().any(|d| {
+        d.generation == g.id && matches!(d.reseau, ReseauEcsIntergroupe::Boucle(_))
+    });
+    if bouclee {
+        r.hors_perimetre(
+            format!("{cs}.echangeur"),
+            None,
+            "accumulateur d'ECS en eau technique desservant un réseau d'ECS bouclé \
+             (réchauffage de boucle, Th-BCE 2020 §9.12.3.2.4.2)",
+        );
     }
 }

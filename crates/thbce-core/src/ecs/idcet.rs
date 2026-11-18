@@ -221,6 +221,7 @@ pub fn simuler_essai(essai: &Essai, t: &Triplet) -> Option<ResultatsEssai> {
         a.pas(
             &EntreesAssemblage {
                 q_req_ecs_wh: besoin_wh,
+                q_ecs_horaire_wh: besoin_wh,
                 theta_entrant_c: THETA_CW_ESSAI_C,
                 // Lecture Q48 : l'eau est puisée tant que la zone haute dépasse la température
                 // de l'eau mitigée de la norme.

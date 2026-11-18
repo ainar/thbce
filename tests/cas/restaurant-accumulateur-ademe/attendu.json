@@ -1,0 +1,78 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b"
+  },
+  "batiments": [
+    {
+      "id": "restaurant",
+      "sref_m2": 400.0,
+      "bbio_pts": 272.1,
+      "dh_c_h": 2675.0,
+      "cep_kwhep_m2": 343.8,
+      "cep_nr_kwhep_m2": 343.8,
+      "ic_energie_kgco2_m2": 402.0,
+      "bbio": {
+        "annuel": {
+          "b_ch_kwh_m2": 45.9,
+          "b_fr_kwh_m2": 31.6,
+          "b_ecl_kwh_m2": 23.4,
+          "bbio_pts": 272.1
+        }
+      },
+      "indicateurs": {
+        "cef_kwhef_m2": 149.5,
+        "exigences": {
+          "bbio_max_pts": 245.0,
+          "cep_max_kwhep_m2": 578.0,
+          "cep_nr_max_kwhep_m2": 282.0,
+          "ic_energie_max_kgco2_m2": 570.0,
+          "conforme": false
+        },
+        "electricite_consommee": {
+          "chauffage_kwh": 15040.3,
+          "refroidissement_kwh": 3365.2,
+          "ecs_kwh": 13871.7,
+          "eclairage_kwh": 17332.3,
+          "auxiliaires_ventilation_kwh": 9964.5,
+          "auxiliaires_distribution_kwh": 222.1
+        }
+      },
+      "zones": [
+        {
+          "id": "restaurant",
+          "ventilation": {
+            "c_aux_vent_kwh": 9964.5
+          },
+          "groupes": [
+            {
+              "id": "restaurant",
+              "debits_bbio": {
+                "q_spec_repris_m3_h": -4000.0,
+                "q_spec_souffle_m3_h": 4000.0
+              }
+            }
+          ]
+        }
+      ],
+      "generations": [
+        {},
+        {
+          "stockages": [
+            {
+              "id": "ballon",
+              "q_fou_ecs_kwh": 12591.9,
+              "pertes_kwh": 1263.0,
+              "nbh_report_e": 0,
+              "echangeur": {
+                "ua_ech_w_k": 4514.4,
+                "theta_cons_c": 60.0,
+                "w_circ_prim_kwh": 11.1
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

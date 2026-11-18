@@ -112,6 +112,7 @@ impl GenerationHoraire {
                 let s = st.pas(
                     &EntreesAssemblage {
                         q_req_ecs_wh: q_ar[2],
+                        q_ecs_horaire_wh: q_sr[2],
                         theta_entrant_c: e.theta_cw_c,
                         theta_depart_c: theta_depart,
                         theta_amb_c: theta_amb,

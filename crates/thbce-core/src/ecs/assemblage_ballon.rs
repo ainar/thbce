@@ -14,6 +14,7 @@
 //! et stockage de chauffage sont refusés par la validation. Lectures : `docs/questions/Q048.md`.
 
 use super::ballon_de_stockage::{Ballon, NB_ZONES, RHO_CW_WH_L_K};
+use super::echangeur_ballon::EchangeurEcs;
 use super::boucle_solaire::{BoucleSolaireHoraire, EntreesBoucle, SortiesBoucle};
 use super::gestion_regulation_ballon::{
     active, boucle_puisage, boucle_puisage_appoint_separe, f_p, q_req_sto_wh, Programmation,
@@ -75,6 +76,10 @@ pub struct RegulationGenerateur {
 pub struct EntreesAssemblage {
     /// « Qreq,ECS(h) » : énergie demandée à l'assemblage, en Wh.
     pub q_req_ecs_wh: f64,
+    /// Énergie d'ECS demandée au pas de temps lui-même, sans les reports des pas précédents, en
+    /// Wh : elle donne le volume puisé aux points de puisage `Vef,ecs(h)` d'un accumulateur en
+    /// eau technique (lecture Q106).
+    pub q_ecs_horaire_wh: f64,
     /// « θentrant,ECS(h) » : température de l'eau entrant dans le ballon, en °C (eau froide ;
     /// éq. 1951 sans réseau bouclé).
     pub theta_entrant_c: f64,
@@ -123,6 +128,9 @@ pub struct SortiesAssemblage {
     pub w_pompe_wh: f64,
     /// « ΦvcBS » : pertes d'une boucle solaire vers l'intérieur du bâtiment, en Wh (éq. 1973).
     pub phi_vc_bs_wh: f64,
+    /// « Wcirc,prim » : consommation du circulateur primaire d'un échangeur externe, en Wh
+    /// (comprise dans `w_pompe_wh`).
+    pub w_circ_prim_wh: f64,
     /// Part de la consommation de la pompe attribuée au chauffage, en Wh (comprise dans
     /// `w_pompe_wh` ; éq. 2135 et 2151).
     pub w_pompe_ch_wh: f64,
@@ -158,6 +166,8 @@ pub struct CumulsAssemblage {
     pub q_puise_ch_wh: f64,
     /// Chauffage fourni par l'appoint raccordé d'un système solaire combiné, en Wh.
     pub q_fou_ch_ap_wh: f64,
+    /// Consommation du circulateur primaire d'un échangeur externe, en Wh.
+    pub w_circ_prim_wh: f64,
     /// Températures des zones au début du premier pas de temps, en °C.
     pub theta_debut_c: Option<[f64; NB_ZONES]>,
 }
@@ -196,6 +206,14 @@ pub struct AssemblageBallon {
     pub appoint_separe: bool,
     /// Boucle de chauffage d'un système solaire combiné (fiches 9.18 à 9.20).
     pub ssc: Option<ParametresSsc>,
+    /// Accumulateur d'ECS en eau technique : échangeur entre le ballon et la distribution
+    /// (fiches 9.11 et 9.12). Le puisage suit alors les éq. (1884) à (1908) ou (1928) à (1940)
+    /// et la consigne est celle du tableau 288.
+    pub echangeur: Option<EchangeurEcs>,
+    /// Dernier puisage non nul d'un accumulateur en eau technique : volume d'eau chaude non
+    /// mitigée en m³ (pour un assemblage), température d'eau froide et de départ, en °C. Ils
+    /// servent aux heures où seule de l'énergie reportée est à fournir (§9.10.3.1.3).
+    pub dernier_puisage: Option<(f64, f64, f64)>,
 }
 
 impl AssemblageBallon {
@@ -226,7 +244,17 @@ impl AssemblageBallon {
             solaire: None,
             appoint_separe: false,
             ssc: None,
+            echangeur: None,
+            dernier_puisage: None,
         }
+    }
+
+    /// Fait de l'assemblage un accumulateur d'ECS en eau technique : sa consigne devient celle
+    /// de l'échangeur (tableau 288) et son puisage celui de l'échangeur (§9.12).
+    pub fn avec_echangeur(mut self, echangeur: EchangeurEcs) -> Self {
+        self.theta_c_c = echangeur.theta_cons_c;
+        self.echangeur = Some(echangeur);
+        self
     }
 
     /// Calcule un pas de temps (§9.14.3.2.2). `appel(generateur, poste, Qreq, θaval)` appelle
@@ -272,7 +300,31 @@ impl AssemblageBallon {
         // Pertes du pas de temps, avec les températures de la fin du pas précédent (éq. 1770).
         self.ballon.debut_pas(e.theta_amb_c);
         // Première étape : volume puisé pour l'ECS (éq. 1952 à 1954).
-        let puisage = if self.appoint_separe {
+        let mut w_circ_wh = 0.0;
+        let puisage = if let Some(ech) = self.echangeur {
+            // Accumulateur en eau technique : puisage à travers l'échangeur (§9.12.3). Le volume
+            // d'eau chaude non mitigée est celui du pas de temps ; sans puisage ce pas-ci, les
+            // valeurs du dernier pas de temps où il y en avait un sont conservées (§9.10.3.1.3).
+            let q_h = e.q_ecs_horaire_wh.min(e.q_req_ecs_wh).max(0.0) / nb;
+            if q_h > 0.0 && e.theta_depart_c > e.theta_entrant_c {
+                let v = q_h / (RHO_CW_WH_L_K * (e.theta_depart_c - e.theta_entrant_c)) / 1000.0;
+                self.dernier_puisage = Some((v, e.theta_entrant_c, e.theta_depart_c));
+            }
+            let (v_ef, theta_ef, theta_dep) = self.dernier_puisage.unwrap_or((
+                0.0,
+                e.theta_entrant_c,
+                e.theta_depart_c,
+            ));
+            let (puisage, w) = ech.puiser(
+                &mut self.ballon,
+                e.q_req_ecs_wh / nb,
+                v_ef,
+                theta_ef,
+                theta_dep,
+            );
+            w_circ_wh = w;
+            puisage
+        } else if self.appoint_separe {
             boucle_puisage_appoint_separe(
                 &mut self.ballon,
                 e.q_req_ecs_wh / nb,
@@ -305,6 +357,7 @@ impl AssemblageBallon {
         let b = self.base;
         ApresPuisage {
             puisage,
+            w_circ_prim_wh: w_circ_wh,
             q_puise_ch_wh: q_puise_ch,
             q_rest_ch_wh: q_rest_ch,
             theta_aval_base_c: self.ballon.theta_b_moy_ech_c(b.z_gen, b.h_rel_ech),
@@ -410,7 +463,10 @@ impl AssemblageBallon {
             q_req_sto_wh: q_req_sto.map(|q| q * nb),
             q_fou_sto_wh: q_fou_sto.map(|q| q * nb),
             q_sol_wh: boucle.map_or(0.0, |b| b.q_sol_wh * nb),
-            w_pompe_wh: boucle.map_or(0.0, |b| b.p_p_wh * nb),
+            // Pompe solaire et circulateur primaire d'un accumulateur en eau technique : les
+            // deux sont des auxiliaires électriques de la production d'ECS.
+            w_pompe_wh: boucle.map_or(0.0, |b| b.p_p_wh * nb) + p.w_circ_prim_wh * nb,
+            w_circ_prim_wh: p.w_circ_prim_wh * nb,
             phi_vc_bs_wh: boucle.map_or(0.0, |b| b.phi_vc_wh * nb),
             // Éq. (2135) et (2151) : la pompe d'un système solaire combiné est répartie entre le
             // chauffage et l'ECS au prorata des demandes, et va à l'ECS sans demande.
@@ -434,6 +490,7 @@ impl AssemblageBallon {
         c.nbh_temp_insuff_max = c.nbh_temp_insuff_max.max(self.nbh_temp_insuff);
         c.q_puise_ch_wh += s.q_puise_ch_wh;
         c.q_fou_ch_ap_wh += s.q_fou_ch_ap_wh;
+        c.w_circ_prim_wh += s.w_circ_prim_wh;
         c.theta_haut_min_c = c.theta_haut_min_c.min(theta_haut);
         // Éq. (1780).
         if puisage.q_report_wh != 0.0 {
@@ -448,6 +505,9 @@ impl AssemblageBallon {
 pub struct ApresPuisage {
     /// Volume puisé et énergie restant à puiser, pour un assemblage.
     pub puisage: Puisage,
+    /// « Wcirc,prim » : consommation du circulateur primaire d'un échangeur externe, en Wh
+    /// (éq. 1907 et 1908), pour un assemblage.
+    pub w_circ_prim_wh: f64,
     /// « Qpuisé_ch_SSC » : chaleur puisée par la boucle de chauffage d'un système solaire
     /// combiné, en Wh.
     pub q_puise_ch_wh: f64,
@@ -536,6 +596,7 @@ mod tests {
     fn entrees(q: f64, hleg: u8) -> EntreesAssemblage {
         EntreesAssemblage {
             q_req_ecs_wh: q,
+            q_ecs_horaire_wh: q,
             theta_entrant_c: 15.0,
             theta_depart_c: 53.0,
             theta_amb_c: 20.0,

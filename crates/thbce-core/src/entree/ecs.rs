@@ -26,6 +26,64 @@ pub struct StockageSaisi {
     /// seule.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub appoint: Option<AppointBallon>,
+    /// Accumulateur d'ECS en eau technique (fiches 9.11 et 9.12) : échangeur qui sépare le
+    /// ballon du réseau de distribution d'ECS. Absent : ballon d'eau chaude sanitaire à puisage
+    /// direct.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub echangeur: Option<EchangeurEcsSaisi>,
+}
+
+/// Accumulateur d'ECS en eau technique (Th-BCE 2020 §9.12) : le ballon ne contient pas l'eau
+/// du réseau ; il est séparé de la distribution par un échangeur. Quatre zones de volumes
+/// égaux, quelle que soit la fraction chauffée par l'appoint (éq. 1874 et 1921) ; sans
+/// réseau d'ECS bouclé dans cette version.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EchangeurEcsSaisi {
+    /// « Type_Application » : accumulateur individuel (consigne de 55 °C) ou collectif
+    /// (60 °C), tableau 288. Absent : individuel sous 500 L, collectif au-delà (§9.12.3.2.2),
+    /// signalé dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub application: Option<ApplicationAccumulateurSaisie>,
+    /// « PechECS » : puissance thermique nominale de l'échangeur, en kW, pour un ballon à sa
+    /// consigne, de l'eau froide à 15 °C et de l'ECS à 5 K sous la consigne (au débit primaire
+    /// nominal pour un échangeur externe).
+    pub p_ech_ecs_kw: f64,
+    /// « Type_Accumulateur_ECS » : nature de l'échangeur.
+    pub nature: NatureEchangeurSaisie,
+}
+
+/// « Type_Application » (tableau 288).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ApplicationAccumulateurSaisie {
+    /// 0 : accumulateur individuel, consigne de 55 °C.
+    Individuel,
+    /// 1 : accumulateur collectif, avec ou sans bouclage, consigne de 60 °C.
+    Collectif,
+}
+
+/// « Type_Accumulateur_ECS » : échangeur immergé ou externe.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum NatureEchangeurSaisie {
+    /// 1 : échangeur immergé (serpentin, double-peau) sur toute la hauteur du ballon.
+    Interne,
+    /// 2 : échangeur externe à plaques (préparateur), avec circulateur de charge.
+    Externe {
+        /// « qv_prim_nom » : débit volumique nominal du circuit primaire, en m³/h.
+        q_v_prim_nom_m3_h: f64,
+        /// « Type_Circulateur_Prep_ECS » : circulateur à vitesse variable (sinon constante).
+        #[serde(default)]
+        circulateur_vitesse_variable: bool,
+        /// « Pw_circ_prim_nom » : puissance absorbée par le circulateur au débit primaire
+        /// nominal, en W.
+        p_circ_prim_nom_w: f64,
+        /// « Modmin » : rapport du débit minimal du circulateur au débit nominal (vitesse
+        /// variable). Absent : 0,3, valeur par défaut du tableau 286, signalée.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        mod_min: Option<f64>,
+    },
 }
 
 /// Th-BCE 2020 §9.9.2, tableau 281 — ballon de stockage.
