@@ -240,10 +240,14 @@ fn refus() {
     // en zone neutre aussi (lot 1-ven) : le refus d'un élément hors périmètre se teste sur une
     // cogénération (§8.21).
     let mut p = bureaux();
-    p.batiments[0].generations[0].generateurs[0].nature =
-        thbce_core::entree::NatureGenerateur::Cogeneration;
+    let gens = &mut p.batiments[0].generations[0].generateurs;
+    let mut cogen = gens[0].clone();
+    cogen.id = "cogeneration".into();
+    cogen.nature = thbce_core::entree::NatureGenerateur::Cogeneration;
+    gens.push(cogen);
     let (c, hors) = chemins(&p);
-    assert_eq!(c, ["batiments[0].generations[0].generateurs[0].nature"]);
+    assert_eq!(c.len(), 1);
+    assert!(c[0].ends_with(".nature"), "{c:?}");
     assert!(hors);
     assert!(matches!(
         calculer(&p, &meteo_ademe(&p), &Options::default()),

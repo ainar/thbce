@@ -16,9 +16,10 @@ fn thbce(args: &[&str]) -> Output {
         .expect("lancement de thbce")
 }
 
-/// Premier générateur du cas de démonstration (panneaux rayonnants), remplacé pour fabriquer un
-/// élément hors périmètre.
-const GENERATEUR: &str = "              \"nature\": {\n                \"effet_joule\": {\n                  \"fonction\": \"chauffage\",\n                  \"pn_gen_w\": 1000\n                }\n              }";
+/// Début de la liste des générateurs du cas de démonstration, auquel on ajoute une cogénération
+/// (élément hors périmètre).
+const GENERATEURS: &str = "\"generateurs\": [\n            {\n              \"id\": \"panneaux-rayonnants\",";
+const AVEC_COGENERATION: &str = "\"generateurs\": [\n            {\n              \"id\": \"cogeneration\",\n              \"rdim\": 1,\n              \"nature\": \"cogeneration\"\n            },\n            {\n              \"id\": \"panneaux-rayonnants\",";
 
 fn entree() -> String {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -138,7 +139,7 @@ fn codes_de_retour() {
     );
     // 3 : élément hors périmètre de cette version (les 28 usages sont calculés depuis le lot
     // 0c4) : système de cogénération (§8.21).
-    let ecole = texte.replace(GENERATEUR, "\"nature\": \"cogeneration\"");
+    let ecole = texte.replace(GENERATEURS, AVEC_COGENERATION);
     let ecole = fichier("ecole.json", &ecole);
     let h2b = meteo("h2b-bis.csv", ZoneClimatique::H2b);
     let s = thbce(&["calcul", ecole.to_str().unwrap(), "--meteo", &h2b]);
@@ -161,7 +162,7 @@ fn codes_de_retour() {
     let mixte = fichier(
         "mixte.json",
         &texte
-            .replace(GENERATEUR, "\"nature\": \"cogeneration\"")
+            .replace(GENERATEURS, AVEC_COGENERATION)
             .replace("\"shab_m2\": 96.44", "\"shab_m2\": -1"),
     );
     assert_eq!(

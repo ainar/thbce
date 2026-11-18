@@ -440,8 +440,11 @@ fn saisie_des_grands_volumes() {
 
     // Un système hors périmètre reste refusé : cogénération (§8.21).
     let mut p = commerce();
-    p.batiments[0].generations[0].generateurs[0].nature =
-        thbce_core::entree::NatureGenerateur::Cogeneration;
+    let gens = &mut p.batiments[0].generations[0].generateurs;
+    let mut cogen = gens[0].clone();
+    cogen.id = "cogeneration".into();
+    cogen.nature = thbce_core::entree::NatureGenerateur::Cogeneration;
+    gens.push(cogen);
     assert!(valider(&p).seulement_hors_perimetre());
 }
 

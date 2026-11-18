@@ -303,12 +303,17 @@ fn un_element_hors_perimetre_est_refuse_comme_hors_perimetre() {
     // Les 28 usages sont calculés (lot 0c4) : le refus « hors périmètre » se teste sur un
     // élément non pris en charge, ici un système de cogénération (§8.21, décision Q30, point 7).
     let mut p = projet();
-    p.batiments[0].generations[0].generateurs[0].nature = NatureGenerateur::Cogeneration;
+    let gens = &mut p.batiments[0].generations[0].generateurs;
+    let mut cogen = gens[0].clone();
+    cogen.id = "cogeneration".into();
+    cogen.nature = NatureGenerateur::Cogeneration;
+    gens.push(cogen);
     let r = valider(&p);
+    let k = p.batiments[0].generations[0].generateurs.len() - 1;
     // Élément reconnu mais hors du périmètre de cette version : erreur marquée `hors_perimetre`.
     assert_eq!(
         chemins(&r.erreurs),
-        ["batiments[0].generations[0].generateurs[0].nature"]
+        [format!("batiments[0].generations[0].generateurs[{k}].nature")]
     );
     assert!(r.seulement_hors_perimetre());
     assert_eq!(r.erreurs[0].valeur.as_deref(), Some("cogeneration"));
