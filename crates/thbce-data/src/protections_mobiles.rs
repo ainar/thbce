@@ -265,7 +265,13 @@ pub struct MatriceManuelle {
     pub inoccupation_motorisee: [LigneInoccupation; 4],
 }
 
-const fn occ(r_prot0: f64, ecl1: f64, r_pm2: f64, ecl2: f64, nuit: f64) -> LigneOccupation {
+pub(crate) const fn occ(
+    r_prot0: f64,
+    ecl1: f64,
+    r_pm2: f64,
+    ecl2: f64,
+    nuit: f64,
+) -> LigneOccupation {
     LigneOccupation {
         r_prot0,
         ecl1_lux: ecl1,
@@ -275,7 +281,7 @@ const fn occ(r_prot0: f64, ecl1: f64, r_pm2: f64, ecl2: f64, nuit: f64) -> Ligne
     }
 }
 
-const fn inocc(jour: f64, nuit: f64) -> LigneInoccupation {
+pub(crate) const fn inocc(jour: f64, nuit: f64) -> LigneInoccupation {
     LigneInoccupation {
         r_prot_jour: jour,
         r_prot_nuit: nuit,
