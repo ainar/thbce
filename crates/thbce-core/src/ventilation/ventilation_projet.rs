@@ -42,6 +42,10 @@ use super::cta_et_double_flux::{
     melange, p_vent_cta_w, prechauffage, prerefroidissement, qm_air_neuf_kg_s, sorties_echangeur_c,
     taux_an_min, theta_s_ech_rep_lim_defaut_c,
 };
+use super::cta_et_double_flux::{
+    charge_debit_variable, cp_air_humide_j_kg_k, exp_h, froid_rec, q_chaud_rec_wh,
+    theta_sou_bouches_charge_c, w_vent_rec_wh, ChargeCentrale, THETA_SOUF_MAX_C,
+};
 use super::mecanique_basse_pression;
 use super::mecanique_sf::{
     dugd_equ_h, h_cond_ext_w_k, p_vent_groupe_w, p_vent_residentiel_w, qm_kg_s, rho_kg_m3,
@@ -106,6 +110,76 @@ pub struct CtaResolue {
     pub theta_enc_enf_c: (f64, f64),
     /// « Type_régul_AN ».
     pub regulation_air_neuf: RegulationAirNeuf,
+    /// Batteries régulées sur la charge (mode actif, §6.3.3.5) ; `None` sans batterie chaude ni
+    /// froide.
+    pub batteries_charge: Option<BatteriesCharge>,
+}
+
+/// Batteries d'une centrale à charge variable régulées sur la charge (« Is_chaud »,
+/// « Is_froid », §6.3.3.5).
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct BatteriesCharge {
+    /// « Is_chaud ».
+    pub chaud: bool,
+    /// « θsou_nom_chaud » (type 4), en °C (éq. 585).
+    pub theta_sou_nom_chaud_c: Option<f64>,
+    /// Batterie froide (« Is_froid »), `None` sans elle.
+    pub froid: Option<BatterieFroideCharge>,
+}
+
+/// Batterie froide régulée sur la charge.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct BatterieFroideCharge {
+    /// « θsou,nom,froid » (type 4), en °C (éq. 591).
+    pub theta_sou_nom_c: Option<f64>,
+    /// « θdim,fr », en °C (éq. 604).
+    pub theta_dim_c: f64,
+}
+
+/// Résultat du mode actif d'une centrale au pas de temps (§6.3.3.5).
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct ModeActif {
+    /// La centrale a fonctionné en mode actif.
+    pub actif: bool,
+    /// « τCH/FR(h) » (éq. 582, 587 et 593).
+    pub tau: f64,
+    /// « Qchaud(rec)(h) », en Wh (éq. 599).
+    pub q_chaud_wh: f64,
+    /// « Qfroid(rec)(h) », latent compris, en Wh, négatif ou nul (éq. 611).
+    pub q_froid_wh: f64,
+    /// « Qsys_lat_fr(h) », en Wh, négatif ou nul (éq. 610).
+    pub q_lat_wh: f64,
+    /// Sous-dimensionnement de la batterie (éq. 597 et 605).
+    pub sous_dimensionnee: bool,
+}
+
+/// Grandeurs de la première phase (zone neutre) gardées pour le mode actif.
+#[derive(Debug, Clone, PartialEq, Default)]
+struct ZoneNeutre {
+    /// Débit spécifique massique et température soufflée de chaque bouche (0 pour une bouche
+    /// de reprise), en kg/s et °C (éq. 571).
+    souffle: Vec<(f64, f64)>,
+    /// Humidité de l'air soufflé, en kg/kg.
+    omega_souffle_kg_kg: f64,
+    /// « Wvent(h) » de la zone neutre, en Wh.
+    w_vent_wh: f64,
+    /// « Wech(h) », en Wh.
+    w_ech_wh: f64,
+}
+
+/// Circuits d'un système jusqu'au ventilateur de soufflage.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Centrale {
+    /// Sorties partielles (air rejeté, échangeur, antigel, mélange, taux d'air neuf).
+    sorties: PasVentilation,
+    /// « qm,sou,cond(h) », en kg/s.
+    qm_sou_kg_s: f64,
+    /// « θsouf2(h) », en °C.
+    theta_souf2_c: f64,
+    /// « ωsouf2(h) », en kg/kg.
+    omega_souf2_kg_kg: f64,
+    /// « Wech(h) », en Wh.
+    w_ech_wh: f64,
 }
 
 /// Régime d'une centrale au pas de temps, fixé avant le calcul des groupes.
@@ -275,6 +349,24 @@ pub struct VentilationProjet {
     regime: Regime,
     /// « ρair_soufflé^g,s(h−1) » de chaque bouche, en kg/m³.
     rho_souffle: Vec<f64>,
+    /// La même au pas précédent celui en cours, pour les fuites du mode actif (éq. 574).
+    rho_souffle_h1: Vec<f64>,
+    /// Première phase du pas en cours, pour le mode actif.
+    zn: ZoneNeutre,
+}
+
+/// Batteries régulées sur la charge d'une centrale saisie (§6.3.3.5, `docs/questions/Q095.md`).
+fn batteries_charge(c: &crate::entree::Cta) -> Option<BatteriesCharge> {
+    let chaud = c.batterie_chaude == Some(true);
+    let froid = (c.batterie_froide == Some(true)).then(|| BatterieFroideCharge {
+        theta_sou_nom_c: c.theta_sou_nom_froid_c,
+        theta_dim_c: c.theta_dim_fr_c.unwrap_or(0.0),
+    });
+    (chaud || froid.is_some()).then_some(BatteriesCharge {
+        chaud,
+        theta_sou_nom_chaud_c: c.theta_sou_nom_chaud_c,
+        froid,
+    })
 }
 
 fn defaut(champ: String, valeur: f64, regle: &str) -> ValeurParDefaut {
@@ -632,6 +724,7 @@ impl VentilationProjet {
                     ));
                     RegulationAirNeuf::Standard
                 }),
+                batteries_charge: batteries_charge(c),
             }),
             _ => None,
         };
@@ -649,6 +742,11 @@ impl VentilationProjet {
             nature,
             b: v.reseau.b,
             rho_souffle: vec![rho_initiale; bouches.len()],
+            rho_souffle_h1: vec![rho_initiale; bouches.len()],
+            zn: ZoneNeutre {
+                souffle: vec![(0.0, 0.0); bouches.len()],
+                ..ZoneNeutre::default()
+            },
             bouches,
             p_vent_rep_w,
             p_vent_sou_w,
@@ -897,23 +995,22 @@ impl VentilationProjet {
         }
     }
 
-    /// Calcule un pas de temps du système : air soufflé dans chaque groupe (`air`, un élément
-    /// par groupe) et sorties du système.
-    ///
-    /// `groupes` donne l'état de chaque groupe à la fin du pas de temps précédent. Un groupe
-    /// sans bouche de soufflage reçoit un air soufflé à la température et à l'humidité
-    /// extérieures, sans emploi puisque son débit soufflé est nul. `i_vent` est l'indicateur
-    /// de ventilation de la zone (§4.1.3, éq. 45), sans effet en habitation ; une centrale de
-    /// traitement d'air suit le régime fixé par [`VentilationProjet::preparer_pas`].
-    pub fn pas(
-        &mut self,
+    /// Circuits de reprise et de soufflage d'un système jusqu'au ventilateur de soufflage
+    /// (éq. 412 à 520, 647 à 663) : employé par le pas de temps en zone neutre (première phase,
+    /// [`VentilationProjet::pas`]) et par le recalcul du mode actif (§6.3.3.5.2 à 6.3.3.5.7,
+    /// [`VentilationProjet::mode_actif`]), qui en change les températures des groupes, les
+    /// débits et les puissances des ventilateurs.
+    #[allow(clippy::too_many_arguments)]
+    fn centrale(
+        &self,
         theta_ext_c: f64,
         omega_ext_kg_kg: f64,
         groupes: &[EtatGroupeVentilation],
-        air: &mut [AirSouffle],
+        regime: Regime,
         i_vent: bool,
-    ) -> PasVentilation {
-        let regime = self.regime;
+        p_vent_w: (f64, f64),
+        rho_souffle: &[f64],
+    ) -> Centrale {
         let est_cta = self.cta.is_some();
         let deb = |b: &BoucheProjet| {
             if est_cta {
@@ -922,18 +1019,7 @@ impl VentilationProjet {
                 b.debits_selon(i_vent)
             }
         };
-        let (p_vent_rep_w, p_vent_sou_w) = if est_cta {
-            self.p_vent_regime(regime)
-        } else {
-            self.p_vent_selon(i_vent)
-        };
-        for a in air.iter_mut() {
-            *a = AirSouffle {
-                t_air_souffle_c: theta_ext_c,
-                // Éq. (514), (563) et (669) : humidité de l'air extérieur.
-                omega_air_souffle_kg_kg: omega_ext_kg_kg,
-            };
-        }
+        let (p_vent_rep_w, p_vent_sou_w) = p_vent_w;
         let b = self.b;
         let t_lnc = |g: usize| t_lnc_c(b, groupes[g].theta_i_fin_c, theta_ext_c);
 
@@ -976,7 +1062,7 @@ impl VentilationProjet {
         // traitement d'air, air neuf minimal (éq. 433 et 434).
         let mut qm_sou = 0.0;
         let mut qm_an_min = 0.0;
-        for (bouche, rho) in self.bouches.iter().zip(&self.rho_souffle) {
+        for (bouche, rho) in self.bouches.iter().zip(rho_souffle) {
             let d = deb(bouche);
             if d.isouf != Isouf::Soufflage {
                 continue;
@@ -1005,7 +1091,13 @@ impl VentilationProjet {
             ),
             None => qm_sou,
         };
-        // Éq. (454) à (456) : débit recyclé, débit repris et débit rejeté rééquilibrés.
+        // Éq. (454) à (456) : débit recyclé, débit repris et débit rejeté rééquilibrés. Le texte
+        // (p. 372) écrit les débits repris en valeurs signées, négatives : `qm,rep,cond =
+        // MIN(qm,rep,cond ; qm,air_neuf − qm,sou,cond)` et `qm,air_extrait = qm,rep,cond −
+        // (qm,air_neuf − qm,sou,cond)`, avec `qm,air_neuf − qm,sou,cond = −qm,recyclé ≤ 0`. Ici
+        // les débits repris sont en valeurs absolues (`qm_rep ≥ 0`) : le MIN de deux négatifs
+        // devient le MAX des valeurs absolues, `|qm,rep,cond| = MAX(|qm,rep,cond| ; qm,recyclé)`,
+        // et `|qm,air_extrait| = |qm,rep,cond| − qm,recyclé` ; les deux formes sont équivalentes.
         let qm_recycle = if est_cta {
             (qm_sou - qm_an).max(0.0)
         } else {
@@ -1018,81 +1110,152 @@ impl VentilationProjet {
             (qm_rep, qm_rep)
         };
         let t_extr2 = t_apres_ventilateur_c(t_extr1, p_vent_rep_w, qm_rep_cond);
-        let mut sorties = PasVentilation {
-            theta_air_extrait_c: t_extr2,
-            qm_air_extrait_kg_s: qm_extrait,
-            theta_souf_mel_c: theta_an,
-            taux_an: if qm_sou > 0.0 { qm_an / qm_sou } else { 1.0 },
-            ..PasVentilation::default()
+        let mut c = Centrale {
+            sorties: PasVentilation {
+                theta_air_extrait_c: t_extr2,
+                qm_air_extrait_kg_s: qm_extrait,
+                theta_souf_mel_c: theta_an,
+                taux_an: if qm_sou > 0.0 { qm_an / qm_sou } else { 1.0 },
+                ..PasVentilation::default()
+            },
+            qm_sou_kg_s: qm_sou,
+            theta_souf2_c: theta_an,
+            omega_souf2_kg_kg: omega_ext_kg_kg,
+            w_ech_wh: 0.0,
         };
-        let mut w_ech_wh = 0.0;
+        if qm_sou <= 0.0 {
+            return c;
+        }
+        let sorties = &mut c.sorties;
+        let (theta_souf1, epsilon) = match &self.nature {
+            NatureSysteme::DoubleFlux(echangeur) => {
+                let saison_de_chauffage = groupes.iter().any(|g| g.saison_de_chauffage);
+                let (theta_souf_ag, epsilon) = match echangeur {
+                    None => (theta_an, 0.0),
+                    Some(e) => {
+                        // Éq. (492) à (495) : bypass, avec la température des groupes repris.
+                        let bypass = e.bypass.as_ref().is_some_and(|by| {
+                            delta_bypass(by, saison_de_chauffage, theta_an, theta_i_moy)
+                        });
+                        sorties.bypass = bypass;
+                        // Éq. (496) à (505), avec les débits d'air neuf et d'air rejeté
+                        // (éq. 499).
+                        let epsilon = if bypass {
+                            0.0
+                        } else {
+                            c.w_ech_wh = e.p_ech_w;
+                            match e.efficacite {
+                                EfficaciteEchangeur::Simplifiee(eps) => eps,
+                                EfficaciteEchangeur::Detaillee { ua_w_k, ecoulement } => {
+                                    epsilon_detaille(
+                                        ua_w_k,
+                                        ecoulement,
+                                        C_PA_J_KG_K * qm_an,
+                                        C_PA_J_KG_K * qm_extrait,
+                                    )
+                                }
+                            }
+                        };
+                        // Éq. (506) à (511) ; θextr3 = θextr2 sans humidification
+                        // indirecte (éq. 484 et 485).
+                        let a = antigel(
+                            epsilon,
+                            e.antigel,
+                            saison_de_chauffage,
+                            theta_an,
+                            t_extr2,
+                            e.theta_s_ech_rep_lim_c,
+                            qm_an,
+                        );
+                        sorties.w_ag_wh = a.w_ag_wh;
+                        (a.theta_souf_ag_c, a.epsilon)
+                    }
+                };
+                // Éq. (512) et (513).
+                let (theta_souf1, theta_rejete) =
+                    sorties_echangeur_c(theta_souf_ag, t_extr2, epsilon);
+                sorties.theta_air_extrait_c = theta_rejete;
+                (theta_souf1, epsilon)
+            }
+            _ => (theta_an, 0.0),
+        };
+        sorties.epsilon = epsilon;
+        // Éq. (515) à (518) : boîte de mélange, sans effet sans recyclage.
+        let (theta_mel, omega_mel) = if qm_recycle > 0.0 {
+            (
+                melange(qm_sou, qm_an, t_extr2, theta_souf1),
+                melange(qm_sou, qm_an, omega_extr, omega_ext_kg_kg),
+            )
+        } else {
+            (theta_souf1, omega_ext_kg_kg)
+        };
+        sorties.theta_souf_mel_c = theta_mel;
+        // Éq. (519) et (520), (663) : ventilateur de soufflage.
+        c.theta_souf2_c = t_apres_ventilateur_c(theta_mel, p_vent_sou_w, qm_sou);
+        c.omega_souf2_kg_kg = omega_mel;
+        c
+    }
+
+    /// Calcule un pas de temps du système : air soufflé dans chaque groupe (`air`, un élément
+    /// par groupe) et sorties du système.
+    ///
+    /// `groupes` donne l'état de chaque groupe à la fin du pas de temps précédent. Un groupe
+    /// sans bouche de soufflage reçoit un air soufflé à la température et à l'humidité
+    /// extérieures, sans emploi puisque son débit soufflé est nul. `i_vent` est l'indicateur
+    /// de ventilation de la zone (§4.1.3, éq. 45), sans effet en habitation ; une centrale de
+    /// traitement d'air suit le régime fixé par [`VentilationProjet::preparer_pas`].
+    pub fn pas(
+        &mut self,
+        theta_ext_c: f64,
+        omega_ext_kg_kg: f64,
+        groupes: &[EtatGroupeVentilation],
+        air: &mut [AirSouffle],
+        i_vent: bool,
+    ) -> PasVentilation {
+        let regime = self.regime;
+        let est_cta = self.cta.is_some();
+        let deb = |b: &BoucheProjet| {
+            if est_cta {
+                b.debits_regime(regime)
+            } else {
+                b.debits_selon(i_vent)
+            }
+        };
+        let (p_vent_rep_w, p_vent_sou_w) = if est_cta {
+            self.p_vent_regime(regime)
+        } else {
+            self.p_vent_selon(i_vent)
+        };
+        for a in air.iter_mut() {
+            *a = AirSouffle {
+                t_air_souffle_c: theta_ext_c,
+                // Éq. (514), (563) et (669) : humidité de l'air extérieur.
+                omega_air_souffle_kg_kg: omega_ext_kg_kg,
+            };
+        }
+        let b = self.b;
+        let t_lnc = |g: usize| t_lnc_c(b, groupes[g].theta_i_fin_c, theta_ext_c);
+        let centrale = self.centrale(
+            theta_ext_c,
+            omega_ext_kg_kg,
+            groupes,
+            regime,
+            i_vent,
+            (p_vent_rep_w, p_vent_sou_w),
+            &self.rho_souffle,
+        );
+        let mut sorties = centrale.sorties;
+        let w_ech_wh = centrale.w_ech_wh;
+        let qm_sou = centrale.qm_sou_kg_s;
+        self.zn.w_vent_wh = p_vent_rep_w + p_vent_sou_w;
+        self.zn.w_ech_wh = w_ech_wh;
+        self.zn.omega_souffle_kg_kg = omega_ext_kg_kg;
+        self.zn.souffle.fill((0.0, 0.0));
+        self.rho_souffle_h1.copy_from_slice(&self.rho_souffle);
 
         if qm_sou > 0.0 {
-            let (theta_souf1, epsilon) = match &self.nature {
-                NatureSysteme::DoubleFlux(echangeur) => {
-                    let saison_de_chauffage = groupes.iter().any(|g| g.saison_de_chauffage);
-                    let (theta_souf_ag, epsilon) = match echangeur {
-                        None => (theta_an, 0.0),
-                        Some(e) => {
-                            // Éq. (492) à (495) : bypass, avec la température des groupes repris.
-                            let bypass = e.bypass.as_ref().is_some_and(|by| {
-                                delta_bypass(by, saison_de_chauffage, theta_an, theta_i_moy)
-                            });
-                            sorties.bypass = bypass;
-                            // Éq. (496) à (505), avec les débits d'air neuf et d'air rejeté
-                            // (éq. 499).
-                            let epsilon = if bypass {
-                                0.0
-                            } else {
-                                w_ech_wh = e.p_ech_w;
-                                match e.efficacite {
-                                    EfficaciteEchangeur::Simplifiee(eps) => eps,
-                                    EfficaciteEchangeur::Detaillee { ua_w_k, ecoulement } => {
-                                        epsilon_detaille(
-                                            ua_w_k,
-                                            ecoulement,
-                                            C_PA_J_KG_K * qm_an,
-                                            C_PA_J_KG_K * qm_extrait,
-                                        )
-                                    }
-                                }
-                            };
-                            // Éq. (506) à (511) ; θextr3 = θextr2 sans humidification
-                            // indirecte (éq. 484 et 485).
-                            let a = antigel(
-                                epsilon,
-                                e.antigel,
-                                saison_de_chauffage,
-                                theta_an,
-                                t_extr2,
-                                e.theta_s_ech_rep_lim_c,
-                                qm_an,
-                            );
-                            sorties.w_ag_wh = a.w_ag_wh;
-                            (a.theta_souf_ag_c, a.epsilon)
-                        }
-                    };
-                    // Éq. (512) et (513).
-                    let (theta_souf1, theta_rejete) =
-                        sorties_echangeur_c(theta_souf_ag, t_extr2, epsilon);
-                    sorties.theta_air_extrait_c = theta_rejete;
-                    (theta_souf1, epsilon)
-                }
-                _ => (theta_an, 0.0),
-            };
-            sorties.epsilon = epsilon;
-            // Éq. (515) à (518) : boîte de mélange, sans effet sans recyclage.
-            let (theta_mel, omega_mel) = if qm_recycle > 0.0 {
-                (
-                    melange(qm_sou, qm_an, t_extr2, theta_souf1),
-                    melange(qm_sou, qm_an, omega_extr, omega_ext_kg_kg),
-                )
-            } else {
-                (theta_souf1, omega_ext_kg_kg)
-            };
-            sorties.theta_souf_mel_c = theta_mel;
-            // Éq. (519) et (520), (663) : ventilateur de soufflage.
-            let theta_souf2 = t_apres_ventilateur_c(theta_mel, p_vent_sou_w, qm_sou);
+            let theta_souf2 = centrale.theta_souf2_c;
+            let omega_mel = centrale.omega_souf2_kg_kg;
             // Éq. (521) à (525) : préchauffage en saison de chauffage.
             let saison_de_chauffage = groupes.iter().any(|g| g.saison_de_chauffage);
             let theta_pre = match &self.prechauffage {
@@ -1128,13 +1291,19 @@ impl VentilationProjet {
             };
             // Éq. (560) et (561) : sortie de la centrale.
             let theta_sortie_centrale = theta_souf3;
+            self.zn.omega_souffle_kg_kg = omega_souf3;
 
             // Pertes des conduits de soufflage, bouche par bouche (éq. 562 et 664), température
             // de l'air soufflé dans chaque groupe (éq. 668), humidité (éq. 563), masse
             // volumique pour le pas suivant (éq. 564 et 670).
             let mut somme_q = vec![0.0; air.len()];
             let mut somme_qt = vec![0.0; air.len()];
-            for (bouche, rho) in self.bouches.iter().zip(self.rho_souffle.iter_mut()) {
+            for ((bouche, rho), zn) in self
+                .bouches
+                .iter()
+                .zip(self.rho_souffle.iter_mut())
+                .zip(self.zn.souffle.iter_mut())
+            {
                 let d = deb(bouche);
                 if d.isouf != Isouf::Soufflage {
                     continue;
@@ -1146,6 +1315,9 @@ impl VentilationProjet {
                     bouche.h_cond_ext_w_k,
                     qm,
                 );
+                // Débit spécifique massique et température soufflée, pour les déperditions en
+                // zone neutre du mode actif (éq. 571).
+                *zn = (qm_kg_s(*rho, d.q_spec_m3_h()).max(0.0), t);
                 *rho = rho_kg_m3(t);
                 let q = d.q_spec_m3_h();
                 if let (Some(sq), Some(sqt)) = (
@@ -1169,19 +1341,6 @@ impl VentilationProjet {
         // de l'occupation si aucun débit n'est soufflé (lecture Q60).
         if self.releve.is_some() {
             let w = p_vent_rep_w + p_vent_sou_w + w_ech_wh;
-            let parts = |r: Regime| -> Vec<f64> {
-                (0..self.nb_groupes)
-                    .map(|g| {
-                        self.bouches
-                            .iter()
-                            .filter(|b| b.groupe == g)
-                            .map(|b| b.debits_regime(r))
-                            .filter(|d| d.isouf == Isouf::Soufflage)
-                            .map(|d| d.q_cond_m3_h())
-                            .sum()
-                    })
-                    .collect()
-            };
             let r_pas = if est_cta {
                 regime
             } else {
@@ -1190,18 +1349,214 @@ impl VentilationProjet {
                     ..self.regime_statique(i_vent)
                 }
             };
-            let mut q = parts(r_pas);
-            if q.iter().sum::<f64>() <= 0.0 {
-                q = parts(self.regime_statique(true));
-            }
-            let total: f64 = q.iter().sum();
-            if let Some(r) = &mut self.releve {
-                r.dernier_wh = w;
-                for (x, qg) in r.dernier_groupes_wh.iter_mut().zip(&q) {
-                    *x = if total > 0.0 { w * qg / total } else { 0.0 };
-                }
-            }
+            self.repartir_releve(w, r_pas);
         }
         sorties
+    }
+
+    /// Répartit la consommation `w_wh` du pas de temps entre les groupes au prorata des débits
+    /// soufflés vus par le ventilateur dans le régime `r` (éq. 570 et 618), ceux de
+    /// l'occupation si aucun débit n'est soufflé (lecture Q60).
+    fn repartir_releve(&mut self, w_wh: f64, r: Regime) {
+        let parts = |r: Regime| -> Vec<f64> {
+            (0..self.nb_groupes)
+                .map(|g| {
+                    self.bouches
+                        .iter()
+                        .filter(|b| b.groupe == g)
+                        .map(|b| b.debits_regime(r))
+                        .filter(|d| d.isouf == Isouf::Soufflage)
+                        .map(|d| d.q_cond_m3_h())
+                        .sum()
+                })
+                .collect()
+        };
+        let mut q = parts(r);
+        if q.iter().sum::<f64>() <= 0.0 {
+            q = parts(self.regime_statique(true));
+        }
+        let total: f64 = q.iter().sum();
+        if let Some(rel) = &mut self.releve {
+            rel.dernier_wh = w_wh;
+            for (x, qg) in rel.dernier_groupes_wh.iter_mut().zip(&q) {
+                *x = if total > 0.0 { w_wh * qg / total } else { 0.0 };
+            }
+        }
+    }
+
+    /// Seconde phase du pas de temps d'une centrale à charge variable (types 3 et 4) pourvue
+    /// d'une batterie chaude ou froide régulée sur la charge : mode actif du §6.3.3.5, après le
+    /// calcul des groupes (§6.3.3.1.5, figure 72).
+    ///
+    /// `zn` est l'état des groupes vu par la première phase (fin du pas précédent, saisons) ;
+    /// `moy`, le même état au pas de temps en cours (`θi,moy^g(h)`, `ωi^g(h)`, lecture Q95) ;
+    /// `q_sys_ch_wh` et `q_sys_fr_wh`, les sommes des demandes `Qsys_ch^g,s(h)` et
+    /// `Qsys_fr^g,s(h)` des émetteurs contenus dans les bouches de soufflage (positive et
+    /// négative ou nulle). Sans demande, ou hors saison, la centrale reste en zone neutre et
+    /// rien n'est recalculé. Sinon, le circuit est recalculé aux débits et puissances du mode
+    /// actif (éq. 572 à 581) avec les températures des groupes du pas en cours (§6.3.3.5.4 à
+    /// 6.3.3.5.7), puis la température aux bouches (éq. 582 à 594), à la sortie de la centrale
+    /// (éq. 595), l'énergie des batteries (éq. 596 à 612) et les ventilateurs (éq. 614), dont
+    /// la consommation remplace celle de la zone neutre dans le relevé (éq. 618).
+    #[allow(clippy::too_many_arguments)]
+    pub fn mode_actif(
+        &mut self,
+        theta_ext_c: f64,
+        omega_ext_kg_kg: f64,
+        zn: &[EtatGroupeVentilation],
+        moy: &[EtatGroupeVentilation],
+        i_vent: bool,
+        q_sys_ch_wh: f64,
+        q_sys_fr_wh: f64,
+    ) -> ModeActif {
+        let Some((cta, batteries)) = self
+            .cta
+            .as_ref()
+            .and_then(|c| c.batteries_charge.map(|b| (c.clone(), b)))
+        else {
+            return ModeActif::default();
+        };
+        // §6.3.3.1.5, figure 72 : saison effective de la centrale (éq. 409 et 410 : un groupe
+        // suffit) et demande des émetteurs.
+        let chauffe =
+            batteries.chaud && zn.iter().any(|g| g.saison_de_chauffage) && q_sys_ch_wh > 0.0;
+        let refroidit = !chauffe
+            && batteries.froid.is_some()
+            && zn.iter().any(|g| g.saison_de_refroidissement)
+            && q_sys_fr_wh < 0.0;
+        if !chauffe && !refroidit {
+            return ModeActif::default();
+        }
+        // Éq. (573), (577) et (581) : débits et puissances du mode actif ; §6.3.3.5.4 à
+        // 6.3.3.5.7 : circuit recalculé avec les températures des groupes au pas en cours.
+        let regime = Regime {
+            nominal: true,
+            ..self.regime
+        };
+        let centrale = self.centrale(
+            theta_ext_c,
+            omega_ext_kg_kg,
+            moy,
+            regime,
+            i_vent,
+            cta.p_vent_ch_w,
+            &self.rho_souffle,
+        );
+        let qm_cond = centrale.qm_sou_kg_s;
+        if qm_cond <= 0.0 {
+            return ModeActif::default();
+        }
+        let cp = cp_air_humide_j_kg_k(centrale.omega_souf2_kg_kg);
+        let theta_souf2 = centrale.theta_souf2_c;
+        // Éq. (571) : déperditions ou apports de l'air soufflé en zone neutre (première phase).
+        let cp_zn = cp_air_humide_j_kg_k(self.zn.omega_souffle_kg_kg);
+        let mut p_zn = 0.0;
+        for (bouche, (qm_spec, t)) in self.bouches.iter().zip(&self.zn.souffle) {
+            p_zn += cp_zn * qm_spec * (t - moy[bouche.groupe].theta_i_fin_c);
+        }
+        // Éq. (574) et (576) : débits spécifiques recalculés ; θi,moy des groupes soufflés,
+        // pondérée par ces débits (lecture Q95) ; éq. (589) et (590) pour la température aux
+        // bouches sans refroidissement supplémentaire.
+        let b = self.b;
+        let mut qm_spec = 0.0;
+        let mut somme_theta_i = 0.0;
+        let mut somme_sans_froid = 0.0;
+        for ((bouche, rho), rho_h1) in self
+            .bouches
+            .iter()
+            .zip(&self.rho_souffle)
+            .zip(&self.rho_souffle_h1)
+        {
+            let d = bouche.debits_regime(regime);
+            if d.isouf != Isouf::Soufflage {
+                continue;
+            }
+            let qm_c = qm_kg_s(*rho, d.q_cond_m3_h());
+            let q_fuites = d.q_cond_m3_h() - d.q_spec_m3_h();
+            let qm_s = (qm_c - qm_kg_s(*rho_h1, q_fuites)).max(0.0);
+            qm_spec += qm_s;
+            somme_theta_i += qm_s * moy[bouche.groupe].theta_i_fin_c;
+            let lnc = t_lnc_c(b, moy[bouche.groupe].theta_i_fin_c, theta_ext_c);
+            let e = exp_h(bouche.h_cond_ext_w_k, qm_c);
+            somme_sans_froid += qm_c * (theta_souf2 - (theta_souf2 - lnc) * (1.0 - e));
+        }
+        if qm_spec <= 0.0 {
+            return ModeActif::default();
+        }
+        let theta_i_moy = somme_theta_i / qm_spec;
+        let q_sys = if chauffe { q_sys_ch_wh } else { q_sys_fr_wh };
+        // Éq. (582) à (594).
+        let charge = match cta.type_cta {
+            TypeCta::DebitVariable => {
+                let theta_nom = if chauffe {
+                    // Éq. (585).
+                    batteries.theta_sou_nom_chaud_c.unwrap_or(theta_i_moy)
+                } else {
+                    // Éq. (590) et (591).
+                    let nom = batteries
+                        .froid
+                        .and_then(|f| f.theta_sou_nom_c)
+                        .unwrap_or(theta_i_moy);
+                    (somme_sans_froid / qm_cond).min(nom)
+                };
+                charge_debit_variable(q_sys, theta_nom, theta_i_moy, p_zn, cp, qm_spec)
+            }
+            // Éq. (582) à (584) : débit constant, température variable, τ = 100 %.
+            _ => ChargeCentrale {
+                tau: 1.0,
+                theta_sou_bouches_c: theta_sou_bouches_charge_c(
+                    theta_i_moy,
+                    q_sys,
+                    p_zn,
+                    cp,
+                    qm_spec,
+                ),
+            },
+        };
+        // Éq. (595) : température à la sortie de la centrale.
+        let mut somme_sortie = 0.0;
+        for (bouche, rho) in self.bouches.iter().zip(&self.rho_souffle) {
+            let d = bouche.debits_regime(regime);
+            if d.isouf != Isouf::Soufflage {
+                continue;
+            }
+            let qm_c = qm_kg_s(*rho, d.q_cond_m3_h());
+            let lnc = t_lnc_c(b, moy[bouche.groupe].theta_i_fin_c, theta_ext_c);
+            let e = exp_h(bouche.h_cond_ext_w_k, qm_c);
+            somme_sortie += qm_c * (charge.theta_sou_bouches_c - lnc * (1.0 - e)) / e;
+        }
+        let theta_souf_rec = somme_sortie / qm_cond;
+        let mut resultat = ModeActif {
+            actif: true,
+            tau: charge.tau,
+            ..ModeActif::default()
+        };
+        if chauffe {
+            // Éq. (596) à (599).
+            resultat.q_chaud_wh =
+                q_chaud_rec_wh(charge.tau, cp, qm_cond, theta_souf_rec, theta_souf2);
+            resultat.sous_dimensionnee = theta_souf_rec > THETA_SOUF_MAX_C;
+        } else if let Some(f) = batteries.froid {
+            // Éq. (601) à (612).
+            let r = froid_rec(
+                charge.tau,
+                cp,
+                qm_cond,
+                theta_souf_rec,
+                theta_souf2,
+                centrale.omega_souf2_kg_kg,
+                f.theta_dim_c,
+            );
+            resultat.q_froid_wh = r.q_froid_wh;
+            resultat.q_lat_wh = r.q_lat_wh;
+            resultat.sous_dimensionnee = r.sous_dimensionnee;
+        }
+        // Éq. (614) et (618) : ventilateurs, échangeur de la zone neutre.
+        if self.releve.is_some() {
+            let w =
+                w_vent_rec_wh(charge.tau, cta.p_vent_ch_w, self.zn.w_vent_wh) + self.zn.w_ech_wh;
+            self.repartir_releve(w, regime);
+        }
+        resultat
     }
 }

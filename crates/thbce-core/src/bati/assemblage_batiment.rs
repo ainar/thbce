@@ -36,7 +36,9 @@ use crate::entree::{
 use crate::erreur::Erreur;
 use crate::pertes::pertes_recuperables::{recuperation_wh, FluxVolumeChauffe};
 
-use super::assemblage_groupe::{LecturePreechauffageEcs, LecturePuisageAccumulateur, Lectures};
+use super::assemblage_groupe::{
+    LectureAntigelCta, LecturePreechauffageEcs, LecturePuisageAccumulateur, Lectures,
+};
 use super::assemblage_zone::{conditions_exterieures, ZoneHoraire};
 use super::espace_tampon::assemblage::{EspaceTamponHoraire, GroupeVuParEt, LienGroupe};
 use super::espace_tampon::espace_tampon::CoefficientsEt;
@@ -91,6 +93,10 @@ pub struct SystemesBatiment {
     /// Récupération des pertes et consommations des systèmes par les groupes (fiche 11.1) ;
     /// vrai sauf pour mesurer son effet (lecture Q45).
     pub recuperation: bool,
+    /// Variante de l'éq. (951) pour la sécurité antigel (Q93 point 3) : vrai si la
+    /// température vue par la génération est celle après la boîte de mélange quand le
+    /// préchauffage passe par la même génération ; faux (lecture retenue) : air neuf (éq. 952).
+    pub antigel_souf_mel: bool,
     /// Lecture Q108 (point 6) : la chaleur récupérée par le préchauffage de l'eau froide du
     /// ballon (`θentrant > θcw`) est déduite de la demande de la génération. Faux : variante
     /// `Texte`, seule `θentrant` change (§9.21.3), sans effet en position 1.
@@ -160,6 +166,18 @@ pub struct BatteriesCta {
     pub prechauffage: Option<usize>,
     /// Génération de la batterie de prérefroidissement.
     pub prerefroidissement: Option<usize>,
+    /// Génération de la batterie chaude régulée sur la charge (mode actif, éq. 940).
+    pub chaude: Option<usize>,
+    /// Génération de la batterie froide régulée sur la charge (mode actif, éq. 940).
+    pub froide: Option<usize>,
+}
+
+/// Description saisie d'une centrale de traitement d'air (types 2 à 4).
+fn cta_saisie(s: Option<&SystemeVentilation>) -> Option<&crate::entree::Cta> {
+    match s {
+        Some(SystemeVentilation::Cta(c)) => Some(c),
+        _ => None,
+    }
 }
 
 /// Origine d'une demande reçue par une génération.
@@ -318,6 +336,7 @@ impl BatimentHoraire {
         } else {
             let mut s = SystemesBatiment::nouveaux(bat, catalogue, &mut zones);
             s.recuperation = mode != ModeCalcul::ThD || lectures.recuperation_th_d;
+            s.antigel_souf_mel = lectures.antigel_cta == LectureAntigelCta::MelangeSiPrechauffage;
             s.preechauffage_deduit = lectures.preechauffage_ecs == LecturePreechauffageEcs::Deduit;
             if lectures.puisage_accumulateur == LecturePuisageAccumulateur::Litteral {
                 for g in &mut s.generations_horaires {
@@ -629,6 +648,14 @@ impl SystemesBatiment {
                     prerefroidissement: s
                         .and_then(SystemeVentilation::batterie_prerefroidissement)
                         .and_then(|b| position(&b.generation)),
+                    chaude: cta_saisie(s)
+                        .filter(|c| c.batterie_chaude == Some(true))
+                        .and_then(|c| c.generation_batterie_chaude.as_ref())
+                        .and_then(position),
+                    froide: cta_saisie(s)
+                        .filter(|c| c.batterie_froide == Some(true))
+                        .and_then(|c| c.generation_batterie_froide.as_ref())
+                        .and_then(position),
                 }
             })
             .collect();
@@ -649,7 +676,9 @@ impl SystemesBatiment {
                             || (0..n_ecs).any(|k| ecs[k].generation == ig && a_ecs[k][igr] > 0.0)
                             || antigel[*iz] == Some(ig)
                             || batteries_cta[*iz].prechauffage == Some(ig)
-                            || batteries_cta[*iz].prerefroidissement == Some(ig);
+                            || batteries_cta[*iz].prerefroidissement == Some(ig)
+                            || batteries_cta[*iz].chaude == Some(ig)
+                            || batteries_cta[*iz].froide == Some(ig);
                         if desservi {
                             *a_gr
                         } else {
@@ -721,6 +750,7 @@ impl SystemesBatiment {
             sorties_ecs: vec![SortiesDistributionEcsIntergroupe::default(); n_ecs],
             cumuls_ecs: vec![CumulsEcsIntergroupe::default(); n_ecs],
             recuperation: true,
+            antigel_souf_mel: false,
             preechauffage_deduit: false,
             collectifs_eaux_grises,
             theta_ep_collectifs: vec![0.0; n_collectifs],
@@ -991,7 +1021,15 @@ impl SystemesBatiment {
                     q_sys_wh: w_ag,
                     theta_moy_c: 0.0,
                     theta_dep_c: 0.0,
-                    theta_i_aval_eq_c: theta_ext_c,
+                    // Éq. (952) : air neuf (sans puits) ; variante de l'éq. (951) (Q93 point 3) :
+                    // après la boîte de mélange si le préchauffage passe par la même génération.
+                    theta_i_aval_eq_c: if self.antigel_souf_mel
+                        && self.batteries_cta[iz].prechauffage == Some(ig)
+                    {
+                        z.sorties_ventilation.theta_souf_mel_c
+                    } else {
+                        theta_ext_c
+                    },
                     relance: false,
                     // Sans demande, la sécurité antigel ne pèse pas dans les répartitions.
                     rat_surf_dess: 0.0,
@@ -1004,6 +1042,9 @@ impl SystemesBatiment {
             for (iz, z) in zones.iter().enumerate() {
                 let b = self.batteries_cta[iz];
                 let v = z.sorties_ventilation;
+                let m = z.mode_actif;
+                // Éq. (940) : énergies du mode actif des centrales à charge variable, sur leur
+                // réseau de CTA fictif (lecture Q95).
                 for (poste, g, q) in [
                     (Poste::Chauffage, b.prechauffage, v.q_prechaud_wh),
                     (
@@ -1011,6 +1052,8 @@ impl SystemesBatiment {
                         b.prerefroidissement,
                         -v.q_prefroid_wh,
                     ),
+                    (Poste::Chauffage, b.chaude, m.q_chaud_wh),
+                    (Poste::Refroidissement, b.froide, -m.q_froid_wh),
                 ] {
                     if g != Some(ig) {
                         continue;

@@ -294,14 +294,16 @@ impl SystemesGroupe {
                 .zip(&s.q_em_wh)
                 .map(|(e, q)| match d.fonction {
                     FonctionReseau::Chauffage => {
-                        if e.chaud.is_some_and(|c| c.distribution == k) {
+                        // Lecture Q95 : la demande d'un émetteur contenu dans les bouches
+                        // de la centrale passe au réseau de CTA (éq. 940).
+                        if e.chaud.is_some_and(|c| c.distribution == k && !c.centrale) {
                             q.0
                         } else {
                             0.0
                         }
                     }
                     FonctionReseau::Refroidissement => {
-                        if e.froid.is_some_and(|c| c.distribution == k) {
+                        if e.froid.is_some_and(|c| c.distribution == k && !c.centrale) {
                             q.1
                         } else {
                             0.0

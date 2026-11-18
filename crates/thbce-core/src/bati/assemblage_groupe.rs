@@ -113,12 +113,42 @@ pub struct Lectures {
     /// Récupération des pertes et consommations des systèmes (fiche 11.1) en Th-D (Q45). Vrai :
     /// lecture retenue ; faux pour mesurer son effet.
     pub recuperation_th_d: bool,
+    /// Indicateur de relance vu par le régime d'une centrale de traitement d'air (Q90 point 1).
+    pub relance_cta: LectureRelanceCta,
+    /// Température vue par la génération pour la sécurité antigel d'une centrale (Q93 point 3).
+    pub antigel_cta: LectureAntigelCta,
     /// Préchauffage de l'eau froide du ballon d'ECS par un récupérateur sur les eaux grises
     /// (Q108 point 6) : `Deduit` déduit la chaleur récupérée de la demande de la génération
     /// (lecture retenue) ; `Texte` ne modifie que `θentrant`, sans effet en position 1.
     pub preechauffage_ecs: LecturePreechauffageEcs,
     /// Puisage d'un accumulateur en eau technique aux heures sans puisage d'ECS (Q106 point 3).
     pub puisage_accumulateur: LecturePuisageAccumulateur,
+}
+
+/// Température d'air ambiant équivalente vue par la génération pour la sécurité antigel d'une
+/// centrale (fiche 8.11, éq. 951 et 952 ; `docs/questions/Q093.md`, point 3).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LectureAntigelCta {
+    /// Température de l'air neuf (éq. 952), la demande d'antigel étant distincte de celle du
+    /// préchauffage (Q93 point 2) : lecture retenue.
+    #[default]
+    AirNeuf,
+    /// Température après la boîte de mélange (éq. 951) dès que le préchauffage passe par la
+    /// même génération (`idprechaud = 1` sur un réseau qui porte aussi l'antigel) : variante.
+    MelangeSiPrechauffage,
+}
+
+/// Indicateur de relance des groupes vu par le régime des débits d'une centrale de traitement
+/// d'air au début du pas de temps (`docs/questions/Q090.md`, point 1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LectureRelanceCta {
+    /// `irelance^gr(h−1)` : relance des groupes au pas précédent, seule connue avant les groupes
+    /// (lecture retenue).
+    #[default]
+    PasPrecedent,
+    /// `irelance^gr(h)` anticipée : programmation des relances (fiche 8.5) appelée avant les
+    /// groupes sur une copie de son état ; variante écartée, conservée pour chiffrer l'écart.
+    Anticipee,
 }
 
 /// Heures sans puisage d'ECS d'un accumulateur en eau technique (`docs/questions/Q106.md`).
@@ -176,6 +206,8 @@ impl Default for Lectures {
             ventilation_th_d: VentilationThD::default(),
             emission_th_d: EmissionThD::default(),
             recuperation_th_d: true,
+            relance_cta: LectureRelanceCta::PasPrecedent,
+            antigel_cta: LectureAntigelCta::AirNeuf,
             preechauffage_ecs: LecturePreechauffageEcs::default(),
             puisage_accumulateur: LecturePuisageAccumulateur::default(),
         }

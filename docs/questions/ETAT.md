@@ -100,6 +100,7 @@
 | Q92 | Débits des bouches des doubles flux et des centrales hors habitation (fiche 6.2, §6.2.3.1.2, 6.2.3.2.2.3 et 6.2.3.3.2) : Crdbnr en présence de recyclage, débits d'un double flux, débits de l'inoccupation en mode actif | lecture du lot 1-ven, à confirmer par un cas de référence |
 | Q93 | Réseaux de distribution des CTA (fiche 8.11) : réseau fictif par batterie, température vue par la génération, répartition entre les groupes | lecture du lot 1-ven, à confirmer par un cas de référence |
 | Q94 | Périmètre de la ventilation après le lot 1-ven : refus ciblés (mode actif des CTA à charge variable, humidification, rafraîchissement évaporatif, surventilation mécanique, puits, ventilation naturelle et aération) ; consommation relevée, échangeur rotatif, tableau 62 | lecture du lot 1-ven, à confirmer par un cas de référence |
+| Q95 | Mode actif des centrales à charge variable (fiche 6.3, §6.3.3.5) : émetteur contenu dans les bouches de soufflage, demande remplacée par celle de la centrale, état des groupes vu par le recalcul, signe de PZN à l'éq. 592, report d'énergie | lecture du lot 1-ven2, à confirmer par un cas de référence |
 | Q105 | ECS : plusieurs assemblages de ballons et heures non couvertes | tranchée, pas d'écart au texte |
 | Q106 | ECS : accumulateur en eau technique et échangeur de ballon (fiches 9.11 et 9.12) | tranchée, à confirmer par un cas de référence |
 | Q107 | ECS : IdCET sur eau (fiche 9.22) reste refusé ; fiche 9.21 levée par Q108 | refus 9.22 maintenu ; point 1 (9.21) remplacé par Q108 le 18 novembre 2026 |
