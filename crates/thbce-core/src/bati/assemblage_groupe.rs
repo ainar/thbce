@@ -114,8 +114,8 @@ pub struct Lectures {
     /// lecture retenue ; faux pour mesurer son effet.
     pub recuperation_th_d: bool,
     /// Préchauffage de l'eau froide du ballon d'ECS par un récupérateur sur les eaux grises
-    /// (Q108 point 6) : `Texte` modifie seulement `θentrant` (lecture retenue) ; `Deduit` déduit
-    /// la chaleur récupérée de la demande de la génération.
+    /// (Q108 point 6) : `Deduit` déduit la chaleur récupérée de la demande de la génération
+    /// (lecture retenue) ; `Texte` ne modifie que `θentrant`, sans effet en position 1.
     pub preechauffage_ecs: LecturePreechauffageEcs,
     /// Puisage d'un accumulateur en eau technique aux heures sans puisage d'ECS (Q106 point 3).
     pub puisage_accumulateur: LecturePuisageAccumulateur,
@@ -134,12 +134,12 @@ pub enum LecturePuisageAccumulateur {
 /// Prise en compte du préchauffage de l'eau froide du ballon (`docs/questions/Q108.md`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LecturePreechauffageEcs {
-    /// §9.21.3 à la lettre : seule `θentrant` change ; la demande à la génération est celle de
-    /// l'émetteur (lecture retenue).
-    #[default]
+    /// Seule `θentrant` change ; la demande à la génération reste celle de l'émetteur (éq. 1794
+    /// calculée à partir de `θcw`) : le préchauffage de la position 1 est sans effet (variante).
     Texte,
     /// La chaleur `ρw·cw·Vec·(θentrant − θcw)` récupérée sur l'eau froide est déduite de la
-    /// demande de la génération.
+    /// demande de la génération (lecture retenue).
+    #[default]
     Deduit,
 }
 

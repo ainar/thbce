@@ -142,6 +142,12 @@ fn l_exemple_est_valide_et_calculable() {
     let t = rec.theta_entrant_moyen_c.unwrap();
     assert!((14.0..37.0).contains(&t), "{t}");
     assert!(gaz_ecs(&r) < gaz_ecs(&base));
+    println!(
+        "exemple : gaz ECS {:.1} kWh (sans {:.1}), Qw {:.1} kWh",
+        gaz_ecs(&r),
+        gaz_ecs(&base),
+        e.q_w_kwh
+    );
 }
 
 /// Efficacité nulle : l'eau froide n'est pas préchauffée (éq. 2218 : `θep = θef`), toutes les
@@ -163,39 +169,72 @@ fn efficacite_nulle_sans_effet() {
     }
 }
 
-/// À la lettre du texte, la position 1 ne change que `θentrant` : la chaleur de l'eau froide
-/// préchauffée est reprise au ballon par le même volume prélevé, sans gain pour la génération
-/// (Q108 point 6). La variante qui déduit la chaleur récupérée de la demande la chiffre.
+/// Lecture Q108 point 6 : en position 1, l'eau froide préchauffée du ballon (`θentrant = θep`)
+/// réduit la demande de la génération ; la variante `Texte` (la seule `θentrant` change, `Qw`
+/// reste calculée à partir de `θcw`, éq. 1794) n'a aucun effet.
 #[test]
-fn position_1_sans_effet_a_la_lettre() {
+fn position_1_reduit_la_consommation_et_sans_effet_selon_la_variante_texte() {
     let p = avec(recuperateur(PositionRecuperateur::AmontBallon, 0.5));
     let base = gaz_ecs_selon(&sans_recuperateur(), Lectures::default());
-    let texte = gaz_ecs_selon(&p, Lectures::default());
-    // Écart résiduel de l'ordre de 2e-6 (pertes du ballon, températures de zones).
-    assert!((texte - base).abs() < 1e-5 * base, "{texte} {base}");
-    let deduit = gaz_ecs_selon(
+    let deduit = gaz_ecs_selon(&p, Lectures::default());
+    let texte = gaz_ecs_selon(
         &p,
         Lectures {
-            preechauffage_ecs: LecturePreechauffageEcs::Deduit,
+            preechauffage_ecs: LecturePreechauffageEcs::Texte,
             ..Lectures::default()
         },
     );
+    // Sans récupérateur, aucune des deux lectures ne change le résultat.
+    let base_texte = gaz_ecs_selon(
+        &sans_recuperateur(),
+        Lectures {
+            preechauffage_ecs: LecturePreechauffageEcs::Texte,
+            ..Lectures::default()
+        },
+    );
+    assert_eq!(base, base_texte);
+    // Variante `Texte` : écart résiduel de l'ordre de 2e-6 (pertes du ballon).
+    assert!((texte - base).abs() < 1e-5 * base, "{texte} {base}");
     assert!(deduit < 0.97 * base, "{deduit} {base}");
-    println!("position 1 : texte {texte:.0} Wh, variante {deduit:.0} Wh, sans {base:.0} Wh");
+    println!("position 1 : déduit {deduit:.0} Wh, texte {texte:.0} Wh, sans {base:.0} Wh");
 }
 
+/// Ordre des consommations de gaz de l'ECS : position 0 < position 1 < position 2 < sans
+/// récupérateur (ε = 0,5), avec la lecture retenue.
 #[test]
-fn les_positions_0_et_2_reduisent_la_consommation() {
-    let base = gaz_ecs(&calcul(&sans_recuperateur()));
-    let p0 = gaz_ecs(&calcul(&avec(recuperateur(
-        PositionRecuperateur::AmontMitigeursEtBallon,
-        0.5,
-    ))));
-    let p2 = gaz_ecs(&calcul(&avec(recuperateur(
-        PositionRecuperateur::AmontMitigeurs,
-        0.5,
-    ))));
-    assert!(p0 < p2 && p2 < base, "{p0} {p2} {base}");
+fn les_positions_0_1_et_2_reduisent_la_consommation() {
+    let base = gaz_ecs_selon(&sans_recuperateur(), Lectures::default());
+    let g = |pos| gaz_ecs_selon(&avec(recuperateur(pos, 0.5)), Lectures::default());
+    let p0 = g(PositionRecuperateur::AmontMitigeursEtBallon);
+    let p1 = g(PositionRecuperateur::AmontBallon);
+    let p2 = g(PositionRecuperateur::AmontMitigeurs);
+    println!("gaz ECS (Wh) : base {base:.0}, p0 {p0:.0}, p1 {p1:.0}, p2 {p2:.0}");
+    assert!(p0 < p1 && p1 < base, "{p0} {p1} {base}");
+    assert!(p2 < base, "{p2} {base}");
+    // Position 2 : θentrant = θef, aucune déduction ; l'effet vient de `Qw` seul, donc le
+    // résultat ne dépend pas de la lecture du préchauffage.
+    let p2_texte = gaz_ecs_selon(
+        &avec(recuperateur(PositionRecuperateur::AmontMitigeurs, 0.5)),
+        Lectures {
+            preechauffage_ecs: LecturePreechauffageEcs::Texte,
+            ..Lectures::default()
+        },
+    );
+    assert_eq!(p2, p2_texte);
+    let p0_texte = gaz_ecs_selon(
+        &avec(recuperateur(
+            PositionRecuperateur::AmontMitigeursEtBallon,
+            0.5,
+        )),
+        Lectures {
+            preechauffage_ecs: LecturePreechauffageEcs::Texte,
+            ..Lectures::default()
+        },
+    );
+    println!("variante Texte : p0 {p0_texte:.0} Wh, p2 {p2_texte:.0} Wh");
+    // En position 0 la lecture `Texte` ne retire que la part de `Qw` ; la déduction retenue
+    // retire en plus la chaleur de préchauffage `ρc·Vec·(θep − θcw)`.
+    assert!(p0 < p0_texte);
 }
 
 /// Un récupérateur collectif relié à un seul émetteur, conduit intergroupe presque nul, donne la

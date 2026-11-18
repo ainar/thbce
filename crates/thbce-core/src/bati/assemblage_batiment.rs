@@ -91,9 +91,9 @@ pub struct SystemesBatiment {
     /// Récupération des pertes et consommations des systèmes par les groupes (fiche 11.1) ;
     /// vrai sauf pour mesurer son effet (lecture Q45).
     pub recuperation: bool,
-    /// Variante de la lecture Q108 (point 6) : la chaleur récupérée par le préchauffage de l'eau
-    /// froide du ballon (`θentrant > θcw`) est déduite de la demande de la génération. Faux :
-    /// lecture retenue, le texte ne modifie que `θentrant` (§9.21.3).
+    /// Lecture Q108 (point 6) : la chaleur récupérée par le préchauffage de l'eau froide du
+    /// ballon (`θentrant > θcw`) est déduite de la demande de la génération. Faux : variante
+    /// `Texte`, seule `θentrant` change (§9.21.3), sans effet en position 1.
     pub preechauffage_deduit: bool,
     /// Générations (§8.14 et §8.17), dans l'ordre de `generations`.
     pub generations_horaires: Vec<GenerationHoraire>,
@@ -935,8 +935,9 @@ impl SystemesBatiment {
                 let s = &self.sorties_ecs[k];
                 w_rechauf += s.w_rechauf_wh;
                 id_encl_gen = Some(id_encl_gen.unwrap_or(false) || s.id_encl);
-                // Variante Q108 : chaleur récupérée sur l'eau froide du ballon, `ρw·cw·Vec·(θentrant
-                // − θcw)` de chaque émetteur du réseau (éq. 2181, 2185, 2191).
+                // Lecture Q108 : chaleur récupérée sur l'eau froide du ballon, `ρw·cw·Vec·(θentrant
+                // − θcw)` de chaque émetteur du réseau, avec le `Vec` réduit de l'émetteur et son
+                // propre `θentrant` (nul en position 2, où `θentrant = θef = θcw`).
                 let deduit = if self.preechauffage_deduit && self.gen_avec_recuperateur[ig] {
                     groupes
                         .iter()
@@ -944,14 +945,15 @@ impl SystemesBatiment {
                         .flat_map(|sy| sy.ecs.iter())
                         .filter(|e| e.intergroupe == k)
                         .map(|e| {
-                            crate::ecs::besoins_ecs::RHO_W_KG_L
-                                * crate::ecs::besoins_ecs::C_W_WH_KG_K
-                                * e.sorties_recuperateur.v_ec_l
-                                * (Self::theta_entrant_selon(
+                            crate::ecs::recuperateur_eaux_grises::chaleur_preechauffage_wh(
+                                e.sorties_recuperateur.v_ec_l,
+                                Self::theta_entrant_selon(
                                     &self.collectifs_eaux_grises,
                                     &self.theta_ep_collectifs,
                                     e,
-                                ) - theta_cw_c)
+                                ),
+                                theta_cw_c,
+                            )
                         })
                         .sum::<f64>()
                 } else {

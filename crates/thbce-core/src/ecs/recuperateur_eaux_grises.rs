@@ -154,6 +154,16 @@ pub fn c_simultaneite(nb_relies: f64) -> f64 {
     }
 }
 
+/// Chaleur déjà contenue dans l'eau froide du ballon préchauffée (lecture Q108 point 6) :
+/// `ρw·cw·Vec·(θentrant − θcw)` (Wh), avec le volume d'eau chaude `Vec` réellement appelé au
+/// ballon (réduit en positions 0 et 2) et `θentrant` (éq. 2191 et 2192 : `θep` en positions 0 et
+/// 1, `θef = θcw` en position 2, donc chaleur nulle). Th-BCE 2020 §9.21.3, éq. (2190) à (2192) ;
+/// déduite de `Qw` (éq. 2186, 2181, 2189, calculées à partir de `θcw`) pour que la génération
+/// fournisse `ρw·cw·Vec·(θec − θentrant)`, ce que le ballon puise réellement (éq. 1794).
+pub fn chaleur_preechauffage_wh(v_ec_l: f64, theta_entrant_c: f64, theta_cw_c: f64) -> f64 {
+    RHO_W_KG_L * C_W_WH_KG_K * v_ec_l * (theta_entrant_c - theta_cw_c)
+}
+
 /// Configuration unitaire résolue.
 #[derive(Debug, Clone, PartialEq)]
 pub struct UniteResolue {
@@ -626,6 +636,37 @@ mod tests {
         proche(s.q_w_wh, 3380.9557420908914);
         // Éq. (2192) : aucun effet sur l'entrée du ballon.
         assert_eq!(s.theta_entrant_c, 10.0);
+    }
+
+    /// Absence de double comptage de la déduction (Q108 point 6), à la main sur l'heure des tests
+    /// précédents (100 L d'eau mitigée, θcw = 10 °C, θep = 13,233472 °C, ρc = 1,163 Wh/L/K).
+    /// Ce que le ballon puise réellement est `ρc·Vec·(55 − θentrant)`, et ce que l'usager
+    /// consomme est `ρc·100·(40 − θep)` en positions 0 et 1.
+    #[test]
+    fn deduction_sans_double_comptage() {
+        let rec = |p| RecuperateurResolu::nouveau(&saisie(p, 1, 2, 0), 0.8);
+        // Position 0 : Qw = 3 353,9447 Wh pour Vec = 64,086074 L (déjà réduit par le mitigeur).
+        // Déduction 1,163 × 64,086074 × 3,233472 = 240,9975 Wh, soit 3 112,9472 Wh de demande :
+        // 1,163 × 100 × (40 − 13,233472), l'énergie réellement nécessaire pour porter 100 L à
+        // 40 °C depuis θep.
+        let s = rec(PositionRecuperateur::AmontMitigeursEtBallon).pas(100.0, 10.0, 0.0);
+        let d = chaleur_preechauffage_wh(s.v_ec_l, s.theta_entrant_c, 10.0);
+        proche(d, 240.997471);
+        proche(s.q_w_wh - d, 3112.947206);
+        proche(s.q_w_wh - d, 1.163 * s.v_ec_l * (55.0 - s.theta_entrant_c));
+        // Position 1 : Vec = 66,6667 L inchangé, Qw = 3 489 Wh ; déduction 1,163 × 66,6667 ×
+        // 3,233472 = 250,7019 Wh ; demande 3 238,2981 Wh = 1,163 × 66,6667 × (55 − 13,233472).
+        let s = rec(PositionRecuperateur::AmontBallon).pas(100.0, 10.0, 0.0);
+        let d = chaleur_preechauffage_wh(s.v_ec_l, s.theta_entrant_c, 10.0);
+        proche(d, 250.701862);
+        proche(s.q_w_wh - d, 3238.298138);
+        // Position 2 : θentrant = θef = 10 °C, déduction nulle ; Qw (éq. 2189, Vec réduit)
+        // est déjà la chaleur à fournir.
+        let s = rec(PositionRecuperateur::AmontMitigeurs).pas(100.0, 10.0, 0.0);
+        assert_eq!(
+            chaleur_preechauffage_wh(s.v_ec_l, s.theta_entrant_c, 10.0),
+            0.0
+        );
     }
 
     #[test]

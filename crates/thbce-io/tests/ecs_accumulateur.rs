@@ -274,6 +274,20 @@ fn puisage_litteral_sans_vef() {
             "échangeur {kw} kW : retenu ECS {e1:.0} Wh, ballon {f1:.0} Wh, circ {c1:.0} Wh ; littéral {e2:.0} Wh, {f2:.0} Wh, {c2:.0} Wh"
         );
         assert!(c2 <= c1 + 1e-9);
+        if kw == 20.0 {
+            // Chiffres de Q106 point 3 (en kWh), à ±0,5 %.
+            let proche = |wh: f64, kwh: f64| {
+                assert!(
+                    (wh / 1000.0 - kwh).abs() < 0.005 * kwh,
+                    "{} kWh != {kwh}",
+                    wh / 1000.0
+                );
+            };
+            proche(f1, 12_541.0);
+            proche(f2, 9_887.0);
+            proche(c1, 143.8);
+            proche(c2, 19.3);
+        }
     }
     // Sans puisage ni circulateur hors des heures de puisage, le circulateur ne consomme pas
     // davantage et l'énergie fournie par le ballon n'est pas supérieure.
