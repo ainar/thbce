@@ -32,7 +32,7 @@ Projet { $schema?, version_format?, nom, localisation, catalogue }
                       émetteurs d'ECS, locaux d'éclairage (hors habitation)
 ```
 
-Usages calculés : maison individuelle ou accolée (`maison_individuelle`), logement collectif (`logement_collectif`) et bureaux (`bureaux`, lot 0a) ; les 25 autres usages du tableau 4 sont reconnus et refusés. Ce qui diffère hors habitation est décrit plus bas (« Usages non résidentiels »).
+Usages calculés : maison individuelle ou accolée (`maison_individuelle`), logement collectif (`logement_collectif`), bureaux (`bureaux`, lot 0a), enseignement et petite enfance (lot 0c1), hôtels et santé (lot 0c2), restaurants et restaurants scolaires (usages 13 à 16, 26 et 27, lot 0c3) ; les 7 autres usages du tableau 4 (17, 18, 22 à 25 et 28) sont reconnus et refusés. Ce qui diffère hors habitation est décrit plus bas (« Usages non résidentiels »).
 
 ## Enveloppe
 

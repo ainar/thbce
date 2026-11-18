@@ -323,16 +323,16 @@ fn ce_que_la_version_ne_prend_pas_en_charge() {
         false,
     );
     assert!(GestionResolue::nouvelle(&venitien, 1).is_none());
-    // Familles dont les matrices ne sont pas transcrites : restauration (13), autres (17). Les
-    // familles « bureau » (usage 3), « enseignement » (usage 4, lot 0c1) et « hôpitaux nuit »
-    // (usage 20, lot 0c2) le sont.
+    // Famille dont les matrices ne sont pas transcrites : autres usages (17). Les familles
+    // « bureau » (usage 3), « enseignement » (usage 4, lot 0c1), « hôpitaux nuit » (usage 20,
+    // lot 0c2) et « restauration » (usages 13 et 26, lot 0c3) le sont.
     let volet = pm(TypePm::Volet, GestionPm::ManuelleMotorisee, true, false);
-    for usage in [13, 17] {
+    for usage in [17, 22] {
         assert!(GestionResolue::nouvelle(&volet, usage).is_none(), "{usage}");
     }
-    assert!(GestionResolue::nouvelle(&volet, 3).is_some());
-    assert!(GestionResolue::nouvelle(&volet, 4).is_some());
-    assert!(GestionResolue::nouvelle(&volet, 20).is_some());
+    for usage in [3, 4, 13, 16, 20, 26, 27] {
+        assert!(GestionResolue::nouvelle(&volet, usage).is_some(), "{usage}");
+    }
 }
 
 #[test]
