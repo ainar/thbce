@@ -296,6 +296,37 @@ pub fn calculer(
                 bat.id
             ));
         }
+        let ic_energie_kgco2_m2 = indicateurs.as_ref().and_then(|i| i.ic_energie_kgco2_m2);
+        let mut indicateurs = indicateurs;
+        let acv = bat.acv.as_ref().map(|d| {
+            let usages: Vec<(u8, f64)> = bat
+                .zones
+                .iter()
+                .zip(&zones)
+                .map(|(z, r)| (z.usage.numero(), r.sref_m2))
+                .collect();
+            crate::acv::calculer_acv(&crate::acv::EntreesAcv {
+                donnees: d,
+                sref_m2,
+                zones: &usages,
+                ic_energie_kgco2_m2,
+                tac_pv_pct: indicateurs
+                    .as_ref()
+                    .and_then(|i| i.production_pv.as_ref())
+                    .map(|p| p.tac_pct),
+            })
+        });
+        let acv = acv.map(|mut a| {
+            crate::acv::verifier_exigence(
+                &mut a,
+                bat,
+                &zones,
+                zone,
+                loc.alt_m,
+                indicateurs.as_mut().and_then(|i| i.exigences.as_mut()),
+            );
+            a
+        });
         batiments.push(ResultatsBatiment {
             id: bat.id.clone(),
             sref_m2,
@@ -304,7 +335,7 @@ pub fn calculer(
             cep_kwhep_m2: indicateurs.as_ref().map(|i| i.cep_kwhep_m2),
             cep_nr_kwhep_m2: indicateurs.as_ref().map(|i| i.cep_nr_kwhep_m2),
             dh_c_h: dh_le_plus_defavorable(zones.iter().filter_map(|z| z.dh_c_h)),
-            ic_energie_kgco2_m2: indicateurs.as_ref().and_then(|i| i.ic_energie_kgco2_m2),
+            ic_energie_kgco2_m2,
             c_aux_vent_kwh: (!c_aux_vent.is_empty()).then(|| c_aux_vent.iter().sum()),
             zones,
             distributions_intergroupes: resultats_intergroupes(&th_c),
@@ -314,6 +345,7 @@ pub fn calculer(
             production_pv: (!productions.is_empty())
                 .then(|| ResultatsProductionPv::depuis(&productions)),
             indicateurs,
+            acv,
             consommations_collectif: conso_collectif,
             ascenseurs,
             parkings,

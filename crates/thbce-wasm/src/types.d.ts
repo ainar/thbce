@@ -113,6 +113,9 @@ export interface Ascenseur {
   zones_desservies: string[];
 }
 
+/** Assainissement des eaux usées du bâtiment (§4.4.1.1.3). */
+export type Assainissement = "collectif" | "non_collectif";
+
 /** Th-BCE 2020 §5.6.3.2.1, figure 21 — comportement autoréglable d'une entrée d'air. */
 export interface AutoreglageEntreesAir {
   /** « ΔP1 » : pression du premier changement de comportement, en Pa. */
@@ -221,6 +224,11 @@ export interface BallonSaisi {
 
 /** Niveau « bâtiment » (Th-BCE 2020 §5.1) : niveau où s'expriment Bbio, Cep et Cep,nr. */
 export interface Batiment {
+  /**
+   * Analyse du cycle de vie (annexe II de l'arrêté du 4 août 2021, chapitre 4) :
+   * Icconstruction, Icbâtiment, StockC. Facultative.
+   */
+  acv?: DonneesAcv | null;
   /**
    * Ascenseurs du bâtiment (§10.1), une entrée par cabine ; logement collectif seulement.
    * L'éclairage conventionnel des parties communes (§7.2) ne demande aucune saisie : il
@@ -517,6 +525,49 @@ export type CategorieContraintes = "categorie_1" | "categorie_2" | "categorie_3"
 /** Catégorie d'une infrastructure de transports terrestres (arrêté du 30 mai 1996). */
 export type CategorieInfrastructure = "categorie_1" | "categorie_2" | "categorie_3" | "categorie_4" | "categorie_5";
 
+/** Chantier de construction (§4.5). */
+export type ChantierAcv = {
+  /** Composants spécifiques au chantier (§4.5.1.1.4). */
+  composants?: ComposantAcv[];
+  /** « Qchantier,eau potable » : eau potable consommée, en m³ (éq. 94). */
+  eau_potable_m3: number;
+  /** « Qchantier,eaux usées » : eaux usées rejetées, en m³ (éq. 94). */
+  eaux_usees_m3: number;
+  /** Énergies consommées (éq. 93). */
+  energies?: EnergieChantier[];
+  methode: "detaille";
+  /** Terres évacuées (éq. 95). */
+  terres_evacuees?: TerresEvacuees[];
+  /** Terres importées (éq. 95). */
+  terres_importees?: TerresImportees[];
+} | {
+  methode: "simplifie_maison";
+  /** « Semprise au sol » : emprise au sol du bâtiment, en m². */
+  s_emprise_sol_m2: number;
+  /** Surface de la parcelle, en m² (éq. 100 et 101). */
+  s_parcelle_m2: number;
+  /** Terres importées (distance par défaut 30 km, §4.5.2). */
+  terres_importees?: TerresImportees[];
+} | {
+  /** « ε1 » : carburant par m³ excavé, en L/m³ ; 1 par défaut. */
+  epsilon1_l_m3?: number | null;
+  methode: "simplifie_autres";
+  /** « nété,grue » : mois d'été (avril à septembre) de chantier avec grue. */
+  n_ete_grue: number;
+  /** « nété,sans grue ». */
+  n_ete_sans_grue: number;
+  /** « nhiver,grue » : mois d'hiver (octobre à mars) avec grue. */
+  n_hiver_grue: number;
+  /** « nhiver,sans grue ». */
+  n_hiver_sans_grue: number;
+  /** Terres évacuées (éq. 95, données réelles). */
+  terres_evacuees?: TerresEvacuees[];
+  /** Terres importées (distance par défaut 30 km, §4.5.2). */
+  terres_importees?: TerresImportees[];
+  /** « Qterres excavées » : volume de terres excavées, en m³ (éq. 103). */
+  v_terres_excavees_m3: number;
+};
+
 /**
  * Th-BCE 2020 §8.19.2, tableau 114 — chaudière au gaz, au fioul ou au bois. La position de la
  * génération (`position`) fixe « idpos_gen ».
@@ -648,6 +699,35 @@ export type CombinaisonLimites = "l_une_ou_l_autre" | "l_une_et_l_autre";
 /** « TypeCombustibleBois » (§8.19.2). */
 export type CombustibleBoisSaisi = "buches" | "granules" | "plaquettes";
 
+/**
+ * Composant (produit de construction ou équipement) associé à une donnée environnementale
+ * (§4.2.1.1).
+ */
+export interface ComposantAcv {
+  /** Désignation libre. */
+  designation?: string | null;
+  /** Donnée environnementale associée. */
+  donnee: DonneeEnvironnementale;
+  /**
+   * « DVEp » : durée de vie estimée, en années ; par défaut la durée de vie de référence
+   * de la donnée (§4.2.1.1.1). Elle ne peut qu'être inférieure à la DVR.
+   */
+  dve_ans?: number | null;
+  /** Fluide frigorigène contenu dans l'équipement (§4.2.1.1.6 et §4.2.1.2.2). */
+  fluide?: FluideFrigorigene | null;
+  /** Identifiant du composant. */
+  id: string;
+  /** « Qp » : quantité mise en œuvre, en multiple de l'unité fonctionnelle de la donnée. */
+  quantite: number;
+  /**
+   * Sous-lot du tableau 5 (`1.1` à `11.3`), ou lot `12` ou `13` (sans sous-lot). Pour un
+   * composant de la parcelle : désignation du tableau 6 (texte libre).
+   */
+  sous_lot: string;
+  /** Unité fonctionnelle (texte libre, pour la traçabilité). */
+  unite?: string | null;
+}
+
 /** « CT » : degré de confinement thermique de la face arrière des modules (§12.3.3.2). */
 export type ConfinementPv = "libre" | "autre" | "confine";
 
@@ -712,6 +792,14 @@ export interface ConsommationsPostes {
   ecs: ConsommationsParEnergie;
   /** 2 : refroidissement. */
   refroidissement: ConsommationsParEnergie;
+}
+
+/** Contribution aux impacts : méthode statique et méthode dynamique. */
+export interface ContributionAcv {
+  /** Méthode statique (PRG à 100 ans). */
+  i_statique: PhasesAcv;
+  /** Méthode dynamique (pondération de l'article 11 de l'arrêté). */
+  ic: PhasesAcv;
 }
 
 /** « Idcycle » (§9.22.3.2.3, tableau 305). */
@@ -810,6 +898,119 @@ export interface DistributionIntergroupes {
   reseau: ReseauIntergroupes;
 }
 
+/**
+ * Donnée environnementale d'un composant, réduite à l'indicateur de changement climatique,
+ * par unité fonctionnelle et par phase du cycle de vie (§4.2.1.1.2, éq. 7 et 8). Valeurs
+ * saisies telles que publiées (aucune donnée INIES n'est fournie par le moteur).
+ */
+export interface DonneeEnvironnementale {
+  /** Module A1 seul, s'il est dissocié (StockC, §5.3.2.1, cas 2b). */
+  a1_kgco2?: number | null;
+  /**
+   * Module B1 seul, si le module B est détaillé (cas 2 des fluides frigorigènes,
+   * §4.2.1.2.2, éq. 54 à 60).
+   */
+  b1_kgco2?: number | null;
+  /** « DVR » : durée de vie de référence, en années. */
+  dvr_ans: number;
+  /** « DE Edification » : modules A4 et A5. */
+  edification_kgco2: number;
+  /**
+   * « DE Exploitation » : modules B1 à B4 (B1 à B7 non séparés : 0, voir
+   * `exploitation_non_separee`).
+   */
+  exploitation_kgco2: number;
+  /**
+   * Modules B1 à B4 non séparables de B6 et B7 : la phase d'exploitation du composant est
+   * exclue (`DE Exploitation = 0`, §4.2.1.1.2) ; un fluide frigorigène est alors compté par
+   * le calcul propre aux fluides (cas 1).
+   */
+  exploitation_non_separee?: boolean;
+  /** « DE Fin de vie » : modules C1 à C4. */
+  fin_de_vie_kgco2: number;
+  /** Identifiant de la donnée dans sa base (numéro INIES, référence du configurateur…). */
+  identifiant: string;
+  /** « DE Module D ». */
+  module_d_kgco2: number;
+  /** « DE Production » : modules A1 à A3, en kg éq. CO2 par unité fonctionnelle. */
+  production_kgco2: number;
+  /** Source de la donnée (base, configurateur, date de consultation). */
+  source: string;
+  /**
+   * « StockCp » : carbone biogénique stocké, en kg C par unité fonctionnelle, s'il est
+   * renseigné dans la donnée (§5.3.2.1, cas 1).
+   */
+  stock_c_kgc?: number | null;
+  /** Type de donnée. */
+  type: TypeDonneeEnvironnementale;
+}
+
+/**
+ * Données de l'ACV d'un bâtiment (annexe II, chapitre 4). La période d'étude de référence est
+ * de 50 ans (annexe II §1.1).
+ */
+export interface DonneesAcv {
+  /** Chantier de construction (§4.5). */
+  chantier: ChantierAcv;
+  /**
+   * Composants du bâtiment (contribution « composants », §4.2.1), décrits par lot et
+   * sous-lot (tableau 5).
+   */
+  composants?: ComposantAcv[];
+  /**
+   * Données environnementales de service (impact sur le changement climatique, en kg éq.
+   * CO2 par unité), saisies par l'utilisateur avec leur source ; seules celles qu'un calcul
+   * demande sont obligatoires.
+   */
+  donnees_service: DonneesService;
+  /** Consommations et rejets d'eau du bâtiment (§4.4, calcul simplifié §4.4.2). */
+  eau: EauAcv;
+  /**
+   * Données propres à l'exigence `Icconstruction_max` (annexe de l'article R. 172-4,
+   * chapitre III, III) ; les autres (année de dépôt, combles, HSP, réseau de chaleur) sont
+   * celles de `exigences`.
+   */
+  exigences?: ParametresExigencesAcv;
+  /**
+   * Fluides frigorigènes des équipements des lots traités forfaitairement (§4.2.2.2.2,
+   * cas 3).
+   */
+  fluides_lots_forfaitaires?: FluideLotForfaitaire[];
+  /**
+   * Lots ou sous-lots pris en compte par leur valeur forfaitaire (§4.2.2, valeurs de
+   * l'annexe XI selon l'usage de chaque zone) : `8.1`, `8.3`, `8.4`, `8.5`, `10` ou `11`,
+   * selon l'usage. Un lot forfaitaire ne peut pas avoir de composant décrit.
+   */
+  lots_forfaitaires?: string[];
+  /** Nombre d'occupants « Nocc » (§5.2.3). */
+  occupants: OccupantsAcv;
+  /**
+   * Parcelle (§4.6) ; absente si la parcelle n'a ni composant, ni comblement, ni usage
+   * d'eau.
+   */
+  parcelle?: ParcelleAcv | null;
+}
+
+/** Données environnementales de service, en kg éq. CO2 par unité ; chacune avec sa source. */
+export interface DonneesService {
+  /** « DEassainissementAC », par m³. */
+  assainissement_collectif_kgco2_m3?: number | null;
+  /** « DEassainissementANC », par m³. */
+  assainissement_non_collectif_kgco2_m3?: number | null;
+  /** « DEcarbu » : production et combustion d'un litre de carburant (éq. 103 et 106). */
+  carburant_kgco2_l?: number | null;
+  /** « DEeau potable », par m³. */
+  eau_potable_kgco2_m3?: number | null;
+  /** Électricité du chantier, par kWh (chantier simplifié, éq. 102). */
+  electricite_chantier_kgco2_kwh?: number | null;
+  /** Source des données de service. */
+  source: string;
+  /** « DEtrait » des déchets inertes, par t (chantier simplifié d'une maison). */
+  traitement_inertes_kgco2_t?: number | null;
+  /** « DETrans » : transport de terres par camion, par t.km. */
+  transport_terres_kgco2_tkm?: number | null;
+}
+
 /** Th-BCE 2020 §6.3.2, tableau 61 — groupe de ventilation double flux en habitation. */
 export interface DoubleFlux {
   /** Échangeur statique. Absent : pas d'échangeur (`type_échangeur = 0`, éq. 496). */
@@ -845,6 +1046,37 @@ export interface DoubleFlux {
    * version.
    */
   surventilation_mecanique?: boolean | null;
+}
+
+/**
+ * Consommations et rejets d'eau du bâtiment (§4.4, calcul simplifié §4.4.2 : consommation
+ * conventionnelle du tableau 7, sans facteur d'équipement ni eau de pluie).
+ */
+export interface EauAcv {
+  /** Assainissement des eaux usées. */
+  assainissement: Assainissement;
+  /** Gestion des eaux pluviales. */
+  eaux_pluviales: GestionEauxPluviales;
+  /**
+   * « Qpluviométrie » : pluviométrie moyenne annuelle du site, en mm/an (réseau unitaire,
+   * éq. 85 ; parcelle, éq. 112).
+   */
+  pluviometrie_mm?: number | null;
+  /**
+   * « Qeau potable » du bâtiment saisie, en m³/an (usages internes et classiques, hors
+   * arrosage de la parcelle) : obligatoire quand le tableau 7 de l'annexe II donne « N/C »
+   * pour une zone ou que les zones ont des consommations conventionnelles différentes, et
+   * alors employée à la place de `Qeau potable conv × Nocc` (éq. 91) ; ignorée sinon
+   * (`docs/questions/Q218.md`).
+   */
+  q_eau_potable_saisie_m3?: number | null;
+  /** « Sparkings imperméabilisés non couverts », en m² (réseau unitaire, éq. 85). */
+  s_parkings_impermeabilises_m2?: number | null;
+  /**
+   * « Stoitures » : toitures et couvertures (bâtiment, aires de stationnement couvertes), en
+   * m² (réseau unitaire, éq. 85).
+   */
+  s_toitures_m2?: number | null;
 }
 
 /** Th-BCE 2020 §6.3.2, tableau 61, et §6.3.3.4.6 — échangeur d'un double flux. */
@@ -1103,6 +1335,18 @@ export interface EmissionFroid {
   variation_temporelle: VariationTemporelle;
 }
 
+/** Énergie consommée sur le chantier (éq. 93). */
+export interface EnergieChantier {
+  /** « DEénergie,i » : donnée de service, en kg éq. CO2 par unité. */
+  de_kgco2_unite: number;
+  /** Désignation de l'énergie. */
+  designation: string;
+  /** « Qénergie,i » : quantité consommée (kWh ou L). */
+  quantite: number;
+  /** Source de la donnée de service. */
+  source: string;
+}
+
 /**
  * Ensemble de ballons individuels strictement identiques d'une production collective
  * (« {B} », fiches 9.16 et 9.17).
@@ -1232,6 +1476,59 @@ export interface ExigencesGroupeSaisie {
   categorie_contraintes_exterieures: CategorieContraintes;
   /** Identifiant du groupe dans la zone. */
   groupe: string;
+}
+
+/** Exigence `Icconstruction_max` du bâtiment et sa vérification. */
+export interface ExigencesIcConstruction {
+  /**
+   * « Icconstruction_max » du bâtiment : moyenne des zones pondérée par leur `Sref`
+   * (chapitre II, V).
+   */
+  ic_construction_max_kgco2_m2: number;
+  /** Vrai si `Icconstruction ≤ Icconstruction_max`. */
+  respectee: boolean;
+  /** Exigences de chaque zone. */
+  zones: ExigencesIcConstructionZone[];
+}
+
+/**
+ * Exigence `Icconstruction_max` d'une zone et ses coefficients de modulation (annexe de
+ * l'article R. 172-4, chapitre III, III), en kg éq. CO2/m² sauf les coefficients sans unité
+ * `mi_combles`, `mi_surf_moy`, `mi_surf_tot`.
+ */
+export interface ExigencesIcConstructionZone {
+  /** « Icconstruction_max » de la zone. */
+  ic_construction_max_kgco2_m2: number;
+  /** « Icconstruction_maxmoyen ». */
+  ic_construction_max_moyen: number;
+  /** « Miagrément_ext ». */
+  mi_agrement_ext: number;
+  /** « Miclim_RCU ». */
+  mi_clim_rcu: number;
+  /** « Micombles ». */
+  mi_combles: number;
+  /** « Mided ». */
+  mi_ded: number;
+  /** « Migéo ». */
+  mi_geo: number;
+  /** « MiHSP ». */
+  mi_hsp: number;
+  /** « Miinfra ». */
+  mi_infra: number;
+  /** « Mipv ». */
+  mi_pv: number;
+  /** « Misurf_moy ». */
+  mi_surf_moy: number;
+  /** « Misurf_tot ». */
+  mi_surf_tot: number;
+  /** « Mivrd ». */
+  mi_vrd: number;
+  /** `Sref` de la zone, en m². */
+  sref_m2: number;
+  /** Numéro d'usage. */
+  usage: number;
+  /** Zone. */
+  zone: string;
 }
 
 /** Exigences d'une zone (partie de bâtiment d'un usage), annexe de l'article R. 172-4. */
@@ -1416,6 +1713,43 @@ export interface FacteursBaie {
  */
 export type FamilleUsage = "maison_individuelle" | "collectif_bureaux_enseignement" | "tertiaire_specifique_ou_industriel";
 
+/**
+ * Fluide frigorigène d'un composant (§4.2.1.1.6, §4.2.1.2.2). Cas 1 si la donnée n'a pas de
+ * module B1 séparé (`b1_kgco2` absent), cas 2 sinon.
+ */
+export interface FluideFrigorigene {
+  /**
+   * « Chi » : charge initiale par unité fonctionnelle, en kg (charge supplémentaire de
+   * mise en œuvre comprise).
+   */
+  charge_kg: number;
+  /**
+   * « DEi » : donnée environnementale conventionnelle du fluide (impacts directs et de
+   * production), en kg éq. CO2/kg, pour le calcul statique (éq. 26, cas 1).
+   */
+  de_kgco2_kg?: number | null;
+  /** Désignation du fluide (R32, R410A…). */
+  nom: string;
+  /** « PRGi » : potentiel de réchauffement global à 100 ans, en kg éq. CO2/kg. */
+  prg_kgco2_kg: number;
+}
+
+/** Fluide frigorigène d'un équipement d'un lot traité forfaitairement (§4.2.2.2.2, cas 3). */
+export interface FluideLotForfaitaire {
+  /** « Chi » : charge totale de l'équipement, en kg. */
+  charge_kg: number;
+  /** « DEi » : donnée conventionnelle du fluide, en kg éq. CO2/kg (calcul statique, éq. 26). */
+  de_kgco2_kg: number;
+  /** « DVEp » de l'équipement, en années ; 17 ans par défaut (§4.2.2.2.2). */
+  dve_ans?: number | null;
+  /** Désignation du fluide. */
+  nom: string;
+  /** « PRGi », en kg éq. CO2/kg. */
+  prg_kgco2_kg: number;
+  /** Lot ou sous-lot forfaitaire de l'équipement (`8.1`…). */
+  sous_lot: string;
+}
+
 /** Fonction d'une chaudière ou d'un réseau de chaleur (« idfougen » 1, 3 ou 4). */
 export type FonctionChaleur = "chauffage" | "ecs" | "chauffage_ecs";
 
@@ -1590,6 +1924,9 @@ export interface Generation {
  * local.
  */
 export type GestEcl = "permanent" | "interrupteur_manuel" | "interrupteur_et_horloge" | "marche_et_arret_automatiques" | "marche_manuelle_arret_automatique";
+
+/** Gestion des eaux pluviales (§4.4.1.1.4). */
+export type GestionEauxPluviales = "infiltration" | "separatif" | "unitaire";
 
 /** « Type-GPM » (§5.9.2) : gestion d'un volet ou d'un store enroulable. */
 export type GestionPm = "automatique_avec_derogation" | "manuelle_non_motorisee" | "manuelle_motorisee";
@@ -1927,6 +2264,14 @@ export interface Localisation {
   zone_climatique?: ZoneClimatique | null;
 }
 
+/** Logements d'un type `Ti`. */
+export interface LogementsType {
+  /** « ni » : nombre de logements de ce type. */
+  nombre: number;
+  /** « i » : nombre de pièces principales (T1 = 1…). */
+  type_t: number;
+}
+
 /**
  * Th-BCE 2020 §3.2 — masques solaires (identifiants du texte : `E_AZ`, `E_Az_cad`, `E_LV`,
  * `vd`, `vg`, `h`).
@@ -2072,6 +2417,13 @@ export type NatureGenerateur = {
 
 /** Nature des travaux pour le choix du régime d'exigences (fiche 4.4 ; FA03 v2). */
 export type NatureTravaux = "construction" | "extension" | "surelevation";
+
+/** Nombre d'occupants « Nocc » (§5.2.3, éq. 131). */
+export type OccupantsAcv = {
+  logements: LogementsType[];
+} | {
+  nombre: number;
+};
 
 /** Th-BCE 2020 §12.4.2 — onduleur. */
 export interface OnduleurPv {
@@ -2234,6 +2586,39 @@ export interface ParametresExigences {
    * du bâtiment.
    */
   zones?: ExigencesZoneSaisie[];
+}
+
+/**
+ * Données de la modulation de `Icconstruction_max` propres à l'ACV (version post-Rivaton,
+ * permis déposés à partir du 1er juillet 2026).
+ */
+export interface ParametresExigencesAcv {
+  /** Présence d'un système de climatisation (`Miclim_RCU`, avec un réseau de chaleur classé). */
+  climatisation?: boolean;
+  /**
+   * Immeuble de grande hauteur au sens de l'article R. 146-3 du CCH (`Misurf_tot` et
+   * `Icconstruction_maxmoyen` propres).
+   */
+  immeuble_grande_hauteur?: boolean;
+  /**
+   * « Sagrément_ext » : surface d'espaces extérieurs (balcons, loggias, terrasses), en m²
+   * (`Miagrément_ext` des logements collectifs) ; 0 si absente.
+   */
+  s_agrement_ext_m2?: number;
+}
+
+/** Parcelle (§4.6, eau en calcul simplifié §4.6.2). */
+export interface ParcelleAcv {
+  /** Matériaux de comblement de cavités (éq. 106). */
+  comblements?: TerresImportees[];
+  /** Composants de la parcelle (tableau 6). */
+  composants?: ComposantAcv[];
+  /** « SSurfaces imperméabilisées hors parkings », en m² (éq. 112). */
+  s_impermeabilisees_m2?: number;
+  /** « Snettoyée » : surfaces extérieures nettoyées hors stationnement, en m² (éq. 109). */
+  s_nettoyee_m2?: number;
+  /** « Sparcelle végétalisée », en m² (éq. 108). */
+  s_vegetalisee_m2?: number;
 }
 
 /**
@@ -2456,6 +2841,25 @@ export type PertesBallon = {
 /** « idpertes_parois » (§8.19.3.5, tableau 121). */
 export type PertesParoisChaudiere = "sans_ventilateur" | "avec_ventilateur" | "avec_clapet";
 
+/**
+ * Impact sur le changement climatique par phase du cycle de vie du bâtiment, en kg éq.
+ * CO2/m² (annexe II §1.4.2, tableau 4).
+ */
+export interface PhasesAcv {
+  /** Édification (A4, A5). */
+  edification: number;
+  /** Exploitation (B1 à B7). */
+  exploitation: number;
+  /** Fin de vie (C1 à C4). */
+  fin_de_vie: number;
+  /** Bénéfices et charges au-delà du cycle de vie (module D). */
+  module_d: number;
+  /** Production (A1 à A3). */
+  production: number;
+  /** Somme des quatre phases et du module D (éq. 30 et 34). */
+  total: number;
+}
+
 /** Plage horaire en heures légales, de `debut` (inclus) à `fin` (exclue), de 0 à 24. */
 export interface PlageHoraire {
   /** Heure légale de début, de 0 à 24. */
@@ -2660,6 +3064,24 @@ export interface ProtectionsEspaceTampon {
 
 /** Puits climatique ou hydraulique (§6.8 à 6.11). */
 export type Puits = "climatique" | "hydraulique";
+
+/** Quantités d'eau annuelles du bâtiment (§4.4.2) et de la parcelle (§4.6.2), en m³/an. */
+export interface QuantitesEauAcv {
+  /** « Nocc » (§5.2.3). */
+  nocc: number;
+  /** « Qeau potable conv » du tableau 7, en m³/occupant/an. */
+  q_eau_potable_conv_m3: number;
+  /** « Qeau potable » (éq. 90). */
+  q_eau_potable_m3: number;
+  /** « Qeaux pluviales » (éq. 85) ; nul hors réseau unitaire. */
+  q_eaux_pluviales_m3: number;
+  /** « Qeaux usées » (éq. 92). */
+  q_eaux_usees_m3: number;
+  /** « Qparcelle,eau potable » (éq. 121). */
+  q_parcelle_eau_potable_m3: number;
+  /** « Qparcelle,eaux usées » (éq. 123). */
+  q_parcelle_eaux_usees_m3: number;
+}
 
 /** « idraccord_reseau » (§8.4.2). */
 export type RaccordementReseaux = "avec_isolement" | "permanent";
@@ -2978,6 +3400,76 @@ export interface Resultats {
   version_moteur: string;
 }
 
+/** Résultats de l'ACV d'un bâtiment (annexe II §5.3). */
+export interface ResultatsAcv {
+  /** Contribution « chantier » (éq. 97) : phase d'édification seule. */
+  chantier: ContributionAcv;
+  /** Contribution « composants » (éq. 27 à 30, fluides frigorigènes compris). */
+  composants: ContributionAcv;
+  /** Contribution « eau » (éq. 86 et 90) : phase d'exploitation seule. */
+  eau: ContributionAcv;
+  /** Quantités d'eau. */
+  eau_quantites: QuantitesEauAcv;
+  /** Exigence `Icconstruction_max` ; absente sans `exigences` du bâtiment. */
+  exigences?: ExigencesIcConstruction | null;
+  /**
+   * Part de la contribution « composants » due aux fluides frigorigènes (calcul propre aux
+   * fluides, §4.2.1.1.6, §4.2.1.2.2, §4.2.2.2.2).
+   */
+  fluides_frigorigenes: ContributionAcv;
+  /** « Icbâtiment » = Icconstruction + Icénergie + Iceau (éq. 134) ; absent sans Icénergie. */
+  ic_batiment_kgco2_m2?: number | null;
+  /** « Icbâtiment,occ » (éq. 135). */
+  ic_batiment_occ_kgco2?: number | null;
+  /** « Icchantier », en kg éq. CO2/m². */
+  ic_chantier_kgco2_m2: number;
+  /** « Iccomposants », en kg éq. CO2/m². */
+  ic_composants_kgco2_m2: number;
+  /** « Icconstruction » = Iccomposants + Icchantier (§5.3.1.1, éq. 132). */
+  ic_construction_kgco2_m2: number;
+  /** « Icconstruction,occ », en kg éq. CO2/occupant (éq. 133) ; absent si Nocc est nul. */
+  ic_construction_occ_kgco2?: number | null;
+  /**
+   * « Icded » de l'annexe de l'article R. 172-4 (chapitre I, IX) : données par défaut et
+   * valeurs forfaitaires, hors lots 1, 2 et 13 ; en kg éq. CO2/m².
+   */
+  ic_ded_kgco2_m2: number;
+  /** « Icded_total » (§5.3.4) : tous lots, en kg éq. CO2/m². */
+  ic_ded_total_kgco2_m2: number;
+  /** « Iceau », en kg éq. CO2/m². */
+  ic_eau_kgco2_m2: number;
+  /**
+   * « Icénergie », en kg éq. CO2/m² (repris des indicateurs, §4.3.2) ; absent sans
+   * génération.
+   */
+  ic_energie_kgco2_m2?: number | null;
+  /** « Icparcelle », en kg éq. CO2/m² (éq. 118 en dynamique) ; absent sans parcelle. */
+  ic_parcelle_kgco2_m2?: number | null;
+  /** « Icprojet » = Icbâtiment + Icparcelle (éq. 136). */
+  ic_projet_kgco2_m2?: number | null;
+  /** « Icprojet,occ » (éq. 137). */
+  ic_projet_occ_kgco2?: number | null;
+  /** Lots 1 à 13 (seuls ceux qui ont un composant ou une valeur forfaitaire). */
+  lots: ResultatsLotAcv[];
+  /** Contribution « parcelle » (éq. 118) ; absente sans parcelle. */
+  parcelle?: ContributionAcv | null;
+  /** « PER » : période d'étude de référence, en années. */
+  per_ans: number;
+  /** « StockCbâtiment », en kg C/m² (éq. 142). */
+  stock_c_kgc_m2: number;
+  /** « StockCparcelle », en kg C/m² (éq. 143) ; absent sans parcelle. */
+  stock_c_parcelle_kgc_m2?: number | null;
+  /** « TAC_PVbat elec » appliqué au lot 13 (éq. 22), en % ; absent sans lot 13. */
+  tac_pv_pct?: number | null;
+  /**
+   * « UDDbâtiment » = Icded_total / Iccomposants (éq. 146), en % ; absent si Iccomposants
+   * est nul.
+   */
+  udd_batiment_pct?: number | null;
+  /** Valeurs par défaut du texte appliquées (DVE = DVR, distances de 30 km, ε1…). */
+  valeurs_par_defaut?: ValeurParDefaut[];
+}
+
 /** Une cabine d'ascenseur (§10.1). */
 export interface ResultatsAscenseur {
   /** « Eti » : consommation annuelle en immobilité, en kWh (éq. 2303). */
@@ -3014,6 +3506,11 @@ export interface ResultatsBaie {
  * méthode n'est pas implémentée (voir `docs/couverture.md`).
  */
 export interface ResultatsBatiment {
+  /**
+   * Analyse du cycle de vie (annexe II §5.3) : Icconstruction, Icbâtiment, StockC ; absente
+   * sans données d'ACV.
+   */
+  acv?: ResultatsAcv | null;
   /** Ascenseurs, une entrée par cabine (§10.1) ; absent sans ascenseur. */
   ascenseurs?: ResultatsAscenseur[];
   /** Besoins mensuels et annuels et Bbio du bâtiment (§13.1, « Sortie_Batiment_B »). */
@@ -3386,12 +3883,18 @@ export interface ResultatsExigences {
   /** « Cep,nr_max » du bâtiment, en kWhep/(m².an). */
   cep_nr_max_kwhep_m2: number;
   /**
-   * Vrai si toutes les exigences vérifiées sont respectées. Seules les exigences sur Bbio,
-   * Cep, Cep,nr, Ic énergie et DH sont vérifiées : `Icconstruction`, les caractéristiques
-   * minimales et les autres articles de l'arrêté sont hors du moteur. Toujours faux si un
+   * Vrai si toutes les exigences vérifiées sont respectées. Les exigences sur Bbio, Cep,
+   * Cep,nr, Ic énergie et DH sont vérifiées, et celle sur `Icconstruction` si le bâtiment a
+   * des données d'ACV (`acv`) ; les caractéristiques minimales et les autres articles de
+   * l'arrêté sont hors du moteur. Toujours faux si un
    * indicateur exigé manque (`indicateurs_manquants`).
    */
   conforme: boolean;
+  /**
+   * « Icconstruction_max » du bâtiment, en kg éq. CO2/m² (détail dans `acv.exigences`) ;
+   * absent sans données d'ACV.
+   */
+  ic_construction_max_kgco2_m2?: number | null;
   /** « Icénergie_max » du bâtiment, en kg éq. CO2/m². */
   ic_energie_max_kgco2_m2: number;
   /** Indicateurs exigés qui n'ont pas pu être calculés ni donc vérifiés ; vide en général. */
@@ -3681,6 +4184,24 @@ export interface ResultatsIntergroupes {
   w_aux_kwh: number;
 }
 
+/** Contribution d'un lot. */
+export interface ResultatsLotAcv {
+  /** Contribution du lot (éq. 21 et 22). */
+  contribution: ContributionAcv;
+  /** « Icded,k » du lot, en kg éq. CO2/m². */
+  ic_ded_kgco2_m2: number;
+  /** « Iclot,k » : impact dynamique du lot, en kg éq. CO2/m² (`contribution.ic.total`). */
+  ic_kgco2_m2: number;
+  /** Numéro de lot (1 à 13). */
+  lot: number;
+  /** Sous-lots du lot. */
+  sous_lots: ResultatsSousLotAcv[];
+  /** « StockClot i », en kg C/m² (éq. 141). */
+  stock_c_kgc_m2: number;
+  /** « UDDk » (éq. 147), en % ; absent si l'impact du lot est nul. */
+  udd_pct?: number | null;
+}
+
 /** Un parking (§10.3 et §10.4). */
 export interface ResultatsParking {
   /** « Eec » : consommation annuelle de l'éclairage, en kWh (éq. 2354). */
@@ -3761,6 +4282,23 @@ export interface ResultatsSolaireCollectif {
   solaire: ResultatsBoucleSolaire;
   /** « Type_PCAD ». */
   type_pcad: TypePcad;
+}
+
+/** Contribution d'un sous-lot (ou d'un lot sans sous-lot) aux impacts des composants. */
+export interface ResultatsSousLotAcv {
+  /** Contribution (éq. 15, 21, 22, 63, 64), fluides frigorigènes compris. */
+  contribution: ContributionAcv;
+  /** Vrai si la valeur forfaitaire de l'annexe XI est utilisée (§4.2.2). */
+  forfaitaire: boolean;
+  /**
+   * Part de `ic.total` due aux données par défaut et aux valeurs forfaitaires (« Icded,k »,
+   * §5.3.4), en kg éq. CO2/m².
+   */
+  ic_ded_kgco2_m2: number;
+  /** Sous-lot (`3.1`…) ou lot sans sous-lot (`10`, `12`, `13`…). */
+  sous_lot: string;
+  /** « StockCsous lot k », en kg C/m² (éq. 140). */
+  stock_c_kgc_m2: number;
 }
 
 /** Contribution d'un système solaire combiné au chauffage, calcul Th-C. */
@@ -4095,6 +4633,26 @@ export type TechnologiePv = "mono_cristallin_si" | "multi_cristallin_si" | "cd_t
 /** « Sys_thermo_Fr » (§8.23.3.2, tableau 145). */
 export type TechnologieRefroidissementPac = "air_exterieur_eau" | "air_exterieur_air_recycle" | "air_extrait_air_neuf" | "eau_eau" | "eau_air" | "eau_de_nappe_air_recycle" | "eau_de_nappe_eau";
 
+/** Terres évacuées du chantier (éq. 95). */
+export interface TerresEvacuees {
+  /** « DEtrait,j » : donnée de service du traitement, en kg éq. CO2/t. */
+  de_traitement_kgco2_t: number;
+  /** « dj », en km. */
+  distance_km: number;
+  /** « Qterres évac,j », en tonnes. */
+  quantite_t: number;
+  /** Source de la donnée de traitement. */
+  source: string;
+}
+
+/** Terres importées sur le chantier (éq. 95). */
+export interface TerresImportees {
+  /** « di », en km ; 30 km par défaut en calcul simplifié, obligatoire en calcul détaillé. */
+  distance_km?: number | null;
+  /** « Qterres imp,i », en tonnes. */
+  quantite_t: number;
+}
+
 /**
  * Th-BCE 2020 §8.23.2, tableau 143 — générateur thermodynamique à compression électrique.
  *
@@ -4138,6 +4696,9 @@ export type TypeCapteurSolaire = "non_vitre" | "vitre" | "tubulaire";
 
 /** Déclinaison d'une chaudière (§8.19.3.1, tableau 115). */
 export type TypeChaudiereSaisi = "gaz_standard" | "gaz_basse_temperature" | "gaz_condensation" | "fioul_standard" | "fioul_condensation" | "bois";
+
+/** Type de donnée environnementale (§2.4.2, §2.5.2, §2.6). */
+export type TypeDonneeEnvironnementale = "fdes_individuelle" | "fdes_collective" | "pep_individuel" | "pep_collectif" | "donnee_configuree" | "donnee_par_defaut";
 
 /** Typologie d'émetteur de chaud (§8.1.3.1.3, tableau 85). */
 export type TypeEmetteurChaud = "soufflage_air_chaud" | "muraux_rayonnants" | "plancher_chauffant" | "mur_chauffant" | "plafond_chauffant";

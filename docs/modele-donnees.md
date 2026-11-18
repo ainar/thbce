@@ -316,3 +316,64 @@ indicateurs
 `energie` vaut `electricite`, `gaz_naturel`, `gpl`, `fioul`, `charbon`, `bois_buches`, `bois_granules`, `bois_plaquettes`, `bois` (combustible inconnu), `reseau_chaleur:<id>` ou `reseau_froid:<id>` (`autres` sans identifiant). La ligne de commande écrit une synthèse des indicateurs et de la conformité sur la sortie d'erreur (`thbce_io::rapport::synthese_indicateurs`).
 
 
+
+## Analyse du cycle de vie (lot ACV)
+
+Annexe II de l'arrêté du 4 août 2021, chapitre 4 et §5.3 ; exigence `Icconstruction_max` de l'annexe de l'article R. 172-4, chapitre III, III. Seul l'indicateur de changement climatique est calculé (méthodes statique et dynamique). **Aucune donnée environnementale n'est embarquée** : les valeurs d'impact (FDES, PEP, DED, données configurées) et les données de service sont saisies avec leur identifiant et leur source. Champ facultatif, **non incompatible**.
+
+### Format d'entrée
+
+```
+Batiment
+└── acv?  { composants?: [ComposantAcv],                       §4.2.1 ; sous_lot du tableau 5 (1.1 à 11.3, 12, 13)
+            lots_forfaitaires?: ["8.1" | "8.3" | "8.4" | "8.5" | "10" | "11"],   §4.2.2, valeurs de l'annexe XI selon l'usage
+            fluides_lots_forfaitaires?: [{ sous_lot, nom, charge_kg, prg_kgco2_kg, de_kgco2_kg, dve_ans? (17) }],  cas 3
+            chantier: { methode: detaille, energies?[{designation, quantite, de_kgco2_unite, source}],
+                                 eau_potable_m3, eaux_usees_m3, terres_importees?[{quantite_t, distance_km}],
+                                 terres_evacuees?[{quantite_t, distance_km, de_traitement_kgco2_t, source}],
+                                 composants?[ComposantAcv] }                         éq. 93 à 97
+                    | { methode: simplifie_maison, s_parcelle_m2, s_emprise_sol_m2, terres_importees? }   éq. 98 à 101
+                    | { methode: simplifie_autres, n_ete_grue, n_hiver_grue, n_ete_sans_grue, n_hiver_sans_grue,
+                                 v_terres_excavees_m3, epsilon1_l_m3? (1), terres_importees?, terres_evacuees? }  éq. 102 à 104
+            eau: { assainissement: collectif | non_collectif, eaux_pluviales: infiltration | separatif | unitaire,
+                   pluviometrie_mm?, s_toitures_m2?, s_parkings_impermeabilises_m2?,
+                   q_eau_potable_saisie_m3? (obligatoire si « N/C », Q218) }   §4.4.2 (calcul simplifié), éq. 85
+            parcelle?: { composants?, comblements?[{quantite_t, distance_km}], s_vegetalisee_m2, s_nettoyee_m2,
+                         s_impermeabilisees_m2 }                                    §4.6, eau en calcul simplifié
+            occupants: { logements: [{ type_t, nombre }] } | { nombre }            Nocc, éq. 131
+            exigences?: { s_agrement_ext_m2? (0), immeuble_grande_hauteur? (false), climatisation? (false) }
+            donnees_service: { eau_potable_kgco2_m3?, assainissement_collectif_kgco2_m3?,
+                               assainissement_non_collectif_kgco2_m3?, transport_terres_kgco2_tkm?,
+                               traitement_inertes_kgco2_t?, electricite_chantier_kgco2_kwh?, carburant_kgco2_l?, source } }
+ComposantAcv  { id, designation?, sous_lot, quantite, unite?, dve_ans? (DVR), fluide?: { nom, charge_kg, prg_kgco2_kg, de_kgco2_kg? },
+                donnee: { type: fdes_individuelle | fdes_collective | pep_individuel | pep_collectif | donnee_configuree
+                                | donnee_par_defaut, identifiant, source, dvr_ans,
+                          production_kgco2, edification_kgco2, exploitation_kgco2, fin_de_vie_kgco2, module_d_kgco2,
+                          exploitation_non_separee? (false), b1_kgco2?, a1_kgco2?, stock_c_kgc? } }
+```
+
+Valeurs par unité fonctionnelle, en kg éq. CO2 (phase = somme des modules : A1 à A3, A4 et A5, B1 à B4, C1 à C4, D). La validation exige les seules données de service qu'un calcul demande. Refusé : sous-lot 8.2 (cogénération). Pour un usage « N/C » du tableau 7 ou des zones de consommations différentes, `eau.q_eau_potable_saisie_m3` (m³/an) est obligatoire et remplace `Qeau potable conv × Nocc` (Q218). `ic_construction_occ_kgco2` et les deux autres valeurs par occupant sont absentes si Nocc est nul (Q217). Le lot 13 demande une installation photovoltaïque et des générations (taux d'autoconsommation, Q211).
+
+### Résultats
+
+```
+batiments[].acv?
+├── per_ans (50)
+├── composants, fluides_frigorigenes, chantier, eau, parcelle?   { i_statique, ic } × { production, edification, exploitation,
+│                                                                    fin_de_vie, module_d, total }   kg éq. CO2/m²
+├── lots[]  { lot, contribution, ic_kgco2_m2, ic_ded_kgco2_m2, udd_pct?, stock_c_kgc_m2,
+│             sous_lots[] { sous_lot, forfaitaire, contribution, ic_ded_kgco2_m2, stock_c_kgc_m2 } }
+├── ic_composants, ic_chantier, ic_eau, ic_energie?, ic_construction, ic_batiment?, ic_parcelle?, ic_projet?   (_kgco2_m2)
+├── ic_construction_occ_kgco2?, ic_batiment_occ_kgco2?, ic_projet_occ_kgco2?
+├── ic_ded_kgco2_m2 (hors lots 1, 2, 13), ic_ded_total_kgco2_m2, udd_batiment_pct?, stock_c_kgc_m2, stock_c_parcelle_kgc_m2?
+├── eau_quantites { nocc, q_eau_potable_conv_m3, q_eau_potable_m3, q_eaux_usees_m3, q_eaux_pluviales_m3,
+│                   q_parcelle_eau_potable_m3, q_parcelle_eaux_usees_m3 }
+├── tac_pv_pct?
+├── exigences?  { ic_construction_max_kgco2_m2, respectee,
+│                 zones[] { zone, usage, sref_m2, ic_construction_max_moyen, mi_combles, mi_surf_moy, mi_surf_tot,
+│                           mi_geo, mi_infra, mi_vrd, mi_pv, mi_ded, mi_agrement_ext, mi_hsp, mi_clim_rcu,
+│                           ic_construction_max_kgco2_m2 } }
+└── valeurs_par_defaut[]
+```
+
+Avec `exigences` et `acv`, `indicateurs.exigences` porte `ic_construction_max_kgco2_m2` et une vérification `ic_construction`, comptée dans `conforme`.

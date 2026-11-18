@@ -659,6 +659,7 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
             cep_max_kwhep_m2: cep_max,
             cep_nr_max_kwhep_m2: cep_nr_max,
             ic_energie_max_kgco2_m2: ic_max,
+            ic_construction_max_kgco2_m2: None,
             zones,
             verifications: tete,
             conforme,

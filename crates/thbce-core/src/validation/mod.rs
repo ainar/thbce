@@ -19,6 +19,7 @@ use exigences::valider_exigences;
 
 // Un fichier par famille. Un lot ajoute ses contrôles dans le fichier de sa famille, et une
 // nouvelle famille par un `mod` ci-dessous et un appel dans `valider`.
+mod acv;
 mod baies;
 mod batiment;
 mod bruit;
@@ -283,6 +284,7 @@ pub fn valider(projet: &Projet) -> RapportValidation {
         collectif::valider_collectif(&mut r, &cb, bat);
         bruit::valider_bruit(&mut r, &cb, bat);
         valider_exigences(&mut r, &cb, bat, &projet.localisation);
+        acv::valider_acv(&mut r, &cb, bat);
         usages_batiment::valider_usages_batiment(&mut r, &cb, bat);
     }
     // Contrôles de cohérence entre composants, une fois chaque élément valide : ils demandent

@@ -18,6 +18,7 @@ use thbce_data::{Departement, ZoneClimatique};
 // Un fichier par famille ; chaque type est réexporté ici, de sorte que le chemin
 // `crate::entree::Type` reste celui de l'API. Un lot ajoute ses types dans le fichier de sa
 // famille, et une nouvelle famille par un `mod` et un `pub use` ci-dessous.
+mod acv;
 mod baies;
 mod batiment;
 mod deplacements;
@@ -31,8 +32,8 @@ mod generation;
 mod solaire;
 mod usages;
 mod ventilation;
-// Famille à venir : ACV (Icconstruction, annexe II) — `mod acv;` et `pub use acv::*;`.
 
+pub use acv::*;
 pub use baies::*;
 pub use batiment::*;
 pub use deplacements::*;

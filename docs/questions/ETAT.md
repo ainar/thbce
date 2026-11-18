@@ -100,3 +100,17 @@
 | Q202 | Classement au bruit : la classe déduite des baies tient lieu de saisie absente ; cohérence avec la saisie directe | tranchée, à confirmer par un cas de référence |
 | Q203 | Classement au bruit : classe d'un groupe ou d'une zone à partir de ses baies (point 4) | tranchée, à confirmer par un cas de référence |
 | Q204 | Classement au bruit : règle de la façade « à défaut d'une détermination détaillée » | tranchée, à confirmer par un cas de référence |
+| Q205 | ACV : module D dans Icconstruction et Iccomposants | tranchée, à confirmer par un cas de référence |
+| Q206 | ACV : coefficient de pondération d'une date non entière | tranchée, à confirmer par un cas de référence |
+| Q207 | ACV : composants spécifiques au chantier | tranchée, à confirmer par un cas de référence |
+| Q208 | ACV : valeurs forfaitaires de l'annexe XI | tranchée, à confirmer par un cas de référence |
+| Q209 | ACV : parenthèse de l'éq. (67) (fluides des lots forfaitaires) | tranchée, à confirmer par un cas de référence |
+| Q210 | ACV : contribution « eau » (calcul simplifié) et eau du chantier | tranchée, à confirmer par un cas de référence |
+| Q211 | ACV : lot 13 (photovoltaïque) et sous-lot 8.2 (cogénération) | tranchée, à confirmer par un cas de référence |
+| Q212 | ACV : module D de la contribution « parcelle » | tranchée, à confirmer par un cas de référence |
+| Q213 | ACV : versions de l'exigence Icconstruction_max selon la date de dépôt | tranchée, à confirmer par un cas de référence |
+| Q214 | ACV : Icconstruction_maxmoyen des immeubles de grande hauteur à partir de 2031 | tranchée, à confirmer par un cas de référence |
+| Q215 | ACV : indicateurs Iclot et Icded d'une zone pour la modulation | tranchée, à confirmer par un cas de référence |
+| Q216 | ACV : exigence Icconstruction_max pour les 28 usages (lot ACV-2) | tranchée, à confirmer par un cas de référence |
+| Q217 | ACV : renouvellements des composants et fluides dont la DVE atteint ou dépasse la PER | tranchée, à confirmer par un cas de référence |
+| Q218 | ACV : eau des usages « N/C » du tableau 7 et des zones de consommations différentes | tranchée, à confirmer par un cas de référence |
