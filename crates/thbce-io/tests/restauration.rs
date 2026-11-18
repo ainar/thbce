@@ -366,6 +366,26 @@ fn refus() {
         "{:?}",
         v.erreurs
     );
+    // Double flux dans un restaurant : hors périmètre (code 3), non une erreur de saisie.
+    let mut p = restaurant();
+    let maison = exemple("maison-double-flux-ademe");
+    let double_flux = maison.batiments[0].zones[0]
+        .ventilation
+        .as_ref()
+        .unwrap()
+        .systeme
+        .clone();
+    p.batiments[0].zones[0]
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .systeme = double_flux;
+    let v = valider(&p);
+    assert!(v.seulement_hors_perimetre(), "{:?}", v.erreurs);
+    assert!(v
+        .erreurs
+        .iter()
+        .all(|e| e.chemin.ends_with("ventilation.systeme")));
     // Permis de 2025 : usage non soumis à la RE2020 avant le 1er mai 2026 (Q68).
     let mut p = restaurant();
     let x = p.batiments[0].exigences.as_mut().unwrap();

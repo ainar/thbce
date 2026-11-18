@@ -58,9 +58,26 @@ pub struct ResultatsStockage {
     /// (§9.22).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub idcet: Option<ResultatsIdCet>,
+    /// Échangeur d'un accumulateur d'ECS en eau technique (fiches 9.11 et 9.12).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub echangeur: Option<ResultatsEchangeurEcs>,
     /// Valeurs par défaut de la méthode appliquées à l'assemblage.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+}
+
+/// Échangeur d'un accumulateur d'ECS en eau technique (§9.12), pour l'ensemble des assemblages
+/// identiques.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsEchangeurEcs {
+    /// « UAech » : coefficient de transfert de l'échangeur d'un assemblage, en W/K, déduit de sa
+    /// puissance nominale (éq. 1876 à 1882 ou 1923 à 1926).
+    pub ua_ech_w_k: f64,
+    /// « θcons » : consigne du ballon, en °C (tableau 288).
+    pub theta_cons_c: f64,
+    /// « Wcirc,prim » : consommation du circulateur primaire d'un échangeur externe, en kWh
+    /// d'électricité (éq. 1907 et 1908).
+    pub w_circ_prim_kwh: f64,
 }
 
 impl ResultatsStockage {
@@ -77,6 +94,10 @@ impl ResultatsStockage {
             &mut s.theta_haut_min_c,
         ] {
             *x = a(*x);
+        }
+        if let Some(e) = &mut s.echangeur {
+            e.ua_ech_w_k = a(e.ua_ech_w_k);
+            e.w_circ_prim_kwh = a(e.w_circ_prim_kwh);
         }
         if let Some(x) = &mut s.ssc {
             x.q_puise_ch_kwh = a(x.q_puise_ch_kwh);

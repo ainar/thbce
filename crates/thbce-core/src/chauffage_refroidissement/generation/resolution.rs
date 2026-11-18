@@ -10,6 +10,10 @@ use crate::chauffage_refroidissement::generateur_direct_a_effet_joule::Generateu
 use crate::chauffage_refroidissement::poeles_et_inserts::Poele;
 use crate::chauffage_refroidissement::reseau_de_chaleur_et_de_froid::ReseauChaleurFroid;
 use crate::chauffage_refroidissement::thermodynamique_elec::GenerateurThermodynamique;
+use crate::ecs::echangeur_ballon::{
+    ApplicationAccumulateur, CirculateurPrimaire, EchangeurEcs, MOD_MIN_DEFAUT,
+};
+use crate::entree::{ApplicationAccumulateurSaisie, NatureEchangeurSaisie};
 
 impl GenerationHoraire {
     /// Résout une génération saisie et validée ; `ids_et` et `ids_zones` donnent les
@@ -193,7 +197,7 @@ impl GenerationHoraire {
             let zone = |z: u8| usize::from(z.clamp(1, 4)) - 1;
             let appoint = s.appoint.as_ref().and_then(|a| {
                 let i = generateurs.iter().position(|x| x.id == a.generateur)?;
-                if a.f_aux.is_none() {
+                if a.f_aux.is_none() && s.echangeur.is_none() {
                     defauts.push(defaut(
                         "appoint.f_aux",
                         F_AUX_DEFAUT,
@@ -220,7 +224,8 @@ impl GenerationHoraire {
                     a.f_aux.unwrap_or(F_AUX_DEFAUT),
                 ))
             });
-            let f_aux = appoint.map(|(_, f)| f);
+            // Accumulateur en eau technique : quatre zones de volumes égaux (éq. 1874).
+            let f_aux = appoint.filter(|_| s.echangeur.is_none()).map(|(_, f)| f);
             let mut a = AssemblageBallon::nouveau(
                 s.id.clone(),
                 f64::from(s.nb_assemblages.max(1)),
@@ -237,6 +242,62 @@ impl GenerationHoraire {
                 appoint.map(|(r, _)| r),
                 nb_iter_vp(f_aux),
             );
+            if let Some(x) = &s.echangeur {
+                let application = x
+                    .application
+                    .map(|a| match a {
+                        ApplicationAccumulateurSaisie::Individuel => {
+                            ApplicationAccumulateur::Individuel
+                        }
+                        ApplicationAccumulateurSaisie::Collectif => {
+                            ApplicationAccumulateur::Collectif
+                        }
+                    })
+                    .unwrap_or_else(|| {
+                        let a = ApplicationAccumulateur::selon_volume(v);
+                        defauts.push(defaut(
+                            "echangeur.application",
+                            a.theta_cons_c(),
+                            "Th-BCE 2020 §9.12.3.2.2 : accumulateur individuel sous 500 L, \
+                             collectif au-delà ; valeur : consigne θcons du tableau 288, en °C",
+                        ));
+                        a
+                    });
+                let theta_cons = application.theta_cons_c();
+                let nb_iter = a.nb_iter_vp;
+                let ech = match &x.nature {
+                    NatureEchangeurSaisie::Interne => {
+                        EchangeurEcs::interne(x.p_ech_ecs_kw, theta_cons, nb_iter)
+                    }
+                    NatureEchangeurSaisie::Externe {
+                        q_v_prim_nom_m3_h,
+                        circulateur_vitesse_variable,
+                        p_circ_prim_nom_w,
+                        mod_min,
+                    } => {
+                        if mod_min.is_none() && *circulateur_vitesse_variable {
+                            defauts.push(defaut(
+                                "echangeur.externe.mod_min",
+                                MOD_MIN_DEFAUT,
+                                "Th-BCE 2020 §9.12.2, tableau 286 : rapport du débit minimal \
+                                 du circulateur primaire au débit nominal par défaut",
+                            ));
+                        }
+                        EchangeurEcs::externe(
+                            x.p_ech_ecs_kw,
+                            *q_v_prim_nom_m3_h,
+                            CirculateurPrimaire {
+                                vitesse_variable: *circulateur_vitesse_variable,
+                                p_nom_w: *p_circ_prim_nom_w,
+                                mod_min: mod_min.unwrap_or(MOD_MIN_DEFAUT),
+                            },
+                            theta_cons,
+                            nb_iter,
+                        )
+                    }
+                };
+                a = a.avec_echangeur(ech);
+            }
             a.valeurs_par_defaut = defauts;
             stockages.push(a);
         }

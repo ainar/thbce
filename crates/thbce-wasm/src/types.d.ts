@@ -18,6 +18,9 @@ export type AlimentationBoisSaisie = "manuel_tirage_naturel" | "manuel_air_pulse
 /** « App_ecs » (§9.5.3, tableau 275). */
 export type AppareilsEcs = "douche_seule" | "baignoire_sabot" | "baignoire_standard" | "grande_baignoire";
 
+/** « Type_Application » (tableau 288). */
+export type ApplicationAccumulateurSaisie = "individuel" | "collectif";
+
 /** Générateur d'appoint intégré à un ballon (§9.14.3.1, « Type_prod_stockage = 1 »). */
 export interface AppointBallon {
   /** « Δθap » : hystérésis, en K. Absente : 2 K. */
@@ -1113,6 +1116,29 @@ export interface EchangeurDetaille {
   ecoulement: EcoulementEchangeur;
   /** « UA_saisi » : coefficient d'échange global, en W/K. */
   ua_w_k: number;
+}
+
+/**
+ * Accumulateur d'ECS en eau technique (Th-BCE 2020 §9.12) : le ballon ne contient pas l'eau
+ * du réseau ; il est séparé de la distribution par un échangeur. Quatre zones de volumes
+ * égaux, quelle que soit la fraction chauffée par l'appoint (éq. 1874 et 1921) ; sans
+ * réseau d'ECS bouclé dans cette version.
+ */
+export interface EchangeurEcsSaisi {
+  /**
+   * « Type_Application » : accumulateur individuel (consigne de 55 °C) ou collectif
+   * (60 °C), tableau 288. Absent : individuel sous 500 L, collectif au-delà (§9.12.3.2.2),
+   * signalé dans les résultats.
+   */
+  application?: ApplicationAccumulateurSaisie | null;
+  /** « Type_Accumulateur_ECS » : nature de l'échangeur. */
+  nature: NatureEchangeurSaisie;
+  /**
+   * « PechECS » : puissance thermique nominale de l'échangeur, en kW, pour un ballon à sa
+   * consigne, de l'eau froide à 15 °C et de l'ECS à 5 K sous la consigne (au débit primaire
+   * nominal pour un échangeur externe).
+   */
+  p_ech_ecs_kw: number;
 }
 
 /** Échangeur en représentation simplifiée. */
@@ -2394,6 +2420,26 @@ export interface ModulesPv {
 
 /** Nature d'un ballon pour ses pertes par défaut (tableau 282). */
 export type NatureBallonSaisie = "effet_joule_horizontal" | "effet_joule_vertical" | "autre";
+
+/** « Type_Accumulateur_ECS » : échangeur immergé ou externe. */
+export type NatureEchangeurSaisie = "interne" | {
+  externe: {
+    /** « Type_Circulateur_Prep_ECS » : circulateur à vitesse variable (sinon constante). */
+    circulateur_vitesse_variable?: boolean;
+    /**
+     * « Modmin » : rapport du débit minimal du circulateur au débit nominal (vitesse
+     * variable). Absent : 0,3, valeur par défaut du tableau 286, signalée.
+     */
+    mod_min?: number | null;
+    /**
+     * « Pw_circ_prim_nom » : puissance absorbée par le circulateur au débit primaire
+     * nominal, en W.
+     */
+    p_circ_prim_nom_w: number;
+    /** « qv_prim_nom » : débit volumique nominal du circuit primaire, en m³/h. */
+    q_v_prim_nom_m3_h: number;
+  };
+};
 
 /** « isolarise » : espace tampon solarisé ou non (§5.4.1). */
 export type NatureEspaceTampon = {
@@ -3734,6 +3780,25 @@ export interface ResultatsDistributionGroupe {
   w_aux_kwh: number;
 }
 
+/**
+ * Échangeur d'un accumulateur d'ECS en eau technique (§9.12), pour l'ensemble des assemblages
+ * identiques.
+ */
+export interface ResultatsEchangeurEcs {
+  /** « θcons » : consigne du ballon, en °C (tableau 288). */
+  theta_cons_c: number;
+  /**
+   * « UAech » : coefficient de transfert de l'échangeur d'un assemblage, en W/K, déduit de sa
+   * puissance nominale (éq. 1876 à 1882 ou 1923 à 1926).
+   */
+  ua_ech_w_k: number;
+  /**
+   * « Wcirc,prim » : consommation du circulateur primaire d'un échangeur externe, en kWh
+   * d'électricité (éq. 1907 et 1908).
+   */
+  w_circ_prim_kwh: number;
+}
+
 /** Émetteur d'ECS équivalent, calcul Th-C (§9.5 à 9.7). */
 export interface ResultatsEcsEmetteur {
   /** « a » : besoins unitaires, en litres à 40 °C par adulte équivalent et par semaine. */
@@ -4314,6 +4379,8 @@ export interface ResultatsSsc {
 
 /** Assemblage avec ballon de stockage d'ECS, calcul Th-C (§9.9, §9.10 et §9.14). */
 export interface ResultatsStockage {
+  /** Échangeur d'un accumulateur d'ECS en eau technique (fiches 9.11 et 9.12). */
+  echangeur?: ResultatsEchangeurEcs | null;
   /** Identifiant de l'assemblage ou du chauffe-eau thermodynamique. */
   id: string;
   /**
@@ -4563,6 +4630,12 @@ export interface StockageSaisi {
    * (« zbase = 1 », éq. 1947).
    */
   base: GenerateurBallon;
+  /**
+   * Accumulateur d'ECS en eau technique (fiches 9.11 et 9.12) : échangeur qui sépare le
+   * ballon du réseau de distribution d'ECS. Absent : ballon d'eau chaude sanitaire à puisage
+   * direct.
+   */
+  echangeur?: EchangeurEcsSaisi | null;
   /** Identifiant de l'assemblage, unique dans la génération. */
   id: string;
   /**
