@@ -170,6 +170,8 @@ pub struct BatteriesCta {
     pub chaude: Option<usize>,
     /// Génération de la batterie froide régulée sur la charge (mode actif, éq. 940).
     pub froide: Option<usize>,
+    /// Génération de l'humidificateur d'hiver à vapeur (« idchaudHR », éq. 939).
+    pub humidification: Option<usize>,
 }
 
 /// Description saisie d'une centrale de traitement d'air (types 2 à 4).
@@ -681,6 +683,10 @@ impl SystemesBatiment {
                         .filter(|c| c.batterie_froide == Some(true))
                         .and_then(|c| c.generation_batterie_froide.as_ref())
                         .and_then(position),
+                    humidification: s
+                        .and_then(SystemeVentilation::humidificateur)
+                        .and_then(|h| h.generation.as_ref())
+                        .and_then(position),
                 }
             })
             .collect();
@@ -703,7 +709,8 @@ impl SystemesBatiment {
                             || batteries_cta[*iz].prechauffage == Some(ig)
                             || batteries_cta[*iz].prerefroidissement == Some(ig)
                             || batteries_cta[*iz].chaude == Some(ig)
-                            || batteries_cta[*iz].froide == Some(ig);
+                            || batteries_cta[*iz].froide == Some(ig)
+                            || batteries_cta[*iz].humidification == Some(ig);
                         if desservi {
                             *a_gr
                         } else {
@@ -1097,6 +1104,13 @@ impl SystemesBatiment {
                         Poste::Refroidissement,
                         b.prerefroidissement,
                         -v.q_prefroid_wh,
+                        v.theta_souf_mel_c,
+                    ),
+                    // Éq. (939) : humidificateur d'hiver à vapeur (« idchaudHR »).
+                    (
+                        Poste::Chauffage,
+                        b.humidification,
+                        v.q_hr_wh,
                         v.theta_souf_mel_c,
                     ),
                     (

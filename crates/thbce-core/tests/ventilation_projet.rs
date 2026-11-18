@@ -212,7 +212,9 @@ fn double_flux(bypass: Option<Bypass>, antigel: bool) -> Projet {
         batterie_prechauffage: None,
         batterie_prerefroidissement: None,
         humidification: None,
+        humidificateur: None,
         rafraichissement_evaporatif: None,
+        rafraichissement_adiabatique: None,
         surventilation_mecanique: None,
     });
     v.reseau.ratfuitevc = Some(1.0);

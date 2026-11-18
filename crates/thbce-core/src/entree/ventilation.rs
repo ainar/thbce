@@ -93,6 +93,24 @@ impl SystemeVentilation {
             _ => None,
         }
     }
+
+    /// Humidificateur d'hiver d'une centrale double flux ou d'une CTA (§6.3.3.4.9.2).
+    pub fn humidificateur(&self) -> Option<&HumidificateurHiver> {
+        match self {
+            Self::DoubleFlux(d) => d.humidificateur.as_ref(),
+            Self::Cta(c) => c.humidificateur.as_ref(),
+            _ => None,
+        }
+    }
+
+    /// Rafraîchissement évaporatif d'une centrale double flux ou d'une CTA (§6.3.3.4.2).
+    pub fn rafraichissement_adiabatique(&self) -> Option<&RafraichissementEvaporatif> {
+        match self {
+            Self::DoubleFlux(d) => d.rafraichissement_adiabatique.as_ref(),
+            Self::Cta(c) => c.rafraichissement_adiabatique.as_ref(),
+            _ => None,
+        }
+    }
 }
 
 /// Th-BCE 2020 §6.3.3.1 — type de centrale de traitement d'air (« Type_ventilation_mecaniq »).
@@ -199,13 +217,21 @@ pub struct Cta {
     /// °C (éq. 604).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub theta_dim_fr_c: Option<f64>,
-    /// Humidificateur d'hiver (« Is_ChaudHR ») : non pris en charge dans cette version.
+    /// Humidificateur d'hiver (« Is_ChaudHR ») : `true` exige sa description
+    /// `humidificateur` ; forme conservée pour la compatibilité (sans effet propre).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub humidification: Option<bool>,
-    /// Rafraîchissement évaporatif (« Type_humidification_Eté ») : non pris en charge dans
-    /// cette version.
+    /// Description de l'humidificateur d'hiver (lot 1-ven3) ; absent : pas d'humidificateur.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub humidificateur: Option<HumidificateurHiver>,
+    /// Rafraîchissement évaporatif (« Type_humidification_Eté ») : `true` exige sa
+    /// description `rafraichissement_adiabatique` ; forme conservée pour la compatibilité.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rafraichissement_evaporatif: Option<bool>,
+    /// Description du rafraîchissement évaporatif (lot 1-ven3) ; absent : pas de
+    /// rafraîchissement évaporatif.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rafraichissement_adiabatique: Option<RafraichissementEvaporatif>,
     /// Rafraîchissement par surventilation mécanique (§6.12) : non pris en charge dans cette
     /// version.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -245,6 +271,75 @@ pub struct BatteriePrerefroidissement {
     /// de CTA fictif (fiche 8.11, éq. 939) : identifiant d'une génération du bâtiment pourvue
     /// d'un générateur de refroidissement.
     pub generation: Id,
+}
+
+/// Th-BCE 2020 §6.3.2 et §6.3.3.4.9.2 — type d'humidificateur d'hiver (« TypeHumidification »).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TypeHumidificationHiver {
+    /// Humidificateur à vapeur : transformation isotherme, énergie demandée à la génération
+    /// (éq. 526 à 529).
+    Vapeur,
+    /// Humidificateur à pulvérisation, ruissellement ou évaporation : transformation
+    /// adiabatique, pompe (éq. 530 à 534 et 568).
+    Pulverisation,
+}
+
+/// Th-BCE 2020 §6.3.3.4.9.2 — humidificateur d'hiver (« Is_ChaudHR = 1 ») d'un double flux ou
+/// d'une centrale à débit constant (types 1 et 2), en saison de chauffage, après la batterie
+/// de préchauffage.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct HumidificateurHiver {
+    /// « TypeHumidification ».
+    pub type_humidification: TypeHumidificationHiver,
+    /// « ωcons » : humidité spécifique de consigne de l'air soufflé, en kg/kg d'air sec (0 à 1).
+    pub omega_cons_kg_kg: f64,
+    /// « ηhum » : efficacité d'un humidificateur à pulvérisation (0 à 1) ; 0,8 par défaut
+    /// (tableau 61 et éq. 530), valeur signalée ; refusée pour un humidificateur à vapeur.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eta_hum: Option<f64>,
+    /// Génération qui fournit l'énergie d'un humidificateur à vapeur (« QchaudHR », éq. 529),
+    /// par un réseau de distribution de CTA fictif (fiche 8.11, « idchaudHR », éq. 939) :
+    /// identifiant d'une génération du bâtiment pourvue d'un générateur de chauffage. Requise
+    /// pour un humidificateur à vapeur, refusée sinon (« QHR = 0 », éq. 533).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generation: Option<Id>,
+}
+
+/// Th-BCE 2020 §6.3.2 — type de rafraîchissement évaporatif (« Type_humidification_Eté »).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TypeRafraichissementEvaporatif {
+    /// 1 : humidificateur direct sur l'air soufflé (§6.3.3.4.11, éq. 549 à 559).
+    Direct,
+    /// 2 : humidificateur indirect sur l'air extrait, avant l'échangeur (§6.3.3.4.5.3, éq. 476
+    /// à 486).
+    Indirect,
+}
+
+/// Th-BCE 2020 §6.3.2 et §6.3.3.4.2 — rafraîchissement évaporatif (adiabatique) d'un double
+/// flux ou d'une centrale de traitement d'air.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RafraichissementEvaporatif {
+    /// « Type_humidification_Eté » : direct ou indirect.
+    pub type_rafraichissement: TypeRafraichissementEvaporatif,
+    /// « ηhum_dir » ou « ηhum_indir » : rendement de l'humidificateur (0 à 1) ; 0,8 par défaut
+    /// (tableau 61), valeur signalée.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eta_hum: Option<f64>,
+    /// « θi_base » : température intérieure au-dessus de laquelle le rafraîchissement est
+    /// autorisé (§6.3.3.4.2), en °C ; au moins 22 °C.
+    pub theta_i_base_c: f64,
+    /// « Δθi1 » : paramètre du profil à hystérésis des débits d'une centrale à débit variable
+    /// (éq. 426), en K, strictement positif ; requis pour une centrale à débit variable,
+    /// refusé sinon.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delta_theta_i1_k: Option<f64>,
+    /// « Δθi2 » : voir `delta_theta_i1_k`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delta_theta_i2_k: Option<f64>,
 }
 
 /// Th-BCE 2020 §6.4.3 et §6.5.2 — ventilateur d'un système simple flux : puissances en débit
@@ -325,13 +420,21 @@ pub struct DoubleFlux {
     /// moins un groupe climatisé (éq. 389).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub batterie_prerefroidissement: Option<BatteriePrerefroidissement>,
-    /// Humidificateur d'hiver (« Is_ChaudHR ») : non pris en charge dans cette version.
+    /// Humidificateur d'hiver (« Is_ChaudHR ») : `true` exige sa description
+    /// `humidificateur` ; forme conservée pour la compatibilité (sans effet propre).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub humidification: Option<bool>,
-    /// Rafraîchissement évaporatif (« Type_humidification_Eté ») : non pris en charge dans
-    /// cette version.
+    /// Description de l'humidificateur d'hiver (lot 1-ven3) ; absent : pas d'humidificateur.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub humidificateur: Option<HumidificateurHiver>,
+    /// Rafraîchissement évaporatif (« Type_humidification_Eté ») : `true` exige sa
+    /// description `rafraichissement_adiabatique` ; forme conservée pour la compatibilité.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rafraichissement_evaporatif: Option<bool>,
+    /// Description du rafraîchissement évaporatif (lot 1-ven3) ; absent : pas de
+    /// rafraîchissement évaporatif.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rafraichissement_adiabatique: Option<RafraichissementEvaporatif>,
     /// Rafraîchissement par surventilation mécanique (§6.12) : non pris en charge dans cette
     /// version.
     #[serde(default, skip_serializing_if = "Option::is_none")]

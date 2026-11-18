@@ -4,8 +4,10 @@
 
 use super::{nom_json, RapportValidation};
 use crate::entree::{
-    BatteriePrechauffage, BatteriePrerefroidissement, BoucheConduit, Echangeur, EntreesAir, Isouf,
-    RepresentationEchangeur, SystemeVentilation, TypeCta, Ventilation, Zone,
+    BatteriePrechauffage, BatteriePrerefroidissement, BoucheConduit, Echangeur, EntreesAir,
+    HumidificateurHiver, Isouf, RafraichissementEvaporatif, RepresentationEchangeur,
+    SystemeVentilation, TypeCta, TypeHumidificationHiver, TypeRafraichissementEvaporatif,
+    Ventilation, Zone,
 };
 use crate::ventilation::bouche_conduit::{q_spec_conv_base_m3_h, DUGD_BBIO_H};
 use crate::ventilation::debits_air_cep::{trav_zone_conventionnel, EntreeAir};
@@ -488,18 +490,28 @@ pub(super) fn valider_ventilation(
                      2020 §6.3.3.4.9.1)",
                 );
             }
-            for (champ, present) in [
-                ("humidification", df.humidification),
-                (
-                    "rafraichissement_evaporatif",
-                    df.rafraichissement_evaporatif,
-                ),
-                ("surventilation_mecanique", df.surventilation_mecanique),
-            ] {
-                if present == Some(true) {
-                    r.hors_perimetre(format!("{cd}.{champ}"), Some("true".into()), champ);
-                }
+            if df.surventilation_mecanique == Some(true) {
+                r.hors_perimetre(
+                    format!("{cd}.surventilation_mecanique"),
+                    Some("true".into()),
+                    "surventilation_mecanique",
+                );
             }
+            valider_humidification(
+                r,
+                &cd,
+                habitation,
+                None,
+                &Humidifications {
+                    hiver: (df.humidification, df.humidificateur.as_ref()),
+                    ete: (
+                        df.rafraichissement_evaporatif,
+                        df.rafraichissement_adiabatique.as_ref(),
+                    ),
+                    echangeur: df.echangeur.is_some(),
+                    prerefroidissement: df.batterie_prerefroidissement.is_some(),
+                },
+            );
             valider_batteries(
                 r,
                 &cd,
@@ -565,27 +577,28 @@ pub(super) fn valider_ventilation(
                 }
             }
             valider_mode_actif(r, &cc, zone, cta);
-            for (champ, present, regle) in [
-                (
-                    "humidification",
-                    cta.humidification,
-                    "humidification d'hiver (Th-BCE 2020 §6.3.3.4.9.2)",
-                ),
-                (
-                    "rafraichissement_evaporatif",
-                    cta.rafraichissement_evaporatif,
-                    "rafraîchissement évaporatif (Th-BCE 2020 §6.3.3.4.5.3 et 6.3.3.4.11)",
-                ),
-                (
-                    "surventilation_mecanique",
-                    cta.surventilation_mecanique,
+            if cta.surventilation_mecanique == Some(true) {
+                r.hors_perimetre(
+                    format!("{cc}.surventilation_mecanique"),
+                    Some("true".into()),
                     "rafraîchissement par surventilation mécanique (Th-BCE 2020 §6.12)",
-                ),
-            ] {
-                if present == Some(true) {
-                    r.hors_perimetre(format!("{cc}.{champ}"), Some("true".into()), regle);
-                }
+                );
             }
+            valider_humidification(
+                r,
+                &cc,
+                false,
+                Some(cta.type_cta),
+                &Humidifications {
+                    hiver: (cta.humidification, cta.humidificateur.as_ref()),
+                    ete: (
+                        cta.rafraichissement_evaporatif,
+                        cta.rafraichissement_adiabatique.as_ref(),
+                    ),
+                    echangeur: cta.echangeur.is_some(),
+                    prerefroidissement: cta.batterie_prerefroidissement.is_some(),
+                },
+            );
             valider_batteries(
                 r,
                 &cc,
@@ -866,6 +879,170 @@ fn valider_echangeur(r: &mut RapportValidation, ce: &str, e: &Echangeur) {
 }
 
 /// Th-BCE 2020 §6.3.3.2.2 et §6.3.3.2.4 : batteries de préchauffage et de prérefroidissement.
+/// Humidificateur d'hiver et rafraîchissement évaporatif saisis d'une centrale.
+struct Humidifications<'a> {
+    hiver: (Option<bool>, Option<&'a HumidificateurHiver>),
+    ete: (Option<bool>, Option<&'a RafraichissementEvaporatif>),
+    echangeur: bool,
+    prerefroidissement: bool,
+}
+
+/// Th-BCE 2020 §6.3.2 (tableau 61), §6.3.3.4.2, §6.3.3.4.9.2, §6.3.3.4.10 et §6.3.3.4.11 :
+/// humidificateur d'hiver (types 1 et 2) et rafraîchissement évaporatif, calculés hors
+/// habitation (lot 1-ven3, Q96).
+fn valider_humidification(
+    r: &mut RapportValidation,
+    c: &str,
+    habitation: bool,
+    type_cta: Option<TypeCta>,
+    h: &Humidifications<'_>,
+) {
+    let (is_hr, hum) = h.hiver;
+    let (is_ete, ete) = h.ete;
+    for (champ, bool_saisi, decrit, nom) in [
+        ("humidification", is_hr, hum.is_some(), "humidificateur"),
+        (
+            "rafraichissement_evaporatif",
+            is_ete,
+            ete.is_some(),
+            "rafraichissement_adiabatique",
+        ),
+    ] {
+        match (bool_saisi, decrit) {
+            (Some(true), false) => r.erreur(
+                format!("{c}.{champ}"),
+                Some("true".into()),
+                format!("décrire l'équipement par `{nom}` (Th-BCE 2020 §6.3.2, tableau 61)"),
+            ),
+            (Some(false), true) => r.erreur(
+                format!("{c}.{champ}"),
+                Some("false".into()),
+                format!("incohérent avec la description `{nom}`"),
+            ),
+            _ => {}
+        }
+    }
+    if habitation {
+        for (champ, present) in [
+            ("humidificateur", hum.is_some()),
+            ("rafraichissement_adiabatique", ete.is_some()),
+        ] {
+            if present {
+                r.hors_perimetre(
+                    format!("{c}.{champ}"),
+                    None,
+                    "humidification et rafraîchissement évaporatif d'un double flux en \
+                     habitation (Th-BCE 2020 §6.3.3.4.9.2 et 6.3.3.4.11)",
+                );
+            }
+        }
+        return;
+    }
+    if let Some(x) = hum {
+        let ch = format!("{c}.humidificateur");
+        // §6.3.3.4.9 : prétraitement des types 1 et 2 seulement.
+        if matches!(
+            type_cta,
+            Some(TypeCta::DebitConstantTemperatureVariable | TypeCta::DebitVariable)
+        ) {
+            r.erreur(
+                ch.clone(),
+                None,
+                "l'humidification d'hiver ne s'applique qu'aux doubles flux et aux centrales à \
+                 débit constant (Th-BCE 2020 §6.3.3.4.9)",
+            );
+        }
+        r.plage(
+            format!("{ch}.omega_cons_kg_kg"),
+            x.omega_cons_kg_kg,
+            0.0,
+            1.0,
+        );
+        if let Some(e) = x.eta_hum {
+            r.plage(format!("{ch}.eta_hum"), e, 0.0, 1.0);
+        }
+        match (x.type_humidification, x.generation.is_some(), x.eta_hum) {
+            (TypeHumidificationHiver::Vapeur, false, _) => r.erreur(
+                format!("{ch}.generation"),
+                None,
+                "génération requise : l'énergie d'un humidificateur à vapeur (éq. 529) est \
+                 demandée à une génération par un réseau de CTA (Th-BCE 2020 §8.11.3, éq. 939)",
+            ),
+            (TypeHumidificationHiver::Vapeur, _, Some(e)) => r.erreur(
+                format!("{ch}.eta_hum"),
+                Some(e.to_string()),
+                "sans objet pour un humidificateur à vapeur (Th-BCE 2020 éq. 526 à 529)",
+            ),
+            (TypeHumidificationHiver::Pulverisation, true, _) => r.erreur(
+                format!("{ch}.generation"),
+                None,
+                "sans objet : un humidificateur à pulvérisation ne demande pas d'énergie \
+                 (Th-BCE 2020 éq. 533)",
+            ),
+            _ => {}
+        }
+    }
+    if let Some(x) = ete {
+        let ce = format!("{c}.rafraichissement_adiabatique");
+        if let Some(e) = x.eta_hum {
+            r.plage(format!("{ce}.eta_hum"), e, 0.0, 1.0);
+        }
+        // §6.3.3.4.2 : valeur minimale de θi_base.
+        r.plage(
+            format!("{ce}.theta_i_base_c"),
+            x.theta_i_base_c,
+            crate::ventilation::humidification::THETA_I_BASE_MIN_C,
+            f64::INFINITY,
+        );
+        let variable = type_cta == Some(TypeCta::DebitVariable);
+        for (champ, d) in [
+            ("delta_theta_i1_k", x.delta_theta_i1_k),
+            ("delta_theta_i2_k", x.delta_theta_i2_k),
+        ] {
+            match (d, variable) {
+                (None, true) => r.erreur(
+                    format!("{ce}.{champ}"),
+                    None,
+                    "requis pour une centrale à débit variable (profil à hystérésis, Th-BCE \
+                     2020 éq. 426)",
+                ),
+                (Some(v), true) => {
+                    if v.is_nan() || v <= 0.0 {
+                        r.erreur(
+                            format!("{ce}.{champ}"),
+                            Some(v.to_string()),
+                            "strictement positif (Th-BCE 2020 éq. 426, figure 73)",
+                        );
+                    }
+                }
+                (Some(v), false) => r.erreur(
+                    format!("{ce}.{champ}"),
+                    Some(v.to_string()),
+                    "sans objet hors centrale à débit variable (Th-BCE 2020 §6.3.3.1.4.2)",
+                ),
+                (None, false) => {}
+            }
+        }
+        match x.type_rafraichissement {
+            // §6.3.3.4.10 : direct incompatible avec la batterie de prérefroidissement.
+            TypeRafraichissementEvaporatif::Direct if h.prerefroidissement => r.erreur(
+                ce.clone(),
+                None,
+                "le rafraîchissement évaporatif direct est incompatible avec une batterie de \
+                 prérefroidissement (Th-BCE 2020 §6.3.3.4.10)",
+            ),
+            // §6.3.3.4.5.3 : l'air extrait refroidi ne sert que par l'échangeur.
+            TypeRafraichissementEvaporatif::Indirect if !h.echangeur => r.erreur(
+                ce.clone(),
+                None,
+                "le rafraîchissement évaporatif indirect refroidit l'air neuf par l'échangeur \
+                 air extrait / air neuf : échangeur requis (Th-BCE 2020 §6.3.3.4.5.3)",
+            ),
+            _ => {}
+        }
+    }
+}
+
 fn valider_batteries(
     r: &mut RapportValidation,
     c: &str,
