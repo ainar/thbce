@@ -529,7 +529,7 @@ pub(super) fn valider_ventilation(
                 f64::NEG_INFINITY,
                 f64::INFINITY,
             );
-            if !(cta.theta_enf_c > cta.theta_enc_c) {
+            if cta.theta_enf_c.is_nan() || cta.theta_enf_c <= cta.theta_enc_c {
                 r.erreur(
                     format!("{cc}.theta_enf_c"),
                     Some(cta.theta_enf_c.to_string()),
