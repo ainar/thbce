@@ -1250,9 +1250,7 @@ impl VentilationProjet {
         self.zn.w_vent_wh = p_vent_rep_w + p_vent_sou_w;
         self.zn.w_ech_wh = w_ech_wh;
         self.zn.omega_souffle_kg_kg = omega_ext_kg_kg;
-        for x in &mut self.zn.souffle {
-            *x = (0.0, 0.0);
-        }
+        self.zn.souffle.fill((0.0, 0.0));
         self.rho_souffle_h1.copy_from_slice(&self.rho_souffle);
 
         if qm_sou > 0.0 {
