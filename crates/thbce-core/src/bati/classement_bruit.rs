@@ -158,24 +158,29 @@ pub fn classe_baie(bat: &Batiment, b: &Baie) -> Option<ExpoBr> {
 
 /// Classe d'une partie de bâtiment, groupe ou zone, à partir des classes de ses baies (point
 /// 4) : BR3 si toutes sont BR3 ; BR2 si toutes sont BR2 ou BR3 et l'une au moins BR2 ; BR1 dans
-/// les autres cas. `None` si la partie n'a pas de baie ou si l'une d'elles n'a pas de classe
+/// les autres cas. `None` si la partie n'a pas de baie, ou si l'une d'elles n'a pas de classe et qu'aucune n'est BR1
 /// (la détermination est impossible : Q203).
 // Th-BCE 2020 annexe R. 172-4, chap. V, partie I, point 4.
 pub fn classe_partie<I: IntoIterator<Item = Option<ExpoBr>>>(classes: I) -> Option<ZoneBruit> {
     let mut n = 0_usize;
-    let (mut n_br1, mut n_br2) = (0_usize, 0_usize);
+    let (mut n_br1, mut n_br2, mut n_inconnues) = (0_usize, 0_usize, 0_usize);
     for c in classes {
         n += 1;
-        match c? {
-            Br1 => n_br1 += 1,
-            Br2 => n_br2 += 1,
-            Br3 => {}
+        match c {
+            Some(Br1) => n_br1 += 1,
+            Some(Br2) => n_br2 += 1,
+            Some(Br3) => {}
+            None => n_inconnues += 1,
         }
     }
     if n == 0 {
         None
     } else if n_br1 > 0 {
+        // « Dans les autres cas » : une seule baie BR1 suffit, quelle que soit la classe des
+        // autres, même inconnue (relecture de la PR #60).
         Some(ZoneBruit::Br1)
+    } else if n_inconnues > 0 {
+        None
     } else if n_br2 > 0 {
         Some(ZoneBruit::Br2)
     } else {
@@ -407,5 +412,6 @@ mod tests {
         assert_eq!(c(&[Br1]), Some(ZoneBruit::Br1));
         assert_eq!(c(&[]), None);
         assert_eq!(classe_partie([Some(Br3), None]), None);
+        assert_eq!(classe_partie([Some(Br1), None]), Some(ZoneBruit::Br1));
     }
 }
