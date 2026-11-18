@@ -237,9 +237,9 @@ fn refus() {
     let z = "batiments[0].zones[0]";
 
     // Les usages non résidentiels non ouverts restent hors périmètre, et seulement cela (usage
-    // 8, hôtels, avec un permis de 2027).
+    // 22, aérogares, avec un permis de 2027).
     let mut p = bureaux();
-    p.batiments[0].zones[0].usage = UsageZone::Hotel012Nuit;
+    p.batiments[0].zones[0].usage = UsageZone::Aerogare;
     if let Some(x) = p.batiments[0].exigences.as_mut() {
         x.annee_depot_permis = 2027;
     }

@@ -41,7 +41,7 @@ use crate::confort::confort_ete::{
 use crate::confort::indicateurs_confort::{indicateurs, CumulsConfort, CAT_AMB};
 use crate::conventions::ModeCalcul;
 use crate::eclairage::{
-    a_eclnat2_m2, eclairage_habitation, eclairage_locaux, einat_vn_lux, LocalResolu,
+    a_eclnat2_m2, eclairage_habitation, eclairage_locaux_fraction, einat_vn_lux, LocalResolu,
 };
 use crate::entree::{Catalogue, Groupe, RegulationBatterie, UsageZone};
 use crate::scenarios::saisons::{
@@ -915,7 +915,7 @@ impl GroupeHoraire {
         let ecl = if self.locaux_eclairage.is_empty() {
             eclairage_habitation(sc.i_ecl > 0.0, einat, self.a_gr_m2)
         } else {
-            eclairage_locaux(&self.locaux_eclairage, sc.i_ecl > 0.0, einat)
+            eclairage_locaux_fraction(&self.locaux_eclairage, sc.i_ecl.max(0.0), einat)
         };
 
         // §5.21.3.5 : air entrant équivalent (bilan aéraulique de la zone et surventilation).

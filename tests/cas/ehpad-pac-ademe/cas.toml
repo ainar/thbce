@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "EHPAD (établissement sanitaire avec hébergement, usage 19) de 1 500 m² en une zone et un groupe (2,7 m de haut, 15 % de baies à volets motorisés, famille « habitation » des protections mobiles), sur la météo ouverte ADEME (station de Tours, zone H2b) : ventilation simple flux par extraction (6 750 m³/h en continu), plancher chauffant à eau alimenté par vingt-six pompes à chaleur air extérieur / eau et un appoint électrique de 15 kW, huit chauffe-eau électriques de 500 L sans réseau intergroupe, éclairage par locaux du tableau 78 de l'usage 19 (chambres, circulations, local de service, sanitaires, salle commune, bureau). Exigences d'un permis déposé en septembre 2026, catégorie 1, BR1. Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : valeurs du moteur au lot 0c2 (18 novembre 2026), figées pour détecter les régressions ; ce n'est pas un cas de référence. Recoupements à la main (test `hotel_et_ehpad_a_la_main` de crates/thbce-io/tests/hotels_sante.rs) : surface de référence 1 500 m² ; débits conventionnels du Bbio 4,5 × 1 500 = 6 750 m³/h (tableau 56-1) ; forfait de refroidissement 0,009 × (900 − 350) × 1,0 / 2,3 × 1 500 kWh (éq. 2493, tableau 335, DH_max 900 °C.h)."
+meteo = "ademe"
+
+[tolerances]
+defaut = 0.005

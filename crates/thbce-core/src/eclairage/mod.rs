@@ -466,7 +466,13 @@ impl LocalResolu {
     /// `Max(Pecl_tot·CTRLecl_occ·CTRLecl_einat ; Pecl_aux)·Alocal/1000`, avec `CTRLecl_occ = 0`
     /// si `IEcl = 0` et `C1` si `IEcl = 1` (éq. 788).
     pub fn c_ecl_local_kwh(&self, i_ecl: bool, einat2_lux: f64) -> f64 {
-        let ctrl_occ = if i_ecl { self.c1 } else { 0.0 };
+        self.c_ecl_local_fraction_kwh(if i_ecl { 1.0 } else { 0.0 }, einat2_lux)
+    }
+
+    /// « CECL_local,l » avec un indicateur d'éclairage fractionnaire (usage 20 : 0,35 la nuit).
+    /// Identique à [`Self::c_ecl_local_kwh`] pour `i_ecl` égal à 0 ou 1 (`Q074`).
+    pub fn c_ecl_local_fraction_kwh(&self, i_ecl: f64, einat2_lux: f64) -> f64 {
+        let ctrl_occ = ctrl_ecl_occ(self.c1, i_ecl);
         let ctrl_einat = ctrl_ecl_einat(
             self.grad_ecl,
             self.fractionne,
@@ -477,6 +483,16 @@ impl LocalResolu {
         (self.p_ecl_tot_w_m2 * ctrl_occ * ctrl_einat).max(self.p_ecl_aux_w_m2) * self.a_local_m2
             / 1000.0
     }
+}
+
+/// « CTRLecl_occ » avec un indicateur `IEcl` éventuellement fractionnaire.
+///
+/// Th-BCE 2020 §7.1.3.6, éq. (788) : `CTRLecl_occ = 0` si `IEcl = 0`, `C1` si `IEcl = 1`. Le
+/// classeur des scénarios donne 0,35 la nuit pour l'usage 20 (grille d'éclairage de l'onglet
+/// `SAN_N`) : lecture retenue, l'éclairage de nuit à 35 % (`C1 × IEcl`) ; la variante « tout
+/// indicateur strictement positif vaut 1 » n'est pas exposée (`docs/questions/Q074.md`).
+pub fn ctrl_ecl_occ(c1: f64, i_ecl: f64) -> f64 {
+    c1 * i_ecl
 }
 
 /// Local « de bureaux » d'une zone de bureaux, au sens du §7.1.3.2.3 : le bureau standard de
@@ -498,9 +514,18 @@ pub fn a_eclnat2_m2(locaux: &[LocalResolu]) -> f64 {
 /// `FeclC = Crec_ecl_conv·CECL_GR` et `FeclR = Crec_ecl_rad·CECL_GR`, en W (puissance moyenne
 /// sur l'heure, question Q33).
 pub fn eclairage_locaux(locaux: &[LocalResolu], i_ecl: bool, einat2_lux: f64) -> EclairageGroupe {
+    eclairage_locaux_fraction(locaux, if i_ecl { 1.0 } else { 0.0 }, einat2_lux)
+}
+
+/// Comme [`eclairage_locaux`], avec un indicateur d'éclairage fractionnaire (`Q074`).
+pub fn eclairage_locaux_fraction(
+    locaux: &[LocalResolu],
+    i_ecl: f64,
+    einat2_lux: f64,
+) -> EclairageGroupe {
     let c_ecl_kwh: f64 = locaux
         .iter()
-        .map(|l| l.c_ecl_local_kwh(i_ecl, einat2_lux))
+        .map(|l| l.c_ecl_local_fraction_kwh(i_ecl, einat2_lux))
         .sum();
     let puissance_w = c_ecl_kwh * 1000.0;
     EclairageGroupe {

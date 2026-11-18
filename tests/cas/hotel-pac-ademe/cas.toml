@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Hôtel 0, 1 et 2 étoiles en deux zones (usage 8 partie nuit, 900 m², et usage 10 partie jour, 300 m², chacune de 2,7 m de haut, un groupe, 15 % de baies à volets motorisés), sur la météo ouverte ADEME (station de Tours, zone H2b) : ventilation simple flux par extraction propre à chaque zone (2 700 m³/h en continu la nuit ; 2 400 m³/h en occupation et 240 m³/h en inoccupation le jour), plancher chauffant à eau alimenté par quatorze pompes à chaleur air extérieur / eau et un appoint électrique de 15 kW, six chauffe-eau électriques de 500 L sans réseau intergroupe, éclairage par locaux du tableau 78 (chambres, sanitaires collectifs, local de service, circulations ; bureaux, circulations, salle des petits déjeuners). Exigences d'un permis déposé en septembre 2026 (usages soumis à partir du 1er mai 2026), catégorie 1, BR1. Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : valeurs du moteur au lot 0c2 (18 novembre 2026), figées pour détecter les régressions ; ce n'est pas un cas de référence. Recoupements à la main (test `hotel_et_ehpad_a_la_main` de crates/thbce-io/tests/hotels_sante.rs) : surface de référence 1 200 m² ; débits conventionnels du Bbio 3,0 × 900 = 2 700 et 8,0 × 300 = 2 400 m³/h (tableau 56-1) ; forfait de refroidissement de la zone de jour 0,009 × (1 300 − 350) × 1,0 / 2,3 × 300 = 1 115,2 kWh (éq. 2493, tableau 335)."
+meteo = "ademe"
+
+[tolerances]
+defaut = 0.005
