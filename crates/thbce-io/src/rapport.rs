@@ -109,6 +109,48 @@ pub fn synthese_indicateurs(r: &thbce_core::resultats::Resultats) -> String {
                 "non respectées"
             }
         );
+        // Extension ou construction de petite surface (article 50-3 de l'arrêté ; Q86).
+        if let Some(a) = &e.regime_alternatif {
+            use thbce_core::indicateurs::resultats::RegimeExigences as R;
+            let regime = match a.regime {
+                R::Complet => "complet (article R. 172-4, exigences ci-dessus)",
+                R::Intermediaire => "intermédiaire (article 50-3, II : Bbio et DH)",
+                R::ExigencesDeMoyens => "exigences de moyens (article 50-3, III, hors du moteur)",
+                R::HorsChamp => "hors du champ de la RE2020 (article R. 172-1, III)",
+                R::Rt2012 => "RT 2012 (permis de 2022, article 3, II)",
+            };
+            let nature = match a.nature {
+                thbce_core::indicateurs::resultats::NatureTravaux::Construction => "construction",
+                thbce_core::indicateurs::resultats::NatureTravaux::Extension => "extension",
+                thbce_core::indicateurs::resultats::NatureTravaux::Surelevation => "surélévation",
+            };
+            let _ = write!(
+                s,
+                "  régime ({nature}, {:.1} m²) : {regime}",
+                a.sref_consideree_m2
+            );
+            if a.regime == R::Intermediaire {
+                for v in &a.verifications {
+                    let _ = write!(
+                        s,
+                        " ; {} {:.1} ≤ {:.1} {}",
+                        libelle(v),
+                        v.valeur,
+                        v.maximum,
+                        if v.respectee {
+                            "respectée"
+                        } else {
+                            "NON RESPECTÉE"
+                        }
+                    );
+                }
+            }
+            match a.conforme {
+                Some(true) => s.push_str(" ; respecté\n"),
+                Some(false) => s.push_str(" ; non respecté\n"),
+                None => s.push('\n'),
+            }
+        }
     }
     s
 }

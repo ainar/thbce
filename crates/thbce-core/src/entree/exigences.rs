@@ -84,6 +84,58 @@ pub struct ParametresExigences {
     /// du bâtiment.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub zones: Vec<ExigencesZoneSaisie>,
+    /// Le bâtiment décrit est une **extension** (partie nouvelle) d'un bâtiment existant, ou
+    /// une surélévation (fiche 4.4 de l'annexe III ; arrêté du 4 août 2021, articles 3, 50-2 et
+    /// 50-3 ; fiche d'application FA03 v2 ; Q86 à Q88). Absent : construction neuve entière.
+    ///
+    /// Règles de saisie : l'extension se décrit **seule**, comme un bâtiment ; ses zones ne
+    /// contiennent aucun local existant ; une paroi entre l'extension et un local chauffé de la
+    /// partie existante est mitoyenne (ses deux faces donnent sur des locaux chauffés, fiche
+    /// 4.2.2) et ne se saisit pas ; une paroi sur un local existant non chauffé donne sur un
+    /// espace tampon. L'usage d'une extension sans locaux propres est celui du bâtiment existant
+    /// (annexe I, « Usage d'une partie de bâtiment »). Les équipements de la partie existante qui
+    /// la desservent se décrivent avec leurs valeurs initiales ou les valeurs par défaut de la
+    /// réglementation de l'existant, leur puissance nominale au prorata des besoins (à défaut,
+    /// des surfaces) desservis (FA03, annexe II).
+    ///
+    /// Le `nb_logements` d'une zone d'extension compte les logements qu'elle contient en tout
+    /// ou en partie, logements existants agrandis compris (au moins 1 : une extension de
+    /// logements collectifs sans logement nouveau compte les logements qu'elle agrandit ; Q87).
+    ///
+    /// Les exigences de l'article R. 172-4 (`Bbio_max`, `Cep_max`… calculées sur la `Sref` et
+    /// les logements de l'extension) restent calculées et vérifiées ; le régime d'exigences
+    /// alternatives ouvert par la surface et l'usage (article 50-3) est restitué à côté
+    /// (`regime_alternatif`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extension: Option<ExtensionSaisie>,
+}
+
+/// Extension d'un bâtiment existant (arrêté du 4 août 2021, articles 3 et 50-3 ; article
+/// R. 172-1 du CCH ; FA03 v2).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ExtensionSaisie {
+    /// Extension verticale (« surélévation ») : étage ajouté, ou combles existants d'une maison
+    /// aménagés en surélevant le faîtage d'au moins 1,8 m (fiche 4.4 ; la FA03 dit « de plus de
+    /// 1,8 mètre »). Sous le régime intermédiaire, le `DH_max` d'une surélévation climatisée de
+    /// maison en H2d ou H3 est porté à 1 400 °C.h (article 50-3, II, en vigueur depuis le 1er
+    /// janvier 2023) ; pour un permis déposé à partir du 1er juillet 2026, les surélévations à
+    /// usage autre que de maison individuelle ont leurs propres seuils (article 50-3, I,
+    /// arrêté du 18 mars 2026). Absent : extension horizontale.
+    #[serde(default)]
+    pub surelevation: bool,
+    /// Surface de référence des locaux existants avant travaux (y compris les locaux rénovés),
+    /// en m² : SHAB ou SU selon l'usage, comme la `Sref` (FA03). Elle fixe la part de
+    /// l'extension (seuils de 30 %). **Obligatoire** si l'extension comprend une zone d'usage
+    /// autre que maison individuelle ; sans effet pour une extension de maison.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sref_existant_m2: Option<f64>,
+    /// Somme des surfaces de référence des autres extensions du même bâtiment, non décrites
+    /// dans ce calcul, en m² : « la surface considérée … est le cumul des surfaces des
+    /// différentes extensions d'un même bâtiment » (article 50-3, I). Absente : 0 (seule
+    /// l'extension décrite).
+    #[serde(default)]
+    pub sref_autres_extensions_m2: f64,
 }
 
 impl ParametresExigences {

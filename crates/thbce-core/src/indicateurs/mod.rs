@@ -8,12 +8,15 @@
 //!   (§13.3) ;
 //! - [`bilans_energies`] : fiche `C_Calc_Bilans_Energies_Consommees_et_importées` (§13.4),
 //!   autoconsommation de la production photovoltaïque ;
-//! - [`equipements_mobiliers`] : consommations des équipements mobiliers (§4.7).
+//! - [`equipements_mobiliers`] : consommations des équipements mobiliers (§4.7) ;
+//! - [`extensions`] : régime d'exigences des extensions et des constructions de petite surface
+//!   (fiche 4.4, arrêté du 4 août 2021, articles 3 et 50-3).
 
 pub mod bilans_energies;
 pub mod equipements_mobiliers;
 pub mod exigences;
 pub(crate) mod exigences_usages;
+pub mod extensions;
 pub mod forfait_refroidissement;
 pub mod resultats;
 pub mod sorties_th_b;

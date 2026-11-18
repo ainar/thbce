@@ -1,0 +1,44 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b",
+    "altcorr_m": 100.0,
+    "base_ext_c": -6.5
+  },
+  "batiments": [
+    {
+      "id": "extension",
+      "sref_m2": 60.0,
+      "bbio_pts": 53.9,
+      "dh_c_h": 1566.3,
+      "cep_kwhep_m2": 124.2,
+      "cep_nr_kwhep_m2": 124.2,
+      "ic_energie_kgco2_m2": 150.3,
+      "indicateurs": {
+        "cef_kwhef_m2": 54.0,
+        "exigences": {
+          "bbio_max_pts": 82.6,
+          "cep_max_kwhep_m2": 97.5,
+          "cep_nr_max_kwhep_m2": 71.5,
+          "ic_energie_max_kgco2_m2": 208.0,
+          "zones": [
+            {
+              "id": "sejour-chambre",
+              "smoy_lgt_m2": 60.0,
+              "mb_surf_moy": 0.3111,
+              "mc_surf_moy": 0.3
+            }
+          ],
+          "conforme": false,
+          "regime_alternatif": {
+            "nature": "extension",
+            "famille": "maison_individuelle",
+            "sref_consideree_m2": 60.0,
+            "regime": "intermediaire",
+            "conforme": false
+          }
+        }
+      }
+    }
+  ]
+}

@@ -170,7 +170,7 @@ Voir [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Limites connues
 
-- **Périmètre** : maison individuelle ou accolée, logement collectif et bureaux ; les 25 autres usages sont refusés. En bureaux : ventilation simple flux seulement (double flux et centrales de traitement d'air refusés), locaux d'éclairage de volume normal, ni ascenseurs ni parkings. Extensions de bâtiment non traitées.
+- **Périmètre** : maison individuelle ou accolée, logement collectif et bureaux ; les 25 autres usages sont refusés. En bureaux : ventilation simple flux seulement (double flux et centrales de traitement d'air refusés), locaux d'éclairage de volume normal, ni ascenseurs ni parkings. Une extension (ou une surélévation) se calcule seule, avec les exigences de l'article R. 172-4 sur sa propre surface et le régime d'exigences alternatives que sa surface ouvre (article 50-3 de l'arrêté) ; ses exigences de moyens ne sont pas vérifiées.
 - **Aucune validation contre un cas de référence** (COMETH ou RSEE d'un logiciel évalué) : les lectures du texte Q8 à Q54 de [`docs/questions/`](docs/questions/README.md) restent des hypothèses ; les paramètres à tester en premier en cas d'écart y sont listés.
 - **Exigences** : valeurs transcrites pour les 28 usages (celles de l'habitation et des bureaux servent ; les autres usages ne sont pas calculés) ; catégorie de contraintes extérieures et zone de bruit saisies pour le bâtiment, la zone ou le groupe (le moteur contrôle la catégorie selon le chapitre V de l'annexe de l'article R. 172-4, mais ne détermine pas la classe de bruit des baies) ; Icconstruction et les exigences de moyens hors du moteur.
 - **Pas de lecteur RSEE XML** : le schéma XSD n'est pas public.
