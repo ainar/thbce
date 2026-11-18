@@ -483,6 +483,12 @@ mod categorie_contraintes {
                 x["annee_depot_permis"] = 2026.into();
                 x["mois_depot_permis"] = m.into();
             });
+            // La maison transformée en médiathèque (usage ouvert au lot 0c1) a aussi les
+            // erreurs de saisie propres à l'habitation : seules comptent celles des exigences.
+            let e: Vec<_> = e
+                .into_iter()
+                .filter(|m| m.contains(".exigences."))
+                .collect();
             assert_eq!(e.len(), 1, "{e:?}");
             assert!(e[0].contains("mois_depot_permis"), "{e:?}");
         }
