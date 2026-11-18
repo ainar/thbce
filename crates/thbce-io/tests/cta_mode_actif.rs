@@ -101,9 +101,54 @@ fn mode_actif_de_bout_en_bout() {
     assert!(q_chaud > 0.0 && q_em > 0.0);
     assert_eq!(sy.distributions[0].q_kwh, 0.0);
     assert!(m.q_froid_kwh.is_none());
-    // La chaudière reçoit au moins l'énergie de la batterie (plus le préchauffage antigel).
+    // La chaudière reçoit exactement l'énergie de la batterie et celle de la sécurité antigel
+    // (éq. 939 et 940), rien d'autre (23 397,3 kWh).
     let (q_ch, _) = generation(&r, "chaufferie");
-    assert!(q_ch >= q_chaud - 1e-6, "{q_ch} {q_chaud}");
+    let q_ag = m.q_ag_kwh;
+    println!("chaudière {q_ch:.3} kWh = batterie {q_chaud:.3} + antigel {q_ag:.3}");
+    assert!(
+        (q_ch - (q_chaud + q_ag)).abs() < 1e-6,
+        "{q_ch} {q_chaud} {q_ag}"
+    );
+    // Sous-dimensionnement : 31 heures, jamais plus de 3 consécutives (pas d'avertissement).
+    assert!(
+        m.nbh_sous_dimensionnement_consecutives.unwrap() <= m.nbh_sous_dimensionnement.unwrap()
+    );
+    assert!(r
+        .avertissements
+        .iter()
+        .all(|a| !a.contains("sous-dimensionnée")));
+}
+
+/// Report d'énergie (`isreport^g(h−1)`, éq. 583, 588, 1028 ; lecture Q95 point 7) : avec une
+/// chaudière de 60 kW, la génération reporte une partie de la demande de la batterie ; le pas
+/// suivant, la centrale fonctionne en mode actif pendant tout le pas (τ = 1), ce qui accroît
+/// l'énergie fournie par la batterie. Sans report (120 kW suffisent hors des heures où τ ≥ 1
+/// de toute façon), l'énergie est celle de la demande.
+#[test]
+fn report_d_energie_de_la_generation() {
+    let mut p = bureaux_dav();
+    let r120 = calcul(&p);
+    let gen = p.batiments[0]
+        .generations
+        .iter_mut()
+        .find(|g| g.id == "chaufferie")
+        .unwrap();
+    let mut v = serde_json::to_value(&gen.generateurs[0]).unwrap();
+    v["nature"]["chaudiere"]["pn_gen_kw"] = 60.into();
+    gen.generateurs[0] = serde_json::from_value(v).unwrap();
+    let r60 = calcul(&p);
+    let (m120, m60) = (th_c(&r120), th_c(&r60));
+    println!(
+        "Qchaud(rec) : 120 kW {:.1} kWh ({} h) ; 60 kW {:.1} kWh ({} h)",
+        m120.q_chaud_kwh.unwrap(),
+        m120.nbh_mode_actif.unwrap(),
+        m60.q_chaud_kwh.unwrap(),
+        m60.nbh_mode_actif.unwrap()
+    );
+    // Le report accroît l'énergie de la batterie de plus de 3 % (24 479 contre 23 387 kWh).
+    assert!(m60.q_chaud_kwh.unwrap() > 1.03 * m120.q_chaud_kwh.unwrap());
+    assert!(m60.nbh_mode_actif.unwrap() >= m120.nbh_mode_actif.unwrap());
 }
 
 /// Éq. (614) et (618) : avec des puissances de ventilateurs égales dans tous les régimes,
@@ -235,6 +280,37 @@ fn centrale_de_type_3_chaud_et_froid() {
     assert!(q_fr >= -q_froid - 1e-6, "{q_fr} {q_froid}");
 }
 
+/// Centrale à débit variable (type 4) avec batteries chaude et froide : le froid suit les
+/// éq. (589) à (593) (température aux bouches sans refroidissement supplémentaire, bornée par
+/// la nominale de 14 °C, taux de charge) ; l'énergie de la batterie froide passe à la
+/// génération de froid (éq. 940), sans perte de la demande des émetteurs.
+#[test]
+fn centrale_de_type_4_chaud_et_froid() {
+    let mut v = serde_json::to_value(type_3_chaud_froid()).unwrap();
+    let c = &mut v["batiments"][0]["zones"][0]["ventilation"]["systeme"]["cta"];
+    c["type_cta"] = "debit_variable".into();
+    c["theta_sou_nom_chaud_c"] = 32.into();
+    c["theta_sou_nom_froid_c"] = 14.into();
+    let p: Projet = serde_json::from_value(v).unwrap();
+    let r = calcul(&p);
+    let m = th_c(&r);
+    let (q_chaud, q_froid) = (m.q_chaud_kwh.unwrap(), m.q_froid_kwh.unwrap());
+    println!(
+        "type 4 : mode actif {} h ; Qchaud {q_chaud:.1} kWh ; Qfroid {q_froid:.1} kWh ; Cep {:.2}",
+        m.nbh_mode_actif.unwrap(),
+        r.batiments[0].cep_kwhep_m2.unwrap()
+    );
+    assert!(q_chaud > 0.0 && q_froid < 0.0);
+    let sy = r.batiments[0].zones[0].groupes[0]
+        .systemes
+        .as_ref()
+        .unwrap();
+    assert!(sy.distributions.iter().all(|d| d.q_kwh == 0.0));
+    // La génération de froid reçoit exactement l'énergie de la batterie froide.
+    let (_, q_fr) = generation(&r, "groupe-froid");
+    assert!((q_fr + q_froid).abs() < 1e-6, "{q_fr} {q_froid}");
+}
+
 #[test]
 fn erreurs_de_saisie() {
     let chemins = |p: &Projet| -> (Vec<String>, bool) {
@@ -317,5 +393,5 @@ fn mode_actif_sur_meteo_reglementaire() {
     }
 }
 
-/// Valeurs phares sur la météo réglementaire (lot 1-ven2, 19 novembre 2026).
+/// Valeurs phares sur la météo réglementaire (lot 1-ven2, 18 novembre 2026).
 const REGL: [f64; 6] = [82.9, 619.5, 68.9, 68.9, 293.1, 27643.8];

@@ -85,6 +85,12 @@ pub struct CumulsVentilation {
     /// Nombre de pas de temps où la batterie régulée sur la charge est sous-dimensionnée (éq.
     /// 597 et 605).
     pub nbh_sous_dimensionnement: u32,
+    /// « Nbsousdim_DAV_Ch(h) » et « Nbsousdim_DAV_Cr(h) » : heures consécutives de
+    /// sous-dimensionnement en chauffage et en refroidissement (éq. 597 et 605).
+    pub nb_sousdim: [u32; 2],
+    /// Plus longue série d'heures consécutives de sous-dimensionnement, en chauffage ou en
+    /// refroidissement (éq. 597 et 605).
+    pub nbh_sous_dimensionnement_consecutives: u32,
     /// Énergie fournie par la batterie chaude régulée sur la charge, en Wh (éq. 599).
     pub q_chaud_wh: f64,
     /// Énergie fournie par la batterie froide régulée sur la charge, latente comprise, en Wh,
@@ -476,6 +482,22 @@ impl ZoneHoraire {
                 let cv = &mut self.cumuls_ventilation;
                 cv.nbh_mode_actif += u32::from(m.actif);
                 cv.nbh_sous_dimensionnement += u32::from(m.sous_dimensionnee);
+                // Éq. (597) et (605) : compteurs d'heures consécutives, remis à zéro à la
+                // première heure sans sous-dimensionnement.
+                for (k, n) in cv.nb_sousdim.iter_mut().enumerate() {
+                    *n = if m.sous_dimensionnee && m.chauffage == (k == 0) {
+                        *n + 1
+                    } else {
+                        0
+                    };
+                    cv.nbh_sous_dimensionnement_consecutives =
+                        cv.nbh_sous_dimensionnement_consecutives.max(*n);
+                }
+                if m.actif {
+                    // §6.3.3.5.5.4 : sécurité antigel recalculée (lecture Q95 point 11).
+                    cv.w_ag_wh += m.w_ag_wh - self.sorties_ventilation.w_ag_wh;
+                    self.sorties_ventilation.w_ag_wh = m.w_ag_wh;
+                }
                 cv.q_chaud_wh += m.q_chaud_wh;
                 cv.q_froid_wh += m.q_froid_wh;
             }

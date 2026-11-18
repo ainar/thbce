@@ -4858,6 +4858,12 @@ export interface ResultatsVentilationMode {
    * 60 °C ou en deçà de la surface de la batterie froide, éq. 597 et 605) ; absent sans elles.
    */
   nbh_sous_dimensionnement?: number | null;
+  /**
+   * Plus longue série d'heures consécutives de sous-dimensionnement de ces batteries
+   * (« Nbsousdim_DAV », éq. 597 et 605) ; au-delà de 6 heures, un avertissement invite à
+   * revoir le dimensionnement ; absente sans ces batteries.
+   */
+  nbh_sous_dimensionnement_consecutives?: number | null;
   /** Énergie fournie pour la sécurité antigel de l'échangeur, en kWh (éq. 508). */
   q_ag_kwh: number;
   /**

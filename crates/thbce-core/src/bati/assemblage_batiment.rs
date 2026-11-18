@@ -386,6 +386,15 @@ impl BatimentHoraire {
                 self.coefficients[i] = et.pas(&ext, v_ventc, &self.vus);
             }
         }
+        if self.mode != ModeCalcul::ThB {
+            // Q95 point 7 : report d'énergie des générations des batteries régulées sur la
+            // charge au pas précédent (`isreport^g(h−1)`, p. 1721).
+            for (iz, z) in self.zones.iter_mut().enumerate() {
+                if let Some(v) = &mut z.ventilation {
+                    v.isreport = self.systemes.isreport_cta(iz);
+                }
+            }
+        }
         for z in &mut self.zones {
             z.pas_avec_espaces_tampons(h, climat, confort, &self.coefficients)?;
         }
@@ -422,6 +431,22 @@ impl BatimentHoraire {
 }
 
 impl SystemesBatiment {
+    /// « isreport_ch^g(h−1) » et « isreport_fr^g(h−1) » de la centrale de la zone `iz` : la
+    /// génération de sa batterie chaude (froide) régulée sur la charge, reliée aux groupes
+    /// qu'elle dessert, a reporté une demande de chauffage (refroidissement) au pas suivant
+    /// (éq. 1028 ; définition p. 1721 ; lecture Q95 point 7).
+    pub fn isreport_cta(&self, iz: usize) -> [bool; 2] {
+        let b = self.batteries_cta.get(iz).copied().unwrap_or_default();
+        let en_report = |g: Option<usize>, p: usize| {
+            g.and_then(|g| self.generations_horaires.get(g))
+                .is_some_and(|x| x.etat.q_rep_wh[p] > 0.0)
+        };
+        [
+            en_report(b.chaude, Poste::Chauffage.indice()),
+            en_report(b.froide, Poste::Refroidissement.indice()),
+        ]
+    }
+
     /// Résout les réseaux intergroupes et les générations du bâtiment et lie les systèmes des
     /// groupes. Références vérifiées par la validation.
     fn nouveaux(
@@ -925,6 +950,15 @@ impl SystemesBatiment {
         // un réseau sur air à la température de l'air neuf ; lecture Q46).
         let mut vus: Vec<ReseauVu> = Vec::new();
         let mut origines: Vec<Origine> = Vec::new();
+        // Éq. (938) : un réseau de CTA est en relance lorsqu'au moins l'un des groupes reliés à
+        // la centrale est en période de relance.
+        let relance_cta = |z: &ZoneHoraire| {
+            z.ventilation.as_ref().is_some_and(|v| {
+                z.groupes.iter().enumerate().any(|(g, x)| {
+                    v.dessert(g) && x.systemes.as_ref().is_some_and(|s| s.sorties.relance)
+                })
+            })
+        };
         let mut sources: Vec<ConditionsSource> = Vec::new();
         let mut phi_vc_gen = vec![0.0; groupes.len()];
         self.phi_rejet_et_w.fill(0.0);
@@ -1030,7 +1064,7 @@ impl SystemesBatiment {
                     } else {
                         theta_ext_c
                     },
-                    relance: false,
+                    relance: relance_cta(z),
                     // Sans demande, la sécurité antigel ne pèse pas dans les répartitions.
                     rat_surf_dess: 0.0,
                     phi_pertes_prim_wh: 0.0,
@@ -1043,17 +1077,40 @@ impl SystemesBatiment {
                 let b = self.batteries_cta[iz];
                 let v = z.sorties_ventilation;
                 let m = z.mode_actif;
+                // Éq. (951) : en mode actif, boîte de mélange recalculée (§6.3.3.5.6).
+                let theta_mel_rec = if m.actif {
+                    m.theta_souf_mel_c
+                } else {
+                    v.theta_souf_mel_c
+                };
                 // Éq. (940) : énergies du mode actif des centrales à charge variable, sur leur
-                // réseau de CTA fictif (lecture Q95).
-                for (poste, g, q) in [
-                    (Poste::Chauffage, b.prechauffage, v.q_prechaud_wh),
+                // réseau de CTA fictif, et demandes des émetteurs des bouches qu'il n'assure pas
+                // (lecture Q95, points 3 et 8).
+                for (poste, g, q, theta) in [
+                    (
+                        Poste::Chauffage,
+                        b.prechauffage,
+                        v.q_prechaud_wh,
+                        v.theta_souf_mel_c,
+                    ),
                     (
                         Poste::Refroidissement,
                         b.prerefroidissement,
                         -v.q_prefroid_wh,
+                        v.theta_souf_mel_c,
                     ),
-                    (Poste::Chauffage, b.chaude, m.q_chaud_wh),
-                    (Poste::Refroidissement, b.froide, -m.q_froid_wh),
+                    (
+                        Poste::Chauffage,
+                        b.chaude,
+                        m.q_chaud_wh + m.q_direct_wh.0,
+                        theta_mel_rec,
+                    ),
+                    (
+                        Poste::Refroidissement,
+                        b.froide,
+                        -(m.q_froid_wh + m.q_direct_wh.1),
+                        theta_mel_rec,
+                    ),
                 ] {
                     if g != Some(ig) {
                         continue;
@@ -1064,8 +1121,9 @@ impl SystemesBatiment {
                         q_sys_wh: q,
                         theta_moy_c: 0.0,
                         theta_dep_c: 0.0,
-                        theta_i_aval_eq_c: v.theta_souf_mel_c,
-                        relance: false,
+                        theta_i_aval_eq_c: theta,
+                        // Éq. (938) : en relance si l'un des groupes reliés à la centrale l'est.
+                        relance: relance_cta(z),
                         rat_surf_dess: 0.0,
                         phi_pertes_prim_wh: 0.0,
                     });

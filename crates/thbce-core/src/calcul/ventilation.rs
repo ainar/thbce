@@ -40,11 +40,47 @@ pub(super) fn resultats_mode(
             .map(|_| c.q_prefroid_wh / 1000.0),
         nbh_mode_actif: batteries.map(|_| c.nbh_mode_actif),
         nbh_sous_dimensionnement: batteries.map(|_| c.nbh_sous_dimensionnement),
+        nbh_sous_dimensionnement_consecutives: batteries
+            .map(|_| c.nbh_sous_dimensionnement_consecutives),
         q_chaud_kwh: batteries.filter(|b| b.chaud).map(|_| c.q_chaud_wh / 1000.0),
         q_froid_kwh: batteries
             .and_then(|b| b.froid)
             .map(|_| c.q_froid_wh / 1000.0),
     }
+}
+
+/// Seuil d'heures consécutives de sous-dimensionnement d'une batterie régulée sur la charge
+/// au-delà duquel le texte prévoit un message (§6.3.3.5.8.3, éq. 597 et 605).
+pub const SEUIL_SOUS_DIMENSIONNEMENT_DAV_H: u32 = 6;
+
+/// Avertissements non bloquants de la ventilation d'un bâtiment après le calcul des
+/// consommations : sous-dimensionnement des batteries régulées sur la charge sur plus de 6
+/// pas de temps consécutifs (§6.3.3.5.8.3 et 6.3.3.5.8.4, éq. 597 et 605).
+pub(super) fn avertissements_ventilation(
+    id_bat: &str,
+    b: &crate::bati::assemblage_batiment::BatimentHoraire,
+) -> Vec<String> {
+    b.zones
+        .iter()
+        .filter(|z| {
+            z.ventilation
+                .as_ref()
+                .and_then(|v| v.cta.as_ref())
+                .is_some_and(|c| c.batteries_charge.is_some())
+        })
+        .filter_map(|z| {
+            let n = z.cumuls_ventilation.nbh_sous_dimensionnement_consecutives;
+            (n > SEUIL_SOUS_DIMENSIONNEMENT_DAV_H).then(|| {
+                format!(
+                    "bâtiment « {id_bat} », zone « {} » : la batterie régulée sur la charge de la \
+                     centrale est sous-dimensionnée pendant {n} heures consécutives ; revoir son \
+                     dimensionnement (débit, température de batterie ; Th-BCE 2020 \
+                     §6.3.3.5.8.3, éq. 597 et 605)",
+                    z.id
+                )
+            })
+        })
+        .collect()
 }
 
 pub(super) fn ventilation_groupe(

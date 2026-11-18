@@ -151,6 +151,19 @@ pub struct ModeActif {
     pub q_lat_wh: f64,
     /// Sous-dimensionnement de la batterie (éq. 597 et 605).
     pub sous_dimensionnee: bool,
+    /// Le mode actif a chauffé l'air (sinon, s'il est actif, il l'a refroidi).
+    pub chauffage: bool,
+    /// « θsouf,mel(rec)(h) » : température après la boîte de mélange recalculée
+    /// (§6.3.3.5.6), vue par la génération des batteries (éq. 951), en °C.
+    pub theta_souf_mel_c: f64,
+    /// « Wag(rec)(h) » pondérée par les durées de fonctionnement : `τ·Wag(rec) + (1 − τ)·Wag`
+    /// (§6.3.3.5.5.4, lecture Q95 point 11), en Wh.
+    pub w_ag_wh: f64,
+    /// Demandes des émetteurs contenus dans les bouches que le mode actif n'assure pas
+    /// (chauffage et refroidissement au même pas, centrale sans débit) : transmises telles
+    /// quelles à la génération de la batterie de même fonction (lecture Q95 point 8), en Wh
+    /// (chaud positif, froid négatif).
+    pub q_direct_wh: (f64, f64),
 }
 
 /// Grandeurs de la première phase (zone neutre) gardées pour le mode actif.
@@ -165,6 +178,8 @@ struct ZoneNeutre {
     w_vent_wh: f64,
     /// « Wech(h) », en Wh.
     w_ech_wh: f64,
+    /// « Wag(h) », en Wh (éq. 508).
+    w_ag_wh: f64,
 }
 
 /// Circuits d'un système jusqu'au ventilateur de soufflage.
@@ -345,6 +360,11 @@ pub struct VentilationProjet {
     /// Relevé de la consommation des ventilateurs pendant la simulation : centrales double
     /// flux hors habitation ; `None` sinon (consommation déduite des puissances).
     pub releve: Option<ReleveVentilation>,
+    /// « isreport_ch^g(h−1) » et « isreport_fr^g(h−1) » : la génération de la batterie chaude
+    /// (froide) régulée sur la charge était en situation de report d'énergie au pas précédent
+    /// (§6.3.3.1.4, éq. 583, 584, 588 et 594 ; défini p. 1721 ; lecture Q95 point 7) ; écrit
+    /// par le bâtiment avant chaque pas de temps.
+    pub isreport: [bool; 2],
     /// Régime du pas de temps en cours.
     regime: Regime,
     /// « ρair_soufflé^g,s(h−1) » de chaque bouche, en kg/m³.
@@ -757,6 +777,7 @@ impl VentilationProjet {
             prechauffage: v.systeme.batterie_prechauffage().cloned(),
             prerefroidissement: v.systeme.batterie_prerefroidissement().cloned(),
             releve,
+            isreport: [false; 2],
             regime: Regime {
                 i_vent: true,
                 i_vent_h1: true,
@@ -778,7 +799,7 @@ impl VentilationProjet {
             i_vent_h1,
             groupes.iter().any(|g| g.besoin_ch),
             groupes.iter().any(|g| g.besoin_fr),
-        );
+        ) || self.report_type_3();
         self.regime = Regime {
             i_vent,
             i_vent_h1,
@@ -788,6 +809,23 @@ impl VentilationProjet {
                 .as_ref()
                 .is_some_and(|c| debits_nominaux(c.type_cta, conditions)),
         };
+    }
+
+    /// §6.3.3.1.4 (p. 355) : une centrale de type 3 passe aussi au débit nominal lorsque la
+    /// génération de ses batteries était en report d'énergie au pas précédent
+    /// (`isreport_ch^g(h−1) = 1` ou `isreport_fr^g(h−1) = 1`), condition que les éq. (423) et
+    /// (446) n'écrivent pas (lecture Q95 point 7).
+    fn report_type_3(&self) -> bool {
+        self.cta.as_ref().is_some_and(|c| {
+            matches!(c.type_cta, TypeCta::DebitConstantTemperatureVariable)
+                && c.batteries_charge.is_some()
+        }) && (self.isreport[0] || self.isreport[1])
+    }
+
+    /// Le système a une bouche dans le groupe `g` (§8.11.3.2, éq. 938 : groupes connectés à
+    /// la centrale).
+    pub fn dessert(&self, g: usize) -> bool {
+        self.bouches.iter().any(|b| b.groupe == g)
     }
 
     /// Régime du pas de temps en cours.
@@ -1249,6 +1287,7 @@ impl VentilationProjet {
         let qm_sou = centrale.qm_sou_kg_s;
         self.zn.w_vent_wh = p_vent_rep_w + p_vent_sou_w;
         self.zn.w_ech_wh = w_ech_wh;
+        self.zn.w_ag_wh = sorties.w_ag_wh;
         self.zn.omega_souffle_kg_kg = omega_ext_kg_kg;
         self.zn.souffle.fill((0.0, 0.0));
         self.rho_souffle_h1.copy_from_slice(&self.rho_souffle);
@@ -1398,8 +1437,42 @@ impl VentilationProjet {
     /// 6.3.3.5.7), puis la température aux bouches (éq. 582 à 594), à la sortie de la centrale
     /// (éq. 595), l'énergie des batteries (éq. 596 à 612) et les ventilateurs (éq. 614), dont
     /// la consommation remplace celle de la zone neutre dans le relevé (éq. 618).
+    ///
+    /// La demande que le mode actif n'assure pas (chauffage et refroidissement au même pas
+    /// dans des groupes différents, centrale sans débit soufflé) est rendue dans
+    /// [`ModeActif::q_direct_wh`] pour être transmise à la génération de la batterie de même
+    /// fonction (lecture Q95 point 8) : elle n'est jamais perdue.
     #[allow(clippy::too_many_arguments)]
     pub fn mode_actif(
+        &mut self,
+        theta_ext_c: f64,
+        omega_ext_kg_kg: f64,
+        zn: &[EtatGroupeVentilation],
+        moy: &[EtatGroupeVentilation],
+        i_vent: bool,
+        q_sys_ch_wh: f64,
+        q_sys_fr_wh: f64,
+    ) -> ModeActif {
+        let mut m = self.mode_actif_centrale(
+            theta_ext_c,
+            omega_ext_kg_kg,
+            zn,
+            moy,
+            i_vent,
+            q_sys_ch_wh,
+            q_sys_fr_wh,
+        );
+        let ch_assure = m.actif && m.chauffage;
+        let fr_assure = m.actif && !m.chauffage;
+        m.q_direct_wh = (
+            if ch_assure { 0.0 } else { q_sys_ch_wh.max(0.0) },
+            if fr_assure { 0.0 } else { q_sys_fr_wh.min(0.0) },
+        );
+        m
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn mode_actif_centrale(
         &mut self,
         theta_ext_c: f64,
         omega_ext_kg_kg: f64,
@@ -1417,13 +1490,17 @@ impl VentilationProjet {
             return ModeActif::default();
         };
         // §6.3.3.1.5, figure 72 : saison effective de la centrale (éq. 409 et 410 : un groupe
-        // suffit) et demande des émetteurs.
-        let chauffe =
-            batteries.chaud && zn.iter().any(|g| g.saison_de_chauffage) && q_sys_ch_wh > 0.0;
+        // suffit), demande des émetteurs ou report d'énergie de la génération de la batterie au
+        // pas précédent (éq. 583, 584, 588 et 594 : `isreport^g(h−1) = 1`, lecture Q95 point 7).
+        let [report_ch, report_fr] = self.isreport;
+        let chauffe = batteries.chaud
+            && zn.iter().any(|g| g.saison_de_chauffage)
+            && (q_sys_ch_wh > 0.0 || report_ch);
         let refroidit = !chauffe
             && batteries.froid.is_some()
             && zn.iter().any(|g| g.saison_de_refroidissement)
-            && q_sys_fr_wh < 0.0;
+            && (q_sys_fr_wh < 0.0 || report_fr);
+        let report = if chauffe { report_ch } else { report_fr };
         if !chauffe && !refroidit {
             return ModeActif::default();
         }
@@ -1484,7 +1561,12 @@ impl VentilationProjet {
             return ModeActif::default();
         }
         let theta_i_moy = somme_theta_i / qm_spec;
-        let q_sys = if chauffe { q_sys_ch_wh } else { q_sys_fr_wh };
+        // Demande du mode engagé (sans demande, mode actif engagé par le seul report).
+        let q_sys = if chauffe {
+            q_sys_ch_wh.max(0.0)
+        } else {
+            q_sys_fr_wh.min(0.0)
+        };
         // Éq. (582) à (594).
         let charge = match cta.type_cta {
             TypeCta::DebitVariable => {
@@ -1499,7 +1581,13 @@ impl VentilationProjet {
                         .unwrap_or(theta_i_moy);
                     (somme_sans_froid / qm_cond).min(nom)
                 };
-                charge_debit_variable(q_sys, theta_nom, theta_i_moy, p_zn, cp, qm_spec)
+                let c = charge_debit_variable(q_sys, theta_nom, theta_i_moy, p_zn, cp, qm_spec);
+                // Éq. (588) et (594) : en report, débit nominal pendant tout le pas de temps.
+                if report && c.tau < 1.0 {
+                    ChargeCentrale { tau: 1.0, ..c }
+                } else {
+                    c
+                }
             }
             // Éq. (582) à (584) : débit constant, température variable, τ = 100 %.
             _ => ChargeCentrale {
@@ -1526,9 +1614,17 @@ impl VentilationProjet {
             somme_sortie += qm_c * (charge.theta_sou_bouches_c - lnc * (1.0 - e)) / e;
         }
         let theta_souf_rec = somme_sortie / qm_cond;
+        // §6.3.3.5.5.4 : sécurité antigel recalculée avec les débits du mode actif, pondérée
+        // par les durées de fonctionnement en mode actif et en zone neutre comme les autres
+        // consommations du §6.3.3.5.8.4.1 (éq. 614 et 617 ; lecture Q95 point 11).
+        let w_ag_wh = charge.tau * centrale.sorties.w_ag_wh + (1.0 - charge.tau) * self.zn.w_ag_wh;
         let mut resultat = ModeActif {
             actif: true,
             tau: charge.tau,
+            chauffage: chauffe,
+            // §6.3.3.5.6 : boîte de mélange recalculée, vue par la génération (éq. 951).
+            theta_souf_mel_c: centrale.sorties.theta_souf_mel_c,
+            w_ag_wh,
             ..ModeActif::default()
         };
         if chauffe {

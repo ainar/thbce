@@ -321,7 +321,10 @@ pub fn charge_debit_variable(
         cp_j_kg_k,
         qm_sou_spec_kg_s,
     );
-    let tau = if p_max * somme_q_sys_wh > 0.0 {
+    let tau = if somme_q_sys_wh == 0.0 {
+        // Mode actif engagé par le seul report d'énergie (éq. 588 et 594) : aucune charge.
+        0.0
+    } else if p_max * somme_q_sys_wh > 0.0 {
         somme_q_sys_wh / p_max
     } else {
         f64::INFINITY
@@ -792,6 +795,11 @@ mod tests {
         let c = charge_debit_variable(1000.0, 18.0, 20.0, 0.0, 1006.0, 0.5);
         proche(c.tau, 1.0);
         proche(c.theta_sou_bouches_c, 20.0 + 1000.0 / 503.0);
+        // Mode actif engagé par le seul report (éq. 588) : aucune charge, τ = 0 à la
+        // nominale ; la centrale porte ensuite τ à 1.
+        let c = charge_debit_variable(0.0, 30.0, 20.0, -1000.0, 1006.0, 0.5);
+        proche(c.tau, 0.0);
+        proche(c.theta_sou_bouches_c, 30.0);
         // Éq. (589).
         proche(exp_h(10.0, 0.5), libm::exp(-10.0 / 503.0));
         // Éq. (598) et (599).

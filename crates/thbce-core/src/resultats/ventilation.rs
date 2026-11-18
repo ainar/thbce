@@ -54,6 +54,11 @@ pub struct ResultatsVentilationMode {
     /// 60 °C ou en deçà de la surface de la batterie froide, éq. 597 et 605) ; absent sans elles.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nbh_sous_dimensionnement: Option<u32>,
+    /// Plus longue série d'heures consécutives de sous-dimensionnement de ces batteries
+    /// (« Nbsousdim_DAV », éq. 597 et 605) ; au-delà de 6 heures, un avertissement invite à
+    /// revoir le dimensionnement ; absente sans ces batteries.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nbh_sous_dimensionnement_consecutives: Option<u32>,
     /// Énergie fournie par la batterie chaude régulée sur la charge, en kWh (« Qchaud(rec) »,
     /// éq. 599) ; absente sans elle. Demandée à la génération désignée (éq. 940).
     #[serde(default, skip_serializing_if = "Option::is_none")]
