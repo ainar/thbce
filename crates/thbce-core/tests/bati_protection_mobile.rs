@@ -27,7 +27,10 @@ macro_rules! assert_proche {
 fn pm(type_pm: TypePm, gestion: GestionPm, exterieure: bool, pm2: bool) -> ProtectionMobile {
     ProtectionMobile {
         type_pm,
-        gestion,
+        gestion: Some(gestion),
+        gestion_sv: None,
+        detecteur_presence: None,
+        automatisme: None,
         exterieure,
         seconde_protection: pm2,
         typo_pm: None,
@@ -53,6 +56,8 @@ fn occupe(etp_lux: f64, saison: SaisonGpm) -> ConditionsGpm {
         saison,
         top_j1_max_c: 20.0,
         confort_adaptatif_th_d: false,
+        theta_op_fin_c: 20.0,
+        hleg: 12,
     }
 }
 
@@ -309,6 +314,7 @@ fn store_enroulable_et_vent() {
 
 #[test]
 fn ce_que_la_version_ne_prend_pas_en_charge() {
+    // Gestion automatique sans automatisme saisi, store vénitien sans gestion propre : refusés.
     let auto = pm(
         TypePm::Volet,
         GestionPm::AutomatiqueAvecDerogation,

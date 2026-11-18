@@ -16,6 +16,10 @@ fn thbce(args: &[&str]) -> Output {
         .expect("lancement de thbce")
 }
 
+/// Premier générateur du cas de démonstration (panneaux rayonnants), remplacé pour fabriquer un
+/// élément hors périmètre.
+const GENERATEUR: &str = "              \"nature\": {\n                \"effet_joule\": {\n                  \"fonction\": \"chauffage\",\n                  \"pn_gen_w\": 1000\n                }\n              }";
+
 fn entree() -> String {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/cas/squelette-maison/entree.json")
@@ -133,8 +137,8 @@ fn codes_de_retour() {
         Some(2)
     );
     // 3 : élément hors périmètre de cette version (les 28 usages sont calculés depuis le lot
-    // 0c4) : store vénitien.
-    let ecole = texte.replace("\"type_pm\": \"volet\"", "\"type_pm\": \"store_venitien\"");
+    // 0c4) : système de cogénération (§8.21).
+    let ecole = texte.replace(GENERATEUR, "\"nature\": \"cogeneration\"");
     let ecole = fichier("ecole.json", &ecole);
     let h2b = meteo("h2b-bis.csv", ZoneClimatique::H2b);
     let s = thbce(&["calcul", ecole.to_str().unwrap(), "--meteo", &h2b]);
@@ -152,12 +156,12 @@ fn codes_de_retour() {
         erreur.contains("non pris en charge par cette version (voir docs/couverture.md)"),
         "{erreur}"
     );
-    assert!(erreur.contains("store_venitien"), "{erreur}");
+    assert!(erreur.contains("cogeneration"), "{erreur}");
     // Une erreur de saisie l'emporte sur un élément hors périmètre : code 2.
     let mixte = fichier(
         "mixte.json",
         &texte
-            .replace("\"type_pm\": \"volet\"", "\"type_pm\": \"store_venitien\"")
+            .replace(GENERATEUR, "\"nature\": \"cogeneration\"")
             .replace("\"shab_m2\": 96.44", "\"shab_m2\": -1"),
     );
     assert_eq!(
