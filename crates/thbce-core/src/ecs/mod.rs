@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Eau chaude sanitaire (Th-BCE 2020 §9).
 //!
-//! - [`besoins_ecs`] : fiches `C_EMI_Emission_ECS` (§9.5) et `C_EIN_besoins_ECS` (§9.6), sans
-//!   récupération de chaleur sur les eaux grises (fiche 9.21, après la première version) ;
+//! - [`besoins_ecs`] : fiches `C_EMI_Emission_ECS` (§9.5) et `C_EIN_besoins_ECS` (§9.6) ;
+//! - [`recuperateur_eaux_grises`] : récupérateur de chaleur sur les eaux grises (§9.21), qui
+//!   modifie les besoins de l'émetteur et la température d'entrée du ballon ;
 //! - [`distribution_ecs`] : fiches `C_DIS_Distribution_ECS_du_groupe` (§9.7) et
 //!   `C_DIS_Distribution_ECS_intergroupe` (§9.8) ;
 //! - [`ballon_de_stockage`] : fiche `C_STO_Ballon_de_stockage` (§9.9) ;
@@ -21,7 +22,7 @@
 //! La production d'ECS, instantanée (§9.1) ou avec stockage (§9.2), passe par la génération
 //! (`chauffage_refroidissement::generation`).
 //!
-//! Lectures : `docs/questions/Q045.md`, `Q048.md`, `Q052.md` et `Q053.md`.
+//! Lectures : `docs/questions/Q045.md`, `Q048.md`, `Q052.md`, `Q053.md` et `Q108.md`.
 
 pub mod assemblage_ballon;
 pub mod ballon_de_stockage;
@@ -33,3 +34,4 @@ pub mod distribution_ecs;
 pub mod echangeur_ballon;
 pub mod gestion_regulation_ballon;
 pub mod idcet;
+pub mod recuperateur_eaux_grises;

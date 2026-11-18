@@ -113,6 +113,34 @@ pub struct Lectures {
     /// Récupération des pertes et consommations des systèmes (fiche 11.1) en Th-D (Q45). Vrai :
     /// lecture retenue ; faux pour mesurer son effet.
     pub recuperation_th_d: bool,
+    /// Préchauffage de l'eau froide du ballon d'ECS par un récupérateur sur les eaux grises
+    /// (Q108 point 6) : `Deduit` déduit la chaleur récupérée de la demande de la génération
+    /// (lecture retenue) ; `Texte` ne modifie que `θentrant`, sans effet en position 1.
+    pub preechauffage_ecs: LecturePreechauffageEcs,
+    /// Puisage d'un accumulateur en eau technique aux heures sans puisage d'ECS (Q106 point 3).
+    pub puisage_accumulateur: LecturePuisageAccumulateur,
+}
+
+/// Heures sans puisage d'ECS d'un accumulateur en eau technique (`docs/questions/Q106.md`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LecturePuisageAccumulateur {
+    /// Les valeurs du dernier pas avec puisage sont conservées (lecture retenue).
+    #[default]
+    Conserve,
+    /// Texte littéral (p. 1134) : sans puisage (Vef,ecs = 0), ni puisage ni circulateur.
+    Litteral,
+}
+
+/// Prise en compte du préchauffage de l'eau froide du ballon (`docs/questions/Q108.md`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LecturePreechauffageEcs {
+    /// Seule `θentrant` change ; la demande à la génération reste celle de l'émetteur (éq. 1794
+    /// calculée à partir de `θcw`) : le préchauffage de la position 1 est sans effet (variante).
+    Texte,
+    /// La chaleur `ρw·cw·Vec·(θentrant − θcw)` récupérée sur l'eau froide est déduite de la
+    /// demande de la génération (lecture retenue).
+    #[default]
+    Deduit,
 }
 
 /// Émission employée par le calcul Th-D (`docs/questions/Q043.md` ; Q40 point 1).
@@ -148,6 +176,8 @@ impl Default for Lectures {
             ventilation_th_d: VentilationThD::default(),
             emission_th_d: EmissionThD::default(),
             recuperation_th_d: true,
+            preechauffage_ecs: LecturePreechauffageEcs::default(),
+            puisage_accumulateur: LecturePuisageAccumulateur::default(),
         }
     }
 }

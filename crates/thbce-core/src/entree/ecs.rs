@@ -285,10 +285,14 @@ pub struct EmetteurEcs {
     /// « App_ecs » : appareils sanitaires (tableau 275) ; s'il y en a de natures différentes,
     /// le plus défavorable.
     pub appareils: AppareilsEcs,
-    /// « Irecup » : récupérateur de chaleur sur les eaux grises (fiche 9.21) : non pris en
-    /// charge dans cette version. Absent : faux.
+    /// « Irecup » : présence d'un récupérateur de chaleur sur les eaux grises (fiche 9.21).
+    /// Absent : vrai si `recuperateur` est saisi, faux sinon. Vrai exige `recuperateur`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recuperateur_eaux_grises: Option<bool>,
+    /// Description du récupérateur de chaleur sur les eaux grises de l'émetteur (§9.21.2,
+    /// paramètres d'intégration du tableau 299), requise si « Irecup » vaut 1.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recuperateur: Option<RecuperateurEauxGrises>,
     /// Réseau de distribution d'ECS du groupe, propre à l'émetteur (§9.7).
     pub distribution: DistributionEcsGroupe,
     /// Identifiant du réseau de distribution d'ECS intergroupe du bâtiment (§9.8).
@@ -406,4 +410,123 @@ pub struct ReseauEcsTrace {
     /// Espace tampon traversé par la partie hors volume chauffé (« btherm », éq. 1756).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub espace_tampon: Option<Id>,
+}
+
+/// « Typerecup » (§9.21.2.1) : configuration du système de récupération.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ConfigurationRecuperateur {
+    /// 1 : récupération « individuelle - groupe » : chaque émetteur équivalent est relié à ses
+    /// échangeurs, et tout se déroule dans le groupe (`position` requise).
+    Individuelle,
+    /// 0 : récupération « collective - intergroupe » : les eaux grises des émetteurs reliés à
+    /// un même récupérateur central sont mélangées avant l'échangeur (`recuperateur_collectif`
+    /// requis ; position imposée : en amont du ballon d'ECS uniquement, figure 205).
+    Collective,
+}
+
+/// « Tposition » (§9.21.2.1) : position du récupérateur dans le circuit d'eau froide.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PositionRecuperateur {
+    /// 0 : en amont des mitigeurs et du ballon d'ECS.
+    AmontMitigeursEtBallon,
+    /// 1 : en amont du ballon d'ECS uniquement.
+    AmontBallon,
+    /// 2 : en amont des mitigeurs uniquement.
+    AmontMitigeurs,
+}
+
+/// Origine des valeurs d'efficacité d'un échangeur sur les eaux grises (§9.21.6.3.2.1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OrigineEfficaciteEauxGrises {
+    /// Valeurs certifiées par un organisme indépendant accrédité : `Ctrans × εech_eg_fixe`.
+    Certifiee,
+    /// Valeurs justifiées par un organisme indépendant accrédité :
+    /// `0,9 × Ctrans × εech_eg_fixe`.
+    Justifiee,
+    /// Valeurs déclarées par le fabricant : `min(0,8 × Ctrans × εech_eg_fixe ; 0,15)`.
+    Declaree,
+}
+
+/// Échangeur de chaleur sur les eaux grises (§9.21.6.2, tableau 303).
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EchangeurEauxGrises {
+    /// Origine des valeurs `Ctrans` et `εech_eg_fixe`. Absent, ou l'une des deux valeurs
+    /// absente : `εech_eg_fixe = 0,8 × 0,15` (§9.21.6.3.2.1), signalé dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origine: Option<OrigineEfficaciteEauxGrises>,
+    /// « εech_eg_fixe » : efficacité de l'échangeur, entre 0 et 1.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub efficacite: Option<f64>,
+    /// « Ctrans » : coefficient transitoire de l'échangeur, entre 0 et 1.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub c_trans: Option<f64>,
+}
+
+/// Configuration unitaire d'un récupérateur de chaleur (§9.21.2.1) : un échangeur et les
+/// appareils sanitaires (douches, baignoires) qui lui sont reliés ou non.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct UniteRecuperateur {
+    /// « Nbechangeurs » : nombre d'échangeurs de cette configuration dans l'émetteur (au moins
+    /// 1).
+    pub nb_echangeurs: u32,
+    /// « Nbrelies,douches-bains » : douches et baignoires reliées à l'échangeur d'une
+    /// configuration (au moins 1).
+    pub nb_douches_relies: u32,
+    /// « Nbnon-relies,douches-bains » : douches et baignoires de la configuration non reliées
+    /// à l'échangeur. Absent : 0.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nb_douches_non_relies: Option<u32>,
+    /// Échangeur de la configuration, en récupération individuelle (interdit en collective :
+    /// l'échangeur est celui du récupérateur collectif).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub echangeur: Option<EchangeurEauxGrises>,
+    /// « Prelevage,nominal » : puissance nominale de la pompe de relevage de la configuration,
+    /// en W (§9.21.7). Absent : pas de pompe de relevage, donc pas de consommation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_relevage_nominale_w: Option<f64>,
+}
+
+/// Récupérateur de chaleur sur les eaux grises d'un émetteur d'ECS équivalent (§9.21.2) et
+/// distribution d'évacuation des eaux grises du groupe (§9.21.4).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RecuperateurEauxGrises {
+    /// « Typerecup » : récupération individuelle (groupe) ou collective (intergroupe).
+    pub configuration: ConfigurationRecuperateur,
+    /// « Tposition » : requise en récupération individuelle, interdite en collective.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position: Option<PositionRecuperateur>,
+    /// Identifiant du récupérateur collectif du bâtiment (`recuperateurs_eaux_grises`),
+    /// requis en récupération collective.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recuperateur_collectif: Option<Id>,
+    /// Configurations unitaires de l'émetteur, au moins une (somme des « u ∈ em-e »).
+    pub unites: Vec<UniteRecuperateur>,
+    /// « Levac,vc^2nd-e » : longueur moyenne du conduit d'évacuation des eaux grises du groupe
+    /// jusqu'à l'échangeur (ou au réseau intergroupe) en volume chauffé, en m.
+    pub l_evac_vc_m: f64,
+    /// « Levac,vnc^2nd-e » : longueur moyenne du même conduit en volume non chauffé, en m.
+    pub l_evac_vnc_m: f64,
+}
+
+/// Récupérateur de chaleur collectif sur les eaux grises du bâtiment (§9.21.5 et §9.21.6) :
+/// distribution d'évacuation intergroupe et échangeur central.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RecuperateurCollectifEauxGrises {
+    /// Identifiant, unique dans le bâtiment.
+    pub id: Id,
+    /// Échangeur central.
+    #[serde(default)]
+    pub echangeur: EchangeurEauxGrises,
+    /// « Levac,vc^prim » : longueur du conduit d'évacuation intergroupe jusqu'à l'échangeur en
+    /// volume chauffé, en m.
+    pub l_evac_vc_m: f64,
+    /// « Levac,vnc^prim » : longueur du même conduit en volume non chauffé, en m.
+    pub l_evac_vnc_m: f64,
 }
