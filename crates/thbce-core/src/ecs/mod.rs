@@ -9,6 +9,8 @@
 //! - [`gestion_regulation_ballon`] : fiche `C_STO_gestion_régulation_ballon` (§9.10) ;
 //! - [`assemblage_ballon`] : fiches `S1_GEN_générateur_pour_ballon` (§9.13) et assemblage d'un
 //!   ballon et de ses générateurs (§9.14) ;
+//! - [`echangeur_ballon`] : accumulateurs d'ECS en eau technique avec échangeur externe ou
+//!   interne (§9.11 et §9.12) ;
 //! - [`idcet`] : saisie des chauffe-eau thermodynamiques à compression électrique (§9.22) ;
 //! - [`boucle_solaire`] : fiche `C_GEN_Boucle solaire` (§9.15) ;
 //! - [`chauffe_eau_solaire`] : chauffe-eau solaires individuels, ballon à base solaire (§9.14
@@ -28,5 +30,6 @@ pub mod boucle_solaire;
 pub mod cesci;
 pub mod chauffe_eau_solaire;
 pub mod distribution_ecs;
+pub mod echangeur_ballon;
 pub mod gestion_regulation_ballon;
 pub mod idcet;
