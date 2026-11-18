@@ -8,8 +8,7 @@ use super::RapportValidation;
 use crate::entree::{
     Batiment, FonctionChaleur, FonctionEffetJoule, FonctionReseau, Generation,
     GestionTemperatureGeneration, NatureGenerateur, PositionGeneration, ReseauChaleurFroidSaisi,
-    ReseauIntergroupes, SystemeVentilation, TechnologieChauffagePac, TechnologieRefroidissementPac,
-    TypePriorite,
+    ReseauIntergroupes, TechnologieChauffagePac, TechnologieRefroidissementPac, TypePriorite,
 };
 use combustion::{valider_chaudiere, valider_poele};
 use reseaux_chaleur::valider_reseau;
@@ -59,16 +58,68 @@ pub(super) fn valider_generations(r: &mut RapportValidation, cb: &str, bat: &Bat
     for (i, g) in bat.generations.iter().enumerate() {
         valider_generation(r, &format!("{cb}.generations[{i}]"), g, bat);
     }
-    // Sécurité antigel des doubles flux : génération désignée (§8.11.3, éq. 939).
+    // Réseaux de CTA fictifs (fiche 8.11) : génération désignée par la sécurité antigel et par
+    // les batteries de préchauffage et de prérefroidissement des centrales double flux
+    // (§8.11.3, éq. 937 et 939).
     for (iz, z) in bat.zones.iter().enumerate() {
-        let Some(SystemeVentilation::DoubleFlux(d)) = z.ventilation.as_ref().map(|v| &v.systeme)
-        else {
+        let Some(v) = z.ventilation.as_ref() else {
             continue;
         };
-        let Some(e) = &d.echangeur else { continue };
-        let c = format!(
-            "{cb}.zones[{iz}].ventilation.systeme.double_flux.echangeur.generation_antigel"
-        );
+        let Some(centrale) = v.systeme.nom_centrale() else {
+            continue;
+        };
+        let cs = format!("{cb}.zones[{iz}].ventilation.systeme.{centrale}");
+        let designee =
+            |r: &mut RapportValidation, c: String, id: &str, poste: usize, nom: &str| match bat
+                .generations
+                .iter()
+                .find(|g| g.id == id)
+            {
+                None => r.erreur(c, Some(id.to_owned()), "génération inconnue du bâtiment"),
+                Some(g) => {
+                    if !g
+                        .generateurs
+                        .iter()
+                        .any(|x| postes_assures(&x.nature)[poste])
+                    {
+                        r.erreur(
+                            c,
+                            Some(id.to_owned()),
+                            format!(
+                                "la génération associée {nom} n'a pas de générateur de {} \
+                                 (Th-BCE 2020 §8.11.3.1 et §8.17.3.1)",
+                                if poste == 0 {
+                                    "chauffage"
+                                } else {
+                                    "refroidissement"
+                                }
+                            ),
+                        );
+                    }
+                }
+            };
+        if let Some(b) = v.systeme.batterie_prechauffage() {
+            designee(
+                r,
+                format!("{cs}.batterie_prechauffage.generation"),
+                &b.generation,
+                0,
+                "au préchauffage",
+            );
+        }
+        if let Some(b) = v.systeme.batterie_prerefroidissement() {
+            designee(
+                r,
+                format!("{cs}.batterie_prerefroidissement.generation"),
+                &b.generation,
+                1,
+                "au prérefroidissement",
+            );
+        }
+        let Some(e) = v.systeme.echangeur() else {
+            continue;
+        };
+        let c = format!("{cs}.echangeur.generation_antigel");
         match (&e.generation_antigel, e.antigel == Some(true)) {
             (None, true) => r.erreur(
                 c,
@@ -82,19 +133,7 @@ pub(super) fn valider_generations(r: &mut RapportValidation, cb: &str, bat: &Bat
                 Some(id.clone()),
                 "sans objet : l'échangeur n'a pas de sécurité antigel (`antigel`)",
             ),
-            (Some(id), true) => match bat.generations.iter().find(|g| g.id == *id) {
-                None => r.erreur(c, Some(id.clone()), "génération inconnue du bâtiment"),
-                Some(g) => {
-                    if !g.generateurs.iter().any(|x| postes_assures(&x.nature)[0]) {
-                        r.erreur(
-                            c,
-                            Some(id.clone()),
-                            "la génération associée à la sécurité antigel n'a pas de générateur \
-                             de chauffage (Th-BCE 2020 §8.17.3.1)",
-                        );
-                    }
-                }
-            },
+            (Some(id), true) => designee(r, c, id, 0, "à la sécurité antigel"),
             (None, false) => {}
         }
     }

@@ -236,10 +236,21 @@ fn refus() {
     };
     let z = "batiments[0].zones[0]";
 
-    // Les 28 usages sont calculés (lot 0c4) : le refus d'un élément hors périmètre se teste sur un
-    // système (double flux ci-dessous).
-    let _ = z;
-    // Double flux en non résidentiel : hors périmètre.
+    // Les 28 usages sont calculés (lot 0c4), le double flux et la centrale de traitement d'air
+    // en zone neutre aussi (lot 1-ven) : le refus d'un élément hors périmètre se teste sur un
+    // puits climatique.
+    let mut p = bureaux();
+    p.batiments[0].zones[0].ventilation.as_mut().unwrap().puits =
+        Some(thbce_core::entree::Puits::Climatique);
+    let (c, hors) = chemins(&p);
+    assert_eq!(c, [format!("{z}.ventilation.puits")]);
+    assert!(hors);
+    assert!(matches!(
+        calculer(&p, &meteo_ademe(&p), &Options::default()),
+        Err(thbce_core::Erreur::Saisie(_))
+    ));
+    // Double flux de l'habitation en non résidentiel : erreur de saisie (puissances en débit
+    // de base et de pointe au lieu de l'occupation et de l'inoccupation).
     let mut p = bureaux();
     let maison = json::lire_projet(
         &std::fs::read_to_string(racine().join("tests/cas/maison-double-flux-ademe/entree.json"))
@@ -256,13 +267,8 @@ fn refus() {
         .unwrap()
         .systeme
         .clone();
-    let (c, hors) = chemins(&p);
-    assert_eq!(c, [format!("{z}.ventilation.systeme")]);
-    assert!(hors);
-    assert!(matches!(
-        calculer(&p, &meteo_ademe(&p), &Options::default()),
-        Err(thbce_core::Erreur::Saisie(_))
-    ));
+    let (_, hors) = chemins(&p);
+    assert!(!hors);
 
     // Parking d'un bâtiment de bureaux : hors périmètre.
     let immeuble = json::lire_projet(

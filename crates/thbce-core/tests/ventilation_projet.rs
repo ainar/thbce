@@ -174,6 +174,7 @@ fn double_flux(bypass: Option<Bypass>, antigel: bool) -> Projet {
         a_cond_m2: Some(0.0),
         q_spec_occ_m3_h: None,
         q_spec_inocc_m3_h: None,
+        q_spec_ch_m3_h: None,
         crdbnr: None,
     };
     z.groupes[0].bouches_conduits = vec![
@@ -187,22 +188,29 @@ fn double_flux(bypass: Option<Bypass>, antigel: bool) -> Projet {
     z.groupes[0].entrees_air = None;
     let v = z.ventilation.as_mut().unwrap();
     v.systeme = SystemeVentilation::DoubleFlux(DoubleFlux {
-        p_vent_base_rep_w: 20.0,
-        p_vent_pointe_rep_w: 20.0,
-        p_vent_base_sou_w: 20.0,
-        p_vent_pointe_sou_w: 20.0,
+        p_vent_base_rep_w: Some(20.0),
+        p_vent_pointe_rep_w: Some(20.0),
+        p_vent_base_sou_w: Some(20.0),
+        p_vent_pointe_sou_w: Some(20.0),
+        p_vent_rep_occ_w: None,
+        p_vent_sou_occ_w: None,
+        p_vent_rep_inocc_w: None,
+        p_vent_sou_inocc_w: None,
         echangeur: Some(Echangeur {
             representation: RepresentationEchangeur::Simplifiee(EchangeurSimplifie {
                 epsilon_saisi: 0.8,
                 statut: Some(StatutEchangeur::Certifie),
             }),
             rotatif: None,
+            p_ech_w: None,
             bypass,
             antigel: Some(antigel),
             generation_antigel: antigel.then(|| "generation-effet-joule".into()),
             theta_s_ech_rep_lim_c: None,
         }),
         prechauffage: None,
+        batterie_prechauffage: None,
+        batterie_prerefroidissement: None,
         humidification: None,
         rafraichissement_evaporatif: None,
         surventilation_mecanique: None,
@@ -221,7 +229,9 @@ fn un_pas(p: &Projet, theta_ext: f64, theta_i: f64, chauffage: bool) -> (AirSouf
         0.004,
         &[EtatGroupeVentilation {
             theta_i_fin_c: theta_i,
+            omega_i_fin_kg_kg: 0.008,
             saison_de_chauffage: chauffage,
+            ..EtatGroupeVentilation::default()
         }],
         &mut air,
         true,
@@ -361,11 +371,12 @@ fn validation_du_systeme_de_ventilation() {
         d.surventilation_mecanique = Some(true);
         d.echangeur.as_mut().unwrap().rotatif = Some(true);
     }
+    // Échangeur rotatif : sa puissance est requise (éq. 497).
     assert_eq!(
         chemins(&p),
         [
             "batiments[0].zones[0].ventilation.systeme.double_flux.surventilation_mecanique",
-            "batiments[0].zones[0].ventilation.systeme.double_flux.echangeur.rotatif",
+            "batiments[0].zones[0].ventilation.systeme.double_flux.echangeur.p_ech_w",
         ]
     );
     // Surfaces de conduits pour toutes les bouches ou aucune, avec Ratfuitevc.
@@ -445,6 +456,7 @@ fn zone_de_bureaux(crdbnr: Option<f64>, q_inocc: f64) -> Projet {
         a_cond_m2: None,
         q_spec_occ_m3_h: Some(3000.0),
         q_spec_inocc_m3_h: Some(q_inocc),
+        q_spec_ch_m3_h: None,
         crdbnr,
     }];
     let v = z.ventilation.as_mut().unwrap();
@@ -550,6 +562,7 @@ fn simple_flux_non_residentiel_pas_de_temps() {
     let etat = [EtatGroupeVentilation {
         theta_i_fin_c: 20.0,
         saison_de_chauffage: true,
+        ..EtatGroupeVentilation::default()
     }];
     let mut air = [AirSouffle::default()];
     let occ = v.pas(5.0, 0.004, &etat, &mut air, true);

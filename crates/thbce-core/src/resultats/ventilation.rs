@@ -38,6 +38,14 @@ pub struct ResultatsVentilationMode {
     pub nbh_bypass: u32,
     /// Énergie fournie pour la sécurité antigel de l'échangeur, en kWh (éq. 508).
     pub q_ag_kwh: f64,
+    /// Énergie fournie par la batterie de préchauffage, en kWh (éq. 523) ; absente sans
+    /// batterie. Demandée à la génération désignée en calcul des consommations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub q_prechaud_kwh: Option<f64>,
+    /// Énergie fournie par la batterie de prérefroidissement, en kWh, négative (éq. 545,
+    /// lecture Q91) ; absente sans batterie.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub q_prefroid_kwh: Option<f64>,
 }
 
 /// Ventilation du projet vue d'un groupe (Th-BCE 2020 §6.2 à 6.5).
