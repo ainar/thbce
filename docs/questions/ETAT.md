@@ -97,7 +97,8 @@
 | Q89 | Points ouverts du lot 0d : constructions temporaires (FA02, article 50-1) et HLL (FA04, article 50-4) sans exigence de résultat ; exigences de moyens non vérifiées ; ECS conventionnelle des extensions tertiaires (FA03 contre §9.24.2) ; perméabilité par défaut d'une extension | ouverte (rien de codé) |
 | Q105 | ECS : plusieurs assemblages de ballons et heures non couvertes | tranchée, pas d'écart au texte |
 | Q106 | ECS : accumulateur en eau technique et échangeur de ballon (fiches 9.11 et 9.12) | tranchée, à confirmer par un cas de référence |
-| Q107 | ECS : récupérateur sur les eaux grises (fiche 9.21) et IdCET sur eau (fiche 9.22) restent refusés | refus maintenu, hors périmètre de ce lot |
+| Q107 | ECS : IdCET sur eau (fiche 9.22) reste refusé ; fiche 9.21 levée par Q108 | refus 9.22 maintenu ; point 1 (9.21) remplacé par Q108 le 18 novembre 2026 |
+| Q108 | ECS : récupérateur de chaleur sur les eaux grises (fiche 9.21, éq. 2156 à 2224) | tranchée, à confirmer par un cas de référence ; point 6 (position 1 sans effet énergétique à la lettre) à faire valider |
 | Q200 | Classement au bruit d'une baie : saisie facultative baie par baie (fiche 5.11, chapitre V partie I) — champs, libellés, données à saisir | tranchée, à confirmer par un cas de référence |
 | Q201 | Classement au bruit : tranche de distance d'une valeur égale à une borne (65 m dans « 0-65 m » et « 65-125 m ») | tranchée, à confirmer par un cas de référence |
 | Q202 | Classement au bruit : la classe déduite des baies tient lieu de saisie absente ; cohérence avec la saisie directe | tranchée, à confirmer par un cas de référence |

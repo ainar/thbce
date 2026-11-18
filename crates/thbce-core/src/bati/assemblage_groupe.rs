@@ -117,6 +117,18 @@ pub struct Lectures {
     /// (Q108 point 6) : `Texte` modifie seulement `θentrant` (lecture retenue) ; `Deduit` déduit
     /// la chaleur récupérée de la demande de la génération.
     pub preechauffage_ecs: LecturePreechauffageEcs,
+    /// Puisage d'un accumulateur en eau technique aux heures sans puisage d'ECS (Q106 point 3).
+    pub puisage_accumulateur: LecturePuisageAccumulateur,
+}
+
+/// Heures sans puisage d'ECS d'un accumulateur en eau technique (`docs/questions/Q106.md`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LecturePuisageAccumulateur {
+    /// Les valeurs du dernier pas avec puisage sont conservées (lecture retenue).
+    #[default]
+    Conserve,
+    /// Texte littéral (p. 1134) : sans puisage (Vef,ecs = 0), ni puisage ni circulateur.
+    Litteral,
 }
 
 /// Prise en compte du préchauffage de l'eau froide du ballon (`docs/questions/Q108.md`).
@@ -165,6 +177,7 @@ impl Default for Lectures {
             emission_th_d: EmissionThD::default(),
             recuperation_th_d: true,
             preechauffage_ecs: LecturePreechauffageEcs::default(),
+            puisage_accumulateur: LecturePuisageAccumulateur::default(),
         }
     }
 }

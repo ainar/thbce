@@ -36,7 +36,7 @@ use crate::entree::{
 use crate::erreur::Erreur;
 use crate::pertes::pertes_recuperables::{recuperation_wh, FluxVolumeChauffe};
 
-use super::assemblage_groupe::{LecturePreechauffageEcs, Lectures};
+use super::assemblage_groupe::{LecturePreechauffageEcs, LecturePuisageAccumulateur, Lectures};
 use super::assemblage_zone::{conditions_exterieures, ZoneHoraire};
 use super::espace_tampon::assemblage::{EspaceTamponHoraire, GroupeVuParEt, LienGroupe};
 use super::espace_tampon::espace_tampon::CoefficientsEt;
@@ -304,6 +304,13 @@ impl BatimentHoraire {
             let mut s = SystemesBatiment::nouveaux(bat, catalogue, &mut zones);
             s.recuperation = mode != ModeCalcul::ThD || lectures.recuperation_th_d;
             s.preechauffage_deduit = lectures.preechauffage_ecs == LecturePreechauffageEcs::Deduit;
+            if lectures.puisage_accumulateur == LecturePuisageAccumulateur::Litteral {
+                for g in &mut s.generations_horaires {
+                    for st in &mut g.stockages {
+                        st.puisage_litteral = true;
+                    }
+                }
+            }
             s
         };
         Ok(Self {

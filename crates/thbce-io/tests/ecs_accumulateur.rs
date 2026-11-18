@@ -16,7 +16,11 @@
 
 use std::path::Path;
 
-use thbce_core::climat::MeteoProjet;
+use thbce_core::bati::assemblage_batiment::BatimentHoraire;
+use thbce_core::bati::assemblage_groupe::{LecturePuisageAccumulateur, Lectures};
+use thbce_core::chauffage_refroidissement::calculs_generation::{Energie, Poste};
+use thbce_core::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
+use thbce_core::conventions::ModeCalcul;
 use thbce_core::entree::{
     ApplicationAccumulateurSaisie, EchangeurEcsSaisi, NatureEchangeurSaisie, Projet,
     ReseauEcsIntergroupe,
@@ -204,6 +208,77 @@ fn refus() {
     let mut p = restaurant();
     echangeur(&mut p).p_ech_ecs_kw = 0.0;
     assert!(!valider(&p).est_valide());
+}
+
+/// Th-C du restaurant avec une lecture donnée du puisage : consommation d'ECS (toutes énergies,
+/// Wh), énergie de l'ECS fournie par le ballon et consommation du circulateur primaire (Wh).
+fn th_c_selon(p: &Projet, lectures: Lectures) -> (f64, f64, f64) {
+    let loc = &p.localisation;
+    let m = meteo_ademe(p);
+    let climat = ClimatExterieur::nouveau(&m.th_bc, loc.departement, loc.alt_m);
+    let confort = ConfortAdaptatif::nouveau(&climat.te_c);
+    let mut b = BatimentHoraire::nouveau_selon(
+        &p.batiments[0],
+        &p.catalogue,
+        ModeCalcul::ThC,
+        lectures,
+        loc.alt_m,
+        climat.we_kg_kg[0],
+    )
+    .unwrap();
+    b.simuler(&climat, &confort).unwrap();
+    let ecs: f64 = Energie::TOUTES
+        .iter()
+        .map(|&e| {
+            b.systemes.cumuls_cef_groupes[0]
+                .annuel()
+                .valeur(Poste::Ecs, e)
+        })
+        .sum();
+    let st = &b.systemes.generations_horaires[1].stockages[0].cumuls;
+    (ecs, st.q_fou_ecs_wh, st.w_circ_prim_wh)
+}
+
+/// Variante littérale de Q106 point 3 (p. 1134 : la fiche 9.12.3.2.4 n'est appliquée que si
+/// Vef,ecs > 0) : aucun puisage ni circulateur aux heures sans puisage, l'énergie reportée
+/// restant à fournir. Les chiffres sont imprimés pour être repris dans Q106.
+#[test]
+fn puisage_litteral_sans_vef() {
+    let p = restaurant();
+    let (ecs, fou, circ) = th_c_selon(&p, Lectures::default());
+    let (ecs_l, fou_l, circ_l) = th_c_selon(
+        &p,
+        Lectures {
+            puisage_accumulateur: LecturePuisageAccumulateur::Litteral,
+            ..Lectures::default()
+        },
+    );
+    println!(
+        "puisage : retenu ECS {ecs:.0} Wh, ballon {fou:.0} Wh, circulateur {circ:.0} Wh ; littéral {ecs_l:.0} Wh, {fou_l:.0} Wh, {circ_l:.0} Wh"
+    );
+    // Sur l'exemple, aucune heure n'a d'énergie reportée sans puisage : les deux lectures
+    // coïncident. Un échangeur sous-dimensionné fait apparaître des reports.
+    assert_eq!((ecs, fou, circ), (ecs_l, fou_l, circ_l));
+    for kw in [20.0, 10.0, 5.0] {
+        let mut p = restaurant();
+        echangeur(&mut p).p_ech_ecs_kw = kw;
+        let (e1, f1, c1) = th_c_selon(&p, Lectures::default());
+        let (e2, f2, c2) = th_c_selon(
+            &p,
+            Lectures {
+                puisage_accumulateur: LecturePuisageAccumulateur::Litteral,
+                ..Lectures::default()
+            },
+        );
+        println!(
+            "échangeur {kw} kW : retenu ECS {e1:.0} Wh, ballon {f1:.0} Wh, circ {c1:.0} Wh ; littéral {e2:.0} Wh, {f2:.0} Wh, {c2:.0} Wh"
+        );
+        assert!(c2 <= c1 + 1e-9);
+    }
+    // Sans puisage ni circulateur hors des heures de puisage, le circulateur ne consomme pas
+    // davantage et l'énergie fournie par le ballon n'est pas supérieure.
+    assert!(circ_l <= circ + 1e-9);
+    assert!(fou_l <= fou * 1.0001);
 }
 
 /// Valeurs phares du restaurant à accumulateur (H2b) sur la météo réglementaire : nombres
