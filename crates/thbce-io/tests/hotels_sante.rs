@@ -230,7 +230,12 @@ fn usages_20_et_21() {
         "usage 20 : Bbio {bbio:.1} ; DH {dh:.1} ; Cep {cep:.1} ; éclairage {:.0} kWh",
         elec(&r20).eclairage_kwh
     );
-    assert!(cep > 0.0 && dh >= 0.0);
+    // Valeurs de Q74 (lecture retenue C1 × IEcl ; météo ADEME), à 0,1 près.
+    let proche = |a: f64, b: f64| assert!((a - b).abs() <= 0.1, "{a} ≠ {b}");
+    proche(bbio, 211.4);
+    proche(dh, 2574.8);
+    proche(cep, 176.0);
+    assert!((elec(&r20).eclairage_kwh - 40_248.0).abs() <= 1.0);
     // Grille d'éclairage de l'usage 20 : 0 ou 0,35 ou 1, avec des heures à 0,35.
     let sc = ScenariosZone::nouveau(UsageZone::SanteNuit, &[1500.0], 1).unwrap();
     let valeurs: Vec<f64> = (0..8760).map(|h| sc.evaluer(h).i_ecl).collect();
