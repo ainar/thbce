@@ -100,6 +100,9 @@
 | Q92 | Débits des bouches des doubles flux et des centrales hors habitation (fiche 6.2, §6.2.3.1.2, 6.2.3.2.2.3 et 6.2.3.3.2) : Crdbnr en présence de recyclage, débits d'un double flux, débits de l'inoccupation en mode actif | lecture du lot 1-ven, à confirmer par un cas de référence |
 | Q93 | Réseaux de distribution des CTA (fiche 8.11) : réseau fictif par batterie, température vue par la génération, répartition entre les groupes | lecture du lot 1-ven, à confirmer par un cas de référence |
 | Q94 | Périmètre de la ventilation après le lot 1-ven : refus ciblés (mode actif des CTA à charge variable, humidification, rafraîchissement évaporatif, surventilation mécanique, puits, ventilation naturelle et aération) ; consommation relevée, échangeur rotatif, tableau 62 | lecture du lot 1-ven, à confirmer par un cas de référence |
+| Q105 | ECS : plusieurs assemblages de ballons et heures non couvertes | tranchée, pas d'écart au texte |
+| Q106 | ECS : accumulateur en eau technique et échangeur de ballon (fiches 9.11 et 9.12) | tranchée, à confirmer par un cas de référence |
+| Q107 | ECS : récupérateur sur les eaux grises (fiche 9.21) et IdCET sur eau (fiche 9.22) restent refusés | refus maintenu, hors périmètre de ce lot |
 | Q200 | Classement au bruit d'une baie : saisie facultative baie par baie (fiche 5.11, chapitre V partie I) — champs, libellés, données à saisir | tranchée, à confirmer par un cas de référence |
 | Q201 | Classement au bruit : tranche de distance d'une valeur égale à une borne (65 m dans « 0-65 m » et « 65-125 m ») | tranchée, à confirmer par un cas de référence |
 | Q202 | Classement au bruit : la classe déduite des baies tient lieu de saisie absente ; cohérence avec la saisie directe | tranchée, à confirmer par un cas de référence |

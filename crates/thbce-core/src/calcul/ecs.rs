@@ -7,8 +7,8 @@ use crate::ecs::assemblage_ballon::AssemblageBallon;
 use crate::ecs::distribution_ecs::{l_vc_2nd_e_defaut_m, EmetteurEcsResolu};
 use crate::entree::UsageZone;
 use crate::resultats::{
-    ResultatsEcsEmetteur, ResultatsEcsIntergroupe, ResultatsIdCet, ResultatsSsc, ResultatsStockage,
-    ValeurParDefaut,
+    ResultatsEchangeurEcs, ResultatsEcsEmetteur, ResultatsEcsIntergroupe, ResultatsIdCet,
+    ResultatsSsc, ResultatsStockage, ValeurParDefaut,
 };
 
 /// Résultats d'un assemblage avec ballon de stockage d'ECS (§9.14).
@@ -40,6 +40,11 @@ pub(super) fn resultats_stockage(s: &AssemblageBallon) -> ResultatsStockage {
             cop_pivot: i.triplet.cop_pivot,
             pabs_pivot_kw: i.triplet.pabs_pivot_w / 1000.0,
             epsilon: i.epsilon,
+        }),
+        echangeur: s.echangeur.map(|e| ResultatsEchangeurEcs {
+            ua_ech_w_k: e.ua_ech_w_k,
+            theta_cons_c: e.theta_cons_c,
+            w_circ_prim_kwh: k.w_circ_prim_wh / 1000.0,
         }),
         valeurs_par_defaut: s.valeurs_par_defaut.clone(),
     }

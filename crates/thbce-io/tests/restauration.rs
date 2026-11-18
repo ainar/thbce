@@ -366,6 +366,17 @@ fn refus() {
         "{:?}",
         v.erreurs
     );
+    // Puits climatique dans un restaurant : hors périmètre (code 3), non une erreur de saisie
+    // (le double flux et la centrale de traitement d'air sont calculés depuis le lot 1-ven).
+    let mut p = restaurant();
+    p.batiments[0].zones[0].ventilation.as_mut().unwrap().puits =
+        Some(thbce_core::entree::Puits::Climatique);
+    let v = valider(&p);
+    assert!(v.seulement_hors_perimetre(), "{:?}", v.erreurs);
+    assert!(v
+        .erreurs
+        .iter()
+        .all(|e| e.chemin.ends_with("ventilation.puits")));
     // Permis de 2025 : usage non soumis à la RE2020 avant le 1er mai 2026 (Q68).
     let mut p = restaurant();
     let x = p.batiments[0].exigences.as_mut().unwrap();

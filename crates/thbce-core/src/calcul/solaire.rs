@@ -56,6 +56,7 @@ pub(super) fn resultats_collectif(c: &ProductionCollective) -> ResultatsSolaireC
             solaire: None,
             ssc: None,
             idcet: None,
+            echangeur: None,
             valeurs_par_defaut: Vec::new(),
         }
     });

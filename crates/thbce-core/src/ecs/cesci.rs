@@ -172,6 +172,7 @@ impl ProductionCollective {
         };
         let entrees = |nb: f64| EntreesAssemblage {
             q_req_ecs_wh: q_ballons * nb / nb_tot,
+            q_ecs_horaire_wh: q_ballons * nb / nb_tot,
             theta_entrant_c: theta_entrant,
             theta_depart_c: e.theta_depart_c,
             theta_amb_c: if cescai {
