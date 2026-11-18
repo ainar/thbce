@@ -8,8 +8,8 @@ use super::*;
 
 /// Th-BCE 2020 §5.10.2 — paramètres intrinsèques d'une baie vitrée.
 ///
-/// Les matrices de facteurs des stores vénitiens (`M_Sw_BC`, `M_Sw_E`…) seront ajoutées avec la
-/// fiche 5.10 (lot 4).
+/// Les facteurs d'un store vénitien (matrices `M_suntracking_*` et `M_fixe_*` du §5.10.3.6.2) se
+/// saisissent dans `store_venitien` (lot 1-env, `docs/questions/Q101.md`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BaieType {
@@ -33,6 +33,12 @@ pub struct BaieType {
     /// (indice « ap »). Requis si `protection_mobile` est renseignée.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub avec_protection: Option<FacteursBaie>,
+    /// Facteurs solaires et lumineux de la partie de la baie protégée par un store vénitien
+    /// (`type_pm = store_venitien`), selon la hauteur du soleil et l'inclinaison des lames
+    /// (§5.10.3.6.2). Requis dans ce cas, et seulement dans ce cas ; `avec_protection` n'est
+    /// alors pas utilisé.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub store_venitien: Option<LamesStoreVenitien>,
     /// Première protection mobile de la baie et sa gestion (§5.9.2). Absente : baie sans
     /// protection mobile (`Type-PM = 0`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -197,12 +203,26 @@ pub enum ZonePeb {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ProtectionMobile {
-    /// « Type-PM » : type de la première protection mobile. Le store vénitien n'est pas pris en
-    /// charge dans cette version : la validation le refuse.
+    /// « Type-PM » : type de la première protection mobile.
     pub type_pm: TypePm,
-    /// « Type-GPM » : gestion de la première protection mobile. La gestion automatique n'est pas
-    /// prise en charge dans cette version : la validation la refuse.
-    pub gestion: GestionPm,
+    /// « Type-GPM » : gestion d'un volet ou d'un store enroulable. Requise pour ces deux types,
+    /// absente pour un store vénitien (voir `gestion_sv`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gestion: Option<GestionPm>,
+    /// « Type-GPM-sv » : gestion d'un store vénitien. Requise pour un store vénitien, absente
+    /// sinon.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gestion_sv: Option<GestionSv>,
+    /// « Detec_pres » : présence d'un détecteur de présence pour la dérogation manuelle d'un
+    /// volet ou d'un store enroulable en gestion automatique. Requis dans ce cas, sans objet
+    /// sinon.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detecteur_presence: Option<bool>,
+    /// Paramètres de l'automatisme (gestion automatique d'un volet, d'un store enroulable ou
+    /// d'un store vénitien) : seuils, horloge jour/nuit, matrice des ratios de fermeture. Requis
+    /// en gestion automatique, absent sinon.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub automatisme: Option<Automatisme>,
     /// « Protext » : vrai si la protection est extérieure, faux si elle est intérieure.
     pub exterieure: bool,
     /// « PM2 » : présence d'une seconde protection mobile, intérieure, gérée manuellement, dont
@@ -223,7 +243,7 @@ pub enum TypePm {
     Volet,
     /// 2 : store enroulable.
     StoreEnroulable,
-    /// 3 : store vénitien (à lames orientables). Non pris en charge dans cette version.
+    /// 3 : store vénitien (à lames orientables, baie verticale).
     StoreVenitien,
 }
 
@@ -231,12 +251,224 @@ pub enum TypePm {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum GestionPm {
-    /// 1 : automatique avec dérogation. Non prise en charge dans cette version.
+    /// 1 : automatique avec dérogation (fiche d'application FA01 : pilotage programmable selon
+    /// l'éclairement incident, la température intérieure, l'occupation et la saison).
     AutomatiqueAvecDerogation,
     /// 2 : manuelle non motorisée.
     ManuelleNonMotorisee,
     /// 3 : manuelle motorisée (y compris avec commande générale dérogeable, §5.9.3.1).
     ManuelleMotorisee,
+}
+
+/// « Type-GPM-sv » (§5.9.2) : gestion d'un store vénitien.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GestionSv {
+    /// 1 : gestion « sun tracking » avec dérogation : les lames restent perpendiculaires au
+    /// rayonnement solaire (`αSV = 90° − γ'` en Th-BC). Gestion automatique.
+    SuiviSoleilAvecDerogation,
+    /// 2 : gestion manuelle, position fixe des lames (`αSV = 45°` en Th-BC).
+    ManuellePositionFixe,
+    /// 3 : gestion automatique, lames à 45° (position fixe), avec dérogation.
+    Automatique45AvecDerogation,
+}
+
+impl GestionSv {
+    /// Vrai pour les gestions automatiques (`Type-GPM-sv` = 1 ou 3).
+    pub fn est_automatique(self) -> bool {
+        !matches!(self, Self::ManuellePositionFixe)
+    }
+
+    /// Vrai si les lames suivent le soleil en Th-BC (`Type-GPM-sv` = 1).
+    pub fn suit_le_soleil(self) -> bool {
+        matches!(self, Self::SuiviSoleilAvecDerogation)
+    }
+}
+
+/// Distinction du jour et de la nuit en gestion automatique (« Type_horl » et « Type_horl_sv »,
+/// §5.9.3.2.7 ; fiche d'application FA01, niveaux 0 à 2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TypeHorloge {
+    /// 0 : pas de distinction du jour et de la nuit (« Jour » toujours vrai). Valeur par défaut.
+    #[default]
+    Aucune,
+    /// 1 : horloge crépusculaire, « Jour » vrai si l'éclairement incident sur la baie est non
+    /// nul.
+    Crepusculaire,
+    /// 2 : horloge personnalisable, « Jour » défini par les horaires `horaires_jour`.
+    Personnalisable,
+}
+
+/// Heures de début et de fin du jour pour une saison (`Hj_debut` et `Hj_fin`, matrices
+/// `M_horl_jour` et `M_horl_jour_sv`) : il fait jour quand `Hj_debut < Hleg ≤ Hj_fin`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct HorairesJour {
+    /// Heure légale de début de jour (1 à 24, exclue).
+    pub debut_h: u8,
+    /// Heure légale de fin de jour (1 à 24, incluse).
+    pub fin_h: u8,
+}
+
+/// Les deux valeurs d'une cellule de la matrice `M_Rprot1_auto` (figure 31, hystérésis).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RatiosHysteresis {
+    /// Ratio de fermeture pour `Toph-1limh < θop,fin(h−1)`.
+    pub haute: f64,
+    /// Ratio de fermeture pour `θop,fin(h−1) < Toph-1limb`.
+    pub basse: f64,
+}
+
+/// Ligne (saison et occupation) de la matrice `M_Rprot1_auto` d'un volet ou d'un store
+/// enroulable (figure 48).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LigneAutoVolet {
+    /// Jour, `Etp** < Eclim_auto`.
+    pub jour_sous_seuil: RatiosHysteresis,
+    /// Jour, `Etp** ≥ Eclim_auto`.
+    pub jour_au_dessus: RatiosHysteresis,
+    /// Nuit.
+    pub nuit: RatiosHysteresis,
+}
+
+/// Matrice `M_Rprot1_auto` d'un volet ou d'un store enroulable : trois lignes (hiver,
+/// mi-saison, été) en occupation, trois en inoccupation.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MatriceAutoVolet {
+    /// Groupe en occupation : hiver, mi-saison, été.
+    pub occupation: [LigneAutoVolet; 3],
+    /// Groupe en inoccupation : hiver, mi-saison, été.
+    pub inoccupation: [LigneAutoVolet; 3],
+}
+
+/// Ligne de la matrice `M_Rprot1_auto_sv` d'un store vénitien (§5.9.3.4.3.1, figure 54).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LigneAutoSv {
+    /// Jour, `Etp** < Eclim_auto_sv`.
+    pub jour_sous_seuil: f64,
+    /// Jour, `Etp** ≥ Eclim_auto_sv`.
+    pub jour_au_dessus: f64,
+    /// Nuit.
+    pub nuit: f64,
+}
+
+/// Matrice `M_Rprot1_auto_sv` : hiver, mi-saison, été, en occupation puis en inoccupation.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MatriceAutoSv {
+    /// Groupe en occupation : hiver, mi-saison, été.
+    pub occupation: [LigneAutoSv; 3],
+    /// Groupe en inoccupation : hiver, mi-saison, été.
+    pub inoccupation: [LigneAutoSv; 3],
+}
+
+/// Paramètres de l'automatisme d'une protection mobile en gestion automatique (§5.9.2,
+/// tableau 33 ; fiche d'application FA01). Seuils sans valeur conventionnelle dans le texte :
+/// à saisir. Les matrices de ratios ont des valeurs conventionnelles (figures 44 à 47), prises
+/// par défaut et signalées dans les résultats.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Automatisme {
+    /// « Eclim_auto » (volet, store enroulable) ou « Eclim_auto_sv » (store vénitien) : seuil
+    /// d'éclairement incident, en lux.
+    pub eclairement_limite_lux: f64,
+    /// « Toph-1limh_auto » : limite haute de la température opérative de l'heure précédente, en
+    /// °C (volet, store enroulable ; requise pour ces types).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temperature_limite_haute_c: Option<f64>,
+    /// « Toph-1limb_auto » : limite basse de la température opérative de l'heure précédente, en
+    /// °C (volet, store enroulable ; requise pour ces types, au plus égale à la limite haute).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temperature_limite_basse_c: Option<f64>,
+    /// « Vventlim_auto » ou « Vventlim_auto_sv » : vitesse du vent corrigée, en m/s, à partir de
+    /// laquelle une protection extérieure est remontée. Requise pour un store enroulable ou
+    /// vénitien extérieur ; sans objet pour un volet (§5.9.3.4.1.1, éq. 186 : aucune limite de
+    /// vent).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vent_limite_m_s: Option<f64>,
+    /// Distinction jour/nuit (« Type_horl » ou « Type_horl_sv »). Absente : aucune (niveau 0).
+    #[serde(default)]
+    pub horloge: TypeHorloge,
+    /// « M_horl_jour » ou « M_horl_jour_sv » : horaires du jour par saison (hiver, mi-saison,
+    /// été), requis pour l'horloge personnalisable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub horaires_jour: Option<[HorairesJour; 3]>,
+    /// « M_Rprot1_auto » (volet, store enroulable). Absente : matrice conventionnelle de
+    /// l'usage (figures 44 et 45), signalée dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub matrice: Option<MatriceAutoVolet>,
+    /// « M_Rprot1_auto_sv » (store vénitien). Absente : matrice conventionnelle de l'usage
+    /// (figures 46 et 47), signalée dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub matrice_sv: Option<MatriceAutoSv>,
+}
+
+/// Facteurs d'un store vénitien pour un flux incident (direct, diffus ou réfléchi) et une
+/// position des lames : trois composantes du facteur solaire et transmission lumineuse (cases
+/// colorées des matrices des p. 235 et 236).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FacteursLames {
+    /// « Sw1 » : composante courte longueur d'onde.
+    pub sw1: f64,
+    /// « Sw2 » : composante grande longueur d'onde et convective.
+    pub sw2: f64,
+    /// « Sw3 » : composante liée à la lame d'air intérieure ventilée.
+    pub sw3: f64,
+    /// « Tl_global » : transmission lumineuse globale (`Tliap_dir`, `Tldap_dif` ou `Tldap_ref`).
+    pub tl_global: f64,
+    /// « Tlid » : part du flux incident transmise sous forme diffuse (`Tlidap_dir` ou
+    /// `Tlidap_ref`) ; sans objet pour le flux diffus. Absente : 0, valeur par défaut du texte
+    /// (éq. 218), signalée dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tlid: Option<f64>,
+}
+
+/// Facteurs d'un store vénitien en Th-BC (« -c », Th-B et Th-C), matrices `M_suntracking_Sw_BC`
+/// et `M_suntracking_Tl_BCE` (suivi du soleil) ou `M_fixe_Sw_BC` et `M_fixe_Tl_BCE` (position
+/// fixe).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LamesThBc {
+    /// Flux direct, pour les hauteurs de soleil corrigées γ' de 0, 15, 30, 45, 60 et 75°
+    /// (6 éléments, dans cet ordre). En suivi du soleil, les lames sont à `αSV = 90° − γ'` ;
+    /// en position fixe, à 45°.
+    pub direct: Vec<FacteursLames>,
+    /// Flux diffus. Suivi du soleil : 6 éléments, pour `αSV = 90° − γ'` avec γ' de 0 à 75°.
+    /// Position fixe : 1 élément (`αSV = 45°`).
+    pub diffus: Vec<FacteursLames>,
+    /// Flux réfléchi par le sol : mêmes éléments que `diffus`.
+    pub reflechi: Vec<FacteursLames>,
+}
+
+/// Facteurs d'un store vénitien en Th-D (« -e »), lames conventionnellement verticales
+/// (`αSV = 90°`), indépendants de la hauteur du soleil (éq. 213) : matrices `M_*_Sw_E` et
+/// `M_*_Tl_BCE`, ligne 90°.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LamesThD {
+    /// Flux direct.
+    pub direct: FacteursLames,
+    /// Flux diffus.
+    pub diffus: FacteursLames,
+    /// Flux réfléchi par le sol.
+    pub reflechi: FacteursLames,
+}
+
+/// Th-BCE 2020 §5.10.3.6.2 — facteurs solaires et lumineux de la partie de la baie protégée
+/// par un store vénitien.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LamesStoreVenitien {
+    /// Calculs Th-B et Th-C.
+    pub th_bc: LamesThBc,
+    /// Calcul Th-D.
+    pub th_d: LamesThD,
 }
 
 /// « Typo_PM » (§5.12.3.1, tableau 40) : typologie d'une protection mobile selon son taux de

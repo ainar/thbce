@@ -66,7 +66,7 @@ use super::inerties_longues::{EtatInerties, FluxInerties, InertiesLongues};
 use super::paroi_opaque::{EnsembleParois, ParoiResolue};
 use super::pont_thermique::{EnsemblePonts, PontResolu};
 use super::protection_mobile::{
-    a_ouv_max_avec_pm_m2, ConditionsGpm, GestionResolue, SaisonGpm, TemperaturesMaximales,
+    a_ouv_max_avec_pm_m2, ConditionsGpm, EtatGpm, GestionResolue, SaisonGpm, TemperaturesMaximales,
 };
 use super::surventilation::{
     a_ouv_baie_m2, qm_aj_kg_s, qv_surv_m3_h, r_ouv_manuelle, r_ouv_theta_op_man_selon, s_ors_m2,
@@ -244,13 +244,14 @@ impl EnveloppeResolue {
                 continue;
             };
             resolue.espace_tampon = indice(&b.espace_tampon);
+            gestions.push(type_baie.protection_mobile.as_ref().and_then(|pm| {
+                GestionResolue::nouvelle_signalee(
+                    pm,
+                    usage.numero(),
+                    &mut resolue.valeurs_par_defaut,
+                )
+            }));
             baies.push(resolue);
-            gestions.push(
-                type_baie
-                    .protection_mobile
-                    .as_ref()
-                    .and_then(|pm| GestionResolue::nouvelle(pm, usage.numero())),
-            );
         }
         Self {
             parois,
@@ -428,6 +429,9 @@ pub struct EtatGroupeHoraire {
     pub t_max: TemperaturesMaximales,
     /// « Rouv_θop_man » du dernier pas de temps (§5.13.3.1.1).
     pub r_ouv_theta_op: f64,
+    /// État de la gestion automatique des protections mobiles de chaque baie (hystérésis,
+    /// §5.9.3.2.8).
+    pub gpm: Vec<EtatGpm>,
     /// Saisons propres du groupe (§4.6).
     pub saisons: Saisons,
     /// Masses séquentielle et annuelle (§5.21.3.10) ; inertes hors calcul Th-D.
@@ -703,6 +707,7 @@ impl GroupeHoraire {
                 omega_i_fin_kg_kg: omega_initiale_kg_kg,
                 t_max: TemperaturesMaximales::default(),
                 r_ouv_theta_op: 0.0,
+                gpm: vec![EtatGpm::default(); nb_baies],
                 // En Bbio, le refroidissement est possible sans système (décision Q35 point 7) ;
                 // en Th-D, tout groupe est « passé en non climatisé » (§13.5.3.1) et la saison
                 // de refroidissement suit la lecture de Q40. Le format d'entrée ne porte pas
@@ -866,29 +871,37 @@ impl GroupeHoraire {
         // §5.8 : baies. Protections mobiles (§5.9), flux (§5.10), ouverture (§5.13.3.2.3).
         let mut baies = FluxBaies::default();
         self.ouvertures.clear();
-        for ((baie, gestion), part_et) in self
+        for (((baie, gestion), part_et), etat_gpm) in self
             .enveloppe
             .baies
             .iter()
             .zip(&self.enveloppe.gestions)
             .zip(&self.parts_ouverture_et)
+            .zip(self.etat.gpm.iter_mut())
         {
             let b_et = et(baie.espace_tampon);
             let incident = baie.incident(&c.ext);
             let protections = gestion.as_ref().map_or(Protections::OUVERTES, |g| {
-                g.protections(&ConditionsGpm {
-                    i_occ_zone,
-                    // Indicateur à valeurs −1, 0 et 1 (éq. 53).
-                    #[allow(clippy::cast_possible_truncation)]
-                    i_occ_gpm: sc.i_occ_gpm as i8,
-                    // §5.9.3, éq. (176) : Etp** = becl·Etp*.
-                    etp_lux: incident.etp_lux() * b_et.map_or(1.0, |e| e.b_ecl),
-                    v_vent_c_m_s: c.v_vent_c_m_s,
-                    saison: saison_gpm,
-                    top_j1_max_c: self.etat.t_max.top_j1_max_c,
-                    // §5.9.3.6, éq. (201) à (204) et tableau 34.
-                    confort_adaptatif_th_d: conf_adapt_th_d,
-                })
+                g.protections_avec_etat(
+                    &ConditionsGpm {
+                        i_occ_zone,
+                        // Indicateur à valeurs −1, 0 et 1 (éq. 53).
+                        #[allow(clippy::cast_possible_truncation)]
+                        i_occ_gpm: sc.i_occ_gpm as i8,
+                        // §5.9.3, éq. (176) : Etp** = becl·Etp*.
+                        etp_lux: incident.etp_lux() * b_et.map_or(1.0, |e| e.b_ecl),
+                        v_vent_c_m_s: c.v_vent_c_m_s,
+                        saison: saison_gpm,
+                        top_j1_max_c: self.etat.t_max.top_j1_max_c,
+                        // §5.9.3.6, éq. (201) à (204) et tableau 34.
+                        confort_adaptatif_th_d: conf_adapt_th_d,
+                        // §5.9.3.4 : température opérative de fin du pas précédent et heure légale
+                        // de la gestion automatique.
+                        theta_op_fin_c: theta_op_h1,
+                        hleg: hleg(h),
+                    },
+                    etat_gpm,
+                )
             });
             let f = baie.flux_reduit(&incident, &c.ext, &protections, b_et);
             baies.h_ges_w_k += f.h_ges_w_k;
