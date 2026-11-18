@@ -1,0 +1,60 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b"
+  },
+  "batiments": [
+    {
+      "id": "commerce",
+      "sref_m2": 800.0,
+      "bbio_pts": 164.7,
+      "dh_c_h": 2935.7,
+      "cep_kwhep_m2": 124.6,
+      "cep_nr_kwhep_m2": 124.6,
+      "ic_energie_kgco2_m2": 145.2,
+      "bbio": {
+        "annuel": {
+          "b_ch_kwh_m2": 17.8,
+          "b_fr_kwh_m2": 19.9,
+          "b_ecl_kwh_m2": 17.9,
+          "bbio_pts": 164.7
+        }
+      },
+      "indicateurs": {
+        "cef_kwhef_m2": 54.2,
+        "exigences": {
+          "bbio_max_pts": 170.0,
+          "cep_max_kwhep_m2": 182.0,
+          "cep_nr_max_kwhep_m2": 163.0,
+          "ic_energie_max_kgco2_m2": 315.0,
+          "conforme": true
+        },
+        "electricite_consommee": {
+          "chauffage_kwh": 10854.9,
+          "refroidissement_kwh": 8094.4,
+          "ecs_kwh": 1590.0,
+          "eclairage_kwh": 17054.1,
+          "auxiliaires_ventilation_kwh": 5611.7,
+          "auxiliaires_distribution_kwh": 128.5
+        }
+      },
+      "zones": [
+        {
+          "id": "commerce",
+          "ventilation": {
+            "c_aux_vent_kwh": 5611.7
+          },
+          "groupes": [
+            {
+              "id": "commerce",
+              "debits_bbio": {
+                "q_spec_repris_m3_h": -2960.0,
+                "q_spec_souffle_m3_h": 2960.0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -41,7 +41,8 @@ use crate::confort::confort_ete::{
 use crate::confort::indicateurs_confort::{indicateurs, CumulsConfort, CAT_AMB};
 use crate::conventions::ModeCalcul;
 use crate::eclairage::{
-    a_eclnat2_m2, eclairage_habitation, eclairage_locaux_fraction, einat_vn_lux, LocalResolu,
+    a_eclnat2_m2, a_eclnat_gv_m2, eclairage_habitation, eclairage_locaux_gv, einat_gv_lux,
+    einat_vn_lux, LocalResolu,
 };
 use crate::entree::{Catalogue, Groupe, RegulationBatterie, UsageZone};
 use crate::scenarios::saisons::{
@@ -452,6 +453,9 @@ pub struct GroupeHoraire {
     /// « Aeclnat2 » : surface des locaux du groupe ayant accès à la lumière naturelle, en m²
     /// (§7.1.3.3) ; `Agr` en habitation.
     pub a_eclnat2_m2: f64,
+    /// « Aeclnat01 » ou « Aeclnat0 » : surface des locaux de grand volume du groupe ayant accès
+    /// à la lumière naturelle, en m² (§7.1.3.3) ; 0 sans local de grand volume.
+    pub a_eclnat_gv_m2: f64,
     /// Lectures du texte employées (celles retenues, sauf pour mesurer une sensibilité).
     pub lectures: Lectures,
     /// Inerties séquentielle et annuelle (§5.21.3.3 et 5.21.3.4).
@@ -625,6 +629,7 @@ impl GroupeHoraire {
         } else {
             a_eclnat2_m2(&locaux_eclairage)
         };
+        let a_eclnat_gv = a_eclnat_gv_m2(&locaux_eclairage);
         let nb_baies = enveloppe.baies.len();
         // Th-BCE 2020 §5.21.3.2 : « En mode Th-B et Th-C, les inerties séquentielle et annuelle
         // ne sont pas prises en compte. »
@@ -640,6 +645,7 @@ impl GroupeHoraire {
             hebergement: usage.i_hebergement(),
             locaux_eclairage,
             a_eclnat2_m2: a_eclnat2,
+            a_eclnat_gv_m2: a_eclnat_gv,
             lectures,
             inerties,
             a_gr_m2,
@@ -912,10 +918,16 @@ impl GroupeHoraire {
             baies.flt3_lm[2],
             self.a_eclnat2_m2,
         );
+        // §7.1.3.4, éq. (783) : grands volumes, baies de types 0 et 1.
+        let einat_gv = einat_gv_lux(
+            [baies.flt1_lm[0], baies.flt2_lm[0], baies.flt3_lm[0]],
+            [baies.flt1_lm[1], baies.flt2_lm[1], baies.flt3_lm[1]],
+            self.a_eclnat_gv_m2,
+        );
         let ecl = if self.locaux_eclairage.is_empty() {
             eclairage_habitation(sc.i_ecl > 0.0, einat, self.a_gr_m2)
         } else {
-            eclairage_locaux_fraction(&self.locaux_eclairage, sc.i_ecl.max(0.0), einat)
+            eclairage_locaux_gv(&self.locaux_eclairage, sc.i_ecl.max(0.0), einat, einat_gv)
         };
 
         // §5.21.3.5 : air entrant équivalent (bilan aéraulique de la zone et surventilation).

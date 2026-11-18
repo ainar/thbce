@@ -11,9 +11,10 @@
 //!   (§7.1.3.2.3), consommation des périphériques de gestion (éq. 787).
 //!
 //! L'éclairement naturel intérieur est calculé pour les locaux de volume normal (baies de
-//! type 2). Les grands volumes (baies de types 0 et 1 ; salles de sport, aires de production,
-//! aires de vente de plus de 300 m²) et l'éclairage d'accentuation des commerces (§7.1.3.2.2)
-//! ne sont pas pris en charge.
+//! type 2) et pour les locaux de grand volume (baies de types 0 et 1 ; salles de sport, aires de
+//! production, aires de vente de plus de 300 m², éq. 783), dont les coefficients de réflexion
+//! et les facteurs de forme sont propres (§7.1.2). L'éclairage d'accentuation des commerces
+//! (§7.1.3.2.2) relève la puissance des aires de vente à 4,5 W/m² au moins.
 
 use thbce_data::eclairage::{est_grand_volume, local as local_tableau_78, TypeLocal};
 
@@ -53,6 +54,90 @@ pub const C1_HABITATION: f64 = 0.9;
 /// (§7.1.3.6.2, tableau de la p. 501 et figure 86).
 pub const POINTS_C2_HABITATION: [(f64, f64); 4] =
     [(0.0, 1.0), (100.0, 1.0), (200.0, 0.05), (2800.0, 0.0)];
+
+/// « Roplafond_gv » : coefficient de réflexion lumineuse du plafond, locaux de grand volume.
+pub const RO_PLAFOND_GV: f64 = 0.5;
+/// « Romurs_gv » : coefficient de réflexion lumineuse des murs, locaux de grand volume.
+pub const RO_MURS_GV: f64 = 0.5;
+/// « Rosol_gv » : coefficient de réflexion lumineuse du sol, locaux de grand volume.
+pub const RO_SOL_GV: f64 = 0.2;
+/// « Rmursol_gv » : ratio de la surface des murs à celle du sol, locaux de grand volume.
+pub const R_MUR_SOL_GV: f64 = 0.5;
+/// « FFbpu » : facteur de forme entre un éclairant uniformément réparti et le plan utile
+/// (baies de type 1).
+pub const FF_BPU: f64 = 0.8;
+/// « FFplpu » : facteur de forme entre le plafond et le plan utile (baies de type 1).
+pub const FF_PLPU: f64 = 0.9;
+
+/// Coefficients `(K1, K2, K3)` de l'éclairement naturel d'un local, d'après le texte du §7.1.3.4.
+///
+/// `I = Romoyen/(1 − Romoyen)/RgrA,At` avec `Romoyen = (Rosol + Rmursol·Romurs + Roplafond)/
+/// (2 + Rmursol)` ; `K1 = Rosol·I` ; `K2 = FFbpu + I` ; `K3 = Roplafond·FFplpu + Roplafond·I`.
+fn coefficients_k(
+    ro_sol: f64,
+    r_mur_sol: f64,
+    ro_murs: f64,
+    ro_plafond: f64,
+    ff_bpu: f64,
+    ff_plpu: f64,
+) -> [f64; 3] {
+    let ro = (ro_sol + r_mur_sol * ro_murs + ro_plafond) / (2.0 + r_mur_sol);
+    let inter = ro / (1.0 - ro) / R_GR_A_AT;
+    [
+        ro_sol * inter,
+        ff_bpu + inter,
+        ro_plafond * ff_plpu + ro_plafond * inter,
+    ]
+}
+
+/// « K1gvu », « K2gvu », « K3gvu » : coefficients de l'éclairement naturel d'un grand volume
+/// par les éclairants de toiture uniformément répartis (baies de type 1), §7.1.3.4.
+pub fn k_gvu() -> [f64; 3] {
+    coefficients_k(
+        RO_SOL_GV,
+        R_MUR_SOL_GV,
+        RO_MURS_GV,
+        RO_PLAFOND_GV,
+        FF_BPU,
+        FF_PLPU,
+    )
+}
+
+/// « K1gv », « K2gv », « K3gv » : coefficients de l'éclairement naturel d'un grand volume par
+/// les autres éclairants (baies de type 0), §7.1.3.4.
+pub fn k_gv() -> [f64; 3] {
+    coefficients_k(
+        RO_SOL_GV,
+        R_MUR_SOL_GV,
+        RO_MURS_GV,
+        RO_PLAFOND_GV,
+        FF_BPU_H,
+        FF_PLPU_H,
+    )
+}
+
+/// « Einat(0) + Einat(1) » : éclairement naturel du plan utile d'un local de grand volume, en
+/// lux (éq. 783).
+///
+/// Th-BCE 2020 §7.1.3.4 : `Einat(1) = [K1gvu·Flt1(1) + K2gvu·Flt2(1) + K3gvu·Flt3(1)]/Aeclnat01`
+/// et `Einat(0) = [K1gv·Flt1(0) + K2gv·Flt2(0) + K3gv·Flt3(0)]/Aeclnat01`. Le texte divise par
+/// `Aeclnat01` les deux termes alors que le local éclairé par des seules baies de type 0 a
+/// `Aeclnat0` (et `Aeclnat01 = 0`) : la surface non nulle des deux est employée (Q081).
+/// `Einat = 0` si elle est nulle.
+pub fn einat_gv_lux(flt_type0_lm: [f64; 3], flt_type1_lm: [f64; 3], a_eclnat_gv_m2: f64) -> f64 {
+    if a_eclnat_gv_m2 <= 0.0 {
+        return 0.0;
+    }
+    let [k1, k2, k3] = k_gv();
+    let [u1, u2, u3] = k_gvu();
+    let somme = k1 * flt_type0_lm[0]
+        + k2 * flt_type0_lm[1]
+        + k3 * flt_type0_lm[2]
+        + u1 * flt_type1_lm[0]
+        + u2 * flt_type1_lm[1]
+        + u3 * flt_type1_lm[2];
+    somme / a_eclnat_gv_m2
+}
 
 /// « Romoyen » : coefficient de réflexion lumineuse moyen des parois, locaux de volume normal.
 ///
@@ -389,6 +474,9 @@ pub struct LocalResolu {
     pub fractionne: bool,
     /// « Eiref », en lux.
     pub e_ref_lux: f64,
+    /// Local de grand volume par convention (§7.1.3.3) : son éclairement naturel est celui de
+    /// l'éq. (783).
+    pub grand_volume: bool,
 }
 
 /// Vrai si le système d'un local a des périphériques de gestion (§7.1.3.6 : sans détection de
@@ -405,12 +493,9 @@ impl LocalResolu {
     ///
     /// Th-BCE 2020 §7.1.3.1, éq. (782) : `Pecl_tot = 2 × Eiref/100`, `Pecl_aux = 0`,
     /// `Gest_ecl = 2`, `Grad_ecl = 1`, gestion non fractionnée. `None` si le tableau 78 n'a pas
-    /// ce type de local pour l'usage, ou pour un local de grand volume (non pris en charge).
+    /// ce type de local pour l'usage.
     pub fn bbio(usage: u8, l: &LocalEclairage, a_gr_m2: f64) -> Option<Self> {
         let t = local_tableau_78(usage, l.type_local)?;
-        if est_grand_volume(usage, l.type_local) {
-            return None;
-        }
         Some(Self {
             a_local_m2: a_gr_m2 * l.ratio_local,
             ratio_ecl_nat: l.ratio_ecl_nat,
@@ -420,17 +505,15 @@ impl LocalResolu {
             grad_ecl: GradEcl::Manuelle,
             fractionne: false,
             e_ref_lux: t.e_ref_lux,
+            grand_volume: est_grand_volume(usage, l.type_local),
         })
     }
 
     /// Local avec le système d'éclairage du projet (§7.1.3.2), pour le calcul des
-    /// consommations. `None` si le tableau 78 n'a pas ce type de local pour l'usage, pour un
-    /// local de grand volume, ou si une donnée requise manque (cas écartés par la validation).
+    /// consommations. `None` si le tableau 78 n'a pas ce type de local pour l'usage, ou si une
+    /// donnée requise manque (cas écartés par la validation).
     pub fn projet(usage: u8, l: &LocalEclairage, a_gr_m2: f64) -> Option<Self> {
         let t = local_tableau_78(usage, l.type_local)?;
-        if est_grand_volume(usage, l.type_local) {
-            return None;
-        }
         let e = &l.eclairage;
         // §7.1.3.2.3 : éclairage mobilier des locaux de bureaux d'une zone de bureaux.
         let p_ecl_tot_w_m2 = if est_local_de_bureaux(usage, l.type_local)
@@ -441,6 +524,9 @@ impl LocalResolu {
                 e.eff_ecl_immo_projet_w_m2_100lux?,
                 e.ei_proj_lux?,
             )
+        } else if est_local_de_vente_des_commerces(usage, l.type_local) {
+            // §7.1.3.2.2 : éclairage d'accentuation de l'aire de vente des commerces.
+            e.p_ecl_tot_w_m2.max(P_ECL_ACCENTUATION_COMMERCES_W_M2)
         } else {
             e.p_ecl_tot_w_m2
         };
@@ -457,6 +543,7 @@ impl LocalResolu {
             grad_ecl: e.grad_ecl,
             fractionne: e.fractionne,
             e_ref_lux: t.e_ref_lux,
+            grand_volume: est_grand_volume(usage, l.type_local),
         })
     }
 
@@ -502,10 +589,41 @@ pub fn est_local_de_bureaux(usage: u8, type_local: TypeLocal) -> bool {
     usage == 3 && type_local == TypeLocal::BureauStandard
 }
 
+/// Puissance minimale de l'aire de vente et du petit magasin de vente des commerces, en W/m²
+/// (§7.1.3.2.2 : `Pecl_tot,l = max {4,5 ; Pecl_tot,l}`).
+pub const P_ECL_ACCENTUATION_COMMERCES_W_M2: f64 = 4.5;
+
+/// Local de vente d'une zone de commerces (usage 17), concerné par l'éclairage d'accentuation :
+/// « petit magasin de vente » (aire de vente de 300 m² au plus) ou « aire de vente » (plus de
+/// 300 m²) du tableau 78.
+pub fn est_local_de_vente_des_commerces(usage: u8, type_local: TypeLocal) -> bool {
+    usage == 17
+        && matches!(
+            type_local,
+            TypeLocal::AireVenteInferieure300 | TypeLocal::AireVenteSuperieure300
+        )
+}
+
 /// « Aeclnat2 » : surface des locaux de volume normal du groupe ayant accès à la lumière
 /// naturelle, en m² (§7.1.3.3 : `Σ Agr·Ratio_local,l·Ratioecl_nat,l`).
 pub fn a_eclnat2_m2(locaux: &[LocalResolu]) -> f64 {
-    locaux.iter().map(|l| l.a_local_m2 * l.ratio_ecl_nat).sum()
+    locaux
+        .iter()
+        .filter(|l| !l.grand_volume)
+        .map(|l| l.a_local_m2 * l.ratio_ecl_nat)
+        .sum()
+}
+
+/// « Aeclnat01 » ou « Aeclnat0 » : surface des locaux de grand volume du groupe ayant accès à
+/// la lumière naturelle, en m² (§7.1.3.3 : `Σ Agr·Ratio_local,l·Ratioecl_nat,l`). Avec des
+/// éclairants de toiture uniformément répartis (baies de type 1), `Ratioecl_nat` vaut 1 : la
+/// validation l'impose.
+pub fn a_eclnat_gv_m2(locaux: &[LocalResolu]) -> f64 {
+    locaux
+        .iter()
+        .filter(|l| l.grand_volume)
+        .map(|l| l.a_local_m2 * l.ratio_ecl_nat)
+        .sum()
 }
 
 /// Consommation d'éclairage et apports récupérables d'un groupe hors habitation.
@@ -523,9 +641,30 @@ pub fn eclairage_locaux_fraction(
     i_ecl: f64,
     einat2_lux: f64,
 ) -> EclairageGroupe {
+    eclairage_locaux_gv(locaux, i_ecl, einat2_lux, 0.0)
+}
+
+/// Comme [`eclairage_locaux_fraction`], avec l'éclairement naturel des locaux de grand volume
+/// (`Einat = Einat(0) + Einat(1)`, éq. 783) en plus de celui des locaux de volume normal
+/// (`Einat = Einat(2)`, éq. 784) : chaque local prend celui de son volume.
+pub fn eclairage_locaux_gv(
+    locaux: &[LocalResolu],
+    i_ecl: f64,
+    einat2_lux: f64,
+    einat_gv_lux: f64,
+) -> EclairageGroupe {
     let c_ecl_kwh: f64 = locaux
         .iter()
-        .map(|l| l.c_ecl_local_fraction_kwh(i_ecl, einat2_lux))
+        .map(|l| {
+            l.c_ecl_local_fraction_kwh(
+                i_ecl,
+                if l.grand_volume {
+                    einat_gv_lux
+                } else {
+                    einat2_lux
+                },
+            )
+        })
         .sum();
     let puissance_w = c_ecl_kwh * 1000.0;
     EclairageGroupe {

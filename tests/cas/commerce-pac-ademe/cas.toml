@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Commerce (usage 17) de 800 m² utiles de plain-pied (5 m de haut, grand volume : aire de vente de plus de 300 m² à 50 %, petit magasin de vente à 15 %, circulations, local de service et sanitaires), sur la météo ouverte ADEME (station de Tours, zone H2b, Indre-et-Loire, 80 m) : vitrines au sud de 40 m² affectées au grand volume (type de baie 0) et 24 m² d'éclairants de toiture uniformément répartis (type 1, Ratioécl_nat = 1), baie au nord affectée au petit magasin (volume normal), volets extérieurs motorisés (famille « autres usages » des protections mobiles) ; ventilation simple flux par extraction (3 000 m³/h en occupation, 100 m³/h en inoccupation), huit pompes à chaleur air extérieur/eau et plancher chauffant, ECS par un chauffe-eau électrique de 500 L ; éclairage d'accentuation (puissance du petit magasin de vente relevée à 4,5 W/m², §7.1.3.2.2). Exigences d'un permis déposé en septembre 2026, catégorie 1 de contraintes extérieures, classe de bruit BR1. Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : valeurs du moteur au lot 0c4 (18 novembre 2026), figées pour détecter les régressions ; ce n'est pas un cas de référence. Recoupements à la main (test `commerce_et_gymnase_a_la_main` de crates/thbce-io/tests/commerces_sports.rs) : surface de référence 800 m² ; débit conventionnel du Bbio 3,7 × 800 = 2 960 m³/h (tableau 56-1) ; forfait de refroidissement 0,009 × (DH − 350) / 2,3 × 800 (éq. 2493, tableau 335)."
+meteo = "ademe"
+
+[tolerances]
+defaut = 0.005

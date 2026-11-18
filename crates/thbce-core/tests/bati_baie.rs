@@ -76,6 +76,7 @@ fn baie(a: f64, e: Exposition) -> BaieResolue {
         exposition: e,
         expo_br: None,
         bruit: None,
+        affectation_eclairage: None,
         espace_tampon: None,
     };
     BaieResolue::nouvelle(&b, &fenetre(), &Catalogue::default()).unwrap()
@@ -318,6 +319,7 @@ fn valeurs_par_defaut_des_facteurs_solaires() {
         exposition: exposition(0.0, 90.0),
         expo_br: None,
         bruit: None,
+        affectation_eclairage: None,
         espace_tampon: None,
     };
     let r = BaieResolue::nouvelle(&b, &t, &Catalogue::default()).unwrap();

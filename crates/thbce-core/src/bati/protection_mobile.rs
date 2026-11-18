@@ -188,7 +188,10 @@ impl GestionResolue {
                 self.th_d.r_prot_jour_min_autre
             };
             occ.r_prot0 = occ.r_prot0.max(plancher);
-            inocc.r_prot_jour = inocc.r_prot_jour.max(plancher);
+            // Colonne « Autres » : plancher propre à l'inoccupation (60 % contre 70 %).
+            inocc.r_prot_jour = inocc
+                .r_prot_jour
+                .max(self.th_d.r_prot_inocc_jour_min.unwrap_or(plancher));
             match self.type_pm {
                 TypePm::StoreEnroulable if self.th_d.nuit_store_plafonne => {
                     // Colonne « Hôpitaux nuit » : min(50 % ; valeur Th-BC).

@@ -117,9 +117,9 @@ fn autonomie_en_lumiere_naturelle() {
 /// 7.1.3.6.1 et les tableaux 78 et 79.
 mod tertiaire {
     use thbce_core::eclairage::{
-        a_eclnat2_m2, c1, c2, ctrl_ecl_einat, ctrl_ecl_occ, eclairage_locaux,
-        eclairage_locaux_fraction, facteur_einat_sans_acces, p_ecl_tot_bbio_w_m2,
-        p_ecl_tot_bureaux_w_m2, LocalResolu,
+        a_eclnat2_m2, a_eclnat_gv_m2, c1, c2, ctrl_ecl_einat, ctrl_ecl_occ, eclairage_locaux,
+        eclairage_locaux_fraction, eclairage_locaux_gv, einat_gv_lux, facteur_einat_sans_acces,
+        k_gv, k_gvu, p_ecl_tot_bbio_w_m2, p_ecl_tot_bureaux_w_m2, LocalResolu,
     };
     use thbce_core::entree::{GestEcl, GradEcl, LocalEclairage};
 
@@ -282,6 +282,97 @@ mod tertiaire {
         assert_eq!(eclairage_locaux_fraction(&projet, 0.0, 0.0).c_ecl_kwh, 0.0);
     }
 
+    /// Grands volumes (§7.1.3.4, éq. 783) : `Romoyen = (0,2 + 0,5·0,5 + 0,5)/2,5 = 0,38`,
+    /// `I = 0,38/0,62/4,5 = 0,136 200 7…`, `K1 = 0,2·I`, `K2 = FFbpu + I`,
+    /// `K3 = 0,5·FFplpu + 0,5·I` avec FFbpu et FFplpu de 0,8 et 0,9 (type 1) ou 0,4 et 0,8
+    /// (type 0).
+    #[test]
+    fn eclairement_naturel_d_un_grand_volume() {
+        let i = 0.38 / 0.62 / 4.5;
+        let gvu = k_gvu();
+        for (k, attendu) in gvu.iter().zip([0.2 * i, 0.8 + i, 0.5 * 0.9 + 0.5 * i]) {
+            assert!(proche(*k, attendu), "{k} {attendu}");
+        }
+        let gv = k_gv();
+        for (k, attendu) in gv.iter().zip([0.2 * i, 0.4 + i, 0.5 * 0.8 + 0.5 * i]) {
+            assert!(proche(*k, attendu), "{k} {attendu}");
+        }
+        // Valeurs numériques : K1gvu = 0,027 240 14 ; K2gvu = 0,936 200 7 ; K3gvu = 0,518 100 4 ;
+        // K2gv = 0,536 200 7 ; K3gv = 0,468 100 4.
+        assert!((gvu[1] - 0.936_200_7).abs() < 1e-6 && (gv[2] - 0.468_100_4).abs() < 1e-6);
+        // Flt(0) = (1 000 ; 2 000 ; 300) lm, Flt(1) = (500 ; 4 000 ; 100) lm, Aeclnat = 1 950 m² :
+        // (0,027 240 14·1 000 + 0,536 200 7·2 000 + 0,468 100 4·300
+        //  + 0,027 240 14·500 + 0,936 200 7·4 000 + 0,518 100 4·100)/1 950 = 2,589 899 8 lux.
+        let e = einat_gv_lux([1000.0, 2000.0, 300.0], [500.0, 4000.0, 100.0], 1950.0);
+        assert!((e - 2.589_899_8).abs() < 1e-6, "{e}");
+        // Sans local éclairé : Einat = 0.
+        assert_eq!(einat_gv_lux([1.0; 3], [1.0; 3], 0.0), 0.0);
+    }
+
+    /// Salle de sport (usage 25, grand volume) : sa consommation suit `Einat(0) + Einat(1)`, non
+    /// l'éclairement des volumes normaux ; ses surfaces sortent de `Aeclnat2`.
+    #[test]
+    fn consommation_d_un_local_de_grand_volume() {
+        let sport = local(
+            r#"{"id": "s", "type_local": "salle_sport", "ratio_local": 0.65,
+                "ratio_ecl_nat": 1,
+                "eclairage": {"p_ecl_tot_w_m2": 10, "gest_ecl": "interrupteur_et_horloge",
+                              "grad_ecl": "manuelle", "fractionne": false}}"#,
+        );
+        let circ = local(
+            r#"{"id": "c", "type_local": "circulation_accueil", "ratio_local": 0.35,
+                "ratio_ecl_nat": 1,
+                "eclairage": {"p_ecl_tot_w_m2": 4, "gest_ecl": "permanent",
+                              "grad_ecl": "aucune", "fractionne": false}}"#,
+        );
+        let locaux = [
+            LocalResolu::projet(25, &sport, 1000.0).unwrap(),
+            LocalResolu::projet(25, &circ, 1000.0).unwrap(),
+        ];
+        assert!(locaux[0].grand_volume && !locaux[1].grand_volume);
+        assert!(proche(a_eclnat_gv_m2(&locaux), 650.0));
+        assert!(proche(a_eclnat2_m2(&locaux), 350.0));
+        // Einat(gv) = 400 lux, Einat(vn) = 0 : salle de sport, C1 = 0,85 (interrupteur et
+        // horloge, tableau 78), C2 manuel = 1 + (0,3 − 1)·(400 − 100)/600 = 0,65 :
+        // 10 × 0,85 × 0,65 × 650/1 000 = 3,591 25 kWh ; circulation (permanente, C1 = C2 = 1) :
+        // 4 × 350/1 000 = 1,4 kWh.
+        let r = eclairage_locaux_gv(&locaux, 1.0, 0.0, 400.0);
+        assert!(proche(r.c_ecl_kwh, 3.59125 + 1.4), "{}", r.c_ecl_kwh);
+        // Un éclairement de volume normal de 2 800 lux éteint la circulation sans effet sur le
+        // grand volume : la circulation est permanente (C2 = 1), la salle suit Einat(gv).
+        let r2 = eclairage_locaux_gv(&locaux, 1.0, 2800.0, 400.0);
+        assert!(proche(r2.c_ecl_kwh, r.c_ecl_kwh));
+        // Au-delà de 2 800 lux dans le grand volume, la salle s'éteint.
+        let r3 = eclairage_locaux_gv(&locaux, 1.0, 0.0, 2800.0);
+        assert!(proche(r3.c_ecl_kwh, 1.4));
+    }
+
+    /// Éclairage d'accentuation des commerces (§7.1.3.2.2) : `max {4,5 ; Pecl_tot,l}` pour le
+    /// petit magasin de vente et l'aire de vente.
+    #[test]
+    fn eclairage_d_accentuation_des_commerces() {
+        let l = |type_local: &str, p: f64| {
+            local(&format!(
+                r#"{{"id": "x", "type_local": "{type_local}", "ratio_local": 0.5,
+                    "ratio_ecl_nat": 0,
+                    "eclairage": {{"p_ecl_tot_w_m2": {p}, "gest_ecl": "permanent",
+                                  "grad_ecl": "aucune", "fractionne": false}}}}"#
+            ))
+        };
+        let p = |t: &str, w: f64, usage: u8| {
+            LocalResolu::projet(usage, &l(t, w), 100.0)
+                .unwrap()
+                .p_ecl_tot_w_m2
+        };
+        assert_eq!(p("aire_vente_inferieure300", 3.0, 17), 4.5);
+        assert_eq!(p("aire_vente_superieure300", 3.0, 17), 4.5);
+        assert_eq!(p("aire_vente_inferieure300", 6.0, 17), 6.0);
+        // Les autres locaux des commerces et le calcul du Bbio ne sont pas concernés.
+        assert_eq!(p("circulation_accueil", 3.0, 17), 3.0);
+        let bbio = LocalResolu::bbio(17, &l("aire_vente_inferieure300", 3.0), 100.0).unwrap();
+        assert_eq!(bbio.p_ecl_tot_w_m2, 2.0 * 300.0 / 100.0);
+    }
+
     #[test]
     fn consommation_d_un_groupe_de_bureaux() {
         // Groupe de 1 000 m² : 60 % de bureaux standards (gradation, détection, fractionnée),
@@ -346,7 +437,8 @@ mod tertiaire {
             jour.c_ecl_kwh,
             (10.0 * 0.85 * c2 * 600.0 + 2.0 * 0.75 * 400.0) / 1000.0
         ));
-        // Type de local absent du tableau 78 pour l'usage, grand volume : non résolus.
+        // Type de local absent du tableau 78 pour l'usage : non résolu ; la salle de sport (grand
+        // volume) l'est depuis le lot 0c4.
         let classe = local(
             r#"{"id": "x", "type_local": "salle_classe", "ratio_local": 1, "ratio_ecl_nat": 1,
                 "eclairage": {"p_ecl_tot_w_m2": 6, "gest_ecl": "interrupteur_manuel",
@@ -358,7 +450,8 @@ mod tertiaire {
                 "eclairage": {"p_ecl_tot_w_m2": 6, "gest_ecl": "interrupteur_manuel",
                               "grad_ecl": "manuelle", "fractionne": false}}"#,
         );
-        assert!(LocalResolu::bbio(25, &sport, 100.0).is_none());
+        let s = LocalResolu::bbio(25, &sport, 100.0).unwrap();
+        assert!(s.grand_volume && proche(s.p_ecl_tot_w_m2, 6.0));
     }
 
     /// Les quatre locaux de l'exemple `bureaux-simple-flux-ademe` (groupe de 1 000 m²), valeurs

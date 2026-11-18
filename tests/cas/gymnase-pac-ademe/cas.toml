@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Gymnase d'un établissement sportif municipal ou scolaire (usage 25) de 900 m² utiles de plain-pied (7 m de haut) : salle de sport (65 %, grand volume éclairé par 90 m² de baies verticales, type de baie 0, Ratioécl_nat = 0,8, gestion de l'éclairage fractionnée), circulations, sanitaires collectifs, douches collectives et local de service, sur la météo ouverte ADEME (zone H1b, Meurthe-et-Moselle, 210 m), volets extérieurs motorisés (famille « autres usages » des protections mobiles) ; ventilation simple flux par extraction (2 700 m³/h en occupation, 100 m³/h en inoccupation), vingt pompes à chaleur air extérieur/eau et plancher chauffant, ECS par un chauffe-eau électrique de 1 500 L. Exigences d'un permis déposé en septembre 2026, catégorie 1 de contraintes extérieures, classe de bruit BR1. Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : valeurs du moteur au lot 0c4 (18 novembre 2026), figées pour détecter les régressions ; ce n'est pas un cas de référence. Recoupements à la main (test `commerce_et_gymnase_a_la_main` de crates/thbce-io/tests/commerces_sports.rs) : surface de référence 900 m² ; débit conventionnel du Bbio 3,0 × 900 = 2 700 m³/h (tableau 56-1) ; forfait de refroidissement 0,009 × (2 000 − 350) / 2,3 × 900 = 5 810,9 kWh (DH_max 2 000 °C.h)."
+meteo = "ademe"
+
+[tolerances]
+defaut = 0.005

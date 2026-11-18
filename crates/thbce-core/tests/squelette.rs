@@ -297,20 +297,24 @@ fn un_projet_vide_est_refuse_sans_panique() {
 }
 
 #[test]
-fn un_usage_hors_perimetre_est_refuse_comme_hors_perimetre() {
+fn un_element_hors_perimetre_est_refuse_comme_hors_perimetre() {
+    use thbce_core::entree::TypePm;
+    // Les 28 usages sont calculés (lot 0c4) : le refus « hors périmètre » se teste sur un
+    // élément non pris en charge, ici un store vénitien (décision Q30, point 7).
     let mut p = projet();
-    p.batiments[0].zones[0].usage = UsageZone::Commerces;
-    p.batiments[0].zones[0].groupes[0].su_m2 = Some(96.44);
-    // Permis de 2027 : les commerces ne sont soumis à la RE2020 qu'à partir du 1er mai 2026
-    // (Q68) ; un permis de 2025 serait une erreur de saisie.
-    if let Some(x) = p.batiments[0].exigences.as_mut() {
-        x.annee_depot_permis = 2027;
-    }
+    p.catalogue.baies[0]
+        .protection_mobile
+        .as_mut()
+        .unwrap()
+        .type_pm = TypePm::StoreVenitien;
     let r = valider(&p);
-    // Usage reconnu mais hors du périmètre de cette version : erreur marquée `hors_perimetre`.
-    assert_eq!(chemins(&r.erreurs), ["batiments[0].zones[0].usage"]);
+    // Élément reconnu mais hors du périmètre de cette version : erreur marquée `hors_perimetre`.
+    assert_eq!(
+        chemins(&r.erreurs),
+        ["catalogue.baies[0].protection_mobile.type_pm"]
+    );
     assert!(r.seulement_hors_perimetre());
-    assert_eq!(r.erreurs[0].valeur.as_deref(), Some("commerces"));
+    assert_eq!(r.erreurs[0].valeur.as_deref(), Some("store_venitien"));
     assert!(r.avertissements.is_empty(), "{:?}", r.avertissements);
     let e = calculer(
         &p,
@@ -320,6 +324,7 @@ fn un_usage_hors_perimetre_est_refuse_comme_hors_perimetre() {
     .unwrap_err();
     assert!(e.hors_perimetre(), "{e}");
     assert_eq!(UsageZone::SportPrive.numero(), 28);
+    assert!(UsageZone::Commerces.est_pris_en_charge());
 }
 
 #[test]

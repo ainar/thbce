@@ -372,19 +372,6 @@ fn refus() {
     x.annee_depot_permis = 2025;
     x.mois_depot_permis = None;
     assert!(!valider(&p).est_valide());
-    // Les usages voisins non ouverts restent hors périmètre (code 3) : commerces (17), avec un
-    // permis de 2027.
-    let mut p = restaurant();
-    p.batiments[0].zones[0].usage = UsageZone::Commerces;
-    p.batiments[0]
-        .exigences
-        .as_mut()
-        .unwrap()
-        .annee_depot_permis = 2027;
-    for l in &mut p.batiments[0].zones[0].groupes[0].locaux {
-        l.type_local = TypeLocal::LocalService;
-    }
-    assert!(valider(&p).seulement_hors_perimetre());
 }
 
 fn meteo_reglementaire(p: &Projet) -> MeteoProjet {
