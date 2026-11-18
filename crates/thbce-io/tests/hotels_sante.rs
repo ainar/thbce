@@ -305,7 +305,7 @@ fn refus() {
     let mut p = hotel();
     p.batiments[0].zones[0].groupes[0].locaux[0].type_local = TypeLocal::SalleClasse;
     assert!(!valider(&p).est_valide());
-    // Les usages d'autres familles (restauration, commerces…) restent refusés : voir
+    // Les usages d'autres familles (commerces, aérogares…) restent refusés : voir
     // `squelette.rs`.
 }
 
