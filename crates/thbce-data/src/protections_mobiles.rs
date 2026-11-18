@@ -29,7 +29,7 @@
 //!
 //! Les figures 37 et 40 (famille « enseignement », p. 198 et 201) sont transcrites des images du
 //! PDF de l'annexe III (623 × 413 pixels), lues deux fois, agrandies trois fois, d'abord en
-//! entier puis sur la seule zone des valeurs (lot 0c1, `docs/questions/Q071.md`).
+//! entier puis sur la seule zone des valeurs (lot 0c1, `docs/questions/Q072.md`).
 //!
 //! Sont transcrites les lignes de gestion manuelle des familles « habitation, hôtellerie et
 //! hébergement », « bureau » et « enseignement ». Les matrices des autres familles (figures
