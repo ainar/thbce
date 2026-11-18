@@ -102,7 +102,12 @@ pub fn synthese_indicateurs(r: &thbce_core::resultats::Resultats) -> String {
         }
         let _ = writeln!(
             s,
-            "  exigences de résultat (Bbio, Cep, Cep,nr, Ic énergie, DH) : {}",
+            "  exigences de résultat (Bbio, Cep, Cep,nr, Ic énergie, DH{}) : {}",
+            if e.ic_construction_max_kgco2_m2.is_some() {
+                ", Icconstruction"
+            } else {
+                ""
+            },
             if e.conforme {
                 "respectées"
             } else {

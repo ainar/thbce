@@ -1,0 +1,353 @@
+ Légende :
+    - Les modifications introduites par l’arrêté du 6 avril 2022 modifiant les arrêtés pris en
+       application des articles R. 122-22 à R. 122-25 et R. 172-1 à R. 172-9 du code de la
+       construction et de l'habitation sont surlignées en jaune (ajout des usages bureaux et
+       enseignement primaire et secondaires.
+    - Les modifications introduites par l’arrêté du 19 mars 2026 modifiant les arrêtés pris en
+       application des articles R. 122-22 à R. 122-25 et R. 172-1 à R.172-9 du code de la
+       construction et de l'habitation sont en gras et surlignées en bleu (ajout des usages tertiaires
+       spécifiques et industrie / artisanat).
+
+
+                                           ANNEXE XI.
+           PERFORMANCES FORFAITAIRES DE CERTAINS LOTS
+
+    1. Maisons individuelles ou accolées
+Il est possible d’utiliser les valeurs suivantes pour décrire l’impact de l’ensemble des composants
+relevant des lots ou sous-lots mentionnés ci-après et définis par la méthode spécifiée à l’article 8.
+
+                            Impact sur le changement climatique par phase du cycle de vie du
+                                               bâtiment (kg éq. CO2/m²)
+      Phase du cycle de Production       Edification    Exploitation Fin de vie     Module D
+                      vie
+      Lot ou sous-lot
+      8.1 (Équipements
+        de production
+                            61                 0             106            3            0
+       chaud/froid hors
+        cogénération)
+         10 (Réseaux        50                 0             45             3            0
+          d'énergie /
+         courant fort)
+       11 (Réseaux de        1                 0              1             0            0
+      communication /
+        courant faible)
+
+
+    2. Logements collectifs
+Il est possible d’utiliser les valeurs suivantes pour décrire l’impact de l’ensemble des composants
+relevant des lots ou sous-lots mentionnés ci-après et définis par la méthode spécifiée à l’article 8.
+                               Impact sur le changement climatique par phase du cycle de vie du
+                                                  bâtiment (kg éq. CO2/m²)
+      Phase du cycle de Production         Edification        Exploitation Fin de vie    Module D
+                      vie
+      Lot ou sous-lot
+      8.1 (Équipements
+        de production
+                            16                    0               57             1               0
+       chaud/froid hors
+        cogénération)
+         10 (Réseaux        24                    0               23             1               0
+          d'énergie /
+         courant fort)
+       11 (Réseaux de        1                    0                 1            0               0
+      communication /
+        courant faible)
+
+
+3. Bureaux
+
+Il est possible d’utiliser les valeurs suivantes pour décrire l’impact de l’ensemble des composants
+relevant des lots ou sous-lots mentionnés ci-après et définis par la méthode spécifiée à l’Article 8.
+
+                                     Impact sur le changement climatique par phase du cycle de vie du
+                                                        bâtiment (kg éq. CO2/m²)
+ Phase du cycle de vie               Production       Edification       Exploitation    Fin de       Module D
+ Lot ou sous-lot                                                                         vie
+ 8.1 (Équipements de
+ production chaud/froid hors             13               0                 46            1             0
+ cogénération)
+ 8.3 (Systèmes d'émission)               13               0                 46            1             0
+ 8.4 (Traitement de l'air et
+                                         11               0                 38            1             0
+ éléments de désenfumage)
+ 8.5 (Réseaux et conduits)                7               0                 23            0             0
+ 10 (Réseaux d'énergie /
+                                         57               0                 54            4             0
+ courant fort)
+ 11 (Réseaux de
+ communication / courant                  8               0                  7            0             0
+ faible)
+
+4. et 5. Enseignement primaire ou secondaire
+
+Il est possible d’utiliser les valeurs suivantes pour décrire l’impact de l’ensemble des composants
+relevant des lots ou sous-lots mentionnés ci-après et définis par la méthode spécifiée à l’Article 8.
+
+                                     Impact sur le changement climatique par phase du cycle de vie du
+                                                        bâtiment (kg éq. CO2/m²)
+ Phase du cycle de vie              Production        Edification       Exploitation    Fin de       Module D
+ Lot ou sous-lot                                                                         vie
+ 8.1      (Équipements     de
+ production chaud/froid hors         9             0             31           0         0
+ cogénération)
+ 8.3 (Systèmes d'émission)           5             0             15           0         0
+ 8.4 (Traitement de l'air et
+                                     9             0             31           0         0
+ éléments de désenfumage)
+ 8.5 (Réseaux et conduits)           11            0             38           1         0
+ 10 (Réseaux d'énergie /
+                                     57            0             54           4         0
+ courant fort)
+ 11         (Réseaux  de
+ communication / courant             8             0              7           0         0
+ faible)
+
+
+6. Médiathèques et bibliothèques
+
+                                Impact sur le changement climatique par phase du cycle de vie
+                                                 du bâtiment (kg éq. CO2/m²)
+ Phase du cycle de vie          Production    Edification    Exploitation   Fin de   Module
+ Lot ou sous-lot                                                             vie       D
+ 8.1 (Équipements de
+ production chaud/froid             12             0             86           2         0
+ hors cogénération)
+ 8.3 (Systèmes d'émission)          13             0             46           1         0
+ 8.4 (Traitement de l'air et
+                                    13             1             24           1         0
+ éléments de désenfumage)
+ 8.5 (Réseaux et conduits)          29             4             17           1         0
+ 10 (Réseaux d'énergie /
+                                    57             0             54           4         0
+ courant fort)
+ 11 (Réseaux de
+ communication / courant            8              0              7           0         0
+ faible)
+
+
+7. Bâtiments universitaires d'enseignement et de recherche et bâtiments d’enseignements
+atypiques
+
+                                Impact sur le changement climatique par phase du cycle de vie
+                                                 du bâtiment (kg éq. CO2/m²)
+ Phase du cycle de vie          Production    Edification    Exploitation   Fin de   Module
+ Lot ou sous-lot                                                             vie       D
+ 8.1 (Équipements de
+ production chaud/froid             9              0             31           0         0
+ hors cogénération)
+ 8.3 (Systèmes d'émission)          48             3              2           0         0
+ 8.4 (Traitement de l'air et
+                                    8              1             46           0         0
+ éléments de désenfumage)
+ 8.5 (Réseaux et conduits)          62             8             18           1         0
+ 10 (Réseaux d'énergie /
+                                          57                0                 54             4           0
+ courant fort)
+ 11 (Réseaux de
+ communication / courant                   8                0                 7              0           0
+ faible)
+
+
+8. à 11. Hôtels 0, 1 et 2 étoiles (partie nuit), hôtels 3, 4 et 5 étoiles (partie nuit), hôtels 0, 1 et 2 étoiles
+(partie jour) et hôtels 3, 4 et 5 étoiles (partie jour)
+
+                                     Impact sur le changement climatique par phase du cycle de vie
+                                                      du bâtiment (kg éq. CO2/m²)
+ Phase du cycle de vie               Production       Edification       Exploitation      Fin de     Module
+ Lot ou sous-lot                                                                           vie         D
+ 8.1 (Équipements de
+ production chaud/froid                    8                0                 52             1           0
+ hors cogénération)
+ 8.3 (Systèmes d'émission)                18                1                 34             1           0
+ 8.4 (Traitement de l'air et
+                                          10                1                 17             1           0
+ éléments de désenfumage)
+ 8.5 (Réseaux et conduits)                53                5                 29             1           0
+ 10 (Réseaux d'énergie /
+                                          24                0                 23             1           0
+ courant fort)
+ 11 (Réseaux de
+ communication / courant                   1                0                 1              0           0
+ faible)
+
+
+12. Etablissements d'accueil de la petite enfance
+
+                                     Impact sur le changement climatique par phase du cycle de vie
+                                                      du bâtiment (kg éq. CO2/m²)
+ Phase du cycle de vie               Production       Edification       Exploitation      Fin de     Module
+ Lot ou sous-lot                                                                           vie         D
+ 8.1 (Équipements de
+ production chaud/froid                   26                1                121             3           0
+ hors cogénération)
+ 8.3 (Systèmes d'émission)                46                0                 0              2           0
+ 8.4 (Traitement de l'air et
+                                           3                0                 5              0           0
+ éléments de désenfumage)
+ 8.5 (Réseaux et conduits)                21                3                 16             1           0
+ 10 (Réseaux d'énergie /
+                                          57                0                 54             4           0
+ courant fort)
+ 11 (Réseaux de
+ communication / courant                   8                0                 7              0           0
+ faible)
+
+
+13. à 16., 26. et 27. Restaurants - en continu, 18 heures par jour, 7 jours sur 7, restaurants - 1 repas
+par jour, 5 jours sur 7, restaurants - 2 repas par jour, 7 jours sur 7, restaurants - 2 repas par jour,
+6 jours sur 7, restaurants scolaires - 1 repas par jour, 5 jours sur 7 et restaurants scolaires - 3
+repas par jour, 5 jours sur 7
+
+                                Impact sur le changement climatique par phase du cycle de vie
+                                                 du bâtiment (kg éq. CO2/m²)
+ Phase du cycle de vie          Production     Edification     Exploitation    Fin de   Module
+ Lot ou sous-lot                                                                vie       D
+ 8.1 (Équipements de
+ production chaud/froid              19              1             117           3          0
+ hors cogénération)
+ 8.3 (Systèmes d'émission)           16              1              2            0          0
+ 8.4 (Traitement de l'air et
+                                     15              1              26           1          0
+ éléments de désenfumage)
+ 8.5 (Réseaux et conduits)           33              6              18           1          0
+ 10 (Réseaux d'énergie /
+                                     50              0              45           3          0
+ courant fort)
+ 11 (Réseaux de
+ communication / courant             1               0              1            0          0
+ faible)
+
+
+17. Commerces
+
+                                Impact sur le changement climatique par phase du cycle de vie
+                                                 du bâtiment (kg éq. CO2/m²)
+ Phase du cycle de vie          Production     Edification     Exploitation    Fin de   Module
+ Lot ou sous-lot                                                                vie       D
+ 8.1 (Équipements de
+ production chaud/froid              12              0             142           9          0
+ hors cogénération)
+ 8.3 (Systèmes d'émission)           9               1              14           0          0
+ 8.4 (Traitement de l'air et
+                                     5               0              8            0          0
+ éléments de désenfumage)
+ 8.5 (Réseaux et conduits)           22              2              9            0          0
+ 10 (Réseaux d'énergie /
+                                     57              0              54           4          0
+ courant fort)
+ 11 (Réseaux de
+ communication / courant             8               0              7            0          0
+ faible)
+
+
+18. Vestiaires
+
+                                Impact sur le changement climatique par phase du cycle de vie
+                                                 du bâtiment (kg éq. CO2/m²)
+ Phase du cycle de vie          Production     Edification     Exploitation    Fin de   Module
+ Lot ou sous-lot                                                                vie       D
+ 8.1 (Équipements de
+ production chaud/froid              29              2             143           1          0
+ hors cogénération)
+ 8.3 (Systèmes d'émission)         30             2              1           1         0
+ 8.4 (Traitement de l'air et
+                                   16             2             21           0         0
+ éléments de désenfumage)
+ 8.5 (Réseaux et conduits)         28             3             11           1         0
+ 10 (Réseaux d'énergie /
+                                   57             0             54           4         0
+ courant fort)
+ 11 (Réseaux de
+ communication / courant           8              0              7           0         0
+ faible)
+
+
+19. à 21. Etablissements sanitaires avec hébergement, établissements de santé (partie nuit) et
+établissements de santé (partie jour)
+
+                               Impact sur le changement climatique par phase du cycle de vie
+                                                du bâtiment (kg éq. CO2/m²)
+ Phase du cycle de vie         Production    Edification    Exploitation   Fin de   Module
+ Lot ou sous-lot                                                            vie       D
+ 8.1 (Équipements de
+ production chaud/froid            10             0             66           2         0
+ hors cogénération)
+ 8.3 (Systèmes d'émission)         10             1              6           0         0
+ 8.4 (Traitement de l'air et
+                                   7              1             20           0         0
+ éléments de désenfumage)
+ 8.5 (Réseaux et conduits)         89            14             46           2         0
+ 10 (Réseaux d'énergie /
+                                   57             0             54           4         0
+ courant fort)
+ 11 (Réseaux de
+ communication / courant           8              0              7           0         0
+ faible)
+
+
+22. Aérogares
+
+                               Impact sur le changement climatique par phase du cycle de vie
+                                                du bâtiment (kg éq. CO2/m²)
+ Phase du cycle de vie         Production    Edification    Exploitation   Fin de   Module
+ Lot ou sous-lot                                                            vie       D
+ 8.1 (Équipements de
+ production chaud/froid            2              0              3           0         0
+ hors cogénération)
+ 8.3 (Systèmes d'émission)         3              0              7           0         0
+ 8.4 (Traitement de l'air et
+                                   10             1             61           1         0
+ éléments de désenfumage)
+ 8.5 (Réseaux et conduits)        110            15             27           2         0
+ 10 (Réseaux d'énergie /
+                                   57             0             54           4         0
+ courant fort)
+ 11 (Réseaux de
+ communication / courant              8              0                7           0            0
+ faible)
+
+
+23. et 24. Industries ou artisanats 3x8h et industries ou artisanats 8h à 18h
+
+                                 Impact sur le changement climatique par phase du cycle de vie
+                                                  du bâtiment (kg éq. CO2/m²)
+ Phase du cycle de vie           Production     Edification     Exploitation    Fin de   Module
+ Lot ou sous-lot                                                                 vie       D
+ 8.1 (Équipements de
+ production chaud/froid              12              1               77           1            0
+ hors cogénération)
+ 8.3 (Systèmes d'émission)            3              0                7           0            0
+ 8.4 (Traitement de l'air et
+                                     10              0               18           1            0
+ éléments de désenfumage)
+ 8.5 (Réseaux et conduits)           59              10              21           1            0
+ 10 (Réseaux d'énergie /
+                                     57              0               54           4            0
+ courant fort)
+ 11 (Réseaux de
+ communication / courant              8              0                7           0            0
+ faible)
+
+
+25. et 28. Etablissements sportifs municipaux ou scolaires et établissements sportifs privés
+
+                                 Impact sur le changement climatique par phase du cycle de vie
+                                                  du bâtiment (kg éq. CO2/m²)
+ Phase du cycle de vie           Production     Edification     Exploitation    Fin de   Module
+ Lot ou sous-lot                                                                 vie       D
+ 8.1 (Équipements de
+ production chaud/froid               8              0               39           0            0
+ hors cogénération)
+ 8.3 (Systèmes d'émission)            9              1                7           0            0
+ 8.4 (Traitement de l'air et
+                                     51              7               51           2            0
+ éléments de désenfumage)
+ 8.5 (Réseaux et conduits)           10              1                1           0            0
+ 10 (Réseaux d'énergie /
+                                     57              0               54           4            0
+ courant fort)
+ 11 (Réseaux de
+ communication / courant              8              0                7           0            0
+ faible)
+
