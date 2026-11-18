@@ -231,9 +231,10 @@ fn indicateurs_de_tous_les_cas_meteo_reglementaire() {
                     i.electricite_consommee, i.forfaits_refroidissement, i.production_pv
                 );
             }
-            // Ordres de grandeur d'une maison RE2020 en H2b : Cep de 20 à 150 kWhep/(m².an),
-            // Ic énergie de 20 à 600 kg éq. CO2/m².
-            assert!((10.0..200.0).contains(&i.cep_kwhep_m2), "{nom}");
+            // Ordres de grandeur des exemples RE2020 : Cep de 20 à 150 kWhep/(m².an) pour une
+            // maison, jusqu'à 600 pour un restaurant (lot 0c3, Cep_max de l'usage 13 : 578) ;
+            // Ic énergie de 20 à 800 kg éq. CO2/m².
+            assert!((10.0..600.0).contains(&i.cep_kwhep_m2), "{nom}");
             assert!(
                 (10.0..800.0).contains(&i.ic_energie_kgco2_m2.unwrap()),
                 "{nom}"

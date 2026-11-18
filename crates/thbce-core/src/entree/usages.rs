@@ -127,6 +127,12 @@ impl UsageZone {
                     | Self::SanitaireAvecHebergement
                     | Self::SanteNuit
                     | Self::SanteJour
+                    | Self::RestaurantContinu
+                    | Self::Restaurant1Repas5Jours
+                    | Self::Restaurant2Repas7Jours
+                    | Self::Restaurant2Repas6Jours
+                    | Self::RestaurantScolaire1Repas
+                    | Self::RestaurantScolaire3Repas
             )
     }
 

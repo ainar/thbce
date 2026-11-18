@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Restaurant en continu (usage 13, 18 heures par jour, 7 jours sur 7) de 400 m² utiles de plain-pied (3,5 m de haut, 15 % de baies à volets extérieurs motorisés, famille « restauration » des protections mobiles), sur la météo ouverte ADEME (station de Tours, zone H2b, Indre-et-Loire, 80 m) : ventilation simple flux par extraction (4 000 m³/h en occupation, 200 m³/h en inoccupation ; ventilateur de 1 400 W puis 140 W), huit pompes à chaleur air extérieur/eau et plancher chauffant, ECS par un chauffe-eau électrique de 500 L, éclairage par locaux du tableau 78 de l'usage 13 aux parts du classeur des scénarios : salle de restaurant (70 %) et cuisine (20 %) sur interrupteur, local de service (10 %) à détection de présence. Ni ascenseur ni parking. Exigences d'un permis déposé en septembre 2026, catégorie 1 de contraintes extérieures, classe de bruit BR1. Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : valeurs du moteur au lot 0c3 (18 novembre 2026), figées pour détecter les régressions ; ce n'est pas un cas de référence. Recoupements à la main (test `restaurants_a_la_main` de crates/thbce-io/tests/restauration.rs) : surface de référence 400 m² (SU, éq. 2376) ; débits conventionnels du Bbio 10,0 × 400 = 4 000 m³/h en occupation (tableau 56-1) ; forfait de refroidissement 0,009 × (2 500 − 350) × 1,0 / 2,3 × 400 = 3 365,2 kWh (éq. 2493, tableau 335, DH_max 2 500 °C.h)."
+meteo = "ademe"
+
+[tolerances]
+defaut = 0.005

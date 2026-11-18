@@ -34,9 +34,12 @@
 //! Les figures 37-2 et 40-2 (famille « hôpitaux nuit », p. 199 et 202) sont transcrites des
 //! images du PDF, lues deux fois (lot 0c2, `docs/questions/Q075.md`).
 //!
+//! Les figures 37-1 et 40-1 (famille « restauration », p. 198 et 201) sont transcrites des images
+//! du PDF, lues deux fois (lot 0c3, `docs/questions/Q078.md`).
+//!
 //! Sont transcrites les lignes de gestion manuelle des familles « habitation, hôtellerie et
-//! hébergement », « bureau », « enseignement » et « hôpitaux nuit ». Les matrices des autres
-//! familles (figures 37-1, 37-3, 40-1 et 40-3 : restauration et autres usages) ne le sont pas.
+//! hébergement », « bureau », « enseignement », « hôpitaux nuit » et « restauration ». Les
+//! matrices des autres familles (figures 37-3 et 40-3 : autres usages) ne le sont pas.
 
 /// « Topj-1lim_manu_v\[z\] » et « Topj-1lim_manu_se\[z\] » : limite haute de la température
 /// opérative maximale du jour précédent, en gestion manuelle, en °C (§5.9.2, valeur
@@ -114,6 +117,7 @@ pub fn matrices(
         FamilleGpm::Bureaux => Some((&VOLET_BUREAUX, &STORE_ENROULABLE_BUREAUX)),
         FamilleGpm::Enseignement => Some((&VOLET_ENSEIGNEMENT, &STORE_ENROULABLE_ENSEIGNEMENT)),
         FamilleGpm::Hopitaux => Some((&VOLET_HOPITAUX, &STORE_ENROULABLE_HOPITAUX)),
+        FamilleGpm::Restauration => Some((&VOLET_RESTAURATION, &STORE_ENROULABLE_RESTAURATION)),
         _ => None,
     }
 }
@@ -135,7 +139,8 @@ pub struct ValeursThD {
     pub nuit_store_plafonne: bool,
 }
 
-/// Tableau 34 pour une famille : colonnes « Résidentiel », « Bureaux » et « Enseignement ».
+/// Tableau 34 pour une famille : colonnes « Résidentiel », « Bureaux », « Enseignement »,
+/// « Restauration » et « Hôpitaux nuit ».
 /// `None` pour les colonnes non transcrites.
 pub fn valeurs_th_d(famille: FamilleGpm) -> Option<ValeursThD> {
     match famille {
@@ -165,6 +170,17 @@ pub fn valeurs_th_d(famille: FamilleGpm) -> Option<ValeursThD> {
             r_prot_jour_min_autre: 0.70,
             r_prot_nuit_max_volet: 0.50,
             r_prot_nuit_store_enroulable: 0.50,
+            nuit_store_plafonne: true,
+        }),
+        // Colonne « Restauration », lue deux fois sur l'image de la p. 218 : max(70 % ; Th-BC) en
+        // gestion motorisée, max(60 % ; Th-BC) sinon (« Th-BCE » est une coquille du texte pour
+        // les volets en inoccupation) ; « jour = nuit » : min(70 % ; Th-BC), pour les volets
+        // comme pour les stores enroulables (plafond, comme la colonne « Hôpitaux nuit »).
+        FamilleGpm::Restauration => Some(ValeursThD {
+            r_prot_jour_min_motorisee: 0.70,
+            r_prot_jour_min_autre: 0.60,
+            r_prot_nuit_max_volet: 0.70,
+            r_prot_nuit_store_enroulable: 0.70,
             nuit_store_plafonne: true,
         }),
         _ => None,
@@ -492,6 +508,72 @@ pub const STORE_ENROULABLE_HOPITAUX: MatriceManuelle = MatriceManuelle {
     ],
 };
 
+/// Figure 37-1 (p. 198) : première protection mobile de type volet, famille « restauration »
+/// (usages 13 à 16, 26 et 27, figure 34), lignes de gestion manuelle. Image du PDF de l'annexe
+/// III, lue deux fois (page entière à 400 dpi, puis zone des valeurs seule), lot 0c3, `Q078`.
+/// `Ecl1` vaut 150 000 lux dans toutes les lignes d'occupation.
+#[rustfmt::skip]
+pub const VOLET_RESTAURATION: MatriceManuelle = MatriceManuelle {
+    //                             Rprot0  Ecl1        Rprot(PM2)  Ecl2       nuit
+    occupation_non_motorisee: [
+        occ(0.10, 150_000.0, 0.10,  60_000.0, 0.10), // hiver
+        occ(0.10, 150_000.0, 0.10,  80_000.0, 0.10), // mi-saison
+        occ(0.10, 150_000.0, 0.20,  40_000.0, 0.10), // été, Topj-1_max < limite
+        occ(0.15, 150_000.0, 0.20,  40_000.0, 0.10), // été, limite ≤ Topj-1_max
+    ],
+    occupation_motorisee: [
+        occ(0.05, 150_000.0, 0.05,  60_000.0, 0.10),
+        occ(0.05, 150_000.0, 0.05,  80_000.0, 0.10),
+        occ(0.15, 150_000.0, 0.30,  30_000.0, 0.10),
+        occ(0.20, 150_000.0, 0.30,  30_000.0, 0.10),
+    ],
+    //                                jour  nuit
+    inoccupation_non_motorisee: [
+        inocc(0.05, 0.90),
+        inocc(0.10, 0.90),
+        inocc(0.20, 0.90),
+        inocc(0.40, 0.90),
+    ],
+    inoccupation_motorisee: [
+        inocc(0.05, 0.90),
+        inocc(0.10, 0.90),
+        inocc(0.20, 0.90),
+        inocc(0.50, 0.90),
+    ],
+};
+
+/// Figure 40-1 (p. 201) : première protection mobile de type store enroulable, famille
+/// « restauration », lignes de gestion manuelle (même lecture que [`VOLET_RESTAURATION`]). Les
+/// lignes d'occupation sont celles de l'enseignement et des hôpitaux ; la nuit en inoccupation
+/// vaut 80 % sans moteur et 90 % avec.
+#[rustfmt::skip]
+pub const STORE_ENROULABLE_RESTAURATION: MatriceManuelle = MatriceManuelle {
+    occupation_non_motorisee: [
+        occ(0.15,  60_000.0, 0.10,  60_000.0, 0.10),
+        occ(0.15,  80_000.0, 0.15,  80_000.0, 0.10),
+        occ(0.20,  40_000.0, 0.35,  40_000.0, 0.10),
+        occ(0.25,  40_000.0, 0.40,  40_000.0, 0.10),
+    ],
+    occupation_motorisee: [
+        occ(0.10,  60_000.0, 0.10,  60_000.0, 0.10),
+        occ(0.10,  80_000.0, 0.20,  80_000.0, 0.10),
+        occ(0.25,  30_000.0, 0.45,  30_000.0, 0.10),
+        occ(0.30,  30_000.0, 0.50,  30_000.0, 0.10),
+    ],
+    inoccupation_non_motorisee: [
+        inocc(0.15, 0.80),
+        inocc(0.15, 0.80),
+        inocc(0.25, 0.80),
+        inocc(0.30, 0.80),
+    ],
+    inoccupation_motorisee: [
+        inocc(0.10, 0.90),
+        inocc(0.10, 0.90),
+        inocc(0.30, 0.90),
+        inocc(0.40, 0.90),
+    ],
+};
+
 /// Tableau 34 (p. 218), colonne « Résidentiel » : en calcul Th-D, en période de confort
 /// adaptatif et quand `Topj-1max ≥ Topj-1lim_manu`, le ratio de jour est porté au moins à cette
 /// valeur en gestion manuelle motorisée (`Type_GPM = 3`).
@@ -729,6 +811,75 @@ mod tests {
         }
     }
 
+    /// Cellules relues sur les figures 37-1 et 40-1 (p. 198 et 201) et sur la colonne
+    /// « Restauration » du tableau 34 (p. 218), écrites en dur indépendamment des constantes.
+    #[test]
+    fn matrices_de_la_famille_restauration() {
+        for u in [13, 14, 15, 16, 26, 27] {
+            let (f, p) = famille_et_parts(u).unwrap();
+            assert_eq!(
+                (f, p.p_occ, p.p_derog),
+                (FamilleGpm::Restauration, 0.9, 0.1)
+            );
+        }
+        let (v, s) = matrices(FamilleGpm::Restauration).unwrap();
+        // Volet, occupation non motorisée, été chaud : 15 %, 150 000 lux, 20 %, 40 000 lux,
+        // 10 % la nuit.
+        let l = v.occupation_non_motorisee[3];
+        assert_eq!(
+            (
+                l.r_prot0,
+                l.ecl1_lux,
+                l.r_prot_avec_pm2,
+                l.ecl2_lux,
+                l.r_prot_nuit
+            ),
+            (0.15, 150_000.0, 0.20, 40_000.0, 0.10)
+        );
+        // Volet, occupation motorisée, été frais : 15 %, 30 % avec seconde protection, 30 000.
+        let l = v.occupation_motorisee[2];
+        assert_eq!(
+            (l.r_prot0, l.r_prot_avec_pm2, l.ecl2_lux),
+            (0.15, 0.30, 30_000.0)
+        );
+        // Volet, inoccupation : 5 % l'hiver, 90 % la nuit ; 40 % (non motorisée) et 50 %
+        // (motorisée) en été chaud.
+        assert_eq!(v.inoccupation_non_motorisee[0].r_prot_jour, 0.05);
+        assert_eq!(v.inoccupation_non_motorisee[3].r_prot_jour, 0.40);
+        assert_eq!(v.inoccupation_motorisee[3].r_prot_jour, 0.50);
+        assert_eq!(v.inoccupation_motorisee[2].r_prot_nuit, 0.90);
+        // Store : occupation motorisée, mi-saison : 10 %, 80 000 lux, 20 % ; inoccupation, nuit
+        // à 80 % sans moteur et 90 % avec.
+        let l = s.occupation_motorisee[1];
+        assert_eq!(
+            (l.r_prot0, l.ecl1_lux, l.r_prot_avec_pm2),
+            (0.10, 80_000.0, 0.20)
+        );
+        assert!(s
+            .inoccupation_non_motorisee
+            .iter()
+            .all(|l| l.r_prot_nuit == 0.80));
+        assert!(s
+            .inoccupation_motorisee
+            .iter()
+            .all(|l| l.r_prot_nuit == 0.90));
+        assert_eq!(s.inoccupation_non_motorisee[2].r_prot_jour, 0.25);
+        assert_eq!(s.inoccupation_motorisee[3].r_prot_jour, 0.40);
+        // Tableau 34, colonne « Restauration ».
+        let t = valeurs_th_d(FamilleGpm::Restauration).unwrap();
+        assert_eq!(
+            (
+                t.r_prot_jour_min_motorisee,
+                t.r_prot_jour_min_autre,
+                t.r_prot_nuit_max_volet,
+                t.r_prot_nuit_store_enroulable,
+                t.nuit_store_plafonne
+            ),
+            (0.70, 0.60, 0.70, 0.70, true)
+        );
+        assert_ne!(v, &VOLET_ENSEIGNEMENT);
+    }
+
     #[test]
     fn familles_et_parts_des_28_usages() {
         for usage in 1..=28 {
@@ -742,8 +893,10 @@ mod tests {
         assert_eq!(famille_et_parts(20).unwrap().0, FamilleGpm::Hopitaux);
         assert!(matrices(FamilleGpm::Bureaux).is_some());
         assert!(matrices(FamilleGpm::Enseignement).is_some());
-        assert!(matrices(FamilleGpm::Restauration).is_none());
-        assert!(valeurs_th_d(FamilleGpm::Restauration).is_none());
+        assert!(matrices(FamilleGpm::Restauration).is_some());
+        assert!(valeurs_th_d(FamilleGpm::Restauration).is_some());
+        assert!(matrices(FamilleGpm::Autre).is_none());
+        assert!(valeurs_th_d(FamilleGpm::Autre).is_none());
         let th_d = valeurs_th_d(FamilleGpm::Bureaux).unwrap();
         assert_eq!(
             (th_d.r_prot_jour_min_motorisee, th_d.r_prot_nuit_max_volet),

@@ -1,0 +1,67 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H1b"
+  },
+  "batiments": [
+    {
+      "id": "restaurant-scolaire",
+      "sref_m2": 600.0,
+      "bbio_pts": 90.3,
+      "dh_c_h": 32.8,
+      "cep_kwhep_m2": 131.4,
+      "cep_nr_kwhep_m2": 131.4,
+      "ic_energie_kgco2_m2": 759.5,
+      "bbio": {
+        "annuel": {
+          "b_ch_kwh_m2": 34.2,
+          "b_fr_kwh_m2": 2.3,
+          "b_ecl_kwh_m2": 3.5,
+          "bbio_pts": 90.3
+        }
+      },
+      "indicateurs": {
+        "cef_kwhef_m2": 101.2,
+        "exigences": {
+          "bbio_max_pts": 91.2,
+          "cep_max_kwhep_m2": 276.1,
+          "cep_nr_max_kwhep_m2": 130.9,
+          "ic_energie_max_kgco2_m2": 489.5,
+          "conforme": false
+        },
+        "electricite_consommee": {
+          "chauffage_kwh": 268.6,
+          "refroidissement_kwh": 0.0,
+          "ecs_kwh": 6526.7,
+          "eclairage_kwh": 3382.7,
+          "auxiliaires_ventilation_kwh": 2772.0,
+          "auxiliaires_distribution_kwh": 983.6
+        }
+      },
+      "zones": [
+        {
+          "id": "restaurant-scolaire",
+          "ventilation": {
+            "c_aux_vent_kwh": 2772.0
+          },
+          "groupes": [
+            {
+              "id": "restaurant-scolaire",
+              "debits_bbio": {
+                "q_spec_repris_m3_h": -4800.0,
+                "q_spec_souffle_m3_h": 4800.0
+              }
+            }
+          ]
+        }
+      ],
+      "distributions_ecs_intergroupes": [
+        {
+          "id": "boucle-ecs",
+          "w_aux_kwh": 362.9,
+          "pertes_vc_kwh": 2305.8
+        }
+      ]
+    }
+  ]
+}
