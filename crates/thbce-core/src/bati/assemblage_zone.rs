@@ -15,6 +15,7 @@
 //! ([`super::assemblage_batiment`]) ; la zone reçoit leurs coefficients.
 
 use crate::chauffage_refroidissement::relances::HORIZON_RELANCE;
+use crate::chauffage_refroidissement::relances::{en_relance, ConditionsRelance};
 use crate::climat::calendrier::{jour, nouveau_jour_legal};
 use crate::climat::environnement_proche::{ventc_m_s, Soleil};
 use crate::climat::{ClimatExterieur, ConfortAdaptatif};
@@ -31,8 +32,8 @@ use crate::ventilation::ventilation_projet::{
 };
 
 use super::assemblage_groupe::{
-    nbh_occ_ref, ConditionsPas, GroupeHoraire, Lectures, SortiesPasGroupe, VentilationThD,
-    THETA_INITIALE_C,
+    nbh_occ_ref, ConditionsPas, GroupeHoraire, LectureRelanceCta, Lectures, SortiesPasGroupe,
+    VentilationThD, THETA_INITIALE_C,
 };
 use super::espace_tampon::espace_tampon::CoefficientsEt;
 use super::ConditionsExterieures;
@@ -172,9 +173,12 @@ impl ZoneHoraire {
             })
             .collect();
         // Ventilation : système conventionnel de la fiche 6.1 en Th-B (§6.1.3, décision Q36) ;
-        // système du projet en Th-C et en Th-D (lecture Q42).
-        let ventilation = (mode != ModeCalcul::ThB
-            && lectures.ventilation_th_d == VentilationThD::Projet)
+        // système du projet en Th-C et en Th-D (lecture Q42). La variante
+        // `VentilationThD::ConventionnelleBbio` ne touche que le Th-D : en Th-C, le système du
+        // projet reste employé (sans lui, une centrale double flux hors habitation n'aurait pas
+        // de relevé de consommation et ses ventilateurs compteraient 0 kWh).
+        let ventilation = (mode == ModeCalcul::ThC
+            || (mode == ModeCalcul::ThD && lectures.ventilation_th_d == VentilationThD::Projet))
             .then(|| VentilationProjet::nouvelle(zone, THETA_INITIALE_C))
             .flatten();
         if let Some(v) = &ventilation {
@@ -317,7 +321,23 @@ impl ZoneHoraire {
                         saison_de_refroidissement: mode == ModeCalcul::ThC
                             && g.i_clim
                             && g.etat.aut_eff.1,
-                        relance: sy.is_some_and(|x| x.relance),
+                        relance: match (g.systemes.as_ref(), g.lectures.relance_cta) {
+                            // Q90 point 1, variante écartée : relance du pas en cours anticipée.
+                            (Some(x), LectureRelanceCta::Anticipee) if mode == ModeCalcul::ThC => {
+                                let mut r = x.relance;
+                                en_relance(&r.pas(&ConditionsRelance {
+                                    aut_ch: g.etat.aut_eff.0,
+                                    aut_fr: g.etat.aut_eff.1,
+                                    p_ch: c.p_ch_avenir,
+                                    p_fr: c.p_fr_avenir,
+                                    theta_ext_c: ext.te_c,
+                                    theta_ext_base_c: c.theta_ext_base_c,
+                                    theta_ii_ch_plus_c: c.theta_ii_ch_plus_c,
+                                    theta_ii_fr_plus_c: c.theta_ii_fr_plus_c,
+                                }))
+                            }
+                            _ => sy.is_some_and(|x| x.relance),
+                        },
                         besoin_ch: s.is_some_and(|x| x.q_sys_ch_wh > 0.0),
                         besoin_fr: s.is_some_and(|x| x.q_sys_fr_wh < 0.0),
                     }

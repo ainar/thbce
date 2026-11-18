@@ -17,7 +17,10 @@
 
 use std::path::Path;
 
-use thbce_core::climat::MeteoProjet;
+use thbce_core::bati::assemblage_batiment::BatimentHoraire;
+use thbce_core::bati::assemblage_groupe::{LectureAntigelCta, LectureRelanceCta, Lectures};
+use thbce_core::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
+use thbce_core::conventions::ModeCalcul;
 use thbce_core::entree::{Cta, DoubleFlux, Projet, SystemeVentilation, TypeCta, UsageZone};
 use thbce_core::resultats::Resultats;
 use thbce_core::{calculer, valider, Options};
@@ -382,6 +385,78 @@ fn refus_et_erreurs() {
     let (e, hors) = chemins(&p);
     assert!(!hors);
     assert!(e.contains(&"batiments[0].zones[0].ventilation.systeme".to_owned()));
+}
+
+/// Calcul des consommations (Th-C) de l'exemple pour des lectures données.
+fn th_c_selon(p: &Projet, lectures: Lectures) -> BatimentHoraire {
+    let m = meteo_ademe(p);
+    let loc = &p.localisation;
+    let climat = ClimatExterieur::nouveau(&m.th_bc, loc.departement, loc.alt_m);
+    let confort = ConfortAdaptatif::nouveau(&climat.te_c);
+    let mut bat = BatimentHoraire::nouveau_selon(
+        &p.batiments[0],
+        &p.catalogue,
+        ModeCalcul::ThC,
+        lectures,
+        loc.alt_m,
+        climat.we_kg_kg[0],
+    )
+    .unwrap();
+    bat.simuler(&climat, &confort).unwrap();
+    bat
+}
+
+/// Variantes écartées, chiffrées sur l'exemple (calcul des consommations, météo ADEME) :
+/// relance anticipée au pas en cours (Q90 point 1) et température de l'éq. (951) pour
+/// l'antigel quand le préchauffage passe par la même génération (Q93 point 3).
+#[test]
+fn variantes_ecartees_q90_q93() {
+    let p = bureaux_cta();
+    let d = Lectures::default();
+    let resume = |b: &BatimentHoraire| {
+        let z = &b.zones[0];
+        let w: f64 = z
+            .ventilation
+            .as_ref()
+            .unwrap()
+            .releve
+            .as_ref()
+            .unwrap()
+            .serie_wh
+            .iter()
+            .sum();
+        (w / 1000.0, z.cumuls_ventilation.q_prechaud_wh / 1000.0)
+    };
+    let base = th_c_selon(&p, d);
+    let anticipee = th_c_selon(
+        &p,
+        Lectures {
+            relance_cta: LectureRelanceCta::Anticipee,
+            ..d
+        },
+    );
+    let (w0, q0) = resume(&base);
+    let (w1, q1) = resume(&anticipee);
+    println!(
+        "Q90 point 1 : ventilateurs {w0:.1} → {w1:.1} kWh ({:+.2} %) ; préchauffage {q0:.1} → \
+         {q1:.1} kWh ({:+.2} %)",
+        100.0 * (w1 / w0 - 1.0),
+        100.0 * (q1 / q0 - 1.0)
+    );
+    let melange = th_c_selon(
+        &p,
+        Lectures {
+            antigel_cta: LectureAntigelCta::MelangeSiPrechauffage,
+            ..d
+        },
+    );
+    // La chaudière dessert aussi un réseau hydraulique : ses températures de fonctionnement
+    // sont celles des réseaux (éq. 1009 à 1011), la température d'air équivalente n'intervient
+    // pas (éq. 1012 et 1013) ; effet nul.
+    assert_eq!(
+        format!("{:?}", base.systemes.cumuls_cef_groupes),
+        format!("{:?}", melange.systemes.cumuls_cef_groupes)
+    );
 }
 
 fn meteo_reglementaire(p: &Projet) -> MeteoProjet {

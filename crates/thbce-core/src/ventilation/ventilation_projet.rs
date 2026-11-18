@@ -1091,7 +1091,13 @@ impl VentilationProjet {
             ),
             None => qm_sou,
         };
-        // Éq. (454) à (456) : débit recyclé, débit repris et débit rejeté rééquilibrés.
+        // Éq. (454) à (456) : débit recyclé, débit repris et débit rejeté rééquilibrés. Le texte
+        // (p. 372) écrit les débits repris en valeurs signées, négatives : `qm,rep,cond =
+        // MIN(qm,rep,cond ; qm,air_neuf − qm,sou,cond)` et `qm,air_extrait = qm,rep,cond −
+        // (qm,air_neuf − qm,sou,cond)`, avec `qm,air_neuf − qm,sou,cond = −qm,recyclé ≤ 0`. Ici
+        // les débits repris sont en valeurs absolues (`qm_rep ≥ 0`) : le MIN de deux négatifs
+        // devient le MAX des valeurs absolues, `|qm,rep,cond| = MAX(|qm,rep,cond| ; qm,recyclé)`,
+        // et `|qm,air_extrait| = |qm,rep,cond| − qm,recyclé` ; les deux formes sont équivalentes.
         let qm_recycle = if est_cta {
             (qm_sou - qm_an).max(0.0)
         } else {
