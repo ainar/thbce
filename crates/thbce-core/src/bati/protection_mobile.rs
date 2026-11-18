@@ -190,6 +190,12 @@ impl GestionResolue {
             occ.r_prot0 = occ.r_prot0.max(plancher);
             inocc.r_prot_jour = inocc.r_prot_jour.max(plancher);
             match self.type_pm {
+                TypePm::StoreEnroulable if self.th_d.nuit_store_plafonne => {
+                    // Colonne « Hôpitaux nuit » : min(50 % ; valeur Th-BC).
+                    occ.r_prot_nuit = occ.r_prot_nuit.min(self.th_d.r_prot_nuit_store_enroulable);
+                    inocc.r_prot_nuit =
+                        inocc.r_prot_nuit.min(self.th_d.r_prot_nuit_store_enroulable);
+                }
                 TypePm::StoreEnroulable => {
                     occ.r_prot_nuit = self.th_d.r_prot_nuit_store_enroulable;
                     inocc.r_prot_nuit = self.th_d.r_prot_nuit_store_enroulable;

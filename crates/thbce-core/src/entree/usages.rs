@@ -108,7 +108,8 @@ impl UsageZone {
 
     /// Usage calculé par la version courante du moteur : habitation (décision Q4), bureaux
     /// (lot 0a), enseignement primaire et secondaire, médiathèques et bibliothèques, bâtiments
-    /// universitaires et petite enfance (lot 0c1).
+    /// universitaires et petite enfance (lot 0c1), hôtels (parties nuit et jour), établissements
+    /// sanitaires avec hébergement et établissements de santé (parties nuit et jour) (lot 0c2).
     pub fn est_pris_en_charge(self) -> bool {
         self.est_habitation()
             || matches!(
@@ -119,6 +120,13 @@ impl UsageZone {
                     | Self::MediathequeBibliotheque
                     | Self::Universitaire
                     | Self::PetiteEnfance
+                    | Self::Hotel012Nuit
+                    | Self::Hotel345Nuit
+                    | Self::Hotel012Jour
+                    | Self::Hotel345Jour
+                    | Self::SanitaireAvecHebergement
+                    | Self::SanteNuit
+                    | Self::SanteJour
             )
     }
 
