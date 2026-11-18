@@ -27,6 +27,7 @@ use crate::conventions::{ModeCalcul, NB_HEURES_AN};
 use crate::ecs::distribution_ecs::{
     pas_intergroupe_selon_depart, SortiesDistributionEcsIntergroupe,
 };
+use crate::ecs::recuperateur_eaux_grises::ApportCollectif;
 use crate::entree::{Batiment, Catalogue};
 use crate::entree::{
     FonctionReseau, PositionGeneration, RaccordementReseaux, ReseauEcsIntergroupe, ReseauGroupe,
@@ -115,6 +116,33 @@ pub struct SystemesBatiment {
     /// générateurs thermodynamiques sur air ambiant au dernier pas de temps, en W (§5.4.3.2,
     /// éq. 109).
     pub phi_rejet_et_w: Vec<f64>,
+    /// Récupérateurs collectifs sur les eaux grises (fiche 9.21, §9.21.5 et §9.21.6).
+    pub collectifs_eaux_grises: Vec<CollectifEauxGrisesResolu>,
+    /// « θep » de chaque récupérateur collectif au dernier pas de temps, en °C.
+    theta_ep_collectifs: Vec<f64>,
+    /// Flux des émetteurs vers un récupérateur collectif (tampon réutilisé à chaque pas).
+    apports_collectif: Vec<ApportCollectif>,
+    /// Vrai pour chaque génération dont au moins un émetteur d'ECS a un récupérateur : sa
+    /// température d'entrée `θentrant` n'est alors plus celle de l'eau froide (§9.21.3).
+    pub gen_avec_recuperateur: Vec<bool>,
+    /// Volume d'eau chaude appelé et somme de ce volume pondérée par `θentrant`, par génération
+    /// (L et L·°C), pour la température d'entrée moyenne du ballon.
+    pub cumuls_entree_gen: Vec<(f64, f64)>,
+}
+
+/// Récupérateur de chaleur collectif sur les eaux grises, prêt pour le calcul.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CollectifEauxGrisesResolu {
+    /// Identifiant.
+    pub id: String,
+    /// « εech_eg_fixe » retenue.
+    pub eps: f64,
+    /// Vrai si l'efficacité est la valeur par défaut (§9.21.6.3.2.1).
+    pub eps_defaut: bool,
+    /// « Levac,vc^prim », en m.
+    pub l_vc_m: f64,
+    /// « Levac,vnc^prim », en m.
+    pub l_vnc_m: f64,
 }
 
 /// Origine d'une demande reçue par une génération.
@@ -592,6 +620,37 @@ impl SystemesBatiment {
             .collect();
         let nb_groupes = groupes.len();
         let nb_zones = zones.len();
+        // Fiche 9.21 : récupérateurs collectifs, et générations dont un émetteur d'ECS a un
+        // récupérateur.
+        let collectifs_eaux_grises: Vec<CollectifEauxGrisesResolu> = bat
+            .recuperateurs_eaux_grises
+            .iter()
+            .map(|r| {
+                let (eps, eps_defaut) =
+                    crate::ecs::recuperateur_eaux_grises::efficacite_fixe(&r.echangeur);
+                CollectifEauxGrisesResolu {
+                    id: r.id.clone(),
+                    eps,
+                    eps_defaut,
+                    l_vc_m: r.l_evac_vc_m,
+                    l_vnc_m: r.l_evac_vnc_m,
+                }
+            })
+            .collect();
+        let n_collectifs = collectifs_eaux_grises.len();
+        let n_gen = generations.len();
+        let mut gen_avec_recuperateur = vec![false; n_gen];
+        for g in zones.iter().flat_map(|z| z.groupes.iter()) {
+            for e in g.systemes.iter().flat_map(|sy| sy.ecs.iter()) {
+                if e.recuperateur.is_some() {
+                    if let Some(d) = ecs.get(e.intergroupe) {
+                        if let Some(x) = gen_avec_recuperateur.get_mut(d.generation) {
+                            *x = true;
+                        }
+                    }
+                }
+            }
+        }
         let mut s = Self {
             generations_horaires,
             et_generation,
@@ -616,6 +675,11 @@ impl SystemesBatiment {
             sorties_ecs: vec![SortiesDistributionEcsIntergroupe::default(); n_ecs],
             cumuls_ecs: vec![CumulsEcsIntergroupe::default(); n_ecs],
             recuperation: true,
+            collectifs_eaux_grises,
+            theta_ep_collectifs: vec![0.0; n_collectifs],
+            apports_collectif: Vec::with_capacity(nb_groupes),
+            gen_avec_recuperateur,
+            cumuls_entree_gen: vec![(0.0, 0.0); n_gen],
         };
         s.fixer_autorisations(zones);
         s
@@ -740,6 +804,30 @@ impl SystemesBatiment {
             }
             self.sorties_ecs[k] = s;
         }
+        // Fiche 9.21 : récupérateurs collectifs (éq. 2201 à 2211), à partir des flux des émetteurs
+        // reliés ; `θep` devient la température d'entrée du ballon de leurs émetteurs.
+        for (k, c) in self.collectifs_eaux_grises.iter().enumerate() {
+            self.apports_collectif.clear();
+            for e in groupes
+                .iter()
+                .filter_map(|g| g.systemes.as_ref())
+                .flat_map(|sy| sy.ecs.iter())
+            {
+                if e.recuperateur.as_ref().and_then(|r| r.collectif.as_deref())
+                    == Some(c.id.as_str())
+                {
+                    self.apports_collectif.push(e.sorties_recuperateur.apport);
+                }
+            }
+            self.theta_ep_collectifs[k] = crate::ecs::recuperateur_eaux_grises::pas_collectif(
+                &self.apports_collectif,
+                c.l_vc_m,
+                c.l_vnc_m,
+                c.eps,
+                theta_cw_c,
+                theta_ext_c,
+            );
+        }
         // §8.14 et §8.17 : générations, après leurs réseaux. Chacune reçoit les demandes de ses
         // réseaux de chaud, de froid et d'ECS, et l'énergie de la sécurité antigel des doubles
         // flux qui la désignent (§8.11.3, éq. 939 et 952 : réseau associé à l'antigel, vu comme
@@ -856,6 +944,36 @@ impl SystemesBatiment {
                     }
                 }
             }));
+            // §9.21.3 : température d'entrée du ballon, moyenne des émetteurs reliés pondérée
+            // par le volume d'eau chaude appelé (éq. 2190 à 2192) ; `θcw` sans récupérateur.
+            let theta_entrant_c = if self.gen_avec_recuperateur[ig] {
+                let (mut v, mut vt) = (0.0, 0.0);
+                for e in groupes
+                    .iter()
+                    .filter_map(|g| g.systemes.as_ref())
+                    .flat_map(|sy| sy.ecs.iter())
+                    .filter(|e| self.ecs.get(e.intergroupe).map(|d| d.generation) == Some(ig))
+                {
+                    let r = &e.sorties_recuperateur;
+                    let t = e
+                        .recuperateur
+                        .as_ref()
+                        .and_then(|r| r.collectif.as_deref())
+                        .and_then(|id| self.collectifs_eaux_grises.iter().position(|c| c.id == id))
+                        .map_or(r.theta_entrant_c, |k| self.theta_ep_collectifs[k]);
+                    v += r.v_ec_l;
+                    vt += r.v_ec_l * t;
+                }
+                self.cumuls_entree_gen[ig].0 += v;
+                self.cumuls_entree_gen[ig].1 += vt;
+                if v > 0.0 {
+                    vt / v
+                } else {
+                    theta_cw_c
+                }
+            } else {
+                theta_cw_c
+            };
             gen.pas(
                 &EntreesGeneration {
                     reseaux: &vus,
@@ -867,7 +985,7 @@ impl SystemesBatiment {
                     theta_ext_c,
                     b_therm,
                     w_rechauf_wh: w_rechauf,
-                    theta_cw_c,
+                    theta_cw_c: theta_entrant_c,
                     hleg: hleg(h),
                     sources: &sources,
                     climat: Some(climat),

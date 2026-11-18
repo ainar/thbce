@@ -30,6 +30,10 @@ pub struct Batiment {
     /// Réseaux de distribution d'ECS intergroupes (§9.8).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub distributions_ecs_intergroupes: Vec<DistributionEcsIntergroupe>,
+    /// Récupérateurs de chaleur collectifs sur les eaux grises (§9.21.5 et §9.21.6), auxquels
+    /// les émetteurs d'ECS en récupération collective se rattachent par leur identifiant.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub recuperateurs_eaux_grises: Vec<RecuperateurCollectifEauxGrises>,
     /// Installations photovoltaïques intégrées au bâtiment (§12.1 et §12.2). Facultatif.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub installations_pv: Vec<crate::pv::InstallationPv>,

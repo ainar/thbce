@@ -80,6 +80,8 @@ fn cumuls(b: &BatimentHoraire) -> [f64; NB_POSTES] {
                 .iter()
                 .map(|d| d.w_aux_wh)
                 .sum::<f64>();
+            // Fiche 9.21.7 : pompes de relevage des récupérateurs sur les eaux grises.
+            c[poste::AUX_DIST] += sy.ecs.iter().map(|e| e.cumuls.w_relevage_wh).sum::<f64>();
         }
     }
     c[poste::AUX_DIST] += b.systemes.cumuls.iter().map(|k| k.w_aux_wh).sum::<f64>();

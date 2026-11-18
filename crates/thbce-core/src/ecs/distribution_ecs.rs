@@ -5,6 +5,7 @@
 use crate::entree::{DistributionEcsGroupe, ReseauEcsIntergroupe, UsageZone};
 
 use super::besoins_ecs::{C_W_WH_KG_K, RHO_W_KG_L, THETA_UW_C};
+use super::recuperateur_eaux_grises::{RecuperateurResolu, SortiesRecuperateur};
 
 /// « θ2nd-e » conventionnelle, en °C (tableau 278 de la fiche 9.7 ; le tableau 271 de la fiche
 /// 9.5 écrit 48 °C : lecture Q45).
@@ -333,6 +334,10 @@ pub struct EmetteurEcsResolu {
     pub l_vc_defaut: bool,
     /// Vrai si `θ2nd-e` prend la valeur conventionnelle du tableau 278.
     pub theta_2nd_defaut: bool,
+    /// Récupérateur de chaleur sur les eaux grises (fiche 9.21), si « Irecup » vaut 1.
+    pub recuperateur: Option<RecuperateurResolu>,
+    /// Sorties du récupérateur au dernier pas de temps.
+    pub sorties_recuperateur: SortiesRecuperateur,
     /// Sorties du dernier pas de temps.
     pub sorties: SortiesDistributionEcsGroupe,
     /// « iecs(j) » de la zone au dernier pas de temps (éq. 47) : faux pendant les vacances
@@ -356,6 +361,15 @@ pub struct CumulsEcs {
     pub phi_pertes_vc_wh: f64,
     /// « Φpertes_hvc_2nd-e ».
     pub phi_pertes_hvc_wh: f64,
+    /// « Qw » sans récupérateur (éq. 1693), en Wh.
+    pub q_w_sans_recup_wh: f64,
+    /// « Qrelevage » (éq. 2224), en Wh.
+    pub w_relevage_wh: f64,
+    /// Volume d'eau chaude appelé au ballon, en L, et somme de ce volume pondéré par
+    /// `θentrant`, en L·°C (moyenne de la température d'entrée du ballon).
+    pub v_ec_l: f64,
+    /// Voir `v_ec_l`.
+    pub v_ec_theta_l_c: f64,
 }
 
 impl EmetteurEcsResolu {
@@ -380,6 +394,14 @@ impl EmetteurEcsResolu {
             intergroupe,
             l_vc_defaut: e.distribution.l_vc_m.is_none(),
             theta_2nd_defaut: e.distribution.theta_2nd_e_c.is_none(),
+            recuperateur: e
+                .recuperateur
+                .as_ref()
+                .filter(|_| e.recuperateur_eaux_grises != Some(false))
+                .map(|r| {
+                    RecuperateurResolu::nouveau(r, super::besoins_ecs::rat_douches_bains(usage))
+                }),
+            sorties_recuperateur: SortiesRecuperateur::default(),
             sorties: SortiesDistributionEcsGroupe::default(),
             i_ecs: true,
             cumuls: CumulsEcs::default(),
@@ -399,10 +421,29 @@ impl EmetteurEcsResolu {
         b_therm: f64,
     ) {
         self.i_ecs = i_ecs;
-        let q_w = self.besoins.q_w_wh(ah, theta_cw_c);
+        let q_w_sans = self.besoins.q_w_wh(ah, theta_cw_c);
+        // Fiche 9.21 : le récupérateur modifie les besoins (positions 0 et 2) et la température
+        // d'entrée du ballon (éq. 2183, 2186, 2189 et 2191).
+        let rec = match &self.recuperateur {
+            Some(r) => r.pas(self.besoins.v_uw_hebdo_corr_l * ah, theta_cw_c, theta_ext_c),
+            None => SortiesRecuperateur {
+                q_w_wh: q_w_sans,
+                q_w_sans_wh: q_w_sans,
+                v_ec_l: self.besoins.v_uw_hebdo_corr_l * ah * (THETA_UW_C - theta_cw_c)
+                    / (super::recuperateur_eaux_grises::THETA_EC_C - theta_cw_c),
+                theta_entrant_c: theta_cw_c,
+                ..SortiesRecuperateur::default()
+            },
+        };
+        self.sorties_recuperateur = rec;
+        let q_w = rec.q_w_wh;
         self.sorties = self.distribution.pas(q_w, theta_i_c, theta_ext_c, b_therm);
         let c = &mut self.cumuls;
         c.q_w_wh += q_w;
+        c.q_w_sans_recup_wh += rec.q_w_sans_wh;
+        c.w_relevage_wh += rec.w_relevage_wh;
+        c.v_ec_l += rec.v_ec_l;
+        c.v_ec_theta_l_c += rec.v_ec_l * rec.theta_entrant_c;
         c.q_w_bruts_wh += self.besoins.q_w_bruts_wh(ah, theta_cw_c);
         c.q_w_2nd_wh += self.sorties.q_w_2nd_wh;
         c.phi_pertes_vc_wh += self.sorties.phi_pertes_vc_wh;

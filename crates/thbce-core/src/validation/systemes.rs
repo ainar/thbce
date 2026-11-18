@@ -4,9 +4,10 @@
 //! d'`iclim`, et règles de saisie des fiches d'application (§8.2, §8.13).
 
 use crate::entree::{
-    Batiment, Circulateur, Emetteur, FonctionReseau, Groupe, RegulationDebit,
-    RegulationTemperature, ReseauEcsIntergroupe, ReseauGroupe, ReseauHydrauliqueGroupe,
-    ReseauIntergroupes, VariationSpatiale, VariationSpatialeFroid, VariationTemporelle,
+    Batiment, Circulateur, ConfigurationRecuperateur, EchangeurEauxGrises, Emetteur, EmetteurEcs,
+    FonctionReseau, Groupe, RegulationDebit, RegulationTemperature, ReseauEcsIntergroupe,
+    ReseauGroupe, ReseauHydrauliqueGroupe, ReseauIntergroupes, UsageZone, VariationSpatiale,
+    VariationSpatialeFroid, VariationTemporelle,
 };
 
 use std::collections::BTreeSet;
@@ -48,6 +49,17 @@ pub(super) fn valider_systemes_batiment(r: &mut RapportValidation, cb: &str, bat
                  seule génération, Th-BCE 2020 §8.10.1)",
             );
         }
+    }
+    r.ids_uniques(
+        &format!("{cb}.recuperateurs_eaux_grises"),
+        bat.recuperateurs_eaux_grises.iter().map(|c| &c.id),
+    );
+    for (i, c) in bat.recuperateurs_eaux_grises.iter().enumerate() {
+        let cc = format!("{cb}.recuperateurs_eaux_grises[{i}]");
+        valider_echangeur_eaux_grises(r, &format!("{cc}.echangeur"), &c.echangeur);
+        r.positif(format!("{cc}.l_evac_vc_m"), c.l_evac_vc_m);
+        r.positif(format!("{cc}.l_evac_vnc_m"), c.l_evac_vnc_m);
+        verifier_conduit_eaux_grises(r, &cc, c.l_evac_vc_m, c.l_evac_vnc_m);
     }
     let ids_ecs = r.ids_uniques(
         &format!("{cb}.distributions_ecs_intergroupes"),
@@ -100,7 +112,7 @@ pub(super) fn valider_systemes_batiment(r: &mut RapportValidation, cb: &str, bat
                 g,
                 bat,
                 &ids_ecs,
-                zone.usage.est_habitation(),
+                zone.usage,
             );
         }
         for (ig, g) in zone.groupes.iter().enumerate() {
@@ -541,8 +553,9 @@ fn valider_ecs_groupe(
     g: &Groupe,
     bat: &Batiment,
     ids_ecs: &BTreeSet<&str>,
-    habitation: bool,
+    usage: UsageZone,
 ) {
+    let habitation = usage.est_habitation();
     if g.emetteurs_ecs.is_empty() {
         r.erreur(
             format!("{c}.emetteurs_ecs"),
@@ -617,13 +630,7 @@ fn valider_ecs_groupe(
                  §9.5.3, éq. 1675)",
             );
         }
-        if e.recuperateur_eaux_grises == Some(true) {
-            r.hors_perimetre(
-                format!("{ce}.recuperateur_eaux_grises"),
-                Some("true".into()),
-                "récupérateur de chaleur sur les eaux grises (Th-BCE 2020 §9.21)",
-            );
-        }
+        valider_recuperateur(r, &ce, e, bat, usage);
         let d = &e.distribution;
         let cd = format!("{ce}.distribution");
         r.strictement_positif(format!("{cd}.d_int_m"), d.d_int_m);
@@ -658,5 +665,161 @@ fn valider_ecs_groupe(
                 "distribution d'ECS intergroupe inconnue du bâtiment (Th-BCE 2020 §9.7.3)",
             );
         }
+    }
+}
+
+/// Récupérateur de chaleur sur les eaux grises d'un émetteur d'ECS (§9.21.2 à 9.21.7).
+fn valider_recuperateur(
+    r: &mut RapportValidation,
+    ce: &str,
+    e: &EmetteurEcs,
+    bat: &Batiment,
+    usage: UsageZone,
+) {
+    let cr = format!("{ce}.recuperateur");
+    match (e.recuperateur_eaux_grises, &e.recuperateur) {
+        (Some(true), None) => r.erreur(
+            format!("{ce}.recuperateur_eaux_grises"),
+            Some("true".into()),
+            "« Irecup » = 1 exige la description du récupérateur (`recuperateur`, Th-BCE 2020 \
+             §9.21.2)",
+        ),
+        (Some(false), Some(_)) => r.erreur(
+            cr.clone(),
+            None,
+            "un récupérateur est décrit alors que « Irecup » vaut 0 (Th-BCE 2020 §9.21.2)",
+        ),
+        _ => {}
+    }
+    let Some(rec) = &e.recuperateur else { return };
+    let individuelle = rec.configuration == ConfigurationRecuperateur::Individuelle;
+    match (individuelle, rec.position, &rec.recuperateur_collectif) {
+        (true, None, _) => r.erreur(
+            format!("{cr}.position"),
+            None,
+            "position du récupérateur requise en récupération individuelle (Th-BCE 2020 \
+             §9.21.2.1, « Tposition »)",
+        ),
+        (true, _, Some(id)) => r.erreur(
+            format!("{cr}.recuperateur_collectif"),
+            Some(id.clone()),
+            "un récupérateur collectif ne se désigne qu'en récupération collective (Th-BCE 2020 \
+             §9.21.2.1)",
+        ),
+        (false, Some(_), _) => r.erreur(
+            format!("{cr}.position"),
+            None,
+            "en récupération collective la position est imposée, en amont du ballon d'ECS \
+             uniquement (figure 205 : « Typerecup = 0 implique Tposition = 1 »)",
+        ),
+        (false, None, None) => r.erreur(
+            format!("{cr}.recuperateur_collectif"),
+            None,
+            "identifiant du récupérateur collectif requis en récupération collective (Th-BCE \
+             2020 §9.21.2.1)",
+        ),
+        (false, None, Some(id)) if !bat.recuperateurs_eaux_grises.iter().any(|c| &c.id == id) => {
+            r.erreur(
+                format!("{cr}.recuperateur_collectif"),
+                Some(id.clone()),
+                "récupérateur collectif inconnu du bâtiment (`recuperateurs_eaux_grises`, \
+                 Th-BCE 2020 §9.21.5)",
+            );
+        }
+        _ => {}
+    }
+    if rec.unites.is_empty() {
+        r.erreur(
+            format!("{cr}.unites"),
+            None,
+            "au moins une configuration unitaire requise (Th-BCE 2020 §9.21.2.1)",
+        );
+    }
+    for (i, u) in rec.unites.iter().enumerate() {
+        let cu = format!("{cr}.unites[{i}]");
+        if u.nb_echangeurs == 0 {
+            r.erreur(
+                format!("{cu}.nb_echangeurs"),
+                Some("0".into()),
+                "au moins un échangeur par configuration unitaire (Th-BCE 2020 §9.21.2.3)",
+            );
+        }
+        if u.nb_douches_relies == 0 {
+            r.erreur(
+                format!("{cu}.nb_douches_relies"),
+                Some("0".into()),
+                "au moins une douche ou baignoire reliée à l'échangeur (Th-BCE 2020 §9.21.2.3)",
+            );
+        }
+        match (&u.echangeur, individuelle) {
+            (None, true) => {}
+            (Some(x), true) => valider_echangeur_eaux_grises(r, &format!("{cu}.echangeur"), x),
+            (Some(_), false) => r.erreur(
+                format!("{cu}.echangeur"),
+                None,
+                "en récupération collective l'échangeur est celui du récupérateur collectif \
+                 (Th-BCE 2020 §9.21.5 et §9.21.6.3.1)",
+            ),
+            (None, false) => {}
+        }
+        if let Some(p) = u.p_relevage_nominale_w {
+            r.strictement_positif(format!("{cu}.p_relevage_nominale_w"), p);
+        }
+    }
+    r.positif(format!("{cr}.l_evac_vc_m"), rec.l_evac_vc_m);
+    r.positif(format!("{cr}.l_evac_vnc_m"), rec.l_evac_vnc_m);
+    verifier_conduit_eaux_grises(r, &cr, rec.l_evac_vc_m, rec.l_evac_vnc_m);
+    if crate::ecs::besoins_ecs::rat_douches_bains(usage) == 0.0 {
+        r.avertissement(
+            cr,
+            None,
+            "aucun besoin d'ECS n'est dédié aux douches ou aux bains dans cet usage (« Ratdouches-\
+             bains » = 0, tableau 274) : le récupérateur est sans effet (Th-BCE 2020 §9.21.2.4.1)",
+        );
+    }
+}
+
+/// Efficacité d'un échangeur sur les eaux grises (§9.21.6.3.2.1).
+fn valider_echangeur_eaux_grises(r: &mut RapportValidation, c: &str, x: &EchangeurEauxGrises) {
+    if let Some(e) = x.efficacite {
+        r.plage(format!("{c}.efficacite"), e, 0.0, 1.0);
+    }
+    if let Some(t) = x.c_trans {
+        r.plage(format!("{c}.c_trans"), t, 0.0, 1.0);
+    }
+    if x.origine.is_none() && (x.efficacite.is_some() || x.c_trans.is_some()) {
+        r.erreur(
+            c.to_owned(),
+            None,
+            "l'origine des valeurs (certifiée, justifiée ou déclarée) est requise avec \
+             l'efficacité et `c_trans` (Th-BCE 2020 §9.21.6.3.2.1)",
+        );
+    }
+    if x.origine.is_some() && (x.efficacite.is_none() || x.c_trans.is_none()) {
+        r.avertissement(
+            c.to_owned(),
+            None,
+            "efficacité ou `c_trans` absent : valeur par défaut εech_eg_fixe = 0,8 × 0,15 \
+             (Th-BCE 2020 §9.21.6.3.2.1)",
+        );
+    }
+}
+
+/// Conduit d'évacuation des eaux grises : longueur non nulle et perte inférieure à 100 %
+/// (éq. 2196 et 2199).
+fn verifier_conduit_eaux_grises(r: &mut RapportValidation, c: &str, vc: f64, vnc: f64) {
+    if vc + vnc <= 0.0 || (vc + vnc).is_nan() {
+        r.erreur(
+            c.to_owned(),
+            None,
+            "la longueur du conduit d'évacuation des eaux grises doit être non nulle (éq. 2196)",
+        );
+    } else if 0.16 / 100.0 * vc + 0.30 / 100.0 * vnc > 1.0 {
+        r.erreur(
+            c.to_owned(),
+            None,
+            "conduit d'évacuation des eaux grises trop long : coefficient de pertes Fam négatif \
+             (éq. 2199)",
+        );
     }
 }

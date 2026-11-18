@@ -126,6 +126,11 @@ impl ResultatsSystemesGroupe {
                 *x = a(*x);
             }
             e.corr = (e.corr * 1e4).round() / 1e4;
+            if let Some(r) = &mut e.recuperateur {
+                r.q_w_sans_recuperateur_kwh = a(r.q_w_sans_recuperateur_kwh);
+                r.w_relevage_kwh = a(r.w_relevage_kwh);
+                r.theta_entrant_moyen_c = r.theta_entrant_moyen_c.map(a);
+            }
         }
         for d in &mut self.distributions {
             d.q_kwh = a(d.q_kwh);
