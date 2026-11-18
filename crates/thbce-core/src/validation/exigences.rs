@@ -3,6 +3,8 @@
 
 use thbce_data::ZoneClimatique;
 
+use crate::bati::classement_bruit::{classe_groupe, classe_zone};
+
 use super::RapportValidation;
 
 /// Annexe de l'article R. 172-4 du CCH, chapitre V, partie II (Q54, point 14, et Q66) :
@@ -60,7 +62,36 @@ fn valider_categorie_contraintes(
         let cat_zone = e.categorie_zone(&z.id);
         let habitation = z.usage.est_habitation();
         let n = z.usage.numero();
-        let bruit = e.zone_bruit_zone(&z.id);
+        // Classe de bruit : saisie (zone, sinon bâtiment) et/ou déduite des baies (Q200 à Q204).
+        let saisie = e.zone_bruit_saisie(&z.id);
+        let deduite = classe_zone(bat, z);
+        let chemin_bruit = match iez {
+            Some(i) if e.zones[i].zone_bruit.is_some() => format!("{c}.zones[{i}].zone_bruit"),
+            _ => format!("{c}.zone_bruit"),
+        };
+        match (saisie, deduite) {
+            (None, None) => r.erreur(
+                format!("{c}.zone_bruit"),
+                None,
+                format!(
+                    "classe d'exposition au bruit de la zone {cb}.zones[{iz}] requise : la saisir \
+                     (zone_bruit du bâtiment ou de la zone) ou décrire le classement de chacune \
+                     de ses baies (`bruit`, ou `expo_br`) pour que le moteur la déduise (chapitre V, \
+                     partie I, points 3 et 4)"
+                ),
+            ),
+            (Some(s), Some(d)) if s != d => r.erreur(
+                chemin_bruit,
+                Some(format!("{s:?}")),
+                format!(
+                    "classe d'exposition au bruit saisie incohérente avec celle de ses baies : \
+                     les baies de la zone {cb}.zones[{iz}] donnent {d:?} (chapitre V, partie I, \
+                     point 4)"
+                ),
+            ),
+            _ => {}
+        }
+        let bruit_zone = saisie.or(deduite);
         for (ig, g) in z.groupes.iter().enumerate() {
             let ieg = iez.and_then(|i| e.zones[i].groupes.iter().position(|x| x.groupe == g.id));
             let cc = match (iez, ieg) {
@@ -147,7 +178,9 @@ fn valider_categorie_contraintes(
                         ),
                     );
                 }
-                if bruit == ZoneBruit::Br1 {
+                // Groupe par groupe : la classe déduite des baies du groupe, sinon celle de la zone.
+                let bruit = classe_groupe(bat, g).or(bruit_zone);
+                if bruit == Some(ZoneBruit::Br1) {
                     une_fois(
                         r,
                         &cc,

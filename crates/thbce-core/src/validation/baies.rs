@@ -54,6 +54,7 @@ pub(super) fn valider_baie(r: &mut RapportValidation, c: &str, b: &Baie, refs: &
     }
     // Th-BCE 2020 §5.13.2 : classe d'exposition au bruit d'une baie ouvrable.
     if b.expo_br.is_none()
+        && b.bruit.is_none()
         && refs
             .types_baies
             .get(b.type_baie.as_str())
@@ -62,7 +63,8 @@ pub(super) fn valider_baie(r: &mut RapportValidation, c: &str, b: &Baie, refs: &
         r.erreur(
             format!("{c}.expo_br"),
             None,
-            "classe d'exposition au bruit requise pour une baie ouvrable",
+            "classe d'exposition au bruit requise pour une baie ouvrable (expo_br, ou bruit pour la \
+             déduire)",
         );
     }
     // Th-BCE 2020 §5.10.2 : inclinaison d'une baie entre 0° (horizontale) et 90° (verticale).

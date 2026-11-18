@@ -505,7 +505,7 @@ mod tests {
     fn parametres() -> ParametresExigences {
         ParametresExigences {
             categorie_contraintes_exterieures: CategorieContraintes::Categorie1,
-            zone_bruit: ZoneBruit::Br1,
+            zone_bruit: Some(ZoneBruit::Br1),
             annee_depot_permis: 2022,
             hsp_moy_m: Some(2.5),
             s_combles_m2: 0.0,
@@ -552,7 +552,7 @@ mod tests {
         let mut p = parametres();
         p.annee_depot_permis = 2026;
         p.hsp_moy_m = Some(3.2);
-        p.zone_bruit = ZoneBruit::Br2;
+        p.zone_bruit = Some(ZoneBruit::Br2);
         p.categorie_contraintes_exterieures = CategorieContraintes::Categorie2;
         let z = PartieBatiment {
             usage: 1,
@@ -561,7 +561,7 @@ mod tests {
             sref_usage_m2: 120.0,
             raccorde_rcu: false,
             categorie: p.categorie_contraintes_exterieures,
-            zone_bruit: p.zone_bruit,
+            zone_bruit: p.zone_bruit.unwrap(),
         };
         let e = exigences_partie(&z, &p, ZoneClimatique::H3, 100.0).unwrap();
         // MIN(3,2 ; 2,9)/2,5 − 1 = 0,16.

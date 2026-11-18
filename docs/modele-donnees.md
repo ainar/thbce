@@ -39,7 +39,7 @@ Usages calculés : maison individuelle ou accolée (`maison_individuelle`), loge
 - **Parois opaques** : type (`u_k_w_m2k`, `incl_k`, facteurs solaires `sf_c_k` et `sf_e_k`, végétalisation facultative) et instance (`type_paroi`, `a_k_m2`, `exposition`, `espace_tampon?`).
 - **Exposition** (A3 §3.2.2) : `azimut_deg` (0 sud, 90 ouest, 180 nord, 270 est), `inclinaison_deg` (0 horizontale vers le haut, 90 verticale), `lpb_m` et `hpb_m` (requis avec un masque proche), `masques` (0 à 7 identifiants du catalogue).
 - **Masques** : `lointain_azimutal` et `lointain_arbres_caducs` (36 hauteurs `gamma_i_deg`), `lointain_plan_vertical`, `proche_vertical_droit`, `proche_vertical_gauche`, `proche_horizontal`.
-- **Baies** : type (`u_sp_vert_w_m2k`/`u_sp_horiz_w_m2k`, `u_ap_…`, facteurs `sans_protection` et `avec_protection`, `protection_mobile?`, `ouvrant?`) et instance (`a_b_m2`, `exposition`, `expo_br`, `espace_tampon?`). Stores vénitiens et gestion automatique des protections refusés.
+- **Baies** : type (`u_sp_vert_w_m2k`/`u_sp_horiz_w_m2k`, `u_ap_…`, facteurs `sans_protection` et `avec_protection`, `protection_mobile?`, `ouvrant?`) et instance (`a_b_m2`, `exposition`, `expo_br?`, `bruit?`, `espace_tampon?`). Classement au bruit (fiche 5.11, Q200 à Q204) : `expo_br` (BR1 à BR3) se saisit directement, ou se déduit de `bruit` = { `infrastructures?` [{ `categorie` (`categorie_1` à `categorie_5`), `distance_m`, `vue` (`directe`, `partielle`, `masquee_peu_protecteurs`, `masquee_tres_protecteurs`, `arriere`) }], `zone_peb?` (`a`, `b`, `c`, `d`, `hors_zone`), `facade?` } ; la catégorie des voies (arrêté préfectoral de classement) et le plan d'exposition au bruit sont des données à saisir, le moteur ne peut pas les déterminer ; si les deux sont saisis, ils doivent être cohérents. Stores vénitiens et gestion automatique des protections refusés.
 - **Ponts thermiques** : `l_l_m`, `psi_l_w_mk`, facteurs solaires, `exposition?` (description simplifiée du §5.18.3 sans elle).
 - **Inertie** : classes des tableaux 53 et 54 ou valeurs saisies (`personnalisee`), pour les inerties quotidienne, séquentielle et annuelle.
 
@@ -259,7 +259,7 @@ Champs facultatifs, **non incompatibles** (`docs/questions/Q054.md`) :
 ```
 Batiment
 └── exigences?  { categorie_contraintes_exterieures: categorie_1 | categorie_2 | categorie_3,  chap. V, partie II (saisie, contrôlée)
-                  zone_bruit: br1 | br2 | br3,                                    chap. V, partie I (saisie) ; Mbbruit
+                  zone_bruit?: br1 | br2 | br3,                                   chap. V, partie I ; Mbbruit ; absente : déduite des baies (Q202)
                   annee_depot_permis (≥ 2022),                                    Icénergie_maxmoyen, dates d'effet (Q68)
                   mois_depot_permis? (1 à 12),                                    obligatoire en 2026, et en 2022 avec un usage 3 à 5 (Q68, Q69)
                   hsp_moy_m? (1,8 à 10),                                          MbHSP, McHSP (habitation, permis ≥ 07/2026)
