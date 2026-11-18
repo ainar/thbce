@@ -14,7 +14,9 @@ use crate::climat::environnement_proche::{
     flux_atteignant_la_paroi, qer_w_m2, FluxParoi, MasqueResolu, SurfaceExposee,
 };
 use crate::conventions::ModeCalcul;
-use crate::entree::{Baie, BaieType, Catalogue, ExpoBr, FacteursBaie, TypoPm};
+use crate::entree::{
+    AffectationEclairage, Baie, BaieType, Catalogue, ExpoBr, FacteursBaie, TypoPm,
+};
 use crate::resultats::ValeurParDefaut;
 
 use super::espace_tampon::espace_tampon::CoefficientsEt;
@@ -455,9 +457,14 @@ impl BaieResolue {
             a_ouv_max_m2: baie.a_b_m2 * r_ouv_max,
             expo_br: baie.expo_br,
             taux_passage_air,
-            // §5.10.3.2 : les grands volumes n'existent que dans des usages hors du périmètre
-            // actuel (industrie, établissements sportifs, commerces).
-            type_eclairage: TypeBaieEclairage::VolumeNormal,
+            // §5.10.3.2 : type de baie pour l'éclairement naturel.
+            type_eclairage: match baie.affectation_eclairage {
+                Some(AffectationEclairage::GrandVolume) => TypeBaieEclairage::GrandVolume,
+                Some(AffectationEclairage::GrandVolumeToitureUniforme) => {
+                    TypeBaieEclairage::GrandVolumeUniforme
+                }
+                Some(AffectationEclairage::VolumeNormal) | None => TypeBaieEclairage::VolumeNormal,
+            },
             surface: SurfaceExposee::depuis_exposition(&baie.exposition),
             masques: resoudre_masques(&baie.exposition.masques, catalogue),
             espace_tampon: None,

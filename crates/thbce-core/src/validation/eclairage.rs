@@ -14,6 +14,7 @@ pub(super) fn valider_locaux_eclairage(
     zone: &Zone,
 ) {
     use crate::eclairage::{a_des_peripheriques_de_gestion, est_local_de_bureaux};
+    use crate::entree::AffectationEclairage as A;
     use thbce_data::eclairage::{est_grand_volume, local as local_tableau_78};
     let cl = format!("{c}.locaux");
     if zone.usage.est_habitation() {
@@ -25,6 +26,7 @@ pub(super) fn valider_locaux_eclairage(
                  en logement collectif : l'éclairage y est conventionnel (Th-BCE 2020 §7.1.3.6.2)",
             );
         }
+        valider_affectations_baies(r, c, g, false);
         return;
     }
     if !zone.usage.est_pris_en_charge() {
@@ -49,6 +51,17 @@ pub(super) fn valider_locaux_eclairage(
         );
     }
     let usage = zone.usage.numero();
+    let a_un_grand_volume = g
+        .locaux
+        .iter()
+        .any(|l| est_grand_volume(usage, l.type_local));
+    valider_affectations_baies(r, c, g, a_un_grand_volume);
+    // §7.1.3.3 : avec des éclairants de toiture uniformément répartis (baies de type 1), le local
+    // de grand volume est éclairé de façon homogène et `Ratioecl_nat,l` vaut 1.
+    let toiture_uniforme = g
+        .baies
+        .iter()
+        .any(|b| b.affectation_eclairage == Some(A::GrandVolumeToitureUniforme));
     for (i, l) in g.locaux.iter().enumerate() {
         let c = format!("{cl}[{i}]");
         r.plage(format!("{c}.ratio_local"), l.ratio_local, 0.0, 1.0);
@@ -72,11 +85,15 @@ pub(super) fn valider_locaux_eclairage(
                      §7.1.3.6.1, tableau 78){precision}"
                 ),
             );
-        } else if est_grand_volume(usage, l.type_local) {
-            r.hors_perimetre(
-                format!("{c}.type_local"),
-                Some(nom_json(&l.type_local)),
-                "éclairage d'un local de grand volume (Th-BCE 2020 §7.1.3.3 et §7.1.3.4)",
+        }
+        if toiture_uniforme && est_grand_volume(usage, l.type_local) && l.ratio_ecl_nat != 1.0 {
+            r.erreur(
+                format!("{c}.ratio_ecl_nat"),
+                Some(l.ratio_ecl_nat.to_string()),
+                "le groupe a des éclairants de toiture uniformément répartis \
+                 (affectation_eclairage : grand_volume_toiture_uniforme) : le local de grand volume \
+                 est éclairé de façon homogène et sa part ayant accès à la lumière naturelle vaut 1 \
+                 (Th-BCE 2020 §7.1.3.3)",
             );
         }
         let e = &l.eclairage;
@@ -130,6 +147,39 @@ pub(super) fn valider_locaux_eclairage(
                 ),
                 (false, None) => {}
             }
+        }
+    }
+}
+
+/// Th-BCE 2020 §5.10.3.2 : affectation des baies d'un groupe à un grand volume. Une baie de grand
+/// volume exige un local de grand volume dans le groupe ; un éclairant de toiture uniformément
+/// réparti est une baie horizontale (inclinaison nulle).
+fn valider_affectations_baies(
+    r: &mut RapportValidation,
+    c: &str,
+    g: &Groupe,
+    a_un_grand_volume: bool,
+) {
+    use crate::entree::AffectationEclairage as A;
+    for (i, b) in g.baies.iter().enumerate() {
+        let champ = format!("{c}.baies[{i}].affectation_eclairage");
+        match b.affectation_eclairage {
+            None | Some(A::VolumeNormal) => {}
+            Some(a) if !a_un_grand_volume => r.erreur(
+                champ,
+                Some(nom_json(&a)),
+                "baie affectée à un grand volume dans un groupe qui n'a pas de local de grand \
+                 volume (salle de sport des établissements sportifs, aire de production des \
+                 industries, aire de vente de plus de 300 m² des commerces ; Th-BCE 2020 \
+                 §7.1.3.3)",
+            ),
+            Some(A::GrandVolumeToitureUniforme) if b.exposition.inclinaison_deg != 0.0 => r.erreur(
+                champ,
+                Some(nom_json(&A::GrandVolumeToitureUniforme)),
+                "un éclairant de toiture uniformément réparti est une baie horizontale \
+                 (inclinaison nulle ; Th-BCE 2020 §5.10.3.2)",
+            ),
+            Some(_) => {}
         }
     }
 }

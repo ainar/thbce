@@ -132,12 +132,9 @@ fn codes_de_retour() {
         thbce(&["calcul", &entree(), "--meteo", &h1a]).status.code(),
         Some(2)
     );
-    // 3 : usage hors périmètre de cette version.
-    // Commerces, permis de 2027 (les commerces ne sont soumis qu'à partir du 1er mai 2026, Q68).
-    let ecole = texte.replace("maison_individuelle", "commerces").replace(
-        "\"annee_depot_permis\": 2025",
-        "\"annee_depot_permis\": 2027",
-    );
+    // 3 : élément hors périmètre de cette version (les 28 usages sont calculés depuis le lot
+    // 0c4) : store vénitien.
+    let ecole = texte.replace("\"type_pm\": \"volet\"", "\"type_pm\": \"store_venitien\"");
     let ecole = fichier("ecole.json", &ecole);
     let h2b = meteo("h2b-bis.csv", ZoneClimatique::H2b);
     let s = thbce(&["calcul", ecole.to_str().unwrap(), "--meteo", &h2b]);
@@ -155,16 +152,12 @@ fn codes_de_retour() {
         erreur.contains("non pris en charge par cette version (voir docs/couverture.md)"),
         "{erreur}"
     );
-    assert!(erreur.contains("usage = commerces"), "{erreur}");
+    assert!(erreur.contains("store_venitien"), "{erreur}");
     // Une erreur de saisie l'emporte sur un élément hors périmètre : code 2.
     let mixte = fichier(
         "mixte.json",
         &texte
-            .replace("maison_individuelle", "commerces")
-            .replace(
-                "\"annee_depot_permis\": 2025",
-                "\"annee_depot_permis\": 2027",
-            )
+            .replace("\"type_pm\": \"volet\"", "\"type_pm\": \"store_venitien\"")
             .replace("\"shab_m2\": 96.44", "\"shab_m2\": -1"),
     );
     assert_eq!(

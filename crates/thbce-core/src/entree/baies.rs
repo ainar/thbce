@@ -299,6 +299,25 @@ pub struct FacteursBaie {
     pub tlid: Option<f64>,
 }
 
+/// Affectation d'une baie à un local pour l'éclairement naturel (§5.10.3.2, « type de baie »).
+///
+/// Seule compte la distinction entre local de grand volume et local de volume normal ; pour un
+/// grand volume, il faut savoir si la baie est un éclairant de toiture réparti de façon
+/// uniforme (distance entre deux éclairants inférieure à la hauteur du local, distance des
+/// éclairants périphériques à la périphérie inférieure à la moitié de cette hauteur).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AffectationEclairage {
+    /// Baie d'un local de volume normal (type 2, « VN »). Valeur par défaut.
+    VolumeNormal,
+    /// Baie d'un local de grand volume : baie verticale, ou éclairant de toiture non réparti de
+    /// façon uniforme (type 0, « GV »).
+    GrandVolume,
+    /// Éclairant de toiture (baie horizontale, inclinaison nulle) réparti de façon uniforme sur
+    /// la toiture d'un local de grand volume (type 1, « GVU »).
+    GrandVolumeToitureUniforme,
+}
+
 /// Baie vitrée d'un groupe : paramètres d'intégration (§5.10.2).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -320,6 +339,12 @@ pub struct Baie {
     /// distance des infrastructures, vue, plan d'exposition au bruit. Facultative.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bruit: Option<BruitBaie>,
+    /// Affectation de la baie à un local de grand volume ou de volume normal, pour l'éclairement
+    /// naturel (§5.10.3.2). Absente : volume normal. Un groupe qui a des baies de grand volume
+    /// doit avoir un local de grand volume (salle de sport, aire de production, aire de vente de
+    /// plus de 300 m²).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub affectation_eclairage: Option<AffectationEclairage>,
     /// Identifiant de l'espace tampon sur lequel donne la baie (§5.10.3, « IdET »). Une baie
     /// ne peut donner que sur un espace tampon solarisé. Absent : la baie donne sur
     /// l'extérieur.

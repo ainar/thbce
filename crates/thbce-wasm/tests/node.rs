@@ -62,12 +62,9 @@ fn valide_et_signale_les_erreurs() {
 }
 
 #[wasm_bindgen_test]
-fn un_usage_hors_perimetre_est_non_pris_en_charge() {
-    // Commerces, permis de 2027 (usage soumis à partir du 1er mai 2026, Q68), encore refusés.
-    let bureaux = ENTREE.replace("maison_individuelle", "commerces").replace(
-        "\"annee_depot_permis\": 2025",
-        "\"annee_depot_permis\": 2027",
-    );
+fn un_element_hors_perimetre_est_non_pris_en_charge() {
+    // Les 28 usages sont calculés (lot 0c4) : élément hors périmètre, store vénitien.
+    let bureaux = ENTREE.replace("\"type_pm\": \"volet\"", "\"type_pm\": \"store_venitien\"");
     let r = thbce_wasm::valider(JsValue::from_str(&bureaux)).unwrap();
     assert_eq!(champ(&r, "valide"), JsValue::FALSE);
     assert_eq!(champ(&r, "hors_perimetre"), JsValue::TRUE);

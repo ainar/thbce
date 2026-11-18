@@ -16,7 +16,7 @@
 use std::path::Path;
 
 use thbce_core::climat::MeteoProjet;
-use thbce_core::entree::{GestEcl, GradEcl, Projet, SystemeVentilation, UsageZone};
+use thbce_core::entree::{GestEcl, GradEcl, Projet, SystemeVentilation};
 use thbce_core::resultats::Resultats;
 use thbce_core::{calculer, valider, Options};
 use thbce_io::{json, meteo};
@@ -236,25 +236,9 @@ fn refus() {
     };
     let z = "batiments[0].zones[0]";
 
-    // Les usages non résidentiels non ouverts restent hors périmètre, et seulement cela (usage
-    // 22, aérogares, avec un permis de 2027).
-    let mut p = bureaux();
-    p.batiments[0].zones[0].usage = UsageZone::Aerogare;
-    if let Some(x) = p.batiments[0].exigences.as_mut() {
-        x.annee_depot_permis = 2027;
-    }
-    let (c, hors) = chemins(&p);
-    assert!(c.contains(&format!("{z}.usage")), "{c:?}");
-    assert!(hors, "{c:?}");
-    // De même les commerces (usage 17) : une saisie correcte hors habitation d'un usage non
-    // ouvert est hors périmètre (code 3), pas une erreur de saisie.
-    let mut p = bureaux();
-    p.batiments[0].zones[0].usage = UsageZone::Commerces;
-    // Sans `exigences` : un permis de 2025 ne soumet pas les commerces à la RE2020 (Q68).
-    p.batiments[0].exigences = None;
-    let (c, hors) = chemins(&p);
-    assert!(c.contains(&format!("{z}.usage")) && hors, "{c:?}");
-
+    // Les 28 usages sont calculés (lot 0c4) : le refus d'un élément hors périmètre se teste sur un
+    // système (double flux ci-dessous).
+    let _ = z;
     // Double flux en non résidentiel : hors périmètre.
     let mut p = bureaux();
     let maison = json::lire_projet(
