@@ -9,7 +9,7 @@
 //! `Icconstruction_max = Icconstruction_maxmoyen × (1 + Micombles + Misurf_moy + Misurf_tot) +
 //! Migéo + Miinfra + Mivrd + Mipv + Mided + Miagrément_ext + MiHSP + Miclim_RCU`.
 //!
-//! Usages couverts : ceux que le moteur calcule (1 à 7 et 12).
+//! Usages couverts : les 28 usages du texte (`docs/questions/Q216.md`).
 
 use thbce_data::ZoneClimatique;
 
@@ -123,6 +123,64 @@ const PETITE_ENFANCE: DonneesIc = DonneesIc {
     ..MEDIATHEQUES
 };
 
+/// Usages 8 à 11 : hôtels (parties nuit et jour).
+const HOTELS: DonneesIc = DonneesIc {
+    moyen: [None, Some(820.0), Some(680.0), Some(540.0)],
+    geo: 20.0,
+    seuil_infra: 40.0,
+    seuil_vrd: 10.0,
+    seuil_ded: 300.0,
+    ..MEDIATHEQUES
+};
+/// Usages 13 à 16, 26 et 27 : restaurants.
+const RESTAURANTS: DonneesIc = DonneesIc {
+    moyen: [None, Some(800.0), Some(670.0), Some(540.0)],
+    geo: 0.0,
+    seuil_infra: 40.0,
+    seuil_vrd: 10.0,
+    seuil_ded: 480.0,
+    ..MEDIATHEQUES
+};
+/// Usage 17 : commerces.
+const COMMERCES: DonneesIc = DonneesIc {
+    seuil_ded: 280.0,
+    ..RESTAURANTS
+};
+/// Usage 18 : vestiaires seuls.
+const VESTIAIRES: DonneesIc = DonneesIc {
+    moyen: [None, Some(1050.0), Some(900.0), Some(750.0)],
+    ..RESTAURANTS
+};
+/// Usages 19 à 21 : établissements sanitaires avec hébergement et de santé.
+const SANTE: DonneesIc = DonneesIc {
+    moyen: [None, Some(880.0), Some(760.0), Some(620.0)],
+    seuil_ded: 580.0,
+    ..RESTAURANTS
+};
+/// Usage 22 : aérogares.
+const AEROGARES: DonneesIc = DonneesIc {
+    moyen: [None, Some(1120.0), Some(950.0), Some(780.0)],
+    seuil_infra: 100.0,
+    seuil_ded: 665.0,
+    ..RESTAURANTS
+};
+/// Usages 23 et 24 : industries et artisanats.
+const INDUSTRIE: DonneesIc = DonneesIc {
+    moyen: [None, Some(840.0), Some(695.0), Some(550.0)],
+    surf_tot: &[(5000.0, 0.035, -0.00007)],
+    seuil_ded: 500.0,
+    ..RESTAURANTS
+};
+/// Usages 25 et 28 : établissements sportifs.
+const SPORT: DonneesIc = DonneesIc {
+    moyen: [None, Some(900.0), Some(760.0), Some(620.0)],
+    surf_tot: &[(2000.0, 0.3, -0.00015)],
+    seuil_infra: 60.0,
+    seuil_vrd: 20.0,
+    seuil_ded: 480.0,
+    ..RESTAURANTS
+};
+
 fn donnees(usage: u8) -> Option<&'static DonneesIc> {
     match usage {
         1 => Some(&MAISON),
@@ -131,7 +189,15 @@ fn donnees(usage: u8) -> Option<&'static DonneesIc> {
         4 | 5 => Some(&ENSEIGNEMENT),
         6 => Some(&MEDIATHEQUES),
         7 => Some(&UNIVERSITAIRES),
+        8..=11 => Some(&HOTELS),
         12 => Some(&PETITE_ENFANCE),
+        13..=16 | 26 | 27 => Some(&RESTAURANTS),
+        17 => Some(&COMMERCES),
+        18 => Some(&VESTIAIRES),
+        19..=21 => Some(&SANTE),
+        22 => Some(&AEROGARES),
+        23 | 24 => Some(&INDUSTRIE),
+        25 | 28 => Some(&SPORT),
         _ => None,
     }
 }
@@ -365,5 +431,157 @@ mod tests {
         let x = exigence_zone(&z, &params(2025, 9), &pa, ZoneClimatique::H2d, 100.0, ind).unwrap();
         proche(x.mi_surf_tot, -0.181);
         proche(x.ic_construction_max_kgco2_m2, 810.0 * (1.0 - 0.181) + 50.0);
+    }
+
+    /// Cellules des usages 8 à 28, relues à la main sur l'image du texte (version post-Rivaton,
+    /// p. 77 à 99) : `Icconstruction_max` recalculé indépendamment du code.
+    #[test]
+    fn autres_usages() {
+        let pa = ParametresExigencesAcv::default();
+        let zone = |usage: u8, sref: f64| ZoneIc {
+            id: "z",
+            usage,
+            sref_m2: sref,
+            nb_logements: 0,
+            sref_usage_m2: sref,
+            raccorde_rcu: false,
+        };
+        let max = |usage: u8, sref: f64, annee: u16, zc: ZoneClimatique, ind| {
+            exigence_zone(&zone(usage, sref), &params(annee, 9), &pa, zc, 100.0, ind)
+                .unwrap()
+                .ic_construction_max_kgco2_m2
+        };
+        let nul = IndicateursModulation::default();
+        // Hôtels (8 à 11) : 820 en 2025-2027, 680 en 2028-2030, 540 ensuite ; Migéo 20 en H3 ;
+        // Miinfra au-delà de 40, Mivrd au-delà de 10, Mipv au-delà de 20, Mided au-delà de 300.
+        let ind = IndicateursModulation {
+            ic_lot1: 15.0,
+            ic_lot2: 50.0,
+            ic_lot13: 25.0,
+            ic_ded: 350.0,
+        };
+        proche(
+            max(8, 2000.0, 2026, ZoneClimatique::H3, ind),
+            820.0 + 20.0 + 10.0 + 5.0 + 5.0,
+        );
+        proche(
+            max(11, 2000.0, 2028, ZoneClimatique::H3, ind),
+            680.0 + 20.0 + 10.0 + 5.0 + 5.0 - 0.3 * 50.0,
+        );
+        proche(max(9, 2000.0, 2031, ZoneClimatique::H1a, nul), 540.0);
+        // Immeuble de grande hauteur en 2028 : 0,95 × 680 × (1 + 0,05) ; en 2031 :
+        // 0,95 × 0,95 × 680 × 1,05.
+        let igh = ParametresExigencesAcv {
+            immeuble_grande_hauteur: true,
+            ..ParametresExigencesAcv::default()
+        };
+        let z = zone(10, 2000.0);
+        let x = exigence_zone(&z, &params(2028, 9), &igh, ZoneClimatique::H1a, 100.0, nul);
+        proche(x.unwrap().ic_construction_max_kgco2_m2, 0.95 * 680.0 * 1.05);
+        let x = exigence_zone(&z, &params(2031, 9), &igh, ZoneClimatique::H1a, 100.0, nul);
+        proche(
+            x.unwrap().ic_construction_max_kgco2_m2,
+            0.95 * 0.95 * 680.0 * 1.05,
+        );
+        // Restaurants (13 à 16, 26, 27) : 800, 670, 540 ; pas de Migéo ; Mided au-delà de 480.
+        for u in [13, 14, 15, 16, 26, 27] {
+            proche(max(u, 500.0, 2025, ZoneClimatique::H3, nul), 800.0);
+        }
+        let ind = IndicateursModulation {
+            ic_ded: 500.0,
+            ..nul
+        };
+        proche(
+            max(13, 500.0, 2028, ZoneClimatique::H3, ind),
+            670.0 - 0.3 * 20.0,
+        );
+        // Commerces : 800 ; Mided au-delà de 280.
+        let ind = IndicateursModulation {
+            ic_ded: 300.0,
+            ..nul
+        };
+        proche(
+            max(17, 500.0, 2028, ZoneClimatique::H3, ind),
+            670.0 - 0.3 * 20.0,
+        );
+        // Vestiaires : 1050, 900, 750 ; Mided au-delà de 480.
+        proche(max(18, 500.0, 2025, ZoneClimatique::H3, nul), 1050.0);
+        proche(max(18, 500.0, 2031, ZoneClimatique::H3, nul), 750.0);
+        // Santé (19 à 21) : 880, 760, 620 ; Mided au-delà de 580.
+        proche(max(19, 500.0, 2025, ZoneClimatique::H3, nul), 880.0);
+        let ind = IndicateursModulation {
+            ic_ded: 600.0,
+            ..nul
+        };
+        proche(
+            max(21, 500.0, 2031, ZoneClimatique::H3, ind),
+            620.0 - 0.3 * 20.0,
+        );
+        // Aérogares : 1120, 950, 780 ; Miinfra au-delà de 100 (et non 40).
+        let ind = IndicateursModulation {
+            ic_lot2: 130.0,
+            ..nul
+        };
+        proche(max(22, 500.0, 2025, ZoneClimatique::H3, ind), 1120.0 + 30.0);
+        // Industries (23, 24) : 840, 695, 550 ; Misurf_tot = 0,035 − 0,00007 × Sref jusqu'à
+        // 5 000 m², −0,315 au-delà.
+        proche(
+            max(23, 3000.0, 2025, ZoneClimatique::H3, nul),
+            840.0 * (1.0 + 0.035 - 0.21),
+        );
+        proche(
+            max(24, 6000.0, 2025, ZoneClimatique::H3, nul),
+            840.0 * (1.0 - 0.315),
+        );
+        proche(
+            max(24, 6000.0, 2031, ZoneClimatique::H3, nul),
+            550.0 * (1.0 - 0.315),
+        );
+        // Établissements sportifs (25, 28) : 900, 760, 620 ; Misurf_tot = 0,3 − 0,00015 × Sref
+        // jusqu'à 2 000 m², 0 au-delà ; Miinfra au-delà de 60, Mivrd au-delà de 20.
+        proche(
+            max(25, 1000.0, 2025, ZoneClimatique::H3, nul),
+            900.0 * (1.0 + 0.3 - 0.15),
+        );
+        proche(max(28, 3000.0, 2028, ZoneClimatique::H3, nul), 760.0);
+        let ind = IndicateursModulation {
+            ic_lot1: 25.0,
+            ic_lot2: 70.0,
+            ..nul
+        };
+        proche(
+            max(28, 3000.0, 2031, ZoneClimatique::H3, ind),
+            620.0 + 10.0 + 5.0,
+        );
+        // Aucun usage n'est laissé sans exigence en 2025 (28 usages) ; les usages 6 à 12 et
+        // suivants n'ont pas de colonne 2022-2024.
+        for u in 1..=28 {
+            assert!(
+                exigence_zone(
+                    &zone(u, 500.0),
+                    &params(2025, 9),
+                    &pa,
+                    ZoneClimatique::H1a,
+                    100.0,
+                    nul
+                )
+                .is_some(),
+                "usage {u}"
+            );
+        }
+        for u in [6, 7, 8, 12, 13, 17, 18, 19, 22, 23, 25, 28] {
+            assert!(
+                exigence_zone(
+                    &zone(u, 500.0),
+                    &params(2023, 9),
+                    &pa,
+                    ZoneClimatique::H1a,
+                    100.0,
+                    nul
+                )
+                .is_none(),
+                "usage {u}"
+            );
+        }
     }
 }

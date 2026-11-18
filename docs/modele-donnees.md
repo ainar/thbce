@@ -336,7 +336,8 @@ Batiment
                     | { methode: simplifie_autres, n_ete_grue, n_hiver_grue, n_ete_sans_grue, n_hiver_sans_grue,
                                  v_terres_excavees_m3, epsilon1_l_m3? (1), terres_importees?, terres_evacuees? }  éq. 102 à 104
             eau: { assainissement: collectif | non_collectif, eaux_pluviales: infiltration | separatif | unitaire,
-                   pluviometrie_mm?, s_toitures_m2?, s_parkings_impermeabilises_m2? }   §4.4.2 (calcul simplifié), éq. 85
+                   pluviometrie_mm?, s_toitures_m2?, s_parkings_impermeabilises_m2?,
+                   q_eau_potable_saisie_m3? (obligatoire si « N/C », Q218) }   §4.4.2 (calcul simplifié), éq. 85
             parcelle?: { composants?, comblements?[{quantite_t, distance_km}], s_vegetalisee_m2, s_nettoyee_m2,
                          s_impermeabilisees_m2 }                                    §4.6, eau en calcul simplifié
             occupants: { logements: [{ type_t, nombre }] } | { nombre }            Nocc, éq. 131
@@ -351,7 +352,7 @@ ComposantAcv  { id, designation?, sous_lot, quantite, unite?, dve_ans? (DVR), fl
                           exploitation_non_separee? (false), b1_kgco2?, a1_kgco2?, stock_c_kgc? } }
 ```
 
-Valeurs par unité fonctionnelle, en kg éq. CO2 (phase = somme des modules : A1 à A3, A4 et A5, B1 à B4, C1 à C4, D). La validation exige les seules données de service qu'un calcul demande. Refusés : sous-lot 8.2 (cogénération) ; contribution « eau » d'un usage « N/C » du tableau 7 ou de zones de consommations différentes (Q210). Le lot 13 demande une installation photovoltaïque et des générations (taux d'autoconsommation, Q211).
+Valeurs par unité fonctionnelle, en kg éq. CO2 (phase = somme des modules : A1 à A3, A4 et A5, B1 à B4, C1 à C4, D). La validation exige les seules données de service qu'un calcul demande. Refusé : sous-lot 8.2 (cogénération). Pour un usage « N/C » du tableau 7 ou des zones de consommations différentes, `eau.q_eau_potable_saisie_m3` (m³/an) est obligatoire et remplace `Qeau potable conv × Nocc` (Q218). `ic_construction_occ_kgco2` et les deux autres valeurs par occupant sont absentes si Nocc est nul (Q217). Le lot 13 demande une installation photovoltaïque et des générations (taux d'autoconsommation, Q211).
 
 ### Résultats
 
@@ -363,7 +364,7 @@ batiments[].acv?
 ├── lots[]  { lot, contribution, ic_kgco2_m2, ic_ded_kgco2_m2, udd_pct?, stock_c_kgc_m2,
 │             sous_lots[] { sous_lot, forfaitaire, contribution, ic_ded_kgco2_m2, stock_c_kgc_m2 } }
 ├── ic_composants, ic_chantier, ic_eau, ic_energie?, ic_construction, ic_batiment?, ic_parcelle?, ic_projet?   (_kgco2_m2)
-├── ic_construction_occ_kgco2, ic_batiment_occ_kgco2?, ic_projet_occ_kgco2?
+├── ic_construction_occ_kgco2?, ic_batiment_occ_kgco2?, ic_projet_occ_kgco2?
 ├── ic_ded_kgco2_m2 (hors lots 1, 2, 13), ic_ded_total_kgco2_m2, udd_batiment_pct?, stock_c_kgc_m2, stock_c_parcelle_kgc_m2?
 ├── eau_quantites { nocc, q_eau_potable_conv_m3, q_eau_potable_m3, q_eaux_usees_m3, q_eaux_pluviales_m3,
 │                   q_parcelle_eau_potable_m3, q_parcelle_eaux_usees_m3 }

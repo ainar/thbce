@@ -219,8 +219,9 @@ pub struct ResultatsAcv {
     /// « Icprojet » = Icbâtiment + Icparcelle (éq. 136).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ic_projet_kgco2_m2: Option<f64>,
-    /// « Icconstruction,occ », en kg éq. CO2/occupant (éq. 133).
-    pub ic_construction_occ_kgco2: f64,
+    /// « Icconstruction,occ », en kg éq. CO2/occupant (éq. 133) ; absent si Nocc est nul.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ic_construction_occ_kgco2: Option<f64>,
     /// « Icbâtiment,occ » (éq. 135).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ic_batiment_occ_kgco2: Option<f64>,
@@ -282,7 +283,6 @@ impl ResultatsAcv {
             &mut self.ic_chantier_kgco2_m2,
             &mut self.ic_eau_kgco2_m2,
             &mut self.ic_construction_kgco2_m2,
-            &mut self.ic_construction_occ_kgco2,
             &mut self.ic_ded_kgco2_m2,
             &mut self.ic_ded_total_kgco2_m2,
             &mut self.stock_c_kgc_m2,
@@ -294,6 +294,7 @@ impl ResultatsAcv {
             &mut self.ic_batiment_kgco2_m2,
             &mut self.ic_parcelle_kgco2_m2,
             &mut self.ic_projet_kgco2_m2,
+            &mut self.ic_construction_occ_kgco2,
             &mut self.ic_batiment_occ_kgco2,
             &mut self.ic_projet_occ_kgco2,
             &mut self.udd_batiment_pct,

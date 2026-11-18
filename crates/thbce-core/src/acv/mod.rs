@@ -368,8 +368,12 @@ pub fn calculer_acv(e: &EntreesAcv) -> ResultatsAcv {
 
     // Eau (§4.4.2 : calcul simplifié ; éq. 80, 81, 84, 87 à 90).
     let nocc = nocc(&d.occupants);
-    let q_conv = q_conv_batiment(e.zones).unwrap_or(0.0);
-    let q_pot = q_conv * nocc; // éq. (91)
+    // Éq. (91) ; si le tableau 7 ne donne pas de consommation commune (« N/C », Q218), la
+    // quantité saisie tient lieu de `Qeau potable conv × Nocc` (`q_conv` restitué nul).
+    let (q_conv, q_pot) = match (q_conv_batiment(e.zones), d.eau.q_eau_potable_saisie_m3) {
+        (Some(c), _) => (c, c * nocc),
+        (None, saisie) => (0.0, saisie.unwrap_or(0.0)),
+    };
     let q_usees = q_pot; // éq. (92)
     let de_pot = s.eau_potable_kgco2_m3.unwrap_or(0.0);
     let de_ac = s.assainissement_collectif_kgco2_m3.unwrap_or(0.0);
@@ -445,7 +449,8 @@ pub fn calculer_acv(e: &EntreesAcv) -> ResultatsAcv {
                                                                                    // Éq. (118) : sans module D.
     let ic_parcelle = parcelle.map(|p| p.ic.total - p.ic.module_d);
     let ic_projet = ic_batiment.zip(ic_parcelle).map(|(b, p)| b + p); // éq. (136)
-    let occ = |x: f64| if nocc > 0.0 { x * sref / nocc } else { 0.0 };
+                                                                      // Valeurs par occupant : absentes si Nocc est nul (éq. 133, 135 et 137).
+    let occ = |x: f64| (nocc > 0.0).then(|| x * sref / nocc);
     ResultatsAcv {
         per_ans: 50,
         composants,
@@ -466,8 +471,8 @@ pub fn calculer_acv(e: &EntreesAcv) -> ResultatsAcv {
         ic_parcelle_kgco2_m2: ic_parcelle,
         ic_projet_kgco2_m2: ic_projet,
         ic_construction_occ_kgco2: occ(ic_construction), // éq. (133)
-        ic_batiment_occ_kgco2: ic_batiment.map(occ),     // éq. (135)
-        ic_projet_occ_kgco2: ic_projet.map(occ),         // éq. (137)
+        ic_batiment_occ_kgco2: ic_batiment.and_then(occ), // éq. (135)
+        ic_projet_occ_kgco2: ic_projet.and_then(occ),    // éq. (137)
         ic_ded_kgco2_m2: ded_reglementaire / sref,
         ic_ded_total_kgco2_m2: ded_total / sref,
         udd_batiment_pct: (ic_composants != 0.0).then(|| 100.0 * ded_total / sref / ic_composants), // éq. (146)
@@ -597,6 +602,7 @@ mod tests {
                 pluviometrie_mm: Some(600.0),
                 s_toitures_m2: Some(100.0),
                 s_parkings_impermeabilises_m2: None,
+                q_eau_potable_saisie_m3: None,
             },
             parcelle: None,
             occupants: OccupantsAcv::Logements(vec![
@@ -651,6 +657,6 @@ mod tests {
             179.844 + 150.0 + 324.0 * 39.543 / 100.0,
         );
         // Icconstruction,occ = Ic × Sref / Nocc (éq. 133).
-        proche(r.ic_construction_occ_kgco2, 179.844 * 100.0 / 6.0);
+        proche(r.ic_construction_occ_kgco2.unwrap(), 179.844 * 100.0 / 6.0);
     }
 }

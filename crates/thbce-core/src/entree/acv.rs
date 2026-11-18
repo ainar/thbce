@@ -348,6 +348,13 @@ pub struct EauAcv {
     /// « Sparkings imperméabilisés non couverts », en m² (réseau unitaire, éq. 85).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub s_parkings_impermeabilises_m2: Option<f64>,
+    /// « Qeau potable » du bâtiment saisie, en m³/an (usages internes et classiques, hors
+    /// arrosage de la parcelle) : obligatoire quand le tableau 7 de l'annexe II donne « N/C »
+    /// pour une zone ou que les zones ont des consommations conventionnelles différentes, et
+    /// alors employée à la place de `Qeau potable conv × Nocc` (éq. 91) ; ignorée sinon
+    /// (`docs/questions/Q218.md`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub q_eau_potable_saisie_m3: Option<f64>,
 }
 
 /// Parcelle (§4.6, eau en calcul simplifié §4.6.2).

@@ -257,13 +257,30 @@ fn valider_chantier(
 
 fn valider_eau(r: &mut RapportValidation, c: &str, a: &DonneesAcv, bat: &Batiment) {
     let zones: Vec<(u8, f64)> = bat.zones.iter().map(|z| (z.usage.numero(), 0.0)).collect();
-    if q_conv_batiment(&zones).is_none() {
-        r.hors_perimetre(
-            format!("{c}.eau"),
+    let q_conv = q_conv_batiment(&zones);
+    match (q_conv, a.eau.q_eau_potable_saisie_m3) {
+        (None, None) => r.erreur(
+            format!("{c}.eau.q_eau_potable_saisie_m3"),
             None,
-            "contribution « eau » d'un usage dont la consommation conventionnelle (annexe II, \
-             tableau 7) est « N/C », ou de zones de consommations différentes (Q210)",
-        );
+            "consommation d'eau potable à saisir (m³/an) : le tableau 7 de l'annexe II est « N/C » \
+             pour un usage des zones, ou les zones ont des consommations conventionnelles \
+             différentes (Q218)",
+        ),
+        (None, Some(q)) => {
+            r.positif(format!("{c}.eau.q_eau_potable_saisie_m3"), q);
+            r.avertissement(
+                format!("{c}.eau.q_eau_potable_saisie_m3"),
+                Some(q.to_string()),
+                "consommation d'eau potable saisie, hors consommation conventionnelle du \
+                 tableau 7 (« N/C » ou zones de consommations différentes) : Q218",
+            );
+        }
+        (Some(_), Some(q)) => r.avertissement(
+            format!("{c}.eau.q_eau_potable_saisie_m3"),
+            Some(q.to_string()),
+            "ignorée : le tableau 7 donne une consommation conventionnelle commune aux zones",
+        ),
+        (Some(_), None) => {}
     }
     let s = &a.donnees_service;
     exiger(
@@ -424,6 +441,17 @@ pub(super) fn valider_acv(r: &mut RapportValidation, cb: &str, bat: &Batiment) {
         .all(|z| z.usage == UsageZone::MaisonIndividuelle);
     valider_chantier(r, &c, &a.chantier, &a.donnees_service, maison);
     valider_eau(r, &c, a, bat);
+    if let Some(p) = &bat.exigences {
+        if !p.depot_a_partir_de(2026, 5) {
+            r.avertissement(
+                "exigences.annee_depot_permis".to_owned(),
+                Some(p.annee_depot_permis.to_string()),
+                "permis déposé avant le 1er mai 2026 : Icconstruction_max est calculé avec la \
+                 version post-GTM2 de l'annexe de l'article R. 172-4 (seule versionnée), non \
+                 avec la rédaction en vigueur à la date du dépôt (Q213)",
+            );
+        }
+    }
     if let Some(p) = &a.parcelle {
         let cp = format!("{c}.parcelle");
         for (i, x) in p.composants.iter().enumerate() {

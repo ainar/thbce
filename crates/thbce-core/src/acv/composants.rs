@@ -76,6 +76,11 @@ fn alpha_futil(dve_ans: f64) -> (f64, f64) {
 /// `Σ_{r=1}^{α−1} f(DVE·r) + FUtil·f(DVE·α)` : pondération des renouvellements (éq. 41, 44,
 /// 47, 55, 67).
 fn somme_renouvellements(dve_ans: f64, f: impl Fn(f64) -> f64) -> f64 {
+    // DVE ≥ PER : aucun renouvellement (α = 0 donnerait sinon `FUtil × f(0)`, un renouvellement
+    // fictif ; `docs/questions/Q217.md`).
+    if dve_ans >= PER_ANS {
+        return 0.0;
+    }
     let (alpha, futil) = alpha_futil(dve_ans);
     let n = alpha as u32;
     let mut s = 0.0;
@@ -236,7 +241,7 @@ mod tests {
     fn somme_des_coefficients() {
         // Tableau de l'article 11, années 1 à 50, sommé à la main : 39,543.
         proche(somme_f_co2(), 39.543);
-        // Fluides : 47,557 (somme à la main des 50 valeurs relues).
+        // Fluides : 47,788 (somme à la main des 50 valeurs relues).
         proche(somme_f_ff(), 47.788);
     }
 
@@ -303,6 +308,14 @@ mod tests {
             0.02 * 1000.0 * (47.788 - 39.543) + 0.12 * 1000.0 * gamma,
         );
         proche(f2, f);
+        // DVE ≥ PER : pas de renouvellement, donc γ = 0 (cas 3 : 1,2 kg de PRG 675, DVE 60 ans).
+        let (e, f) = fluide_cas3(1.2, 675.0, 60.0);
+        proche(e, 0.02 * 1.2 * 675.0 * 47.788);
+        proche(f, 0.10 * 1.2 * 675.0 * 0.880);
+        let (e, _) = fluide_cas3(1.2, 675.0, 50.0);
+        proche(e, 0.02 * 1.2 * 675.0 * 47.788);
+        let (e, _) = fluide_cas1(1.2, 675.0, 60.0);
+        proche(e, 0.02 * 1.2 * 675.0 * 47.788);
         // Statique (éq. 26) : 0,02 × 2 kg × 2000 × 50 = 4000.
         proche(fluide_statique(2.0, 2000.0), 4000.0);
     }

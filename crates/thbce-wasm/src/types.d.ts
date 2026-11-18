@@ -1045,6 +1045,14 @@ export interface EauAcv {
    * éq. 85 ; parcelle, éq. 112).
    */
   pluviometrie_mm?: number | null;
+  /**
+   * « Qeau potable » du bâtiment saisie, en m³/an (usages internes et classiques, hors
+   * arrosage de la parcelle) : obligatoire quand le tableau 7 de l'annexe II donne « N/C »
+   * pour une zone ou que les zones ont des consommations conventionnelles différentes, et
+   * alors employée à la place de `Qeau potable conv × Nocc` (éq. 91) ; ignorée sinon
+   * (`docs/questions/Q218.md`).
+   */
+  q_eau_potable_saisie_m3?: number | null;
   /** « Sparkings imperméabilisés non couverts », en m² (réseau unitaire, éq. 85). */
   s_parkings_impermeabilises_m2?: number | null;
   /**
@@ -3402,8 +3410,8 @@ export interface ResultatsAcv {
   ic_composants_kgco2_m2: number;
   /** « Icconstruction » = Iccomposants + Icchantier (§5.3.1.1, éq. 132). */
   ic_construction_kgco2_m2: number;
-  /** « Icconstruction,occ », en kg éq. CO2/occupant (éq. 133). */
-  ic_construction_occ_kgco2: number;
+  /** « Icconstruction,occ », en kg éq. CO2/occupant (éq. 133) ; absent si Nocc est nul. */
+  ic_construction_occ_kgco2?: number | null;
   /**
    * « Icded » de l'annexe de l'article R. 172-4 (chapitre I, IX) : données par défaut et
    * valeurs forfaitaires, hors lots 1, 2 et 13 ; en kg éq. CO2/m².
