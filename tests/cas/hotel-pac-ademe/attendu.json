@@ -1,0 +1,75 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b"
+  },
+  "batiments": [
+    {
+      "id": "hotel",
+      "sref_m2": 1200.0,
+      "bbio_pts": 108.3,
+      "dh_c_h": 1492.2,
+      "cep_kwhep_m2": 184.0,
+      "cep_nr_kwhep_m2": 184.0,
+      "ic_energie_kgco2_m2": 216.8,
+      "bbio": {
+        "annuel": {
+          "b_ch_kwh_m2": 30.7,
+          "b_fr_kwh_m2": 9.9,
+          "b_ecl_kwh_m2": 5.4,
+          "bbio_pts": 108.3
+        }
+      },
+      "indicateurs": {
+        "cef_kwhef_m2": 80.0,
+        "exigences": {
+          "bbio_max_pts": 90.5,
+          "cep_max_kwhep_m2": 171.0,
+          "cep_nr_max_kwhep_m2": 149.5,
+          "ic_energie_max_kgco2_m2": 416.3,
+          "conforme": false
+        },
+        "electricite_consommee": {
+          "chauffage_kwh": 26019.2,
+          "refroidissement_kwh": 1115.2,
+          "ecs_kwh": 44704.2,
+          "eclairage_kwh": 12083.6,
+          "auxiliaires_ventilation_kwh": 11680.0,
+          "auxiliaires_distribution_kwh": 401.4
+        }
+      },
+      "zones": [
+        {
+          "id": "nuit",
+          "ventilation": {
+            "c_aux_vent_kwh": 7884.0
+          },
+          "groupes": [
+            {
+              "id": "nuit",
+              "debits_bbio": {
+                "q_spec_repris_m3_h": -2700.0,
+                "q_spec_souffle_m3_h": 2700.0
+              }
+            }
+          ]
+        },
+        {
+          "id": "jour",
+          "ventilation": {
+            "c_aux_vent_kwh": 3796.0
+          },
+          "groupes": [
+            {
+              "id": "jour",
+              "debits_bbio": {
+                "q_spec_repris_m3_h": -2400.0,
+                "q_spec_souffle_m3_h": 2400.0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -117,8 +117,9 @@ fn autonomie_en_lumiere_naturelle() {
 /// 7.1.3.6.1 et les tableaux 78 et 79.
 mod tertiaire {
     use thbce_core::eclairage::{
-        a_eclnat2_m2, c1, c2, ctrl_ecl_einat, eclairage_locaux, facteur_einat_sans_acces,
-        p_ecl_tot_bbio_w_m2, p_ecl_tot_bureaux_w_m2, LocalResolu,
+        a_eclnat2_m2, c1, c2, ctrl_ecl_einat, ctrl_ecl_occ, eclairage_locaux,
+        eclairage_locaux_fraction, facteur_einat_sans_acces, p_ecl_tot_bbio_w_m2,
+        p_ecl_tot_bureaux_w_m2, LocalResolu,
     };
     use thbce_core::entree::{GestEcl, GradEcl, LocalEclairage};
 
@@ -250,6 +251,35 @@ mod tertiaire {
             ctrl_ecl_einat(GradEcl::Manuelle, false, 0.5, 2000.0, 500.0),
             c2_pae
         ));
+    }
+
+    /// Usage 20 (établissements de santé, partie nuit) : l'indicateur d'éclairage vaut 0,35 de
+    /// nuit dans le classeur des scénarios (`docs/questions/Q074.md`) ; `CTRLecl_occ = C1 × IEcl`.
+    #[test]
+    fn indicateur_d_eclairage_fractionnaire_de_l_usage_20() {
+        let chambres = local(
+            r#"{"id": "c", "type_local": "chambre_sans_cuisine", "ratio_local": 1.0,
+                "ratio_ecl_nat": 0,
+                "eclairage": {"p_ecl_tot_w_m2": 5, "gest_ecl": "interrupteur_manuel",
+                              "grad_ecl": "manuelle", "fractionne": false}}"#,
+        );
+        let projet = [LocalResolu::projet(20, &chambres, 1000.0).unwrap()];
+        // Tableau 78 : C1 = 1,00 en interrupteur manuel. 5 W/m² × 1,00 × 1 000 m² = 5 kW.
+        assert_eq!(projet[0].c1, 1.0);
+        assert!(proche(ctrl_ecl_occ(1.0, 0.35), 0.35));
+        // Nuit (Einat = 0), IEcl = 0,35 : 5 × 1,00 × 0,35 × 1 000 / 1 000 = 1,75 kWh.
+        let r = eclairage_locaux_fraction(&projet, 0.35, 0.0);
+        assert!(proche(r.c_ecl_kwh, 1.75));
+        // Les valeurs 0 et 1 redonnent l'indicateur booléen.
+        assert!(proche(
+            eclairage_locaux_fraction(&projet, 1.0, 0.0).c_ecl_kwh,
+            5.0
+        ));
+        assert_eq!(
+            eclairage_locaux_fraction(&projet, 1.0, 0.0).c_ecl_kwh,
+            eclairage_locaux(&projet, true, 0.0).c_ecl_kwh
+        );
+        assert_eq!(eclairage_locaux_fraction(&projet, 0.0, 0.0).c_ecl_kwh, 0.0);
     }
 
     #[test]

@@ -1,0 +1,60 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b"
+  },
+  "batiments": [
+    {
+      "id": "ehpad",
+      "sref_m2": 1500.0,
+      "bbio_pts": 167.8,
+      "dh_c_h": 1966.8,
+      "cep_kwhep_m2": 178.1,
+      "cep_nr_kwhep_m2": 178.1,
+      "ic_energie_kgco2_m2": 215.6,
+      "bbio": {
+        "annuel": {
+          "b_ch_kwh_m2": 41.8,
+          "b_fr_kwh_m2": 10.7,
+          "b_ecl_kwh_m2": 12.6,
+          "bbio_pts": 167.8
+        }
+      },
+      "indicateurs": {
+        "cef_kwhef_m2": 77.5,
+        "exigences": {
+          "bbio_max_pts": 174.0,
+          "cep_max_kwhep_m2": 252.0,
+          "cep_nr_max_kwhep_m2": 190.0,
+          "ic_energie_max_kgco2_m2": 330.0,
+          "conforme": false
+        },
+        "electricite_consommee": {
+          "chauffage_kwh": 48231.5,
+          "refroidissement_kwh": 3228.3,
+          "ecs_kwh": 18909.9,
+          "eclairage_kwh": 29720.2,
+          "auxiliaires_ventilation_kwh": 15768.0,
+          "auxiliaires_distribution_kwh": 320.3
+        }
+      },
+      "zones": [
+        {
+          "id": "ehpad",
+          "ventilation": {
+            "c_aux_vent_kwh": 15768.0
+          },
+          "groupes": [
+            {
+              "id": "ehpad",
+              "debits_bbio": {
+                "q_spec_repris_m3_h": -6750.0,
+                "q_spec_souffle_m3_h": 6750.0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
