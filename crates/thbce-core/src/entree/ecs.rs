@@ -324,6 +324,12 @@ pub struct BoucleEcs {
     pub rechauffeur: bool,
     /// « Pcirc-e » : puissance des circulateurs, en W (fonctionnement permanent en habitation).
     pub p_circ_w: f64,
+    /// « Typegest_circ-e » (§9.8.2, éq. 1747 et 1748) : vrai si les circulateurs sont arrêtés
+    /// pendant les vacances des zones d'enseignement desservies (1), faux s'ils fonctionnent en
+    /// permanence (0). Requis quand la boucle dessert une zone d'usage affilié à l'enseignement
+    /// (usages 4, 5, 7, 26 et 27) ; ne se saisit pas sinon (fonctionnement permanent).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arret_circulateurs_vacances: Option<bool>,
     /// Espace tampon traversé par la partie hors volume chauffé (« btherm », éq. 1744).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub espace_tampon: Option<Id>,

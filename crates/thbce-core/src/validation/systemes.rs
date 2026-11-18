@@ -66,6 +66,7 @@ pub(super) fn valider_systemes_batiment(r: &mut RapportValidation, cb: &str, bat
             ReseauEcsIntergroupe::Aucun => continue,
             ReseauEcsIntergroupe::Boucle(b) => {
                 r.positif(format!("{cd}.reseau.boucle.p_circ_w"), b.p_circ_w);
+                valider_gestion_circulateurs(r, &cd, b, bat, &d.id);
                 (
                     b.l_vc_m,
                     b.l_hvc_m,
@@ -105,6 +106,47 @@ pub(super) fn valider_systemes_batiment(r: &mut RapportValidation, cb: &str, bat
         for (ig, g) in zone.groupes.iter().enumerate() {
             valider_systemes_groupe(r, &format!("{cb}.zones[{iz}].groupes[{ig}]"), g, bat);
         }
+    }
+}
+
+/// « Typegest_circ-e » (§9.8.2 et §9.8.3.3.4, éq. 1747 et 1748) : « pour les usages
+/// d'enseignement, nous supposerons que les circulateurs peuvent être arrêtés durant les
+/// vacances. Pour les autres usages, le fonctionnement des circulateurs est permanent ». Le
+/// paramètre d'intégration n'a pas de valeur conventionnelle : requis pour une boucle qui
+/// dessert une zone d'usage affilié à l'enseignement (`ienseignement`, tableau 4), refusé à vrai
+/// sinon (lecture Q71).
+fn valider_gestion_circulateurs(
+    r: &mut RapportValidation,
+    cd: &str,
+    b: &crate::entree::BoucleEcs,
+    bat: &Batiment,
+    id: &str,
+) {
+    let enseignement = bat.zones.iter().any(|z| {
+        z.usage.i_enseignement()
+            && z.groupes.iter().any(|g| {
+                g.emetteurs_ecs
+                    .iter()
+                    .any(|e| e.distribution_intergroupe == id)
+            })
+    });
+    let ch = format!("{cd}.reseau.boucle.arret_circulateurs_vacances");
+    match (enseignement, b.arret_circulateurs_vacances) {
+        (true, None) => r.erreur(
+            ch,
+            None,
+            "gestion des circulateurs requise pour une boucle d'ECS qui dessert une zone \
+             d'enseignement : vrai s'ils sont arrêtés pendant les vacances, faux s'ils \
+             fonctionnent en permanence (« Typegest_circ-e », Th-BCE 2020 §9.8.2, éq. 1747)",
+        ),
+        (false, Some(true)) => r.erreur(
+            ch,
+            Some("true".into()),
+            "l'arrêt des circulateurs pendant les vacances n'est prévu que pour les usages \
+             d'enseignement ; ailleurs leur fonctionnement est permanent (Th-BCE 2020 \
+             §9.8.3.3.4)",
+        ),
+        _ => {}
     }
 }
 

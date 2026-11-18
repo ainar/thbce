@@ -364,6 +364,13 @@ export interface BoucheConduit {
 
 /** Réseau d'ECS intergroupe bouclé (§9.8.2). */
 export interface BoucleEcs {
+  /**
+   * « Typegest_circ-e » (§9.8.2, éq. 1747 et 1748) : vrai si les circulateurs sont arrêtés
+   * pendant les vacances des zones d'enseignement desservies (1), faux s'ils fonctionnent en
+   * permanence (0). Requis quand la boucle dessert une zone d'usage affilié à l'enseignement
+   * (usages 4, 5, 7, 26 et 27) ; ne se saisit pas sinon (fonctionnement permanent).
+   */
+  arret_circulateurs_vacances?: boolean | null;
   /** Espace tampon traversé par la partie hors volume chauffé (« btherm », éq. 1744). */
   espace_tampon?: string | null;
   /** « Lhvc_prim_bcl-e » : longueur hors volume chauffé, en m. */
@@ -4160,8 +4167,9 @@ export type TypoPm = "etanche" | "faiblement_ajouree" | "ajouree" | "fortement_a
 /**
  * Th-BCE 2020 §4.1.3, tableau 4 — usages d'une zone.
  *
- * Les 28 usages sont reconnus à la lecture. La première version du moteur ne calcule que les
- * usages 1 et 2 (décision Q4) et l'usage 3 (lot 0a) ; les autres sont signalés « non pris en charge ».
+ * Les 28 usages sont reconnus à la lecture. Le moteur calcule les usages 1 et 2 (décision Q4),
+ * l'usage 3 (lot 0a) et les usages 4 à 7 et 12 (lot 0c1) ; les autres sont signalés « non pris
+ * en charge ».
  */
 export type UsageZone = "maison_individuelle" | "logement_collectif" | "bureaux" | "enseignement_primaire" | "enseignement_secondaire" | "mediatheque_bibliotheque" | "universitaire" | "hotel012_nuit" | "hotel345_nuit" | "hotel012_jour" | "hotel345_jour" | "petite_enfance" | "restaurant_continu" | "restaurant1_repas5_jours" | "restaurant2_repas7_jours" | "restaurant2_repas6_jours" | "commerces" | "vestiaires" | "sanitaire_avec_hebergement" | "sante_nuit" | "sante_jour" | "aerogare" | "industrie3x8" | "industrie8h18h" | "sport_municipal_scolaire" | "restaurant_scolaire1_repas" | "restaurant_scolaire3_repas" | "sport_prive";
 

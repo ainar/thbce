@@ -687,9 +687,19 @@ impl SystemesBatiment {
             }
             self.sorties[k] = s;
         }
-        // §9.8 : distributions d'ECS intergroupes ; génération d'ECS en fonctionnement toute
-        // l'année (« idencl-e(j) = 1 », éq. 1736 ; lecture Q45).
+        // §9.8 : distributions d'ECS intergroupes ; réseau en fonctionnement dès qu'une
+        // distribution du groupe reliée fonctionne (« idencl-e(j) », éq. 1736), c'est-à-dire
+        // toute l'année hors des vacances des zones d'enseignement (éq. 47 ; lectures Q45 et
+        // Q71).
         for (k, d) in self.ecs.iter().enumerate() {
+            let id_encl = crate::ecs::distribution_ecs::id_encl(
+                groupes
+                    .iter()
+                    .filter_map(|g| g.systemes.as_ref())
+                    .flat_map(|sy| sy.ecs.iter())
+                    .filter(|e| e.intergroupe == k)
+                    .map(|e| e.i_ecs),
+            );
             let aval: Vec<(f64, f64)> = groupes
                 .iter()
                 .filter_map(|g| g.systemes.as_ref())
@@ -710,7 +720,7 @@ impl SystemesBatiment {
             let s = pas_intergroupe_selon_depart(
                 &d.reseau,
                 &aval,
-                true,
+                id_encl,
                 theta_cw_c,
                 theta_ext_c,
                 b_therm,
@@ -765,12 +775,17 @@ impl SystemesBatiment {
                 origines.push(Origine::Reseau(k));
             }
             let mut w_rechauf = 0.0;
+            // Éq. (1007) : la production d'ECS de la génération est activée tant qu'au moins un
+            // de ses réseaux d'ECS est en fonctionnement (« idencl^gen(j) », lecture Q71) ; une
+            // génération sans réseau d'ECS garde la valeur 1 (sans effet).
+            let mut id_encl_gen: Option<bool> = None;
             for (k, d) in self.ecs.iter().enumerate() {
                 if d.generation != ig {
                     continue;
                 }
                 let s = &self.sorties_ecs[k];
                 w_rechauf += s.w_rechauf_wh;
+                id_encl_gen = Some(id_encl_gen.unwrap_or(false) || s.id_encl);
                 vus.push(ReseauVu {
                     poste: Poste::Ecs,
                     hydraulique: true,
@@ -846,8 +861,9 @@ impl SystemesBatiment {
                     reseaux: &vus,
                     aut_ch,
                     aut_fr,
-                    // Éq. (1007) : génération d'ECS en fonctionnement toute l'année (Q45).
-                    id_encl: true,
+                    // Éq. (1007) : toute l'année, sauf pendant les vacances des zones
+                    // d'enseignement qu'elle seule dessert (Q45 point 4, Q71).
+                    id_encl: id_encl_gen.unwrap_or(true),
                     theta_ext_c,
                     b_therm,
                     w_rechauf_wh: w_rechauf,
