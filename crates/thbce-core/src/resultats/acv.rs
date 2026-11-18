@@ -128,6 +128,57 @@ pub struct QuantitesEauAcv {
     pub q_parcelle_eaux_usees_m3: f64,
 }
 
+/// Exigence `Icconstruction_max` d'une zone et ses coefficients de modulation (annexe de
+/// l'article R. 172-4, chapitre III, III), en kg éq. CO2/m² sauf les coefficients sans unité
+/// `mi_combles`, `mi_surf_moy`, `mi_surf_tot`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ExigencesIcConstructionZone {
+    /// Zone.
+    pub zone: String,
+    /// Numéro d'usage.
+    pub usage: u8,
+    /// `Sref` de la zone, en m².
+    pub sref_m2: f64,
+    /// « Icconstruction_maxmoyen ».
+    pub ic_construction_max_moyen: f64,
+    /// « Micombles ».
+    pub mi_combles: f64,
+    /// « Misurf_moy ».
+    pub mi_surf_moy: f64,
+    /// « Misurf_tot ».
+    pub mi_surf_tot: f64,
+    /// « Migéo ».
+    pub mi_geo: f64,
+    /// « Miinfra ».
+    pub mi_infra: f64,
+    /// « Mivrd ».
+    pub mi_vrd: f64,
+    /// « Mipv ».
+    pub mi_pv: f64,
+    /// « Mided ».
+    pub mi_ded: f64,
+    /// « Miagrément_ext ».
+    pub mi_agrement_ext: f64,
+    /// « MiHSP ».
+    pub mi_hsp: f64,
+    /// « Miclim_RCU ».
+    pub mi_clim_rcu: f64,
+    /// « Icconstruction_max » de la zone.
+    pub ic_construction_max_kgco2_m2: f64,
+}
+
+/// Exigence `Icconstruction_max` du bâtiment et sa vérification.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ExigencesIcConstruction {
+    /// « Icconstruction_max » du bâtiment : moyenne des zones pondérée par leur `Sref`
+    /// (chapitre II, V).
+    pub ic_construction_max_kgco2_m2: f64,
+    /// Exigences de chaque zone.
+    pub zones: Vec<ExigencesIcConstructionZone>,
+    /// Vrai si `Icconstruction ≤ Icconstruction_max`.
+    pub respectee: bool,
+}
+
 /// Résultats de l'ACV d'un bâtiment (annexe II §5.3).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct ResultatsAcv {
@@ -195,6 +246,9 @@ pub struct ResultatsAcv {
     /// « TAC_PVbat elec » appliqué au lot 13 (éq. 22), en % ; absent sans lot 13.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tac_pv_pct: Option<f64>,
+    /// Exigence `Icconstruction_max` ; absente sans `exigences` du bâtiment.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exigences: Option<ExigencesIcConstruction>,
     /// Valeurs par défaut du texte appliquées (DVE = DVR, distances de 30 km, ε1…).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,
@@ -247,6 +301,29 @@ impl ResultatsAcv {
             &mut self.tac_pv_pct,
         ] {
             *v = v.map(a);
+        }
+        if let Some(x) = &mut self.exigences {
+            x.ic_construction_max_kgco2_m2 = a(x.ic_construction_max_kgco2_m2);
+            for z in &mut x.zones {
+                for v in [
+                    &mut z.sref_m2,
+                    &mut z.ic_construction_max_moyen,
+                    &mut z.mi_geo,
+                    &mut z.mi_infra,
+                    &mut z.mi_vrd,
+                    &mut z.mi_pv,
+                    &mut z.mi_ded,
+                    &mut z.mi_agrement_ext,
+                    &mut z.mi_hsp,
+                    &mut z.mi_clim_rcu,
+                    &mut z.ic_construction_max_kgco2_m2,
+                ] {
+                    *v = a(*v);
+                }
+                for v in [&mut z.mi_combles, &mut z.mi_surf_moy, &mut z.mi_surf_tot] {
+                    *v = (*v * 10000.0).round() / 10000.0;
+                }
+            }
         }
         let q = &mut self.eau_quantites;
         for v in [

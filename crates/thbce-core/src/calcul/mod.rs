@@ -297,6 +297,7 @@ pub fn calculer(
             ));
         }
         let ic_energie_kgco2_m2 = indicateurs.as_ref().and_then(|i| i.ic_energie_kgco2_m2);
+        let mut indicateurs = indicateurs;
         let acv = bat.acv.as_ref().map(|d| {
             let usages: Vec<(u8, f64)> = bat
                 .zones
@@ -314,6 +315,17 @@ pub fn calculer(
                     .and_then(|i| i.production_pv.as_ref())
                     .map(|p| p.tac_pct),
             })
+        });
+        let acv = acv.map(|mut a| {
+            crate::acv::verifier_exigence(
+                &mut a,
+                bat,
+                &zones,
+                zone,
+                loc.alt_m,
+                indicateurs.as_mut().and_then(|i| i.exigences.as_mut()),
+            );
+            a
         });
         batiments.push(ResultatsBatiment {
             id: bat.id.clone(),

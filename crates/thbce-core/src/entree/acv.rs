@@ -46,10 +46,33 @@ pub struct DonneesAcv {
     pub parcelle: Option<ParcelleAcv>,
     /// Nombre d'occupants « Nocc » (§5.2.3).
     pub occupants: OccupantsAcv,
+    /// Données propres à l'exigence `Icconstruction_max` (annexe de l'article R. 172-4,
+    /// chapitre III, III) ; les autres (année de dépôt, combles, HSP, réseau de chaleur) sont
+    /// celles de `exigences`.
+    #[serde(default)]
+    pub exigences: ParametresExigencesAcv,
     /// Données environnementales de service (impact sur le changement climatique, en kg éq.
     /// CO2 par unité), saisies par l'utilisateur avec leur source ; seules celles qu'un calcul
     /// demande sont obligatoires.
     pub donnees_service: DonneesService,
+}
+
+/// Données de la modulation de `Icconstruction_max` propres à l'ACV (version post-Rivaton,
+/// permis déposés à partir du 1er juillet 2026).
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ParametresExigencesAcv {
+    /// « Sagrément_ext » : surface d'espaces extérieurs (balcons, loggias, terrasses), en m²
+    /// (`Miagrément_ext` des logements collectifs) ; 0 si absente.
+    #[serde(default)]
+    pub s_agrement_ext_m2: f64,
+    /// Immeuble de grande hauteur au sens de l'article R. 146-3 du CCH (`Misurf_tot` et
+    /// `Icconstruction_maxmoyen` propres).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub immeuble_grande_hauteur: bool,
+    /// Présence d'un système de climatisation (`Miclim_RCU`, avec un réseau de chaleur classé).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub climatisation: bool,
 }
 
 /// Composant (produit de construction ou équipement) associé à une donnée environnementale

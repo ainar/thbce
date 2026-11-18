@@ -949,6 +949,12 @@ export interface DonneesAcv {
   /** Consommations et rejets d'eau du bâtiment (§4.4, calcul simplifié §4.4.2). */
   eau: EauAcv;
   /**
+   * Données propres à l'exigence `Icconstruction_max` (annexe de l'article R. 172-4,
+   * chapitre III, III) ; les autres (année de dépôt, combles, HSP, réseau de chaleur) sont
+   * celles de `exigences`.
+   */
+  exigences?: ParametresExigencesAcv;
+  /**
    * Fluides frigorigènes des équipements des lots traités forfaitairement (§4.2.2.2.2,
    * cas 3).
    */
@@ -1445,6 +1451,59 @@ export interface ExigencesGroupeSaisie {
   categorie_contraintes_exterieures: CategorieContraintes;
   /** Identifiant du groupe dans la zone. */
   groupe: string;
+}
+
+/** Exigence `Icconstruction_max` du bâtiment et sa vérification. */
+export interface ExigencesIcConstruction {
+  /**
+   * « Icconstruction_max » du bâtiment : moyenne des zones pondérée par leur `Sref`
+   * (chapitre II, V).
+   */
+  ic_construction_max_kgco2_m2: number;
+  /** Vrai si `Icconstruction ≤ Icconstruction_max`. */
+  respectee: boolean;
+  /** Exigences de chaque zone. */
+  zones: ExigencesIcConstructionZone[];
+}
+
+/**
+ * Exigence `Icconstruction_max` d'une zone et ses coefficients de modulation (annexe de
+ * l'article R. 172-4, chapitre III, III), en kg éq. CO2/m² sauf les coefficients sans unité
+ * `mi_combles`, `mi_surf_moy`, `mi_surf_tot`.
+ */
+export interface ExigencesIcConstructionZone {
+  /** « Icconstruction_max » de la zone. */
+  ic_construction_max_kgco2_m2: number;
+  /** « Icconstruction_maxmoyen ». */
+  ic_construction_max_moyen: number;
+  /** « Miagrément_ext ». */
+  mi_agrement_ext: number;
+  /** « Miclim_RCU ». */
+  mi_clim_rcu: number;
+  /** « Micombles ». */
+  mi_combles: number;
+  /** « Mided ». */
+  mi_ded: number;
+  /** « Migéo ». */
+  mi_geo: number;
+  /** « MiHSP ». */
+  mi_hsp: number;
+  /** « Miinfra ». */
+  mi_infra: number;
+  /** « Mipv ». */
+  mi_pv: number;
+  /** « Misurf_moy ». */
+  mi_surf_moy: number;
+  /** « Misurf_tot ». */
+  mi_surf_tot: number;
+  /** « Mivrd ». */
+  mi_vrd: number;
+  /** `Sref` de la zone, en m². */
+  sref_m2: number;
+  /** Numéro d'usage. */
+  usage: number;
+  /** Zone. */
+  zone: string;
 }
 
 /** Exigences d'une zone (partie de bâtiment d'un usage), annexe de l'article R. 172-4. */
@@ -2504,6 +2563,25 @@ export interface ParametresExigences {
   zones?: ExigencesZoneSaisie[];
 }
 
+/**
+ * Données de la modulation de `Icconstruction_max` propres à l'ACV (version post-Rivaton,
+ * permis déposés à partir du 1er juillet 2026).
+ */
+export interface ParametresExigencesAcv {
+  /** Présence d'un système de climatisation (`Miclim_RCU`, avec un réseau de chaleur classé). */
+  climatisation?: boolean;
+  /**
+   * Immeuble de grande hauteur au sens de l'article R. 146-3 du CCH (`Misurf_tot` et
+   * `Icconstruction_maxmoyen` propres).
+   */
+  immeuble_grande_hauteur?: boolean;
+  /**
+   * « Sagrément_ext » : surface d'espaces extérieurs (balcons, loggias, terrasses), en m²
+   * (`Miagrément_ext` des logements collectifs) ; 0 si absente.
+   */
+  s_agrement_ext_m2?: number;
+}
+
 /** Parcelle (§4.6, eau en calcul simplifié §4.6.2). */
 export interface ParcelleAcv {
   /** Matériaux de comblement de cavités (éq. 106). */
@@ -3307,6 +3385,8 @@ export interface ResultatsAcv {
   eau: ContributionAcv;
   /** Quantités d'eau. */
   eau_quantites: QuantitesEauAcv;
+  /** Exigence `Icconstruction_max` ; absente sans `exigences` du bâtiment. */
+  exigences?: ExigencesIcConstruction | null;
   /**
    * Part de la contribution « composants » due aux fluides frigorigènes (calcul propre aux
    * fluides, §4.2.1.1.6, §4.2.1.2.2, §4.2.2.2.2).
@@ -3778,12 +3858,18 @@ export interface ResultatsExigences {
   /** « Cep,nr_max » du bâtiment, en kWhep/(m².an). */
   cep_nr_max_kwhep_m2: number;
   /**
-   * Vrai si toutes les exigences vérifiées sont respectées. Seules les exigences sur Bbio,
-   * Cep, Cep,nr, Ic énergie et DH sont vérifiées : `Icconstruction`, les caractéristiques
-   * minimales et les autres articles de l'arrêté sont hors du moteur. Toujours faux si un
+   * Vrai si toutes les exigences vérifiées sont respectées. Les exigences sur Bbio, Cep,
+   * Cep,nr, Ic énergie et DH sont vérifiées, et celle sur `Icconstruction` si le bâtiment a
+   * des données d'ACV (`acv`) ; les caractéristiques minimales et les autres articles de
+   * l'arrêté sont hors du moteur. Toujours faux si un
    * indicateur exigé manque (`indicateurs_manquants`).
    */
   conforme: boolean;
+  /**
+   * « Icconstruction_max » du bâtiment, en kg éq. CO2/m² (détail dans `acv.exigences`) ;
+   * absent sans données d'ACV.
+   */
+  ic_construction_max_kgco2_m2?: number | null;
   /** « Icénergie_max » du bâtiment, en kg éq. CO2/m². */
   ic_energie_max_kgco2_m2: number;
   /** Indicateurs exigés qui n'ont pas pu être calculés ni donc vérifiés ; vide en général. */

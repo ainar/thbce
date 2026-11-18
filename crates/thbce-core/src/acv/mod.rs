@@ -9,6 +9,7 @@
 
 pub mod composants;
 pub mod donnees;
+pub mod exigences;
 
 use std::collections::BTreeMap;
 
@@ -482,7 +483,92 @@ pub fn calculer_acv(e: &EntreesAcv) -> ResultatsAcv {
             q_parcelle_eaux_usees_m3: q_parc.1,
         },
         tac_pv_pct: avec_lot13.then_some(tac * 100.0),
+        exigences: None,
         valeurs_par_defaut: defauts,
+    }
+}
+
+/// Exigence `Icconstruction_max` du bâtiment (annexe de l'article R. 172-4, chapitre II, III
+/// et V ; chapitre III, III) et vérification, ajoutée aux exigences du bâtiment et à sa
+/// conformité. Sans `exigences` du bâtiment, rien n'est calculé ; un usage non couvert laisse
+/// l'exigence absente et l'indicateur est déclaré manquant.
+pub fn verifier_exigence(
+    a: &mut ResultatsAcv,
+    bat: &crate::entree::Batiment,
+    zones: &[crate::resultats::ResultatsZone],
+    zone_climatique: thbce_data::ZoneClimatique,
+    alt_m: f64,
+    resultats_exigences: Option<&mut crate::indicateurs::resultats::ResultatsExigences>,
+) {
+    let (Some(p), Some(d)) = (&bat.exigences, &bat.acv) else {
+        return;
+    };
+    let lot = |n: u8| {
+        a.lots
+            .iter()
+            .find(|l| l.lot == n)
+            .map_or(0.0, |l| l.ic_kgco2_m2)
+    };
+    let ind = exigences::IndicateursModulation {
+        ic_lot1: lot(1),
+        ic_lot2: lot(2),
+        ic_lot13: lot(13),
+        ic_ded: a.ic_ded_kgco2_m2,
+    };
+    let rcu = crate::indicateurs::sorties_th_c::raccorde_rcu(bat);
+    let mut parties = Vec::new();
+    for (z, r) in bat.zones.iter().zip(zones) {
+        let sref_usage = bat
+            .zones
+            .iter()
+            .zip(zones)
+            .filter(|(x, _)| x.usage == z.usage)
+            .map(|(_, y)| y.sref_m2)
+            .sum();
+        let zi = exigences::ZoneIc {
+            id: &z.id,
+            usage: z.usage.numero(),
+            sref_m2: r.sref_m2,
+            nb_logements: z.nb_logements.unwrap_or(1),
+            sref_usage_m2: sref_usage,
+            raccorde_rcu: rcu,
+        };
+        match exigences::exigence_zone(&zi, p, &d.exigences, zone_climatique, alt_m, ind) {
+            Some(x) => parties.push(x),
+            None => {
+                if let Some(x) = resultats_exigences {
+                    x.indicateurs_manquants.push("ic_construction".to_owned());
+                    x.conforme = false;
+                }
+                return;
+            }
+        }
+    }
+    let s: f64 = parties.iter().map(|x| x.sref_m2).sum();
+    let max = if s > 0.0 {
+        parties
+            .iter()
+            .map(|x| x.ic_construction_max_kgco2_m2 * x.sref_m2)
+            .sum::<f64>()
+            / s
+    } else {
+        0.0
+    };
+    let v = crate::indicateurs::sorties_th_c::verifier(
+        "ic_construction",
+        None,
+        a.ic_construction_kgco2_m2,
+        max,
+    );
+    a.exigences = Some(crate::resultats::acv::ExigencesIcConstruction {
+        ic_construction_max_kgco2_m2: max,
+        zones: parties,
+        respectee: v.respectee,
+    });
+    if let Some(x) = resultats_exigences {
+        x.ic_construction_max_kgco2_m2 = Some(max);
+        x.conforme = x.conforme && v.respectee;
+        x.verifications.push(v);
     }
 }
 
@@ -523,6 +609,7 @@ mod tests {
                     nombre: 1,
                 },
             ]),
+            exigences: crate::entree::ParametresExigencesAcv::default(),
             donnees_service: DonneesService {
                 eau_potable_kgco2_m3: Some(0.4),
                 assainissement_collectif_kgco2_m3: Some(0.6),

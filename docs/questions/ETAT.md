@@ -97,3 +97,6 @@
 | Q210 | ACV : contribution « eau » (calcul simplifié) et eau du chantier | tranchée, à confirmer par un cas de référence |
 | Q211 | ACV : lot 13 (photovoltaïque) et sous-lot 8.2 (cogénération) | tranchée, à confirmer par un cas de référence |
 | Q212 | ACV : module D de la contribution « parcelle » | tranchée, à confirmer par un cas de référence |
+| Q213 | ACV : versions de l'exigence Icconstruction_max selon la date de dépôt | tranchée, à confirmer par un cas de référence |
+| Q214 | ACV : Icconstruction_maxmoyen des immeubles de grande hauteur à partir de 2031 | tranchée, à confirmer par un cas de référence |
+| Q215 | ACV : indicateurs Iclot et Icded d'une zone pour la modulation | tranchée, à confirmer par un cas de référence |
