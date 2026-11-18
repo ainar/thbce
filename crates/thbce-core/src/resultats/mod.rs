@@ -125,6 +125,10 @@ pub struct ResultatsBatiment {
     /// Distributions d'ECS intergroupes, calcul Th-C (§9.8) ; absent sans réseau.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub distributions_ecs_intergroupes: Vec<ResultatsEcsIntergroupe>,
+    /// Récupérateurs collectifs sur les eaux grises (§9.21.5 et §9.21.6) ; absent sans
+    /// récupérateur collectif.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub recuperateurs_eaux_grises: Vec<ResultatsRecuperateurCollectif>,
     /// Générations, issues du calcul Th-C (§8.14, §8.17 et §8.29) : demandes de leurs réseaux,
     /// énergies fournies et consommations de leurs générateurs. Absent sans génération.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -280,6 +284,7 @@ impl Resultats {
                     *x = a(*x);
                 }
                 d.theta_depart_c = d.theta_depart_c.map(a);
+                d.theta_entrant_moyen_c = d.theta_entrant_moyen_c.map(a);
             }
             for et in &mut b.espaces_tampons {
                 for m in [&mut et.th_b, &mut et.th_d].into_iter().flatten() {

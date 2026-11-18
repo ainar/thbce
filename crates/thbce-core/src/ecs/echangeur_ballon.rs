@@ -124,11 +124,24 @@ pub fn debit_ecs_nominal_m3_h(p_ech_kw: f64, theta_cons_c: f64) -> f64 {
 /// résolution (Brent) quand `|Δε| < 0,01` ; la racine est ici cherchée par dichotomie à
 /// 10⁻¹² près (lecture Q106).
 pub fn ua_echangeur_externe_w_k(p_ech_kw: f64, theta_cons_c: f64, q_v_prim_nom_m3_h: f64) -> f64 {
+    ua_echangeur_externe_selon(p_ech_kw, theta_cons_c, q_v_prim_nom_m3_h, 0.0)
+}
+
+/// Variante de [`ua_echangeur_externe_w_k`] visant une efficacité inférieure de `ecart_eps` à
+/// la cible : l'itération du texte s'arrête dès que `|Δε| < 0,01` (éq. 1880 à 1882) et retient
+/// « le dernier UAech(i) », donc n'importe quelle valeur dont l'efficacité est à moins de 0,01
+/// de la cible (Q106 point 2 : au pire `ecart_eps = 0,01`).
+pub fn ua_echangeur_externe_selon(
+    p_ech_kw: f64,
+    theta_cons_c: f64,
+    q_v_prim_nom_m3_h: f64,
+    ecart_eps: f64,
+) -> f64 {
     let q_ecs = debit_ecs_nominal_m3_h(p_ech_kw, theta_cons_c);
     let q_min = q_ecs.min(q_v_prim_nom_m3_h);
     let q_max = q_ecs.max(q_v_prim_nom_m3_h);
     // Éq. (1877) et (1878).
-    let eps_nom = (theta_cons_c - 5.0 - 15.0) / (theta_cons_c - 15.0) * q_min / q_ecs;
+    let eps_nom = (theta_cons_c - 5.0 - 15.0) / (theta_cons_c - 15.0) * q_min / q_ecs - ecart_eps;
     let rd = q_min / q_max;
     // Éq. (1880) et (1881) : l'efficacité croît avec UA.
     let eps = |ua: f64| {
@@ -159,8 +172,19 @@ pub fn ua_echangeur_externe_w_k(p_ech_kw: f64, theta_cons_c: f64, q_v_prim_nom_m
 /// l'accumulateur individuel, alors que la prose pose l'ECS à `θcons − 5` pour les deux
 /// applications).
 pub fn ua_echangeur_interne_w_k(p_ech_kw: f64, theta_cons_c: f64) -> f64 {
+    ua_echangeur_interne_selon(p_ech_kw, theta_cons_c, false)
+}
+
+/// Variante de [`ua_echangeur_interne_w_k`] : avec `numerateur_50_c` vrai, l'éq. (1924) est
+/// prise à la lettre (`εnom = (50 − 15)/(θcons − 15)`), le débit de l'éq. (1923) restant
+/// calculé avec `θcons − 5` (Q106 point 2).
+pub fn ua_echangeur_interne_selon(p_ech_kw: f64, theta_cons_c: f64, numerateur_50_c: bool) -> f64 {
     let q_ecs = debit_ecs_nominal_m3_h(p_ech_kw, theta_cons_c);
-    let eps_nom = (theta_cons_c - 5.0 - 15.0) / (theta_cons_c - 15.0);
+    let eps_nom = if numerateur_50_c {
+        (50.0 - 15.0) / (theta_cons_c - 15.0)
+    } else {
+        (theta_cons_c - 5.0 - 15.0) / (theta_cons_c - 15.0)
+    };
     let nut = -libm::log(1.0 - eps_nom);
     RHO_CW_WH_L_K * 1000.0 * q_ecs * nut
 }
@@ -174,6 +198,18 @@ pub fn ua_echangeur_interne_w_k(p_ech_kw: f64, theta_cons_c: f64) -> f64 {
 /// directement supérieur ») ; les équations (1869) à (1873) emploient 6 l/min et 0,13, la
 /// prose 8 l/min.
 pub fn debit_ecs_moyen(v_ef_m3: f64, theta_ef_c: f64, theta_depart_c: f64) -> Option<(f64, f64)> {
+    debit_ecs_moyen_selon(v_ef_m3, theta_ef_c, theta_depart_c, false)
+}
+
+/// Variante de [`debit_ecs_moyen`] : avec `entier_superieur` vrai, `ENTIER` de l'éq. (1868) est
+/// l'entier directement supérieur (prose de §9.12.3.1) au lieu de la partie entière ; le plus
+/// petit nombre de puisages reste 1 (Q106 point 2).
+pub fn debit_ecs_moyen_selon(
+    v_ef_m3: f64,
+    theta_ef_c: f64,
+    theta_depart_c: f64,
+    entier_superieur: bool,
+) -> Option<(f64, f64)> {
     if !(v_ef_m3 > 0.0 && theta_depart_c > theta_ef_c) {
         return None;
     }
@@ -181,7 +217,13 @@ pub fn debit_ecs_moyen(v_ef_m3: f64, theta_ef_c: f64, theta_depart_c: f64) -> Op
     let r_temp = (40.0 - theta_ef_c) / (theta_depart_c - theta_ef_c);
     let v_eq_l = 8.0 * 6.0 * r_temp;
     // Éq. (1868).
-    let n = libm::floor(v_ef_m3 * 1000.0 / v_eq_l).max(1.0);
+    let rapport = v_ef_m3 * 1000.0 / v_eq_l;
+    let n = if entier_superieur {
+        libm::ceil(rapport)
+    } else {
+        libm::floor(rapport)
+    }
+    .max(1.0);
     if n <= 1.0 {
         // Éq. (1869) et (1872).
         Some((0.06 * n * 6.0 * r_temp, 2.0 * 0.13))
@@ -600,5 +642,67 @@ mod tests {
         let mut b = ballon_uniforme(300.0, 30.0);
         let (p, _) = e.puiser(&mut b, 1000.0, 1000.0 / (1.163 * 38.0) / 1000.0, 15.0, 53.0);
         assert_eq!((p.v_p_l, p.q_report_wh), (0.0, 1000.0));
+    }
+
+    /// `ENTIER` de l'éq. (1868), plancher contre plafond, à la main (θef 15 °C, départ 55 °C :
+    /// `Rtemp` = 25/40 = 0,625, `Veq` = 30 l ; éq. 1869 à 1871). Le plancher rend `MAX(1 ; …)`
+    /// nécessaire sous 2·Veq ; le plafond le rend sans objet (Vef > 0), argument de Q106.
+    #[test]
+    fn entier_plancher_et_plafond() {
+        // 75 l : rapport 2,5. Plancher N = 2 (Y = 0,8) ; plafond N = 3 (Y = 0,8/√2).
+        let (plancher, _) = debit_ecs_moyen_selon(0.075, 15.0, 55.0, false).unwrap();
+        let (plafond, _) = debit_ecs_moyen_selon(0.075, 15.0, 55.0, true).unwrap();
+        assert!((plancher - 0.06 * 2.0 * 6.0 * 0.625 * 0.8).abs() < 1e-12);
+        let y3 = 0.8 / 2.0_f64.sqrt();
+        assert!((plafond - 0.06 * 3.0 * 6.0 * 0.625 * y3).abs() < 1e-12);
+        assert!((plafond / plancher - 1.0 - 0.0607).abs() < 1e-3);
+        // 40 l : rapport 1,33. Plancher N = 1 ; plafond N = 2 : débit multiplié par 1,6.
+        let (p1, _) = debit_ecs_moyen_selon(0.040, 15.0, 55.0, false).unwrap();
+        let (p2, _) = debit_ecs_moyen_selon(0.040, 15.0, 55.0, true).unwrap();
+        assert!((p1 - 0.225).abs() < 1e-12 && (p2 / p1 - 1.6).abs() < 1e-12);
+        // 20 l : rapport 0,67. `MAX(1 ; 0)` : N = 1 dans les deux lectures.
+        let (a, _) = debit_ecs_moyen_selon(0.020, 15.0, 55.0, false).unwrap();
+        let (b, _) = debit_ecs_moyen_selon(0.020, 15.0, 55.0, true).unwrap();
+        assert_eq!(a, b);
+    }
+
+    /// Éq. (1924) : `εnom` = 40/45 (lecture retenue) ou 35/45 (« 50 °C » imprimé) à 60 °C ; à
+    /// 55 °C les deux lectures coïncident. `UA = ρ·c·qv,ECS,nom × (−ln(1 − εnom))`.
+    #[test]
+    fn eq_1924_a_60_degres() {
+        let retenue = ua_echangeur_interne_selon(60.0, 60.0, false);
+        let litterale = ua_echangeur_interne_selon(60.0, 60.0, true);
+        let q = debit_ecs_nominal_m3_h(60.0, 60.0);
+        assert!((retenue - 1163.0 * q * libm::log(9.0)).abs() < 1e-6);
+        assert!((litterale - 1163.0 * q * libm::log(4.5)).abs() < 1e-6);
+        // ln 4,5 / ln 9 = 0,6845 : UA inférieur de 31,6 %.
+        assert!((litterale / retenue - 0.6845).abs() < 1e-4);
+        assert_eq!(
+            ua_echangeur_interne_selon(60.0, 55.0, false),
+            ua_echangeur_interne_selon(60.0, 55.0, true)
+        );
+    }
+
+    /// Tolérance de l'inversion d'UA : l'itération du texte s'arrête à `|Δε| < 0,01` ; au pire
+    /// l'efficacité est inférieure de 0,01 à la cible et l'UA retenu de 4,6 % (60 kW, 60 °C,
+    /// 3,0 m³/h : NUT 3,010 contre 2,871). La mention « inférieur à 1 % » de la première
+    /// rédaction de Q106 était donc fausse.
+    #[test]
+    fn tolerance_de_l_inversion_d_ua() {
+        let exact = ua_echangeur_externe_w_k(60.0, 60.0, 3.0);
+        let q = debit_ecs_nominal_m3_h(60.0, 60.0);
+        let rd = q / 3.0;
+        // Efficacité contre-courant au NUT trouvé : retrouve la cible 40/45.
+        let nut = exact / (1163.0 * q);
+        let x = libm::exp(-nut * (1.0 - rd));
+        assert!(((1.0 - x) / (1.0 - rd * x) - 40.0 / 45.0).abs() < 1e-9);
+        let pire = ua_echangeur_externe_selon(60.0, 60.0, 3.0, 0.01);
+        assert!(
+            (pire / exact - 1.0 + 0.0462).abs() < 5e-4,
+            "{}",
+            pire / exact
+        );
+        let moitie = ua_echangeur_externe_selon(60.0, 60.0, 3.0, 0.005);
+        assert!((moitie / exact - 1.0 + 0.0236).abs() < 5e-4);
     }
 }

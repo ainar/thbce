@@ -266,6 +266,11 @@ export interface Batiment {
   installations_pv?: InstallationPv[];
   /** Parcs de stationnement associés au bâtiment (§10.3 et §10.4). */
   parkings?: Parking[];
+  /**
+   * Récupérateurs de chaleur collectifs sur les eaux grises (§9.21.5 et §9.21.6), auxquels
+   * les émetteurs d'ECS en récupération collective se rattachent par leur identifiant.
+   */
+  recuperateurs_eaux_grises?: RecuperateurCollectifEauxGrises[];
   /** Zones : parties de bâtiment de même usage, donc de mêmes scénarios (§5.1.3). */
   zones: Zone[];
 }
@@ -783,6 +788,9 @@ export interface ComposantAcv {
   /** Unité fonctionnelle (texte libre, pour la traçabilité). */
   unite?: string | null;
 }
+
+/** « Typerecup » (§9.21.2.1) : configuration du système de récupération. */
+export type ConfigurationRecuperateur = "individuelle" | "collective";
 
 /** « CT » : degré de confinement thermique de la face arrière des modules (§12.3.3.2). */
 export type ConfinementPv = "libre" | "autre" | "confine";
@@ -1321,6 +1329,19 @@ export interface EchangeurDetaille {
   ua_w_k: number;
 }
 
+/** Échangeur de chaleur sur les eaux grises (§9.21.6.2, tableau 303). */
+export interface EchangeurEauxGrises {
+  /** « Ctrans » : coefficient transitoire de l'échangeur, entre 0 et 1. */
+  c_trans?: number | null;
+  /** « εech_eg_fixe » : efficacité de l'échangeur, entre 0 et 1. */
+  efficacite?: number | null;
+  /**
+   * Origine des valeurs `Ctrans` et `εech_eg_fixe`. Absent, ou l'une des deux valeurs
+   * absente : `εech_eg_fixe = 0,8 × 0,15` (§9.21.6.3.2.1), signalé dans les résultats.
+   */
+  origine?: OrigineEfficaciteEauxGrises | null;
+}
+
 /**
  * Accumulateur d'ECS en eau technique (Th-BCE 2020 §9.12) : le ballon ne contient pas l'eau
  * du réseau ; il est séparé de la distribution par un échangeur. Quatre zones de volumes
@@ -1518,8 +1539,13 @@ export interface EmetteurEcs {
    */
   rat_em: number;
   /**
-   * « Irecup » : récupérateur de chaleur sur les eaux grises (fiche 9.21) : non pris en
-   * charge dans cette version. Absent : faux.
+   * Description du récupérateur de chaleur sur les eaux grises de l'émetteur (§9.21.2,
+   * paramètres d'intégration du tableau 299), requise si « Irecup » vaut 1.
+   */
+  recuperateur?: RecuperateurEauxGrises | null;
+  /**
+   * « Irecup » : présence d'un récupérateur de chaleur sur les eaux grises (fiche 9.21).
+   * Absent : vrai si `recuperateur` est saisi, faux sinon. Vrai exige `recuperateur`.
    */
   recuperateur_eaux_grises?: boolean | null;
 }
@@ -2701,6 +2727,9 @@ export interface OnduleurPv {
   rendement?: RendementOnduleur;
 }
 
+/** Origine des valeurs d'efficacité d'un échangeur sur les eaux grises (§9.21.6.3.2.1). */
+export type OrigineEfficaciteEauxGrises = "certifiee" | "justifiee" | "declaree";
+
 /** Provenance des données météo, reportée telle quelle dans les résultats. */
 export type OrigineMeteo = {
   type: "reglementaire_re2020";
@@ -3210,6 +3239,9 @@ export type PositionGeneration = "en_volume_chauffe" | {
 /** « Inclk » (§5.17.2) : position de référence du coefficient `Uk` d'une paroi opaque. */
 export type PositionParoi = "verticale" | "horizontale_flux_ascendant" | "horizontale_flux_descendant";
 
+/** « Tposition » (§9.21.2.1) : position du récupérateur dans le circuit d'eau froide. */
+export type PositionRecuperateur = "amont_mitigeurs_et_ballon" | "amont_ballon" | "amont_mitigeurs";
+
 /**
  * Consommation électrique d'un poste, annuelle et par mois des scénarios, en kWh d'énergie
  * finale.
@@ -3358,6 +3390,49 @@ export type RaccordementSsc = {
     delta_theta_reg_boucle_chauffage_k: number;
   };
 } | "raccorde";
+
+/**
+ * Récupérateur de chaleur collectif sur les eaux grises du bâtiment (§9.21.5 et §9.21.6) :
+ * distribution d'évacuation intergroupe et échangeur central.
+ */
+export interface RecuperateurCollectifEauxGrises {
+  /** Échangeur central. */
+  echangeur?: EchangeurEauxGrises;
+  /** Identifiant, unique dans le bâtiment. */
+  id: string;
+  /**
+   * « Levac,vc^prim » : longueur du conduit d'évacuation intergroupe jusqu'à l'échangeur en
+   * volume chauffé, en m.
+   */
+  l_evac_vc_m: number;
+  /** « Levac,vnc^prim » : longueur du même conduit en volume non chauffé, en m. */
+  l_evac_vnc_m: number;
+}
+
+/**
+ * Récupérateur de chaleur sur les eaux grises d'un émetteur d'ECS équivalent (§9.21.2) et
+ * distribution d'évacuation des eaux grises du groupe (§9.21.4).
+ */
+export interface RecuperateurEauxGrises {
+  /** « Typerecup » : récupération individuelle (groupe) ou collective (intergroupe). */
+  configuration: ConfigurationRecuperateur;
+  /**
+   * « Levac,vc^2nd-e » : longueur moyenne du conduit d'évacuation des eaux grises du groupe
+   * jusqu'à l'échangeur (ou au réseau intergroupe) en volume chauffé, en m.
+   */
+  l_evac_vc_m: number;
+  /** « Levac,vnc^2nd-e » : longueur moyenne du même conduit en volume non chauffé, en m. */
+  l_evac_vnc_m: number;
+  /** « Tposition » : requise en récupération individuelle, interdite en collective. */
+  position?: PositionRecuperateur | null;
+  /**
+   * Identifiant du récupérateur collectif du bâtiment (`recuperateurs_eaux_grises`),
+   * requis en récupération collective.
+   */
+  recuperateur_collectif?: string | null;
+  /** Configurations unitaires de l'émetteur, au moins une (somme des « u ∈ em-e »). */
+  unites: UniteRecuperateur[];
+}
 
 /** Régime d'exigences d'une extension ou d'une construction de petite surface. */
 export interface RegimeAlternatif {
@@ -3850,6 +3925,11 @@ export interface ResultatsBatiment {
    * installation. La répartition autoconsommé/exporté relève du chapitre 13.
    */
   production_pv?: ResultatsProductionPv | null;
+  /**
+   * Récupérateurs collectifs sur les eaux grises (§9.21.5 et §9.21.6) ; absent sans
+   * récupérateur collectif.
+   */
+  recuperateurs_eaux_grises?: ResultatsRecuperateurCollectif[];
   /** « SREF_bat » : surface de référence, en m² (Th-BCE 2020 §13.1.3, éq. 2378). */
   sref_m2: number;
   /** Résultats par zone. */
@@ -4046,6 +4126,8 @@ export interface ResultatsEcsEmetteur {
   q_w_bruts_kwh: number;
   /** « Qw » : besoins annuels, en kWh (éq. 1693). */
   q_w_kwh: number;
+  /** Récupérateur de chaleur sur les eaux grises (fiche 9.21), s'il y en a un. */
+  recuperateur?: ResultatsRecuperateurEauxGrises | null;
   /** « Vuw_hebdo_corr » : volume hebdomadaire corrigé, en litres à 40 °C (éq. 1692). */
   v_uw_hebdo_corr_l: number;
   /** Valeurs par défaut de la méthode appliquées. */
@@ -4068,6 +4150,11 @@ export interface ResultatsEcsIntergroupe {
   q_w_prim_mensuel_kwh: number[];
   /** Température de départ demandée à la génération, en °C. */
   theta_depart_c: number | null;
+  /**
+   * « θentrant » moyen du ballon de la génération, pondéré par le volume d'eau chaude
+   * appelé, en °C, si un émetteur d'ECS a un récupérateur sur les eaux grises (§9.21.3).
+   */
+  theta_entrant_moyen_c?: number | null;
   /** Circulateurs ou traceurs, en kWh d'énergie finale électrique. */
   w_aux_kwh: number;
   /** Réchauffeur de boucle, en kWh d'énergie finale électrique. */
@@ -4518,6 +4605,36 @@ export interface ResultatsProductionPv {
   e_prod_pv_mensuel_kwh: number[];
   /** Installations. */
   installations: ResultatsInstallationPv[];
+}
+
+/** Récupérateur de chaleur collectif sur les eaux grises, calcul Th-C (§9.21.6). */
+export interface ResultatsRecuperateurCollectif {
+  /** « εech_eg_fixe » retenue pour l'échangeur central (§9.21.6.3.2.1). */
+  epsilon_ech_eg: number;
+  /** Identifiant. */
+  id: string;
+  /** Valeurs par défaut de la méthode appliquées. */
+  valeurs_par_defaut: ValeurParDefaut[];
+}
+
+/** Récupérateur de chaleur sur les eaux grises d'un émetteur d'ECS, calcul Th-C (§9.21). */
+export interface ResultatsRecuperateurEauxGrises {
+  /**
+   * « Qw » sans récupérateur (éq. 1693), en kWh ; `q_w_kwh` de l'émetteur en tient compte
+   * (éq. 2183, 2186, 2189).
+   */
+  q_w_sans_recuperateur_kwh: number;
+  /**
+   * « θentrant » moyen du ballon d'ECS vu par l'émetteur, pondéré par le volume d'eau chaude
+   * appelé, en °C ; absent en récupération collective (voir la distribution d'ECS
+   * intergroupe).
+   */
+  theta_entrant_moyen_c?: number | null;
+  /**
+   * « Qrelevage » : consommation électrique des pompes de relevage, en kWh (éq. 2224),
+   * comptée avec les auxiliaires de distribution.
+   */
+  w_relevage_kwh: number;
 }
 
 /**
@@ -5074,6 +5191,38 @@ export type TypoEmetteur = "plancher_ou_plafond_inertie_forte" | "radiateurs_ou_
  * passage d'air en position fermée.
  */
 export type TypoPm = "etanche" | "faiblement_ajouree" | "ajouree" | "fortement_ajouree" | "tres_fortement_ajouree";
+
+/**
+ * Configuration unitaire d'un récupérateur de chaleur (§9.21.2.1) : un échangeur et les
+ * appareils sanitaires (douches, baignoires) qui lui sont reliés ou non.
+ */
+export interface UniteRecuperateur {
+  /**
+   * Échangeur de la configuration, en récupération individuelle (interdit en collective :
+   * l'échangeur est celui du récupérateur collectif).
+   */
+  echangeur?: EchangeurEauxGrises | null;
+  /**
+   * « Nbnon-relies,douches-bains » : douches et baignoires de la configuration non reliées
+   * à l'échangeur. Absent : 0.
+   */
+  nb_douches_non_relies?: number | null;
+  /**
+   * « Nbrelies,douches-bains » : douches et baignoires reliées à l'échangeur d'une
+   * configuration (au moins 1).
+   */
+  nb_douches_relies: number;
+  /**
+   * « Nbechangeurs » : nombre d'échangeurs de cette configuration dans l'émetteur (au moins
+   * 1).
+   */
+  nb_echangeurs: number;
+  /**
+   * « Prelevage,nominal » : puissance nominale de la pompe de relevage de la configuration,
+   * en W (§9.21.7). Absent : pas de pompe de relevage, donc pas de consommation.
+   */
+  p_relevage_nominale_w?: number | null;
+}
 
 /**
  * Th-BCE 2020 §4.1.3, tableau 4 — usages d'une zone.

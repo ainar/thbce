@@ -117,6 +117,12 @@ pub struct Lectures {
     pub relance_cta: LectureRelanceCta,
     /// Température vue par la génération pour la sécurité antigel d'une centrale (Q93 point 3).
     pub antigel_cta: LectureAntigelCta,
+    /// Préchauffage de l'eau froide du ballon d'ECS par un récupérateur sur les eaux grises
+    /// (Q108 point 6) : `Deduit` déduit la chaleur récupérée de la demande de la génération
+    /// (lecture retenue) ; `Texte` ne modifie que `θentrant`, sans effet en position 1.
+    pub preechauffage_ecs: LecturePreechauffageEcs,
+    /// Puisage d'un accumulateur en eau technique aux heures sans puisage d'ECS (Q106 point 3).
+    pub puisage_accumulateur: LecturePuisageAccumulateur,
 }
 
 /// Température d'air ambiant équivalente vue par la génération pour la sécurité antigel d'une
@@ -143,6 +149,28 @@ pub enum LectureRelanceCta {
     /// `irelance^gr(h)` anticipée : programmation des relances (fiche 8.5) appelée avant les
     /// groupes sur une copie de son état ; variante écartée, conservée pour chiffrer l'écart.
     Anticipee,
+}
+
+/// Heures sans puisage d'ECS d'un accumulateur en eau technique (`docs/questions/Q106.md`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LecturePuisageAccumulateur {
+    /// Les valeurs du dernier pas avec puisage sont conservées (lecture retenue).
+    #[default]
+    Conserve,
+    /// Texte littéral (p. 1134) : sans puisage (Vef,ecs = 0), ni puisage ni circulateur.
+    Litteral,
+}
+
+/// Prise en compte du préchauffage de l'eau froide du ballon (`docs/questions/Q108.md`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LecturePreechauffageEcs {
+    /// Seule `θentrant` change ; la demande à la génération reste celle de l'émetteur (éq. 1794
+    /// calculée à partir de `θcw`) : le préchauffage de la position 1 est sans effet (variante).
+    Texte,
+    /// La chaleur `ρw·cw·Vec·(θentrant − θcw)` récupérée sur l'eau froide est déduite de la
+    /// demande de la génération (lecture retenue).
+    #[default]
+    Deduit,
 }
 
 /// Émission employée par le calcul Th-D (`docs/questions/Q043.md` ; Q40 point 1).
@@ -180,6 +208,8 @@ impl Default for Lectures {
             recuperation_th_d: true,
             relance_cta: LectureRelanceCta::PasPrecedent,
             antigel_cta: LectureAntigelCta::AirNeuf,
+            preechauffage_ecs: LecturePreechauffageEcs::default(),
+            puisage_accumulateur: LecturePuisageAccumulateur::default(),
         }
     }
 }

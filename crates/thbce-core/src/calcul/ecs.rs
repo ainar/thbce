@@ -8,7 +8,8 @@ use crate::ecs::distribution_ecs::{l_vc_2nd_e_defaut_m, EmetteurEcsResolu};
 use crate::entree::UsageZone;
 use crate::resultats::{
     ResultatsEchangeurEcs, ResultatsEcsEmetteur, ResultatsEcsIntergroupe, ResultatsIdCet,
-    ResultatsSsc, ResultatsStockage, ValeurParDefaut,
+    ResultatsRecuperateurCollectif, ResultatsRecuperateurEauxGrises, ResultatsSsc,
+    ResultatsStockage, ValeurParDefaut,
 };
 
 /// Résultats d'un assemblage avec ballon de stockage d'ECS (§9.14).
@@ -64,6 +65,19 @@ pub(super) fn resultats_ecs(e: &EmetteurEcsResolu) -> ResultatsEcsEmetteur {
                 .to_owned(),
         });
     }
+    if let Some(r) = &e.recuperateur {
+        for (i, u) in r.unites.iter().enumerate() {
+            if u.eps_defaut && r.collectif.is_none() {
+                valeurs_par_defaut.push(ValeurParDefaut {
+                    champ: format!("recuperateur.unites[{i}].echangeur"),
+                    valeur: u.eps,
+                    regle: "Th-BCE 2020 §9.21.6.3.2.1 : en l'absence d'information, \
+                            εech_eg_fixe = 0,8 × 0,15"
+                        .to_owned(),
+                });
+            }
+        }
+    }
     if e.l_vc_defaut {
         valeurs_par_defaut.push(ValeurParDefaut {
             champ: "distribution.l_vc_m".to_owned(),
@@ -84,6 +98,18 @@ pub(super) fn resultats_ecs(e: &EmetteurEcsResolu) -> ResultatsEcsEmetteur {
         q_w_2nd_kwh: c.q_w_2nd_wh / 1000.0,
         pertes_vc_kwh: c.phi_pertes_vc_wh / 1000.0,
         pertes_hvc_kwh: c.phi_pertes_hvc_wh / 1000.0,
+        recuperateur: e
+            .recuperateur
+            .as_ref()
+            .map(|r| ResultatsRecuperateurEauxGrises {
+                q_w_sans_recuperateur_kwh: c.q_w_sans_recup_wh / 1000.0,
+                w_relevage_kwh: c.w_relevage_wh / 1000.0,
+                theta_entrant_moyen_c: if r.collectif.is_none() && c.v_ec_l > 0.0 {
+                    Some(c.v_ec_theta_l_c / c.v_ec_l)
+                } else {
+                    None
+                },
+            }),
         valeurs_par_defaut,
     }
 }
@@ -104,6 +130,37 @@ pub(super) fn resultats_ecs_intergroupes(b: &BatimentHoraire) -> Vec<ResultatsEc
             w_aux_kwh: c.w_aux_wh / 1000.0,
             w_rechauf_kwh: c.w_rechauf_wh / 1000.0,
             theta_depart_c: c.theta_depart_max_c,
+            theta_entrant_moyen_c: s
+                .cumuls_entree_gen
+                .get(d.generation)
+                .filter(|(v, _)| *v > 0.0)
+                .filter(|_| s.gen_avec_recuperateur.get(d.generation) == Some(&true))
+                .map(|(v, vt)| vt / v),
+        })
+        .collect()
+}
+
+/// Récupérateurs collectifs sur les eaux grises d'un bâtiment (§9.21.5 et §9.21.6).
+pub(super) fn resultats_recuperateurs_collectifs(
+    b: &BatimentHoraire,
+) -> Vec<ResultatsRecuperateurCollectif> {
+    b.systemes
+        .collectifs_eaux_grises
+        .iter()
+        .map(|c| ResultatsRecuperateurCollectif {
+            id: c.id.clone(),
+            epsilon_ech_eg: c.eps,
+            valeurs_par_defaut: if c.eps_defaut {
+                vec![ValeurParDefaut {
+                    champ: format!("recuperateurs_eaux_grises[{}].echangeur", c.id),
+                    valeur: c.eps,
+                    regle: "Th-BCE 2020 §9.21.6.3.2.1 : en l'absence d'information, \
+                            εech_eg_fixe = 0,8 × 0,15"
+                        .to_owned(),
+                }]
+            } else {
+                Vec::new()
+            },
         })
         .collect()
 }

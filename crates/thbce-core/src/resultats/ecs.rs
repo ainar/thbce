@@ -165,6 +165,36 @@ pub struct ResultatsEcsEmetteur {
     pub pertes_vc_kwh: f64,
     /// Pertes de la distribution du groupe hors volume chauffé, en kWh.
     pub pertes_hvc_kwh: f64,
+    /// Récupérateur de chaleur sur les eaux grises (fiche 9.21), s'il y en a un.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recuperateur: Option<ResultatsRecuperateurEauxGrises>,
+    /// Valeurs par défaut de la méthode appliquées.
+    pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+}
+
+/// Récupérateur de chaleur sur les eaux grises d'un émetteur d'ECS, calcul Th-C (§9.21).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsRecuperateurEauxGrises {
+    /// « Qw » sans récupérateur (éq. 1693), en kWh ; `q_w_kwh` de l'émetteur en tient compte
+    /// (éq. 2183, 2186, 2189).
+    pub q_w_sans_recuperateur_kwh: f64,
+    /// « Qrelevage » : consommation électrique des pompes de relevage, en kWh (éq. 2224),
+    /// comptée avec les auxiliaires de distribution.
+    pub w_relevage_kwh: f64,
+    /// « θentrant » moyen du ballon d'ECS vu par l'émetteur, pondéré par le volume d'eau chaude
+    /// appelé, en °C ; absent en récupération collective (voir la distribution d'ECS
+    /// intergroupe).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub theta_entrant_moyen_c: Option<f64>,
+}
+
+/// Récupérateur de chaleur collectif sur les eaux grises, calcul Th-C (§9.21.6).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsRecuperateurCollectif {
+    /// Identifiant.
+    pub id: Id,
+    /// « εech_eg_fixe » retenue pour l'échangeur central (§9.21.6.3.2.1).
+    pub epsilon_ech_eg: f64,
     /// Valeurs par défaut de la méthode appliquées.
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,
 }
@@ -190,4 +220,8 @@ pub struct ResultatsEcsIntergroupe {
     pub w_rechauf_kwh: f64,
     /// Température de départ demandée à la génération, en °C.
     pub theta_depart_c: Option<f64>,
+    /// « θentrant » moyen du ballon de la génération, pondéré par le volume d'eau chaude
+    /// appelé, en °C, si un émetteur d'ECS a un récupérateur sur les eaux grises (§9.21.3).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub theta_entrant_moyen_c: Option<f64>,
 }

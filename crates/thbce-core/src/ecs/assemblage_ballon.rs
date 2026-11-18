@@ -212,8 +212,13 @@ pub struct AssemblageBallon {
     pub echangeur: Option<EchangeurEcs>,
     /// Dernier puisage non nul d'un accumulateur en eau technique : volume d'eau chaude non
     /// mitigée en m³ (pour un assemblage), température d'eau froide et de départ, en °C. Ils
-    /// servent aux heures où seule de l'énergie reportée est à fournir (§9.10.3.1.3).
+    /// servent aux heures où seule de l'énergie reportée est à fournir (lecture Q106 point 3 ;
+    /// le texte, p. 1134, n'applique §9.12.3.2.4 que si Vef,ecs > 0 m³).
     pub dernier_puisage: Option<(f64, f64, f64)>,
+    /// Variante littérale de Q106 : sans puisage d'ECS au pas de temps (Vef,ecs = 0), ni
+    /// puisage ni circulateur, l'énergie reportée restant à fournir. Faux : lecture retenue
+    /// (valeurs du dernier pas avec puisage conservées).
+    pub puisage_litteral: bool,
 }
 
 impl AssemblageBallon {
@@ -246,6 +251,7 @@ impl AssemblageBallon {
             ssc: None,
             echangeur: None,
             dernier_puisage: None,
+            puisage_litteral: false,
         }
     }
 
@@ -304,11 +310,16 @@ impl AssemblageBallon {
         let puisage = if let Some(ech) = self.echangeur {
             // Accumulateur en eau technique : puisage à travers l'échangeur (§9.12.3). Le volume
             // d'eau chaude non mitigée est celui du pas de temps ; sans puisage ce pas-ci, les
-            // valeurs du dernier pas de temps où il y en avait un sont conservées (§9.10.3.1.3).
+            // valeurs du dernier pas de temps où il y en avait un sont conservées (lecture Q106 point 3 ;
+            // le texte, p. 1134, n'applique §9.12.3.2.4 que si Vef,ecs > 0 m³ : variante
+            // `puisage_litteral`).
             let q_h = e.q_ecs_horaire_wh.min(e.q_req_ecs_wh).max(0.0) / nb;
             if q_h > 0.0 && e.theta_depart_c > e.theta_entrant_c {
                 let v = q_h / (RHO_CW_WH_L_K * (e.theta_depart_c - e.theta_entrant_c)) / 1000.0;
                 self.dernier_puisage = Some((v, e.theta_entrant_c, e.theta_depart_c));
+            }
+            if self.puisage_litteral && (q_h <= 0.0 || q_h.is_nan()) {
+                self.dernier_puisage = None;
             }
             let (v_ef, theta_ef, theta_dep) =
                 self.dernier_puisage

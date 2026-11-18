@@ -31,7 +31,7 @@ use crate::resultats::{
 use crate::validation::valider;
 use crate::{VERSION_METHODE, VERSION_MOTEUR};
 use batiment::restituer_zone;
-use ecs::resultats_ecs_intergroupes;
+use ecs::{resultats_ecs_intergroupes, resultats_recuperateurs_collectifs};
 use emission_distribution::resultats_intergroupes;
 use enveloppe::synthese_espace_tampon;
 use generation::{avertissements_generations, resultats_generations};
@@ -340,6 +340,7 @@ pub fn calculer(
             zones,
             distributions_intergroupes: resultats_intergroupes(&th_c),
             distributions_ecs_intergroupes: resultats_ecs_intergroupes(&th_c),
+            recuperateurs_eaux_grises: resultats_recuperateurs_collectifs(&th_c),
             generations,
             consommations: avec_generations.then_some(consommations_bat),
             production_pv: (!productions.is_empty())

@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Maison d'exemple chauffée et alimentée en ECS par la chaudière gaz à condensation de tests/cas/maison-chaudiere-gaz-ademe (ballon de 200 L), dont l'émetteur d'ECS est équipé d'un récupérateur de chaleur sur les eaux grises (§9.21) : récupération individuelle, échangeur en amont des mitigeurs et du ballon (Tposition = 0), une douche reliée à un échangeur d'efficacité certifiée 0,55 et de coefficient transitoire 0,9, conduit d'évacuation de 3 m en volume chauffé, pompe de relevage de 100 W. Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : les besoins d'ECS sont ceux de la maison sans récupérateur, réduits par les éq. 2184 à 2186 ; le Bbio, le DH et le chauffage sont ceux de tests/cas/maison-chaudiere-gaz-ademe. Ce n'est pas un cas de référence."
+meteo = "ademe"
