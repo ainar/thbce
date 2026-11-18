@@ -22,6 +22,7 @@ Point d'entrée unique : `calcul/mod.rs::calculer` (projet, météo, options →
   - les zones, `bati/assemblage_zone.rs::ZoneHoraire::nouvelle_dans_batiment` : scénarios (`scenarios/scenarios_conventionnels.rs::ScenariosZone::nouveau`), groupes (`bati/assemblage_groupe.rs::GroupeHoraire::nouveau_dans_batiment` : enveloppe résolue, modèle thermique, saisons), ventilation du projet hors Th-B (`ventilation/ventilation_projet.rs::VentilationProjet::nouvelle`), modèle aéraulique (`ventilation/debits_air_cep.rs::ZoneAeraulique`) ;
   - les espaces tampons (`bati/espace_tampon/assemblage.rs::EspaceTamponHoraire`) et leurs liens aux groupes (éq. 106 et 107) ;
   - hors Th-B, les systèmes du bâtiment, `SystemesBatiment::nouveaux` (même fichier) : générations résolues depuis la saisie (`chauffage_refroidissement/generation/resolution.rs::resoudre`), distributions intergroupes (`chauffage_refroidissement/distribution.rs::DistributionIntergroupesResolue`), systèmes de chaque groupe (`GroupeHoraire::lier_systemes`), surfaces desservies et autorisations effectives (§8.4).
+- Classement au bruit (fiche 5.11) : au début de `calculer`, `bati/classement_bruit.rs::projet_avec_classes_deduites` copie le projet validé en y écrivant la classe de bruit déduite des baies (`expo_br` des baies, `zone_bruit` des zones sans saisie) ; la validation (`validation/bruit.rs`, `validation/exigences.rs`) a contrôlé la cohérence avec les saisies directes (Q200 à Q204).
 - Les valeurs par défaut du texte sont appliquées à la préparation (ou au calcul du poste, pour les postes hors boucle) et signalées (`valeurs_par_defaut`, voir §4).
 
 ### 1.3 Boucle horaire
@@ -113,7 +114,7 @@ Modules de `thbce-core`. Les fiches exactes et leur statut sont dans [`couvertur
 | `validation/` | `Projet` | `RapportValidation` (erreurs, avertissements, hors périmètre) | colonnes Min/Max, fiches d'application |
 | `climat/` | `MeteoProjet`, département, altitude | climat horaire du site, soleil, confort adaptatif, calendrier | ch. 3 |
 | `scenarios/` | usage, surfaces | consignes, occupation, apports, saisons | ch. 4 (§4.1, §4.6) |
-| `bati/` | enveloppe résolue, air entrant | températures, besoins, flux ; assemblages bâtiment, zone, groupe | ch. 5 |
+| `bati/` | enveloppe résolue, air entrant | températures, besoins, flux ; assemblages bâtiment, zone, groupe ; classement au bruit des baies (`classement_bruit.rs`, fiche 5.11 : tableaux, classe d'un groupe ou d'une zone, `projet_avec_classes_deduites` appelé au début de `calculer`) | ch. 5 |
 | `ventilation/` | système et bouches saisis, état des groupes | débits, air soufflé, consommations | ch. 6 et §5.6 |
 | `eclairage/` | baies, scénarios | consommation d'éclairage | ch. 7 |
 | `chauffage_refroidissement/` | besoins émis, réseaux, générateurs | énergies requises, pertes, matrice des consommations | ch. 8 |

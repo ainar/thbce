@@ -131,6 +131,11 @@ export interface Baie {
   /** « Ab » : surface de la baie, en m². */
   a_b_m2: number;
   /**
+   * Détermination détaillée de la classe d'exposition au bruit (fiche 5.11) : catégorie et
+   * distance des infrastructures, vue, plan d'exposition au bruit. Facultative.
+   */
+  bruit?: BruitBaie | null;
+  /**
    * Identifiant de l'espace tampon sur lequel donne la baie (§5.10.3, « IdET »). Une baie
    * ne peut donner que sur un espace tampon solarisé. Absent : la baie donne sur
    * l'extérieur.
@@ -138,7 +143,8 @@ export interface Baie {
   espace_tampon?: string | null;
   /**
    * « expo_BR » : classe d'exposition au bruit de la baie (§5.13.2). Requise si le type de
-   * baie a un ouvrant.
+   * baie a un ouvrant, sauf si `bruit` permet de la déduire ; si les deux sont saisies, la
+   * validation vérifie leur cohérence.
    */
   expo_br?: ExpoBr | null;
   /** Orientation, inclinaison et masques. */
@@ -404,6 +410,42 @@ export interface BoucleSolaireSaisie {
   ua_ti_w_k: number;
 }
 
+/**
+ * Détermination détaillée de la classe d'exposition au bruit d'une baie (fiche d'application
+ * 5.11 ; annexe de l'article R. 172-4, chapitre V, partie I, point 3). **Facultative** : elle
+ * remplace la saisie directe de `expo_br`.
+ *
+ * La catégorie sonore des voies (arrêté préfectoral de classement, article R. 571-38 du code
+ * de l'environnement) et le plan d'exposition au bruit de l'aérodrome (arrêté préfectoral) sont
+ * des **données à saisir** : le moteur ne peut ni les déterminer, ni les retrouver. Il en
+ * déduit la classe de la baie (tableaux de la partie I, configurations 1 et 2) et, de là, celle
+ * des groupes et des zones (point 4) quand `exigences.zone_bruit` n'est pas saisi.
+ */
+export interface BruitBaie {
+  /**
+   * Identifiant de la façade (libre, commun aux baies d'une même façade du bâtiment). « À
+   * défaut d'une détermination détaillée, la classe BR d'une baie d'une façade est la classe
+   * la plus élevée des baies de cette façade » : sans `infrastructures` ni `zone_peb`, la baie
+   * prend la classe la plus élevée des autres baies de la même façade (déterminées en détail
+   * ou par `expo_br`).
+   */
+  facade?: string | null;
+  /**
+   * Infrastructures de transports terrestres vues de la baie, une entrée par infrastructure
+   * (distance et vue propres à chacune). Plusieurs infrastructures : la classe la plus
+   * défavorable est retenue. Une infrastructure au-delà de sa distance maximale de prise en
+   * compte (700, 500, 250, 100 ou 30 m selon la catégorie 1 à 5) donne BR1 : il est inutile
+   * de la saisir.
+   */
+  infrastructures?: InfrastructureBruit[];
+  /**
+   * Zone du plan d'exposition au bruit de l'aérodrome le plus proche où se situe le
+   * bâtiment (zones A à C : BR3, D : BR2, hors zone : BR1, « toutes vues »). Absente : aucun
+   * aérodrome à prendre en compte.
+   */
+  zone_peb?: ZonePeb | null;
+}
+
 /** Régulation du bypass de l'échangeur (§6.3.3.4.6.2, éq. 494). */
 export interface Bypass {
   /** « θext,bypass,été » : la même hors saison de chauffage, en °C. */
@@ -447,6 +489,9 @@ export type CategorieCe = "CE1" | "CE2";
 
 /** Catégorie de contraintes extérieures (annexe de l'article R. 172-4, chapitre V). */
 export type CategorieContraintes = "categorie_1" | "categorie_2" | "categorie_3";
+
+/** Catégorie d'une infrastructure de transports terrestres (arrêté du 30 mai 1996). */
+export type CategorieInfrastructure = "categorie_1" | "categorie_2" | "categorie_3" | "categorie_4" | "categorie_5";
 
 /**
  * Th-BCE 2020 §8.19.2, tableau 114 — chaudière au gaz, au fioul ou au bois. La position de la
@@ -1242,7 +1287,10 @@ export interface ExigencesZoneSaisie {
   groupes?: ExigencesGroupeSaisie[];
   /** Identifiant de la zone du bâtiment. */
   zone: string;
-  /** Classe d'exposition au bruit de la zone ; absente : celle du bâtiment. */
+  /**
+   * Classe d'exposition au bruit de la zone ; absente : celle du bâtiment, sinon celle
+   * déduite des baies de la zone (`bruit` de chaque baie).
+   */
   zone_bruit?: ZoneBruit | null;
 }
 
@@ -1679,6 +1727,25 @@ export type InertieSequentielle = {
   };
 } | "defaut" | "tres_legere" | "legere" | "moyenne" | "lourde";
 
+/**
+ * Une infrastructure de transports terrestres vue d'une baie (annexe de l'article R. 172-4,
+ * chapitre V, partie I, points 2 et 3 ; fiche 5.11).
+ */
+export interface InfrastructureBruit {
+  /**
+   * Catégorie de l'infrastructure (1 à 5), donnée par l'arrêté préfectoral de classement des
+   * voies : donnée à saisir.
+   */
+  categorie: CategorieInfrastructure;
+  /**
+   * Distance de la façade à l'infrastructure, en m : plus courte distance au bord extérieur
+   * de la chaussée la plus proche, en projection en plan (fiche 5.11.4).
+   */
+  distance_m: number;
+  /** Vue de l'infrastructure depuis la baie. */
+  vue: VueInfrastructure;
+}
+
 /** Th-BCE 2020 §12.2.2 — installation photovoltaïque intégrée au bâtiment. */
 export interface InstallationPv {
   /**
@@ -2114,8 +2181,15 @@ export interface ParametresExigences {
   s_combles_m2?: number;
   /**
    * Classe d'exposition au bruit du bâtiment (chapitre V de l'annexe, partie I) : module
-   * `Bbio_max` (`Mbbruit`). Saisie : elle dépend des infrastructures voisines et du plan
-   * d'exposition au bruit.
+   * `Bbio_max` (`Mbbruit`). Elle dépend de la catégorie des infrastructures voisines
+   * (arrêté préfectoral de classement) et du plan d'exposition au bruit de l'aérodrome, qui
+   * sont des **données à saisir** : le moteur ne peut pas les déterminer.
+   *
+   * **Facultative** si les baies portent leur détermination détaillée (`bruit` de chaque
+   * baie, fiche 5.11) : la classe de chaque zone en est alors déduite (point 4 de la partie
+   * I). Saisie, elle prime comme saisie directe ; si la classe se déduit aussi des baies, la
+   * validation vérifie leur cohérence. Elle vaut pour les zones qui n'ont pas la leur dans
+   * `zones`. Absente et non déductible des baies : erreur de validation (Q200 à Q204).
    *
    * Règle de détermination : la classe de chaque baie (BR1, BR2 ou BR3) se lit dans les
    * tableaux de la partie I selon la catégorie des infrastructures de transports terrestres
@@ -2128,7 +2202,7 @@ export interface ParametresExigences {
    * sont BR1. Une partie de bâtiment est BR3 si toutes ses baies le sont, BR2 si toutes sont
    * BR2 ou BR3 et l'une au moins BR2, BR1 sinon.
    */
-  zone_bruit: ZoneBruit;
+  zone_bruit?: ZoneBruit | null;
   /**
    * Catégorie de contraintes extérieures et classe d'exposition au bruit propres à une zone,
    * quand elles diffèrent de celles du bâtiment (chapitre V : elles se définissent pour
@@ -4291,6 +4365,9 @@ export interface VerificationExigence {
   valeur: number;
 }
 
+/** Vue de l'infrastructure depuis la baie (chapitre V, partie I, point 2). */
+export type VueInfrastructure = "directe" | "partielle" | "masquee_peu_protecteurs" | "masquee_tres_protecteurs" | "arriere";
+
 /** Niveau « zone » (Th-BCE 2020 §5.5). */
 export interface Zone {
   /** Groupes de la zone. */
@@ -4346,3 +4423,9 @@ export type ZoneBruit = "br1" | "br2" | "br3";
 
 /** Les huit zones climatiques réglementaires (annexe II §2.2.1.1). */
 export type ZoneClimatique = "H1a" | "H1b" | "H1c" | "H2a" | "H2b" | "H2c" | "H2d" | "H3";
+
+/**
+ * Zone du plan d'exposition au bruit (PEB) d'un aérodrome (code de l'urbanisme, articles
+ * R. 112-4 à R. 112-17) : donnée à saisir.
+ */
+export type ZonePeb = "a" | "b" | "c" | "d" | "hors_zone";
