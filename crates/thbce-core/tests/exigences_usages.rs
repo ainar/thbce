@@ -15,7 +15,7 @@ use thbce_data::ZoneClimatique as Z;
 fn parametres(annee: u16, categorie: C, bruit: B) -> ParametresExigences {
     ParametresExigences {
         categorie_contraintes_exterieures: categorie,
-        zone_bruit: bruit,
+        zone_bruit: Some(bruit),
         annee_depot_permis: annee,
         hsp_moy_m: None,
         s_combles_m2: 0.0,

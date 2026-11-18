@@ -14,6 +14,7 @@
 
 use crate::bati::assemblage_batiment::BatimentHoraire;
 use crate::bati::assemblage_groupe::SortiesPasGroupe;
+use crate::bati::classement_bruit::projet_avec_classes_deduites;
 use crate::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
 use crate::conventions::{ModeCalcul, NB_HEURES_AN};
 use crate::entree::{Batiment, Projet};
@@ -98,6 +99,10 @@ pub fn calculer(
     options: &Options,
 ) -> Result<Resultats, Erreur> {
     let rapport = verifier(projet, meteo)?;
+    // Fiche 5.11 : la classe d'exposition au bruit déduite des baies prend la place de la saisie
+    // absente (Q202).
+    let resolu = projet_avec_classes_deduites(projet);
+    let projet = resolu.as_ref().unwrap_or(projet);
     let loc = &projet.localisation;
     let zone = loc.zone_climatique_retenue();
 
@@ -419,6 +424,8 @@ pub fn series_horaires(
     mode: ModeCalcul,
 ) -> Result<Vec<SerieHoraireGroupe>, Erreur> {
     verifier(projet, meteo)?;
+    let resolu = projet_avec_classes_deduites(projet);
+    let projet = resolu.as_ref().unwrap_or(projet);
     let loc = &projet.localisation;
     let annee = match mode {
         ModeCalcul::ThD => &meteo.th_d,

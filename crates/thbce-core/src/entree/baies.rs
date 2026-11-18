@@ -74,7 +74,9 @@ pub enum TypeOuvrant {
 }
 
 /// « expo_BR » (§5.13.2 ; fiche d'application §5.11) : classe d'exposition au bruit d'une baie.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum ExpoBr {
     /// BR1.
@@ -83,6 +85,112 @@ pub enum ExpoBr {
     Br2,
     /// BR3.
     Br3,
+}
+
+/// Détermination détaillée de la classe d'exposition au bruit d'une baie (fiche d'application
+/// 5.11 ; annexe de l'article R. 172-4, chapitre V, partie I, point 3). **Facultative** : elle
+/// remplace la saisie directe de `expo_br`.
+///
+/// La catégorie sonore des voies (arrêté préfectoral de classement, article R. 571-38 du code
+/// de l'environnement) et le plan d'exposition au bruit de l'aérodrome (arrêté préfectoral) sont
+/// des **données à saisir** : le moteur ne peut ni les déterminer, ni les retrouver. Il en
+/// déduit la classe de la baie (tableaux de la partie I, configurations 1 et 2) et, de là, celle
+/// des groupes et des zones (point 4) quand `exigences.zone_bruit` n'est pas saisi.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BruitBaie {
+    /// Infrastructures de transports terrestres vues de la baie, une entrée par infrastructure
+    /// (distance et vue propres à chacune). Plusieurs infrastructures : la classe la plus
+    /// défavorable est retenue. Une infrastructure au-delà de sa distance maximale de prise en
+    /// compte (700, 500, 250, 100 ou 30 m selon la catégorie 1 à 5) donne BR1 : il est inutile
+    /// de la saisir.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub infrastructures: Vec<InfrastructureBruit>,
+    /// Zone du plan d'exposition au bruit de l'aérodrome le plus proche où se situe le
+    /// bâtiment (zones A à C : BR3, D : BR2, hors zone : BR1, « toutes vues »). Absente : aucun
+    /// aérodrome à prendre en compte.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub zone_peb: Option<ZonePeb>,
+    /// Identifiant de la façade (libre, commun aux baies d'une même façade du bâtiment). « À
+    /// défaut d'une détermination détaillée, la classe BR d'une baie d'une façade est la classe
+    /// la plus élevée des baies de cette façade » : sans `infrastructures` ni `zone_peb`, la baie
+    /// prend la classe la plus élevée des autres baies de la même façade (déterminées en détail
+    /// ou par `expo_br`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub facade: Option<Id>,
+}
+
+/// Une infrastructure de transports terrestres vue d'une baie (annexe de l'article R. 172-4,
+/// chapitre V, partie I, points 2 et 3 ; fiche 5.11).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct InfrastructureBruit {
+    /// Catégorie de l'infrastructure (1 à 5), donnée par l'arrêté préfectoral de classement des
+    /// voies : donnée à saisir.
+    pub categorie: CategorieInfrastructure,
+    /// Distance de la façade à l'infrastructure, en m : plus courte distance au bord extérieur
+    /// de la chaussée la plus proche, en projection en plan (fiche 5.11.4).
+    pub distance_m: f64,
+    /// Vue de l'infrastructure depuis la baie.
+    pub vue: VueInfrastructure,
+}
+
+/// Catégorie d'une infrastructure de transports terrestres (arrêté du 30 mai 1996).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CategorieInfrastructure {
+    /// Catégorie 1 (distance maximale de prise en compte : 700 m).
+    #[serde(rename = "categorie_1")]
+    Categorie1,
+    /// Catégorie 2 (500 m).
+    #[serde(rename = "categorie_2")]
+    Categorie2,
+    /// Catégorie 3 (250 m).
+    #[serde(rename = "categorie_3")]
+    Categorie3,
+    /// Catégorie 4 (100 m).
+    #[serde(rename = "categorie_4")]
+    Categorie4,
+    /// Catégorie 5 (30 m).
+    #[serde(rename = "categorie_5")]
+    Categorie5,
+}
+
+/// Vue de l'infrastructure depuis la baie (chapitre V, partie I, point 2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VueInfrastructure {
+    /// Vue directe : vue en plan de l'infrastructure de plus de 90°, après déduction des
+    /// obstacles très protecteurs.
+    Directe,
+    /// Vue partielle : vue en plan inférieure à 90°, après déduction des obstacles très
+    /// protecteurs.
+    Partielle,
+    /// Vue masquée par des obstacles peu protecteurs (altitude inférieure à celle de l'étage
+    /// considéré, tout en masquant l'infrastructure).
+    MasqueePeuProtecteurs,
+    /// Vue masquée par des obstacles très protecteurs (altitude supérieure ou égale à celle de
+    /// l'étage considéré).
+    MasqueeTresProtecteurs,
+    /// Vue arrière : façade arrière du bâtiment par rapport à l'infrastructure.
+    Arriere,
+}
+
+/// Zone du plan d'exposition au bruit (PEB) d'un aérodrome (code de l'urbanisme, articles
+/// R. 112-4 à R. 112-17) : donnée à saisir.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ZonePeb {
+    /// Zone A (BR3).
+    A,
+    /// Zone B (BR3).
+    B,
+    /// Zone C (BR3).
+    C,
+    /// Zone D (BR2).
+    D,
+    /// Hors zone du plan d'exposition au bruit (BR1).
+    HorsZone,
 }
 
 /// Th-BCE 2020 §5.9.2 et §5.12.2 — protection mobile d'une baie et sa gestion.
@@ -204,9 +312,14 @@ pub struct Baie {
     /// Orientation, inclinaison et masques.
     pub exposition: Exposition,
     /// « expo_BR » : classe d'exposition au bruit de la baie (§5.13.2). Requise si le type de
-    /// baie a un ouvrant.
+    /// baie a un ouvrant, sauf si `bruit` permet de la déduire ; si les deux sont saisies, la
+    /// validation vérifie leur cohérence.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expo_br: Option<ExpoBr>,
+    /// Détermination détaillée de la classe d'exposition au bruit (fiche 5.11) : catégorie et
+    /// distance des infrastructures, vue, plan d'exposition au bruit. Facultative.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bruit: Option<BruitBaie>,
     /// Identifiant de l'espace tampon sur lequel donne la baie (§5.10.3, « IdET »). Une baie
     /// ne peut donner que sur un espace tampon solarisé. Absent : la baie donne sur
     /// l'extérieur.

@@ -27,8 +27,15 @@ pub struct ParametresExigences {
     /// ont la leur dans `zones` (Q66).
     pub categorie_contraintes_exterieures: CategorieContraintes,
     /// Classe d'exposition au bruit du bâtiment (chapitre V de l'annexe, partie I) : module
-    /// `Bbio_max` (`Mbbruit`). Saisie : elle dépend des infrastructures voisines et du plan
-    /// d'exposition au bruit.
+    /// `Bbio_max` (`Mbbruit`). Elle dépend de la catégorie des infrastructures voisines
+    /// (arrêté préfectoral de classement) et du plan d'exposition au bruit de l'aérodrome, qui
+    /// sont des **données à saisir** : le moteur ne peut pas les déterminer.
+    ///
+    /// **Facultative** si les baies portent leur détermination détaillée (`bruit` de chaque
+    /// baie, fiche 5.11) : la classe de chaque zone en est alors déduite (point 4 de la partie
+    /// I). Saisie, elle prime comme saisie directe ; si la classe se déduit aussi des baies, la
+    /// validation vérifie leur cohérence. Elle vaut pour les zones qui n'ont pas la leur dans
+    /// `zones`. Absente et non déductible des baies : erreur de validation (Q200 à Q204).
     ///
     /// Règle de détermination : la classe de chaque baie (BR1, BR2 ou BR3) se lit dans les
     /// tableaux de la partie I selon la catégorie des infrastructures de transports terrestres
@@ -40,7 +47,8 @@ pub struct ParametresExigences {
     /// 250, 100 ou 30 m selon la catégorie 1 à 5) et hors plan d'exposition, toutes les baies
     /// sont BR1. Une partie de bâtiment est BR3 si toutes ses baies le sont, BR2 si toutes sont
     /// BR2 ou BR3 et l'une au moins BR2, BR1 sinon.
-    pub zone_bruit: ZoneBruit,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub zone_bruit: Option<ZoneBruit>,
     /// Année de dépôt de la demande de permis de construire (2022 ou après) : fixe
     /// `Icénergie_maxmoyen`. Les dérogations datées du texte sont appliquées à l'année : « avant
     /// le 31 décembre 2023 » (maisons, raccordement au gaz) est lu « année ≤ 2023 », « avant le
@@ -174,10 +182,18 @@ impl ParametresExigences {
 
     /// Classe d'exposition au bruit de la zone `id` : celle de la zone si elle est saisie, celle
     /// du bâtiment sinon.
+    ///
+    /// La validation garantit qu'une classe existe (saisie, ou déduite des baies puis copiée
+    /// dans la zone par `bati::classement_bruit::projet_avec_classes_deduites`) ; le BR1 de
+    /// repli n'est atteint que sur une entrée non validée.
     pub fn zone_bruit_zone(&self, id: &str) -> ZoneBruit {
-        self.zone(id)
-            .and_then(|z| z.zone_bruit)
-            .unwrap_or(self.zone_bruit)
+        self.zone_bruit_saisie(id).unwrap_or(ZoneBruit::Br1)
+    }
+
+    /// Classe d'exposition au bruit saisie pour la zone `id` (celle de la zone, sinon celle du
+    /// bâtiment), s'il y en a une.
+    pub fn zone_bruit_saisie(&self, id: &str) -> Option<ZoneBruit> {
+        self.zone(id).and_then(|z| z.zone_bruit).or(self.zone_bruit)
     }
 }
 
@@ -192,7 +208,8 @@ pub struct ExigencesZoneSaisie {
     /// module `Mbbruit` (catégorie 3), `Mccat` et fixe `DH_max` des groupes de la zone.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub categorie_contraintes_exterieures: Option<CategorieContraintes>,
-    /// Classe d'exposition au bruit de la zone ; absente : celle du bâtiment.
+    /// Classe d'exposition au bruit de la zone ; absente : celle du bâtiment, sinon celle
+    /// déduite des baies de la zone (`bruit` de chaque baie).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub zone_bruit: Option<ZoneBruit>,
     /// Catégories propres à certains groupes (parties de bâtiment thermiquement homogènes) :
@@ -233,7 +250,9 @@ pub enum CategorieContraintes {
 }
 
 /// Zone de bruit (annexe de l'article R. 172-4, chapitre V).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum ZoneBruit {
     /// BR1.
@@ -242,4 +261,24 @@ pub enum ZoneBruit {
     Br2,
     /// BR3.
     Br3,
+}
+
+impl From<super::ExpoBr> for ZoneBruit {
+    fn from(c: super::ExpoBr) -> Self {
+        match c {
+            super::ExpoBr::Br1 => Self::Br1,
+            super::ExpoBr::Br2 => Self::Br2,
+            super::ExpoBr::Br3 => Self::Br3,
+        }
+    }
+}
+
+impl From<ZoneBruit> for super::ExpoBr {
+    fn from(c: ZoneBruit) -> Self {
+        match c {
+            ZoneBruit::Br1 => Self::Br1,
+            ZoneBruit::Br2 => Self::Br2,
+            ZoneBruit::Br3 => Self::Br3,
+        }
+    }
 }
