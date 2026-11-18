@@ -308,7 +308,8 @@ fn refus_et_erreurs() {
         )
     };
     let c = "batiments[0].zones[0].ventilation.systeme.cta";
-    // Mode actif des centrales à charge variable : hors périmètre (code 3).
+    // Mode actif des centrales à charge variable (lot 1-ven2) : génération et émetteur contenu
+    // dans les bouches requis (erreurs de saisie ; voir `cta_mode_actif.rs`).
     let mut p = bureaux_cta();
     {
         let x = cta_mut(&mut p);
@@ -316,7 +317,16 @@ fn refus_et_erreurs() {
         x.batterie_prechauffage = None;
         x.batterie_chaude = Some(true);
     }
-    assert_eq!(chemins(&p), (vec![format!("{c}.batterie_chaude")], true));
+    assert_eq!(
+        chemins(&p),
+        (
+            vec![
+                format!("{c}.batterie_chaude"),
+                format!("{c}.generation_batterie_chaude")
+            ],
+            false
+        )
+    );
     // Humidification : hors périmètre.
     let mut p = bureaux_cta();
     cta_mut(&mut p).humidification = Some(true);

@@ -40,9 +40,7 @@ pub(super) fn resultats_mode(
             .map(|_| c.q_prefroid_wh / 1000.0),
         nbh_mode_actif: batteries.map(|_| c.nbh_mode_actif),
         nbh_sous_dimensionnement: batteries.map(|_| c.nbh_sous_dimensionnement),
-        q_chaud_kwh: batteries
-            .filter(|b| b.chaud)
-            .map(|_| c.q_chaud_wh / 1000.0),
+        q_chaud_kwh: batteries.filter(|b| b.chaud).map(|_| c.q_chaud_wh / 1000.0),
         q_froid_kwh: batteries
             .and_then(|b| b.froid)
             .map(|_| c.q_froid_wh / 1000.0),

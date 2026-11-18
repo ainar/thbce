@@ -45,7 +45,8 @@ pub struct ResultatsVentilationMode {
     /// Énergie fournie par la batterie de prérefroidissement, en kWh, négative (éq. 545,
     /// lecture Q91) ; absente sans batterie.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub q_prefroid_kwh: Option<f64>,    /// Nombre d'heures de fonctionnement en mode actif d'une centrale à charge variable
+    pub q_prefroid_kwh: Option<f64>,
+    /// Nombre d'heures de fonctionnement en mode actif d'une centrale à charge variable
     /// pourvue de batteries régulées sur la charge (§6.3.3.5) ; absent sans ces batteries.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nbh_mode_actif: Option<u32>,
