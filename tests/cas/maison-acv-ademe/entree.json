@@ -1,0 +1,716 @@
+{
+  "nom": "Maison de démonstration sur météo ouverte ADEME (non réglementaire) avec 3 kWc photovoltaïques",
+  "localisation": {
+    "departement": "37",
+    "alt_m": 80,
+    "dmer_km": 200,
+    "durb_km": 5
+  },
+  "catalogue": {
+    "parois": [
+      {
+        "id": "mur",
+        "u_k_w_m2k": 0.2,
+        "sf_c_k": 0.0048,
+        "sf_e_k": 0.00835,
+        "incl_k": "verticale"
+      },
+      {
+        "id": "toiture",
+        "u_k_w_m2k": 0.12,
+        "sf_c_k": 0.00288,
+        "sf_e_k": 0.00502,
+        "incl_k": "horizontale_flux_ascendant"
+      },
+      {
+        "id": "plancher",
+        "u_k_w_m2k": 0.15,
+        "sf_c_k": 0,
+        "sf_e_k": 0,
+        "incl_k": "horizontale_flux_descendant"
+      }
+    ],
+    "baies": [
+      {
+        "id": "fenetre",
+        "u_sp_vert_w_m2k": 1.3,
+        "u_ap_vert_w_m2k": 1.1,
+        "sans_protection": {
+          "sw1_e": 0.4,
+          "sw2_e": 0.05,
+          "sw3_e": 0,
+          "tli": 0.6
+        },
+        "avec_protection": {
+          "sw1_e": 0.02,
+          "sw2_e": 0.03,
+          "sw3_e": 0,
+          "tli": 0
+        },
+        "protection_mobile": {
+          "type_pm": "volet",
+          "gestion": "manuelle_motorisee",
+          "exterieure": true,
+          "seconde_protection": false
+        },
+        "ouvrant": {
+          "type_ouvrant": "francaise_ou_anglaise"
+        }
+      }
+    ],
+    "masques": [
+      {
+        "id": "casquette-sud",
+        "masque": {
+          "proche_horizontal": {
+            "dhm_m": 0.6,
+            "dhp_m": 0.2
+          }
+        }
+      },
+      {
+        "id": "relief-nord",
+        "masque": {
+          "lointain_azimutal": {
+            "gamma_i_deg": [
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              15,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5
+            ]
+          }
+        }
+      },
+      {
+        "id": "haie-ouest",
+        "masque": {
+          "lointain_arbres_caducs": {
+            "gamma_i_deg": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              25,
+              25,
+              25,
+              25,
+              25,
+              25,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "batiments": [
+    {
+      "id": "maison",
+      "zones": [
+        {
+          "id": "logement",
+          "usage": "maison_individuelle",
+          "h_zone_m": 2.5,
+          "h_plancher_m": 0,
+          "q4pa_surf_m3_h_m2": 0.6,
+          "ventilation": {
+            "id": "vmc-hygro",
+            "systeme": {
+              "simple_flux_extraction": {
+                "p_vent_base_w": 14,
+                "p_vent_pointe_w": 32
+              }
+            },
+            "reseau": {
+              "r_rep_m2k_w": 0.6,
+              "b": 1.0
+            }
+          },
+          "groupes": [
+            {
+              "id": "volume-chauffe",
+              "shab_m2": 96.44,
+              "su_m2": 96.44,
+              "v_m3": 241.1,
+              "categorie_ce1_ce2": "CE1",
+              "inertie": {
+                "quotidienne": "moyenne",
+                "sequentielle": "defaut",
+                "ams_surf_m2_m2": 2.5,
+                "annuelle": "defaut",
+                "ama_surf_m2_m2": 2.5
+              },
+              "parois_opaques": [
+                {
+                  "id": "mur-sud",
+                  "type_paroi": "mur",
+                  "a_k_m2": 22,
+                  "exposition": {
+                    "azimut_deg": 0,
+                    "inclinaison_deg": 90
+                  }
+                },
+                {
+                  "id": "mur-ouest",
+                  "type_paroi": "mur",
+                  "a_k_m2": 20,
+                  "exposition": {
+                    "azimut_deg": 90,
+                    "inclinaison_deg": 90,
+                    "masques": [
+                      "haie-ouest"
+                    ]
+                  }
+                },
+                {
+                  "id": "mur-nord",
+                  "type_paroi": "mur",
+                  "a_k_m2": 28,
+                  "exposition": {
+                    "azimut_deg": 180,
+                    "inclinaison_deg": 90
+                  }
+                },
+                {
+                  "id": "mur-est",
+                  "type_paroi": "mur",
+                  "a_k_m2": 20,
+                  "exposition": {
+                    "azimut_deg": 270,
+                    "inclinaison_deg": 90
+                  }
+                },
+                {
+                  "id": "toiture",
+                  "type_paroi": "toiture",
+                  "a_k_m2": 100,
+                  "exposition": {
+                    "azimut_deg": 0,
+                    "inclinaison_deg": 0
+                  }
+                },
+                {
+                  "id": "plancher-bas",
+                  "type_paroi": "plancher",
+                  "a_k_m2": 100,
+                  "exposition": {
+                    "azimut_deg": 0,
+                    "inclinaison_deg": 180
+                  }
+                }
+              ],
+              "baies": [
+                {
+                  "id": "baie-sud",
+                  "type_baie": "fenetre",
+                  "a_b_m2": 8,
+                  "exposition": {
+                    "azimut_deg": 0,
+                    "inclinaison_deg": 90,
+                    "lpb_m": 4,
+                    "hpb_m": 2,
+                    "masques": [
+                      "casquette-sud"
+                    ]
+                  },
+                  "expo_br": "br1"
+                },
+                {
+                  "id": "baie-nord",
+                  "type_baie": "fenetre",
+                  "a_b_m2": 2,
+                  "exposition": {
+                    "azimut_deg": 180,
+                    "inclinaison_deg": 90,
+                    "masques": [
+                      "relief-nord"
+                    ]
+                  },
+                  "expo_br": "br1"
+                }
+              ],
+              "ponts_thermiques": [
+                {
+                  "id": "plancher-bas-mur",
+                  "psi_l_w_mk": 0.1,
+                  "l_l_m": 40,
+                  "sf_c_l": 0,
+                  "sf_e_l": 0
+                }
+              ],
+              "entrees_air": {
+                "m_m3_h": 120
+              },
+              "bouches_conduits": [
+                {
+                  "id": "extraction",
+                  "isouf": "reprise",
+                  "q_spec_conv_pointe_m3_h": 180,
+                  "qvarep_spec_m3_h": 92,
+                  "dugd_h": 7
+                }
+              ],
+              "iclim": false,
+              "programmation": {
+                "chauffage": "horloge"
+              },
+              "distributions": [
+                {
+                  "id": "distribution-chauffage",
+                  "fonction": "chauffage",
+                  "distribution_intergroupe": "intergroupes-chauffage",
+                  "reseau": "fictif"
+                }
+              ],
+              "emetteurs": [
+                {
+                  "id": "panneaux-rayonnants",
+                  "chauffage": {
+                    "type_emetteur": "muraux_rayonnants",
+                    "variation_spatiale": {
+                      "classe": {
+                        "classe": "B3",
+                        "hsp_m": 2.5
+                      }
+                    },
+                    "variation_temporelle": {
+                      "defaut": {
+                        "arret_total": true
+                      }
+                    },
+                    "effet_joule": true,
+                    "rats": 1.0,
+                    "ratt": 1.0,
+                    "distribution": "distribution-chauffage"
+                  }
+                }
+              ],
+              "emetteurs_ecs": [
+                {
+                  "id": "sanitaires",
+                  "rat_em": 1.0,
+                  "nb_logements": 1,
+                  "part_melangeur": 0.4,
+                  "part_mitigeur": 0.6,
+                  "part_temporisateur": 0.0,
+                  "appareils": "baignoire_standard",
+                  "distribution": {
+                    "d_int_m": 0.016,
+                    "l_hvc_m": 0.0,
+                    "nb_dist": 1
+                  },
+                  "distribution_intergroupe": "ecs-individuelle"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "generations": [
+        {
+          "id": "generation-effet-joule",
+          "raccordement_reseaux": "avec_isolement",
+          "position": "en_volume_chauffe",
+          "generateurs": [
+            {
+              "id": "panneaux-rayonnants",
+              "rdim": 8,
+              "nature": {
+                "effet_joule": {
+                  "fonction": "chauffage",
+                  "pn_gen_w": 1000
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "ballon-ecs",
+          "raccordement_reseaux": "avec_isolement",
+          "position": "en_volume_chauffe",
+          "generateurs": [
+            {
+              "id": "resistance",
+              "rdim": 1,
+              "nature": {
+                "effet_joule": {
+                  "fonction": "ecs",
+                  "pn_gen_w": 2200
+                }
+              }
+            }
+          ],
+          "stockages": [
+            {
+              "id": "ballon",
+              "nb_assemblages": 1,
+              "ballon": {
+                "v_tot_l": 200,
+                "pertes": {
+                  "defaut": {
+                    "nature": "effet_joule_vertical"
+                  }
+                },
+                "theta_max_c": 65
+              },
+              "base": {
+                "generateur": "resistance",
+                "programmation": "permanent",
+                "z_reg": 1
+              }
+            }
+          ]
+        }
+      ],
+      "distributions_intergroupes": [
+        {
+          "id": "intergroupes-chauffage",
+          "fonction": "chauffage",
+          "generation": "generation-effet-joule",
+          "reseau": "fictif"
+        }
+      ],
+      "distributions_ecs_intergroupes": [
+        {
+          "id": "ecs-individuelle",
+          "generation": "ballon-ecs",
+          "reseau": "aucun"
+        }
+      ],
+      "installations_pv": [
+        {
+          "id": "toiture-sud",
+          "exposition": {
+            "azimut_deg": 0,
+            "inclinaison_deg": 30
+          },
+          "nb_modules": 8,
+          "modules": {
+            "technologie": "mono_cristallin_si",
+            "s_m2": 1.75,
+            "performances": {
+              "statut": "certifie",
+              "pc_w": 375,
+              "mu_par_c": 0.0035,
+              "noct_c": 45
+            }
+          }
+        }
+      ],
+      "exigences": {
+        "categorie_contraintes_exterieures": "categorie_1",
+        "zone_bruit": "br1",
+        "annee_depot_permis": 2025,
+        "hsp_moy_m": 2.5
+      },
+      "acv": {
+        "composants": [
+          {
+            "id": "semelles",
+            "designation": "Semelles filantes en béton armé",
+            "sous_lot": "2.1",
+            "quantite": 12.0,
+            "unite": "m3",
+            "donnee": {
+              "type": "donnee_par_defaut",
+              "identifiant": "DED-FICTIVE-01",
+              "source": "valeur fictive (exemple tests/cas/maison-acv-ademe), sans lien avec une donnée publiée",
+              "dvr_ans": 100,
+              "production_kgco2": 260.0,
+              "edification_kgco2": 12.0,
+              "exploitation_kgco2": 0.0,
+              "fin_de_vie_kgco2": 18.0,
+              "module_d_kgco2": -6.0
+            }
+          },
+          {
+            "id": "dallage",
+            "designation": "dallage",
+            "sous_lot": "3.1",
+            "quantite": 95.0,
+            "unite": "m2",
+            "donnee": {
+              "type": "fdes_collective",
+              "identifiant": "FDES-FICTIVE-02",
+              "source": "valeur fictive (exemple tests/cas/maison-acv-ademe), sans lien avec une donnée publiée",
+              "dvr_ans": 100,
+              "production_kgco2": 48.0,
+              "edification_kgco2": 3.0,
+              "exploitation_kgco2": 0.0,
+              "fin_de_vie_kgco2": 4.0,
+              "module_d_kgco2": -1.5
+            }
+          },
+          {
+            "id": "murs",
+            "designation": "murs",
+            "sous_lot": "3.2",
+            "quantite": 140.0,
+            "unite": "m2",
+            "donnee": {
+              "type": "fdes_individuelle",
+              "identifiant": "FDES-FICTIVE-03",
+              "source": "valeur fictive (exemple tests/cas/maison-acv-ademe), sans lien avec une donnée publiée",
+              "dvr_ans": 100,
+              "production_kgco2": 35.0,
+              "edification_kgco2": 2.5,
+              "exploitation_kgco2": 0.0,
+              "fin_de_vie_kgco2": 3.0,
+              "module_d_kgco2": -1.0
+            }
+          },
+          {
+            "id": "charpente",
+            "designation": "charpente",
+            "sous_lot": "4.1",
+            "quantite": 110.0,
+            "unite": "m2",
+            "donnee": {
+              "type": "fdes_individuelle",
+              "identifiant": "FDES-FICTIVE-04",
+              "source": "valeur fictive (exemple tests/cas/maison-acv-ademe), sans lien avec une donnée publiée",
+              "dvr_ans": 100,
+              "production_kgco2": -20.0,
+              "edification_kgco2": 1.5,
+              "exploitation_kgco2": 0.0,
+              "fin_de_vie_kgco2": 24.0,
+              "module_d_kgco2": -9.0,
+              "a1_kgco2": -31.0
+            }
+          },
+          {
+            "id": "isolant",
+            "designation": "isolant",
+            "sous_lot": "5.2",
+            "quantite": 140.0,
+            "unite": "m2",
+            "donnee": {
+              "type": "fdes_collective",
+              "identifiant": "FDES-FICTIVE-05",
+              "source": "valeur fictive (exemple tests/cas/maison-acv-ademe), sans lien avec une donnée publiée",
+              "dvr_ans": 50,
+              "production_kgco2": 6.0,
+              "edification_kgco2": 0.4,
+              "exploitation_kgco2": 0.0,
+              "fin_de_vie_kgco2": 0.8,
+              "module_d_kgco2": -0.2,
+              "stock_c_kgc": 1.1
+            }
+          },
+          {
+            "id": "fenetres",
+            "designation": "fenetres",
+            "sous_lot": "6.2",
+            "quantite": 18.0,
+            "unite": "m2",
+            "donnee": {
+              "type": "fdes_collective",
+              "identifiant": "FDES-FICTIVE-06",
+              "source": "valeur fictive (exemple tests/cas/maison-acv-ademe), sans lien avec une donnée publiée",
+              "dvr_ans": 30,
+              "production_kgco2": 95.0,
+              "edification_kgco2": 4.0,
+              "exploitation_kgco2": 2.0,
+              "fin_de_vie_kgco2": 6.0,
+              "module_d_kgco2": -12.0
+            }
+          },
+          {
+            "id": "sols",
+            "designation": "sols",
+            "sous_lot": "7.1",
+            "quantite": 95.0,
+            "unite": "m2",
+            "donnee": {
+              "type": "donnee_par_defaut",
+              "identifiant": "DED-FICTIVE-07",
+              "source": "valeur fictive (exemple tests/cas/maison-acv-ademe), sans lien avec une donnée publiée",
+              "dvr_ans": 10,
+              "production_kgco2": 9.0,
+              "edification_kgco2": 0.6,
+              "exploitation_kgco2": 0.5,
+              "fin_de_vie_kgco2": 1.2,
+              "module_d_kgco2": 0.0
+            },
+            "dve_ans": 10.0
+          },
+          {
+            "id": "vmc",
+            "designation": "vmc",
+            "sous_lot": "8.4",
+            "quantite": 1.0,
+            "unite": "unité",
+            "donnee": {
+              "type": "pep_individuel",
+              "identifiant": "PEP-FICTIF-08",
+              "source": "valeur fictive (exemple tests/cas/maison-acv-ademe), sans lien avec une donnée publiée",
+              "dvr_ans": 17,
+              "production_kgco2": 120.0,
+              "edification_kgco2": 5.0,
+              "exploitation_kgco2": 0.0,
+              "fin_de_vie_kgco2": 8.0,
+              "module_d_kgco2": -3.0
+            }
+          },
+          {
+            "id": "sanitaires",
+            "designation": "sanitaires",
+            "sous_lot": "9.1",
+            "quantite": 1.0,
+            "unite": "lot",
+            "donnee": {
+              "type": "donnee_par_defaut",
+              "identifiant": "DED-FICTIVE-09",
+              "source": "valeur fictive (exemple tests/cas/maison-acv-ademe), sans lien avec une donnée publiée",
+              "dvr_ans": 20,
+              "production_kgco2": 350.0,
+              "edification_kgco2": 10.0,
+              "exploitation_kgco2": 0.0,
+              "fin_de_vie_kgco2": 25.0,
+              "module_d_kgco2": 0.0
+            }
+          },
+          {
+            "id": "modules-pv",
+            "designation": "modules-pv",
+            "sous_lot": "13",
+            "quantite": 3.0,
+            "unite": "kWc",
+            "donnee": {
+              "type": "pep_individuel",
+              "identifiant": "PEP-FICTIF-10",
+              "source": "valeur fictive (exemple tests/cas/maison-acv-ademe), sans lien avec une donnée publiée",
+              "dvr_ans": 30,
+              "production_kgco2": 900.0,
+              "edification_kgco2": 20.0,
+              "exploitation_kgco2": 15.0,
+              "fin_de_vie_kgco2": 40.0,
+              "module_d_kgco2": -60.0
+            }
+          }
+        ],
+        "lots_forfaitaires": [
+          "8.1",
+          "10",
+          "11"
+        ],
+        "fluides_lots_forfaitaires": [
+          {
+            "sous_lot": "8.1",
+            "nom": "R32 (fictif)",
+            "charge_kg": 1.2,
+            "prg_kgco2_kg": 675.0,
+            "de_kgco2_kg": 700.0
+          }
+        ],
+        "chantier": {
+          "methode": "simplifie_maison",
+          "s_parcelle_m2": 450.0,
+          "s_emprise_sol_m2": 100.0
+        },
+        "eau": {
+          "assainissement": "collectif",
+          "eaux_pluviales": "separatif",
+          "pluviometrie_mm": 650.0
+        },
+        "parcelle": {
+          "composants": [
+            {
+              "id": "cloture",
+              "designation": "cloture",
+              "sous_lot": "clôture",
+              "quantite": 40.0,
+              "unite": "m",
+              "donnee": {
+                "type": "donnee_par_defaut",
+                "identifiant": "DED-FICTIVE-11",
+                "source": "valeur fictive (exemple tests/cas/maison-acv-ademe), sans lien avec une donnée publiée",
+                "dvr_ans": 25,
+                "production_kgco2": 30.0,
+                "edification_kgco2": 1.0,
+                "exploitation_kgco2": 0.0,
+                "fin_de_vie_kgco2": 2.0,
+                "module_d_kgco2": 0.0
+              }
+            }
+          ],
+          "s_vegetalisee_m2": 300.0,
+          "s_nettoyee_m2": 20.0,
+          "s_impermeabilisees_m2": 30.0
+        },
+        "occupants": {
+          "logements": [
+            {
+              "type_t": 4,
+              "nombre": 1
+            }
+          ]
+        },
+        "donnees_service": {
+          "eau_potable_kgco2_m3": 0.4,
+          "assainissement_collectif_kgco2_m3": 0.6,
+          "transport_terres_kgco2_tkm": 0.1,
+          "traitement_inertes_kgco2_t": 3.0,
+          "source": "valeurs fictives pour l'exemple, sans lien avec les données de service publiées"
+        }
+      }
+    }
+  ]
+}

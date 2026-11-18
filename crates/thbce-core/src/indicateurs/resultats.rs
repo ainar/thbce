@@ -227,13 +227,18 @@ pub struct ResultatsExigences {
     pub cep_nr_max_kwhep_m2: f64,
     /// « Icénergie_max » du bâtiment, en kg éq. CO2/m².
     pub ic_energie_max_kgco2_m2: f64,
+    /// « Icconstruction_max » du bâtiment, en kg éq. CO2/m² (détail dans `acv.exigences`) ;
+    /// absent sans données d'ACV.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ic_construction_max_kgco2_m2: Option<f64>,
     /// Exigences de chaque zone.
     pub zones: Vec<ExigencesZone>,
     /// Vérification de chaque exigence ; le DH est vérifié pour chaque groupe.
     pub verifications: Vec<VerificationExigence>,
-    /// Vrai si toutes les exigences vérifiées sont respectées. Seules les exigences sur Bbio,
-    /// Cep, Cep,nr, Ic énergie et DH sont vérifiées : `Icconstruction`, les caractéristiques
-    /// minimales et les autres articles de l'arrêté sont hors du moteur. Toujours faux si un
+    /// Vrai si toutes les exigences vérifiées sont respectées. Les exigences sur Bbio, Cep,
+    /// Cep,nr, Ic énergie et DH sont vérifiées, et celle sur `Icconstruction` si le bâtiment a
+    /// des données d'ACV (`acv`) ; les caractéristiques minimales et les autres articles de
+    /// l'arrêté sont hors du moteur. Toujours faux si un
     /// indicateur exigé manque (`indicateurs_manquants`).
     pub conforme: bool,
     /// Indicateurs exigés qui n'ont pas pu être calculés ni donc vérifiés ; vide en général.
@@ -427,6 +432,7 @@ impl ResultatsIndicateurs {
             e.cep_max_kwhep_m2 = ax(e.cep_max_kwhep_m2);
             e.cep_nr_max_kwhep_m2 = ax(e.cep_nr_max_kwhep_m2);
             e.ic_energie_max_kgco2_m2 = ax(e.ic_energie_max_kgco2_m2);
+            e.ic_construction_max_kgco2_m2 = e.ic_construction_max_kgco2_m2.map(ax);
             for z in &mut e.zones {
                 z.sref_m2 = a(z.sref_m2);
                 z.smoy_lgt_m2 = a(z.smoy_lgt_m2);

@@ -13,6 +13,7 @@ use crate::entree::Id;
 // `crate::resultats::Type` reste celui de l'API. Un lot ajoute ses types dans le fichier de sa
 // famille (avec, le cas échéant, leur méthode `arrondir`), et l'appel de l'arrondi dans
 // `Resultats::arrondir`.
+pub mod acv;
 mod batiment;
 mod besoins_confort;
 mod consommations;
@@ -23,7 +24,6 @@ mod enveloppe;
 mod generation;
 mod solaire;
 mod ventilation;
-// Famille à venir : ACV (Icconstruction, annexe II) — `mod acv;` et `pub use acv::*;`.
 
 pub use batiment::*;
 pub use besoins_confort::*;
@@ -154,6 +154,10 @@ pub struct ResultatsBatiment {
     /// Cep,nr, Ic énergie, exigences et conformité. Absents sans génération.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub indicateurs: Option<crate::indicateurs::resultats::ResultatsIndicateurs>,
+    /// Analyse du cycle de vie (annexe II §5.3) : Icconstruction, Icbâtiment, StockC ; absente
+    /// sans données d'ACV.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acv: Option<acv::ResultatsAcv>,
 }
 
 // Signature imposée par `skip_serializing_if`.
@@ -199,6 +203,9 @@ impl Resultats {
             }
             if let Some(i) = &mut b.indicateurs {
                 i.arrondir();
+            }
+            if let Some(x) = &mut b.acv {
+                x.arrondir();
             }
             for x in &mut b.ascenseurs {
                 for v in [

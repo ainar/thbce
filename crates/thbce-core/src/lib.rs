@@ -20,6 +20,7 @@
 //!
 //! Ce moteur n'est pas le moteur réglementaire officiel et ne vaut pas attestation de conformité.
 
+pub mod acv;
 pub mod bati;
 pub mod calcul;
 pub mod chauffage_refroidissement;

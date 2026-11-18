@@ -1,0 +1,178 @@
+{
+  "batiments": [
+    {
+      "id": "maison",
+      "bbio_pts": 63.8,
+      "dh_c_h": 1555.1,
+      "cep_kwhep_m2": 122.4,
+      "cep_nr_kwhep_m2": 122.4,
+      "ic_energie_kgco2_m2": 152.4,
+      "indicateurs": {
+        "cef_kwhef_m2": 53.2,
+        "exigences": {
+          "bbio_max_pts": 64.7,
+          "cep_max_kwhep_m2": 70.2,
+          "cep_nr_max_kwhep_m2": 51.5,
+          "ic_energie_max_kgco2_m2": 149.7,
+          "conforme": false,
+          "ic_construction_max_kgco2_m2": 536.8
+        },
+        "production_pv": {
+          "e_prod_pv_ac_kwh": 1324.1,
+          "e_exportee_kwh": 1705.0
+        }
+      },
+      "production_pv": {
+        "e_prod_pv_kwh": 3029.0,
+        "e_prod_pv_mensuel_kwh": [
+          65.5,
+          136.6,
+          272.0,
+          289.8,
+          395.7,
+          367.8,
+          451.9,
+          448.5,
+          272.6,
+          179.6,
+          95.1,
+          54.1
+        ],
+        "installations": [
+          {
+            "id": "toiture-sud",
+            "nb_modules": 8,
+            "puissance_crete_calcul_kwc": 3.0,
+            "eta_stc": 0.214,
+            "u1_w_m2k": 10.855,
+            "p_ac_nom_w": 2400.0,
+            "g_kwh_m2": 1365.6,
+            "e_pv_kwh": 3525.7,
+            "e_ond_kwh": 3029.0,
+            "e_ond_mensuel_kwh": [
+              65.5,
+              136.6,
+              272.0,
+              289.8,
+              395.7,
+              367.8,
+              451.9,
+              448.5,
+              272.6,
+              179.6,
+              95.1,
+              54.1
+            ],
+            "nbh_extinction": 1,
+            "valeurs_par_defaut": [
+              {
+                "champ": "onduleur.p_ac_nom_w",
+                "valeur": 2400.0,
+                "regle": "Th-BCE 2020 §12.4.3 : PAC NOM = 0,8 × N × Pc"
+              }
+            ]
+          }
+        ]
+      },
+      "acv": {
+        "ic_composants_kgco2_m2": 525.5,
+        "ic_chantier_kgco2_m2": 10.2,
+        "ic_eau_kgco2_m2": 78.7,
+        "ic_energie_kgco2_m2": 152.4,
+        "ic_construction_kgco2_m2": 535.7,
+        "ic_batiment_kgco2_m2": 766.9,
+        "ic_parcelle_kgco2_m2": 32.3,
+        "ic_projet_kgco2_m2": 799.2,
+        "ic_construction_occ_kgco2": 12916.8,
+        "ic_ded_kgco2_m2": 335.2,
+        "ic_ded_total_kgco2_m2": 369.9,
+        "udd_batiment_pct": 70.4,
+        "stock_c_kgc_m2": 11.2,
+        "tac_pv_pct": 43.7,
+        "composants": {
+          "i_statique": {
+            "total": 550.2
+          },
+          "ic": {
+            "production": 272.1,
+            "edification": 12.1,
+            "exploitation": 221.8,
+            "fin_de_vie": 31.2,
+            "module_d": -11.6,
+            "total": 525.5
+          }
+        },
+        "fluides_frigorigenes": {
+          "ic": {
+            "total": 10.6
+          }
+        },
+        "eau_quantites": {
+          "nocc": 4.0,
+          "q_eau_potable_m3": 192.0
+        },
+        "lots": [
+          {
+            "lot": 2,
+            "ic_kgco2_m2": 34.7,
+            "stock_c_kgc_m2": 0.0
+          },
+          {
+            "lot": 3,
+            "ic_kgco2_m2": 107.8,
+            "stock_c_kgc_m2": 0.0
+          },
+          {
+            "lot": 4,
+            "ic_kgco2_m2": -11.2,
+            "stock_c_kgc_m2": 9.6
+          },
+          {
+            "lot": 5,
+            "ic_kgco2_m2": 9.8,
+            "stock_c_kgc_m2": 1.6
+          },
+          {
+            "lot": 6,
+            "ic_kgco2_m2": 27.1,
+            "stock_c_kgc_m2": 0.0
+          },
+          {
+            "lot": 7,
+            "ic_kgco2_m2": 46.0,
+            "stock_c_kgc_m2": 0.0
+          },
+          {
+            "lot": 8,
+            "ic_kgco2_m2": 184.1,
+            "stock_c_kgc_m2": 0.0
+          },
+          {
+            "lot": 9,
+            "ic_kgco2_m2": 8.6,
+            "stock_c_kgc_m2": 0.0
+          },
+          {
+            "lot": 10,
+            "ic_kgco2_m2": 98.0,
+            "stock_c_kgc_m2": 0.0
+          },
+          {
+            "lot": 11,
+            "ic_kgco2_m2": 2.0,
+            "stock_c_kgc_m2": 0.0
+          },
+          {
+            "lot": 13,
+            "ic_kgco2_m2": 18.8,
+            "stock_c_kgc_m2": 0.0
+          }
+        ],
+        "exigences": {
+          "ic_construction_max_kgco2_m2": 536.8,
+          "respectee": true
+        }
+      }
+    }
+  ]
+}

@@ -46,6 +46,10 @@ pub struct Batiment {
     /// indicateurs sont calculés mais ni les exigences ni la conformité.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exigences: Option<ParametresExigences>,
+    /// Analyse du cycle de vie (annexe II de l'arrêté du 4 août 2021, chapitre 4) :
+    /// Icconstruction, Icbâtiment, StockC. Facultative.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acv: Option<DonneesAcv>,
 }
 
 /// Niveau « zone » (Th-BCE 2020 §5.5).
