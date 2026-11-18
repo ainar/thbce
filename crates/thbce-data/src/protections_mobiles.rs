@@ -38,7 +38,7 @@
 //! du PDF, lues deux fois (lot 0c3, `docs/questions/Q078.md`).
 //!
 //! Les figures 37-3 et 40-3 (famille « autres usages », p. 199 et 202) sont transcrites des
-//! images du PDF, lues deux fois (lot 0c4, `docs/questions/Q081.md`).
+//! images du PDF, lues deux fois (lot 0c4, `docs/questions/Q084.md`).
 //!
 //! Sont transcrites les lignes de gestion manuelle des six familles : « habitation, hôtellerie et
 //! hébergement », « bureau », « enseignement », « hôpitaux nuit », « restauration » et
@@ -194,11 +194,12 @@ pub fn valeurs_th_d(famille: FamilleGpm) -> Option<ValeursThD> {
             nuit_store_plafonne: true,
             r_prot_inocc_jour_min: None,
         }),
-        // Colonne « Autres », lue deux fois sur l'image de la p. 218 (lot 0c4, `Q081`) : valeurs
+        // Colonne « Autres », lue deux fois sur l'image de la p. 218 (lot 0c4, `Q084`) : valeurs
         // sans « max » ni « min », 70 % en occupation (gestion motorisée ou non), 60 % en
         // inoccupation, 70 % pour « jour = nuit ». Les matrices de la famille valent 20 % de
-        // jour et 80 % de nuit (20 % pour les stores de nuit en inoccupation) : lues comme valeurs
-        // imposées ou comme planchers et plafonds, les deux lectures donnent les mêmes ratios.
+        // jour et 80 % de nuit (20 % pour les stores) : lues comme valeurs imposées ou comme planchers
+        // et plafonds, les deux lectures donnent les mêmes ratios, sauf pour les stores de nuit
+        // (20 % retenu, 70 % si imposé : DH − 5 °C.h sur le gymnase).
         FamilleGpm::Autre => Some(ValeursThD {
             r_prot_jour_min_motorisee: 0.70,
             r_prot_jour_min_autre: 0.70,
@@ -600,7 +601,7 @@ pub const STORE_ENROULABLE_RESTAURATION: MatriceManuelle = MatriceManuelle {
 /// Figure 37-3 (p. 199) : première protection mobile de type volet, famille « autres usages »
 /// (usages 17, 18 et 22 à 25 et 28, figure 34), lignes de gestion manuelle. Image du PDF de
 /// l'annexe III, lue deux fois (page entière à 130 dpi, puis zone des valeurs à 300 dpi), lot
-/// 0c4, `Q081`. Toutes les cellules sont identiques : 20 %, 200 000 lux, 80 % la nuit.
+/// 0c4, `Q084`. Toutes les cellules sont identiques : 20 %, 200 000 lux, 80 % la nuit.
 #[rustfmt::skip]
 pub const VOLET_AUTRES: MatriceManuelle = MatriceManuelle {
     occupation_non_motorisee: [
@@ -982,12 +983,20 @@ mod tests {
         for (m, nuit) in [(v, 0.80), (s, 0.20)] {
             for l in lignes(m) {
                 assert_eq!(
-                    (l.r_prot0, l.ecl1_lux, l.r_prot_avec_pm2, l.ecl2_lux, l.r_prot_nuit),
+                    (
+                        l.r_prot0,
+                        l.ecl1_lux,
+                        l.r_prot_avec_pm2,
+                        l.ecl2_lux,
+                        l.r_prot_nuit
+                    ),
                     (0.20, 200_000.0, 0.20, 200_000.0, nuit)
                 );
             }
             for t in [&m.inoccupation_non_motorisee, &m.inoccupation_motorisee] {
-                assert!(t.iter().all(|l| l.r_prot_jour == 0.20 && l.r_prot_nuit == nuit));
+                assert!(t
+                    .iter()
+                    .all(|l| l.r_prot_jour == 0.20 && l.r_prot_nuit == nuit));
             }
         }
         let t = valeurs_th_d(FamilleGpm::Autre).unwrap();

@@ -41,8 +41,8 @@ use crate::confort::confort_ete::{
 use crate::confort::indicateurs_confort::{indicateurs, CumulsConfort, CAT_AMB};
 use crate::conventions::ModeCalcul;
 use crate::eclairage::{
-    a_eclnat2_m2, a_eclnat_gv_m2, eclairage_habitation, eclairage_locaux_gv, einat_gv_lux, einat_vn_lux,
-    LocalResolu,
+    a_eclnat2_m2, a_eclnat_gv_m2, eclairage_habitation, eclairage_locaux_gv, einat_gv_lux,
+    einat_vn_lux, LocalResolu,
 };
 use crate::entree::{Catalogue, Groupe, RegulationBatterie, UsageZone};
 use crate::scenarios::saisons::{

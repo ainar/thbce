@@ -1,0 +1,60 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H1b"
+  },
+  "batiments": [
+    {
+      "id": "gymnase",
+      "sref_m2": 900.0,
+      "bbio_pts": 128.2,
+      "dh_c_h": 3374.8,
+      "cep_kwhep_m2": 148.1,
+      "cep_nr_kwhep_m2": 148.1,
+      "ic_energie_kgco2_m2": 167.9,
+      "bbio": {
+        "annuel": {
+          "b_ch_kwh_m2": 4.9,
+          "b_fr_kwh_m2": 21.4,
+          "b_ecl_kwh_m2": 15.1,
+          "bbio_pts": 128.2
+        }
+      },
+      "indicateurs": {
+        "cef_kwhef_m2": 64.4,
+        "exigences": {
+          "bbio_max_pts": 103.4,
+          "cep_max_kwhep_m2": 127.6,
+          "cep_nr_max_kwhep_m2": 103.4,
+          "ic_energie_max_kgco2_m2": 165.0,
+          "conforme": false
+        },
+        "electricite_consommee": {
+          "chauffage_kwh": 5869.9,
+          "refroidissement_kwh": 5810.9,
+          "ecs_kwh": 23763.6,
+          "eclairage_kwh": 17631.3,
+          "auxiliaires_ventilation_kwh": 4836.0,
+          "auxiliaires_distribution_kwh": 52.1
+        }
+      },
+      "zones": [
+        {
+          "id": "gymnase",
+          "ventilation": {
+            "c_aux_vent_kwh": 4836.0
+          },
+          "groupes": [
+            {
+              "id": "gymnase",
+              "debits_bbio": {
+                "q_spec_repris_m3_h": -2700.0,
+                "q_spec_souffle_m3_h": 2700.0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

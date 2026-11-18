@@ -2,6 +2,16 @@
 // Fichier généré par `cargo run -p xtask -- typescript` depuis les JSON Schema d'entrée
 // et de résultats ; ne pas modifier à la main.
 
+/**
+ * Affectation d'une baie à un local pour l'éclairement naturel (§5.10.3.2, « type de baie »).
+ *
+ * Seule compte la distinction entre local de grand volume et local de volume normal ; pour un
+ * grand volume, il faut savoir si la baie est un éclairant de toiture réparti de façon
+ * uniforme (distance entre deux éclairants inférieure à la hauteur du local, distance des
+ * éclairants périphériques à la périphérie inférieure à la moitié de cette hauteur).
+ */
+export type AffectationEclairage = "volume_normal" | "grand_volume" | "grand_volume_toiture_uniforme";
+
 /** « Alim_Chaudière_Bois » (§8.19.2, tableau 119). */
 export type AlimentationBoisSaisie = "manuel_tirage_naturel" | "manuel_air_pulse" | "automatique_tirage_naturel" | "automatique_air_pulse";
 
@@ -130,6 +140,13 @@ export interface AuxiliairesChaudiere {
 export interface Baie {
   /** « Ab » : surface de la baie, en m². */
   a_b_m2: number;
+  /**
+   * Affectation de la baie à un local de grand volume ou de volume normal, pour l'éclairement
+   * naturel (§5.10.3.2). Absente : volume normal. Un groupe qui a des baies de grand volume
+   * doit avoir un local de grand volume (salle de sport, aire de production, aire de vente de
+   * plus de 300 m²).
+   */
+  affectation_eclairage?: AffectationEclairage | null;
   /**
    * Détermination détaillée de la classe d'exposition au bruit (fiche 5.11) : catégorie et
    * distance des infrastructures, vue, plan d'exposition au bruit. Facultative.
