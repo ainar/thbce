@@ -148,14 +148,19 @@ fn sens_des_effets() {
         t.u_k_w_m2k /= 2.0;
     }
     let [bbio2, _, cep2, _, ic2] = phares(&calcul(&p));
-    println!("isolant : Bbio {bbio:.1} → {bbio2:.1} ; Cep {cep:.1} → {cep2:.1} ; Ic {ic:.1} → {ic2:.1}");
+    println!(
+        "isolant : Bbio {bbio:.1} → {bbio2:.1} ; Cep {cep:.1} → {cep2:.1} ; Ic {ic:.1} → {ic2:.1}"
+    );
     assert!(bbio2 < bbio && cep2 < cep && ic2 < ic);
 
     // 2. Volets manuels non motorisés au lieu de motorisés (figures 35 et 36 : familles
     //    « habitation » pour la partie nuit et « bureau » pour la partie jour) : le DH change.
     let mut p = base.clone();
-    p.catalogue.baies[0].protection_mobile.as_mut().unwrap().gestion =
-        GestionPm::ManuelleNonMotorisee;
+    p.catalogue.baies[0]
+        .protection_mobile
+        .as_mut()
+        .unwrap()
+        .gestion = GestionPm::ManuelleNonMotorisee;
     let dh2 = phares(&calcul(&p))[1];
     println!("volets manuels : DH {dh:.1} → {dh2:.1}");
     assert_ne!(dh2, dh);
@@ -166,7 +171,9 @@ fn sens_des_effets() {
     let mut p = base.clone();
     p.batiments[0].zones[0].usage = UsageZone::Hotel345Nuit;
     p.batiments[0].zones[1].usage = UsageZone::Hotel345Jour;
-    p.batiments[0].zones[1].groupes[0].locaux[0].eclairage.p_ecl_tot_w_m2 = 6.0;
+    p.batiments[0].zones[1].groupes[0].locaux[0]
+        .eclairage
+        .p_ecl_tot_w_m2 = 6.0;
     let v = valider(&p);
     assert!(v.est_valide(), "{:?}", v.erreurs);
     let r = calcul(&p);
@@ -228,7 +235,7 @@ fn usages_20_et_21() {
     let sc = ScenariosZone::nouveau(UsageZone::SanteNuit, &[1500.0], 1).unwrap();
     let valeurs: Vec<f64> = (0..8760).map(|h| sc.evaluer(h).i_ecl).collect();
     assert!(valeurs.iter().all(|&x| x == 0.0 || x == 0.35 || x == 1.0));
-    assert!(valeurs.iter().any(|&x| x == 0.35) && valeurs.iter().any(|&x| x == 1.0));
+    assert!(valeurs.contains(&0.35) && valeurs.contains(&1.0));
     // Consommation d'éclairage positive dans les deux usages (le calcul à la main de la
     // fraction est dans `crates/thbce-core/tests/eclairage.rs`).
     assert!(elec(&r20).eclairage_kwh > 0.0 && elec(&r19).eclairage_kwh > 0.0);

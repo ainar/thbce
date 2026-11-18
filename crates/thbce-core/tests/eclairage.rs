@@ -117,8 +117,9 @@ fn autonomie_en_lumiere_naturelle() {
 /// 7.1.3.6.1 et les tableaux 78 et 79.
 mod tertiaire {
     use thbce_core::eclairage::{
-        a_eclnat2_m2, c1, c2, ctrl_ecl_einat, ctrl_ecl_occ, eclairage_locaux, eclairage_locaux_fraction, facteur_einat_sans_acces,
-        p_ecl_tot_bbio_w_m2, p_ecl_tot_bureaux_w_m2, LocalResolu,
+        a_eclnat2_m2, c1, c2, ctrl_ecl_einat, ctrl_ecl_occ, eclairage_locaux,
+        eclairage_locaux_fraction, facteur_einat_sans_acces, p_ecl_tot_bbio_w_m2,
+        p_ecl_tot_bureaux_w_m2, LocalResolu,
     };
     use thbce_core::entree::{GestEcl, GradEcl, LocalEclairage};
 
@@ -270,7 +271,10 @@ mod tertiaire {
         let r = eclairage_locaux_fraction(&projet, 0.35, 0.0);
         assert!(proche(r.c_ecl_kwh, 1.75));
         // Les valeurs 0 et 1 redonnent l'indicateur booléen.
-        assert!(proche(eclairage_locaux_fraction(&projet, 1.0, 0.0).c_ecl_kwh, 5.0));
+        assert!(proche(
+            eclairage_locaux_fraction(&projet, 1.0, 0.0).c_ecl_kwh,
+            5.0
+        ));
         assert_eq!(
             eclairage_locaux_fraction(&projet, 1.0, 0.0).c_ecl_kwh,
             eclairage_locaux(&projet, true, 0.0).c_ecl_kwh

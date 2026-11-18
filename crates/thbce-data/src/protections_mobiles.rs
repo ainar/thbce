@@ -611,7 +611,13 @@ mod tests {
         // Volet, occupation non motorisée, été chaud : 25 %, 40 000 lux, 40 %, 40 000 lux, 80 %.
         let l = v.occupation_non_motorisee[3];
         assert_eq!(
-            (l.r_prot0, l.ecl1_lux, l.r_prot_avec_pm2, l.ecl2_lux, l.r_prot_nuit),
+            (
+                l.r_prot0,
+                l.ecl1_lux,
+                l.r_prot_avec_pm2,
+                l.ecl2_lux,
+                l.r_prot_nuit
+            ),
             (0.25, 40_000.0, 0.40, 40_000.0, 0.80)
         );
         // Volet, inoccupation motorisée, été chaud : 50 % le jour, 80 % la nuit.
