@@ -114,6 +114,8 @@ pub struct CumulsVentilation {
     pub w_puits_wh: f64,
     /// Nombre de pas de temps où l'air neuf traverse le puits climatique (non contourné).
     pub nbh_puits: u32,
+    /// Cumuls de la ventilation naturelle par conduits ou hybride (§6.6).
+    pub naturelle: crate::ventilation::naturelle_hybride::CumulsNaturelle,
     /// Énergie échangée dans le puits climatique en préchauffage, en Wh (positive).
     pub q_puits_chaud_wh: f64,
     /// Énergie échangée dans le puits climatique en prérafraîchissement, en Wh (négative).
@@ -391,6 +393,9 @@ impl ZoneHoraire {
                 self.p_ib_prec_pa,
                 &self.etats_ventilation,
             );
+            if let Some(n) = &v.naturelle {
+                self.cumuls_ventilation.naturelle = n.cumuls;
+            }
         }
         for (ig, g) in self.groupes.iter_mut().enumerate() {
             match (&self.ventilation, g.debits_bbio_non_residentiel) {

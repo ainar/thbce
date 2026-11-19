@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Variante de tests/cas/maison-double-flux-ademe en ventilation naturelle par conduits verticaux (fiche 6.6) : un conduit de 4 m, périmètre 0,5 m et section 3 m², bouche fixe (50 cm² de base, 100 cm² de pointe), extracteur statique en tête (Cextr à huit vitesses, ξextr = 1,5). Habillage du conduit (λcond, χcoude), hauteur du moteur et pression de référence laissés aux valeurs par défaut, signalées. Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : valeurs du moteur au lot 1-ven10 (19 novembre 2026), figées pour détecter les régressions ; ce n'est pas un cas de référence. Les équations (673) à (714) sont recoupées à la main par les tests de crates/thbce-core/tests/ventilation_projet.rs (un pas : q = 39,97 m³/h, débit de reprise spécifique −43,56 m³/h, refoulement +21,17 m³/h). Sans assistance, la consommation des auxiliaires de ventilation est nulle."
+meteo = "ademe"

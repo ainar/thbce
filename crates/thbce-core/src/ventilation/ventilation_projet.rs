@@ -1050,6 +1050,9 @@ impl VentilationProjet {
                     cdep,
                     dugd_h,
                 };
+                // La surface de conduit des bouches ne sert pas : celle du conduit équivalent est
+                // saisie (`a_cond_m2`), le défaut des éq. (421) à (427) n'est pas employé.
+                valeurs_par_defaut.retain(|d| !d.champ.ends_with(".a_cond_m2"));
                 // Éq. (706) : débit repris des bouches comme d'un simple flux standard.
                 let q_rep_dep_standard_m3_h = bouches
                     .iter()
