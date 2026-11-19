@@ -193,20 +193,37 @@ impl GenerationHoraire {
             }
             self.collectifs = collectifs;
         }
+        let ctx = |poste: Poste| ContexteAppel {
+            poste,
+            theta_aval_c: theta_aval[poste.indice()],
+            theta_amb_c: theta_amb,
+            aut_ch: e.aut_ch,
+            relance_ch: relance[0],
+        };
+        // §8.17.3.7.2.3.4 : alternance « chauffage et ECS », hors du cas général.
+        let biposte = self.alternance_biposte();
+        if biposte {
+            let [ch, ecs] = self.alternance_chauffage_ecs(
+                &ctx(Poste::Chauffage),
+                &ctx(Poste::Ecs),
+                q_ar,
+                e.id_encl,
+                e.sources,
+            );
+            q_rep[0] = ch;
+            q_rep[2] = ecs;
+        }
         for poste in [Poste::Ecs, Poste::Refroidissement, Poste::Chauffage] {
             let p = poste.indice();
+            if biposte && poste != Poste::Refroidissement {
+                continue;
+            }
             let actif = match poste {
                 Poste::Ecs => e.id_encl,
                 Poste::Refroidissement => e.aut_fr,
                 Poste::Chauffage => e.aut_ch,
             };
-            let ctx = ContexteAppel {
-                poste,
-                theta_aval_c: theta_aval[p],
-                theta_amb_c: theta_amb,
-                aut_ch: e.aut_ch,
-                relance_ch: relance[0],
-            };
+            let ctx = ctx(poste);
             q_rep[p] = if actif {
                 self.appeler_generateurs(&ctx, q_ar[p], e.sources)
             } else {
@@ -473,7 +490,83 @@ impl GenerationHoraire {
                 }
                 q_req
             }
+            ModePriorite::Alternance => {
+                // §8.17.3.7.2.3.1 à 8.17.3.7.2.3.3, éq. (1035) à (1046) : génération monoposte,
+                // générateurs par puissance nominale décroissante.
+                let mut q_req = q_req_tot_ar_wh;
+                for (k, &i) in indices.iter().enumerate() {
+                    let p_suivant = puissance_suivante(&self.generateurs, &indices, k, poste);
+                    let g = &mut self.generateurs[i];
+                    g.n_basculement = compteur_basculement(g.n_basculement, q_req, p_suivant);
+                    if g.n_basculement == 0 {
+                        continue;
+                    }
+                    if let Some(s) = self.appeler(i, ctx, q_req, sources) {
+                        q_req = s.q_rest_wh;
+                    }
+                }
+                q_req
+            }
         }
+    }
+
+    /// Vrai si la génération est gérée en alternance avec des générateurs « chauffage et
+    /// ECS » (« idfougen = 4 », §8.17.3.7.2.3.4) : la demande totale des deux postes décide des
+    /// générateurs en service, en un seul passage.
+    fn alternance_biposte(&self) -> bool {
+        self.priorite == ModePriorite::Alternance
+            && !self.generateurs.is_empty()
+            && self
+                .generateurs
+                .iter()
+                .all(|g| g.modele.fonction() == FonctionGenerateur::ChauffageEcs)
+    }
+
+    /// §8.17.3.7.2.3.4, éq. (1047) à (1052) : alternance d'une génération « chauffage et ECS ».
+    /// Renvoie les énergies reportées `[Qrep_ch, Qrep_ecs]`.
+    fn alternance_chauffage_ecs(
+        &mut self,
+        ctx_ch: &ContexteAppel,
+        ctx_ecs: &ContexteAppel,
+        q_ar: [f64; 3],
+        id_encl: bool,
+        sources: &[ConditionsSource],
+    ) -> [f64; 2] {
+        // Éq. (1047) à (1050).
+        let mut q_req_ch = q_ar[0];
+        let mut q_req_ecs = q_ar[2];
+        // Hors saison de chauffage et hors période d'activation de l'ECS, les générateurs sont
+        // désactivés ; les compteurs ne changent pas (lecture Q125, point 4).
+        if !(ctx_ch.aut_ch || id_encl) {
+            return [q_req_ch, q_req_ecs];
+        }
+        let indices = self.generateurs_du_poste(Poste::Chauffage);
+        for (k, &i) in indices.iter().enumerate() {
+            let p_suivant = puissance_suivante(&self.generateurs, &indices, k, Poste::Chauffage);
+            let g = &mut self.generateurs[i];
+            g.n_basculement =
+                compteur_basculement(g.n_basculement, q_req_ch + q_req_ecs, p_suivant);
+            if g.n_basculement == 0 {
+                continue;
+            }
+            // Partie ECS : `Rpui_dispo = 1`, `iecs_seule = 1` hors saison de chauffage ; appel
+            // dans la période d'activation de l'ECS, s'il y a une demande ou si le générateur
+            // ne fait que de l'ECS au pas de temps (lecture Q125, point 6, comme Q46 point 6).
+            if id_encl {
+                if let Some(s) = self.appeler(i, ctx_ecs, q_req_ecs, sources) {
+                    q_req_ecs = s.q_rest_wh;
+                }
+            }
+            // Partie chauffage : `Rpui_dispo = 1 − Rfonct_ecs`, si `iecs_seule = 0` (en saison
+            // de chauffage) ; `appeler` ne fait rien si la puissance disponible est nulle.
+            if ctx_ch.aut_ch {
+                if let Some(s) = self.appeler(i, ctx_ch, q_req_ch, sources) {
+                    q_req_ch = s.q_rest_wh;
+                }
+            }
+        }
+        // Éq. (1052).
+        [q_req_ch, q_req_ecs]
     }
 
     /// Appelle le générateur d'indice `i` pour le compte d'un ballon de stockage d'ECS
@@ -608,4 +701,31 @@ struct ContexteAppel {
     theta_amb_c: f64,
     aut_ch: bool,
     relance_ch: bool,
+}
+
+/// « Rdim × Pngen^(gnr+1) » : puissance installée du générateur qui suit le `k`-ième dans
+/// l'ordre de l'alternance, en W ; nulle pour le dernier, qui n'a pas de suivant (lecture
+/// Q125, points 2 et 3).
+fn puissance_suivante(
+    generateurs: &[GenerateurHoraire],
+    indices: &[usize],
+    k: usize,
+    poste: Poste,
+) -> f64 {
+    indices
+        .get(k + 1)
+        .map_or(0.0, |&j| generateurs[j].modele.pn_gen_tot_w(poste))
+}
+
+/// Compteur de basculement marche/arrêt d'un générateur en alternance (§8.17.3.7.2.3) :
+/// décrémenté (sans descendre sous zéro) quand la demande restante tient dans la puissance
+/// du générateur suivant (« le générateur est surdimensionné par rapport à la demande »),
+/// réinitialisé à `Nbasculement_init` sinon. Le générateur est activé si le compteur est
+/// positif. Demande en Wh sur un pas d'une heure, puissance en W.
+pub(super) fn compteur_basculement(n_prec: u32, q_req_wh: f64, p_suivant_w: f64) -> u32 {
+    if q_req_wh <= p_suivant_w {
+        n_prec.saturating_sub(1)
+    } else {
+        N_BASCULEMENT_INIT
+    }
 }

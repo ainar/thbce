@@ -42,6 +42,10 @@ pub const SEUIL_SOUSDIM_COURT_H: u32 = 6;
 /// Nombre d'heures successives de sous-dimensionnement au-delà duquel l'alerte « long terme »
 /// est levée (éq. 1061 et 1064).
 pub const SEUIL_SOUSDIM_LONG_H: u32 = 72;
+/// « Nbasculement_init » : nombre d'heures de non-utilisation provoquant la coupure d'un
+/// générateur dans la gestion en alternance (§8.17.3.7.2.3) ; valeur conventionnelle du
+/// tableau 110 (colonne « Conv »), non saisie (lecture Q125, point 5).
+pub const N_BASCULEMENT_INIT: u32 = 20;
 
 /// « idfougen » : fonction d'un générateur (§8.17.2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -254,6 +258,9 @@ pub struct GenerateurHoraire {
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,
     /// Jeu de données du pas de temps.
     pub jeu: JeuDonnees,
+    /// « Nbasculement^gnr(h − 1) » : compteur de basculement marche/arrêt de la gestion en
+    /// alternance (§8.17.3.7.2.3) ; `Nbasculement_init` au premier pas (lecture Q125, point 4).
+    pub n_basculement: u32,
     /// Cumuls annuels.
     pub cumuls: CumulsGenerateur,
 }
@@ -268,6 +275,7 @@ impl GenerateurHoraire {
             source: None,
             valeurs_par_defaut: Vec::new(),
             jeu: JeuDonnees::default(),
+            n_basculement: N_BASCULEMENT_INIT,
             cumuls: CumulsGenerateur::default(),
         }
     }
@@ -280,6 +288,9 @@ pub enum ModePriorite {
     SansPriorite,
     /// 2 : en cascade, dans l'ordre des priorités.
     Cascade,
+    /// 3 : en alternance (§8.17.3.7.2.3), par puissance nominale décroissante, chaque
+    /// générateur coupé après `Nbasculement_init` heures de surdimensionnement.
+    Alternance,
 }
 
 /// « idgestion_ch », « idgestion_fr » : gestion de la température de fonctionnement d'une
@@ -543,8 +554,18 @@ impl GenerationHoraire {
         let mut v: Vec<usize> = (0..self.generateurs.len())
             .filter(|&i| self.generateurs[i].modele.fonction().assure(poste) && !pilote(i))
             .collect();
-        if self.priorite == ModePriorite::Cascade {
-            v.sort_by_key(|&i| self.generateurs[i].priorite[poste.indice()]);
+        match self.priorite {
+            ModePriorite::Cascade => {
+                v.sort_by_key(|&i| self.generateurs[i].priorite[poste.indice()]);
+            }
+            // §8.17.3.7.2.3 : « l'indice gnr = 1 est attribué au générateur de puissance
+            // nominale la plus élevée, et ainsi de suite » (tri stable : ordre de la saisie à
+            // puissance égale ; puissance installée `Rdim × Pngen`, lecture Q125, point 2).
+            ModePriorite::Alternance => v.sort_by(|&a, &b| {
+                let p = |i: usize| self.generateurs[i].modele.pn_gen_tot_w(poste);
+                p(b).total_cmp(&p(a))
+            }),
+            ModePriorite::SansPriorite => {}
         }
         v
     }

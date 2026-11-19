@@ -50,7 +50,76 @@ pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
         NatureGenerateur::ReseauDeChaleurOuDeFroid(ReseauChaleurFroidSaisi::Froid { .. }) => {
             [false, true, false]
         }
-        _ => [false; 3],
+        // Natures refusées (code 3) : le lot qui les ouvre donne ici leurs postes, tirés de
+        // leur saisie (`docs/architecture.md`, §3.10).
+        NatureGenerateur::AutreGenerateurACombustion
+        | NatureGenerateur::ThermodynamiqueGaz
+        | NatureGenerateur::BoucleDEauOuDrv
+        | NatureGenerateur::Cogeneration
+        | NatureGenerateur::PacHybride => [false; 3],
+    }
+}
+
+/// Natures de générateurs reconnues mais non calculées (code 3) : nom de la variante et
+/// fiche du texte. Point d'entrée unique des lots qui les ouvrent : retirer la ligne, puis
+/// suivre la recette « ajouter un générateur » (`docs/architecture.md`, §3.1 et §3.10).
+pub(super) fn nature_hors_perimetre(n: &NatureGenerateur) -> Option<(&'static str, &'static str)> {
+    match n {
+        NatureGenerateur::EffetJoule(_)
+        | NatureGenerateur::ThermodynamiqueElectrique(_)
+        | NatureGenerateur::Chaudiere(_)
+        | NatureGenerateur::PoeleOuInsert(_)
+        | NatureGenerateur::ReseauDeChaleurOuDeFroid(_) => None,
+        NatureGenerateur::AutreGenerateurACombustion => Some((
+            "autre_generateur_a_combustion",
+            "autre générateur à combustion (Th-BCE 2020 §8.20, types 103 à 109)",
+        )),
+        NatureGenerateur::ThermodynamiqueGaz => Some((
+            "thermodynamique_gaz",
+            "générateur thermodynamique au gaz, à absorption ou à moteur (Th-BCE 2020 §8.24 et \
+             §8.25, type 504)",
+        )),
+        NatureGenerateur::BoucleDEauOuDrv => Some((
+            "boucle_d_eau_ou_drv",
+            "pompe à chaleur sur boucle d'eau, thermo-frigo-pompe ou générateur DRV (Th-BCE 2020 \
+             §8.15 et §8.16, types 507 à 509)",
+        )),
+        NatureGenerateur::Cogeneration => Some((
+            "cogeneration",
+            "système de cogénération (Th-BCE 2020 §8.21, type 700)",
+        )),
+        // Q126 : la PAC hybride n'est pas un type du tableau 111 ; la fiche d'application du
+        // §16.4 la décrit par ses composants (générateur thermodynamique, chaudière à
+        // condensation, ballon le cas échéant) dans une même génération.
+        NatureGenerateur::PacHybride => Some((
+            "pac_hybride",
+            "pompe à chaleur hybride en un seul générateur : la fiche d'application du Th-BCE \
+             2020 §16.4 la décrit par ses composants, une pompe à chaleur \
+             (`thermodynamique_electrique`) et une chaudière à condensation (`chaudiere`) dans \
+             une même génération en cascade ; la saisie dédiée et la régulation en énergie \
+             primaire du §16.4.3 ne sont pas prises en charge",
+        )),
+    }
+}
+
+/// « idfluide-aval » (tableau 110) imposé par la nature d'un générateur : `Some(true)` pour
+/// l'eau (réseaux hydrauliques), `Some(false)` pour l'air ambiant (réseaux fictifs), `None`
+/// quand il dépend de la technologie saisie (générateurs thermodynamiques, contrôlés à part)
+/// ou que les deux sont admis (effet Joule, Q46 point 8). Contrôle du §8.17.3.1 : un
+/// générateur ouvert par un lot à venir y reçoit sa branche (`docs/architecture.md`, §3.10).
+pub(super) fn fluide_aval_hydraulique(n: &NatureGenerateur) -> Option<bool> {
+    match n {
+        NatureGenerateur::Chaudiere(_) | NatureGenerateur::ReseauDeChaleurOuDeFroid(_) => {
+            Some(true)
+        }
+        NatureGenerateur::PoeleOuInsert(_) => Some(false),
+        NatureGenerateur::EffetJoule(_) | NatureGenerateur::ThermodynamiqueElectrique(_) => None,
+        // Natures refusées (code 3) : à fixer par le lot qui les ouvre.
+        NatureGenerateur::AutreGenerateurACombustion
+        | NatureGenerateur::ThermodynamiqueGaz
+        | NatureGenerateur::BoucleDEauOuDrv
+        | NatureGenerateur::Cogeneration
+        | NatureGenerateur::PacHybride => None,
     }
 }
 
@@ -224,13 +293,6 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
             );
         }
     }
-    if g.priorite == Some(TypePriorite::Alternance) {
-        r.hors_perimetre(
-            format!("{c}.priorite"),
-            Some("alternance".into()),
-            "gestion des générateurs en alternance (Th-BCE 2020 §8.17.3.7.2.3)",
-        );
-    }
     if g.generateurs.is_empty()
         && g.chauffe_eau_thermodynamiques.is_empty()
         && g.chauffe_eau_solaires.is_empty()
@@ -266,10 +328,19 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
         || !g.chauffe_eau_solaires.is_empty()
         || !g.systemes_solaires_combines.is_empty()
         || !g.chauffe_eau_solaires_collectifs.is_empty();
-    if avec_stockage && g.priorite == Some(TypePriorite::SansPriorite) {
+    if let (true, Some(p @ (TypePriorite::SansPriorite | TypePriorite::Alternance))) =
+        (avec_stockage, g.priorite)
+    {
         r.erreur(
             format!("{c}.priorite"),
-            Some("sans_priorite".into()),
+            Some(
+                if p == TypePriorite::Alternance {
+                    "alternance"
+                } else {
+                    "sans_priorite"
+                }
+                .into(),
+            ),
             "une génération pourvue d'un ballon de stockage est régulée en cascade (Th-BCE \
              2020 §8.17.3.6)",
         );
@@ -310,27 +381,9 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
                 valider_reseau(r, &format!("{cg}.nature.reseau_de_chaleur_ou_de_froid"), n);
             }
             autre => {
-                let (nom, quoi) = match autre {
-                    NatureGenerateur::AutreGenerateurACombustion => (
-                        "autre_generateur_a_combustion",
-                        "autre générateur à combustion (§8.20)",
-                    ),
-                    NatureGenerateur::ThermodynamiqueGaz => (
-                        "thermodynamique_gaz",
-                        "générateur thermodynamique au gaz, à absorption ou à moteur (§8.24 et \
-                         §8.25)",
-                    ),
-                    NatureGenerateur::BoucleDEauOuDrv => (
-                        "boucle_d_eau_ou_drv",
-                        "pompe à chaleur sur boucle d'eau, thermo-frigo-pompe ou générateur DRV \
-                         (§8.15 et §8.16)",
-                    ),
-                    NatureGenerateur::Cogeneration => {
-                        ("cogeneration", "système de cogénération (§8.21)")
-                    }
-                    _ => ("pac_hybride", "pompe à chaleur hybride"),
-                };
-                r.hors_perimetre(format!("{cg}.nature"), Some(nom.into()), quoi);
+                if let Some((nom, quoi)) = nature_hors_perimetre(autre) {
+                    r.hors_perimetre(format!("{cg}.nature"), Some(nom.into()), quoi);
+                }
             }
         }
         let assures = postes_assures(&x.nature);
@@ -407,6 +460,12 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
             }
             _ => {}
         }
+    }
+    // §8.17.3.7.2.3 : « vérification supplémentaire de cohérence du montage » en alternance,
+    // tous les générateurs ont la même fonction, autre que chauffage et refroidissement
+    // (lecture Q125, point 1).
+    if g.priorite == Some(TypePriorite::Alternance) {
+        valider_alternance(r, c, g);
     }
     // Cohérence du montage (§8.17.3.1).
     // Un système solaire combiné assure lui-même une partie du chauffage (fiches 9.19 et 9.20).
@@ -485,10 +544,8 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
     // Chaudières et sous-stations de réseau de chaleur : fluide aval eau ; poêles et inserts :
     // air ambiant (§8.19.2, §8.22 et §8.17.3.1).
     for (k, x) in g.generateurs.iter().enumerate() {
-        let hydraulique = match &x.nature {
-            NatureGenerateur::Chaudiere(_) | NatureGenerateur::ReseauDeChaleurOuDeFroid(_) => true,
-            NatureGenerateur::PoeleOuInsert(_) => false,
-            _ => continue,
+        let Some(hydraulique) = fluide_aval_hydraulique(&x.nature) else {
+            continue;
         };
         for p in 0..2 {
             if postes_assures(&x.nature)[p] && types[p] == Some(!hydraulique) {
@@ -544,6 +601,49 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
             None,
             "aucun générateur de la génération n'assure la production d'ECS de ses \
              distributions (Th-BCE 2020 §8.17.3.1)",
+        );
+    }
+}
+
+/// Gestion en alternance (§8.17.3.7.2.3) : « tous les générateurs doivent avoir le même
+/// idfougen, et il ne peut pas s'agir de idfougen = 4 (chauffage et refroidissement) ». Le
+/// texte numérote 4 « chauffage et ECS » au tableau 110 et traite ce cas au
+/// §8.17.3.7.2.3.4 : la fonction exclue est lue « chauffage et refroidissement » (5, lecture
+/// Q125, point 1 ; `docs/reference/index/anomalies-constatees.md`).
+fn valider_alternance(r: &mut RapportValidation, c: &str, g: &Generation) {
+    // Les natures hors périmètre (code 3) n'ont pas encore de fonction : écartées.
+    let mut calcules = g
+        .generateurs
+        .iter()
+        .enumerate()
+        .filter(|(_, x)| nature_hors_perimetre(&x.nature).is_none());
+    let Some((_, premier)) = calcules.next() else {
+        return;
+    };
+    let fonction = postes_assures(&premier.nature);
+    for (k, x) in calcules {
+        if postes_assures(&x.nature) != fonction {
+            r.erreur(
+                format!("{c}.generateurs[{k}].nature"),
+                None,
+                format!(
+                    "en alternance, tous les générateurs ont la même fonction (« idfougen ») que \
+                     le premier, « {} » (Th-BCE 2020 §8.17.3.7.2.3)",
+                    premier.id
+                ),
+            );
+        }
+    }
+    // Le texte ne décrit que les générations monoposte (§8.17.3.7.2.3.1 à 8.17.3.7.2.3.3) et
+    // « chauffage et ECS » (§8.17.3.7.2.3.4).
+    let nb_postes = fonction.iter().filter(|p| **p).count();
+    if nb_postes > 1 && fonction != [true, false, true] {
+        r.erreur(
+            format!("{c}.priorite"),
+            Some("alternance".into()),
+            "la gestion en alternance s'applique à des générateurs d'un seul poste ou de \
+             chauffage et ECS, pas à des générateurs de chauffage et de refroidissement (Th-BCE \
+             2020 §8.17.3.7.2.3)",
         );
     }
 }

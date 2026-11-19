@@ -267,3 +267,124 @@ fn sous_dimensionnement_compte_les_heures_successives() {
     }
     assert_eq!(g.etat.nb_sousdim[0], 0);
 }
+
+#[test]
+fn alternance_monoposte_chauffage() {
+    // §8.17.3.7.2.3.3, éq. (1043) à (1046), calcul à la main. Générateurs de 2 et 6 kW saisis
+    // dans cet ordre : le plus puissant (6 kW) est appelé en premier.
+    let mut g = GenerationHoraire::nouvelle(
+        "g",
+        vec![
+            joule("petit", Poste::Chauffage, 2000.0),
+            joule("grand", Poste::Chauffage, 6000.0),
+        ],
+    );
+    g.priorite = ModePriorite::Alternance;
+    let fourni = |g: &GenerationHoraire| {
+        [
+            g.generateurs[0].jeu.q_fou_wh[0],
+            g.generateurs[1].jeu.q_fou_wh[0],
+        ]
+    };
+    // 1 kWh demandé, qui tiendrait dans le petit générateur : le grand est surdimensionné,
+    // son compteur passe de 20 à 19, 18… ; il fournit tant que le compteur est positif, soit
+    // les heures 1 à 19.
+    let r = [reseau(Poste::Chauffage, 1000.0)];
+    for h in 1..=19 {
+        let s = g.pas(&entrees(&r), 0).clone();
+        assert_eq!(fourni(&g), [0.0, 1000.0], "heure {h}");
+        assert_eq!(g.generateurs[1].n_basculement, 20 - h);
+        assert_eq!(s.q_rep_wh[0], 0.0);
+    }
+    // Heure 20 : compteur du grand à 0, il est coupé ; le petit reçoit 1 kWh > 0 W (pas de
+    // générateur après lui) : compteur réinitialisé à 20, il fournit tout.
+    g.pas(&entrees(&r), 0);
+    assert_eq!(g.generateurs[1].n_basculement, 0);
+    assert_eq!(g.generateurs[0].n_basculement, N_BASCULEMENT_INIT);
+    assert_eq!(fourni(&g), [1000.0, 0.0]);
+    // 5 kWh : plus que le petit (2 kW) ; le grand est réinitialisé et fournit tout, le petit
+    // ne reçoit rien (compteur 19).
+    let r = [reseau(Poste::Chauffage, 5000.0)];
+    g.pas(&entrees(&r), 0);
+    assert_eq!(fourni(&g), [0.0, 5000.0]);
+    assert_eq!(g.generateurs[0].n_basculement, 19);
+    // 9 kWh : 6 kWh par le grand, 2 kWh par le petit (réinitialisé), 1 kWh reporté (éq. 1046).
+    let r = [reseau(Poste::Chauffage, 9000.0)];
+    let s = g.pas(&entrees(&r), 0).clone();
+    assert_eq!(fourni(&g), [2000.0, 6000.0]);
+    assert!((s.q_rep_wh[0] - 1000.0).abs() < 1e-9);
+    assert_eq!(g.generateurs[0].n_basculement, N_BASCULEMENT_INIT);
+}
+
+#[test]
+fn alternance_chauffage_et_ecs() {
+    // §8.17.3.7.2.3.4, éq. (1047) à (1052) : deux générateurs idéaux « chauffage et ECS »
+    // (puissance nominale conventionnelle de 1 W, ordre de la saisie à puissance égale).
+    let ideal = |id: &str| {
+        GenerateurHoraire::nouveau(
+            id,
+            Generateur::Ideal(GenerateurIdeal {
+                fonction: FonctionGenerateur::ChauffageEcs,
+            }),
+        )
+    };
+    let mut g = GenerationHoraire::nouvelle("g", vec![ideal("x"), ideal("y")]);
+    g.priorite = ModePriorite::Alternance;
+    // 500 Wh de chauffage et 300 Wh d'ECS : la demande totale (800 Wh) dépasse le suivant
+    // (1 W) ; x fournit l'ECS puis le chauffage ; y, sans demande, voit son compteur baisser.
+    let r = [reseau(Poste::Chauffage, 500.0), reseau(Poste::Ecs, 300.0)];
+    let s = g.pas(&entrees(&r), 0).clone();
+    assert_eq!(g.generateurs[0].jeu.q_fou_wh, [500.0, 0.0, 300.0]);
+    assert_eq!(g.generateurs[1].jeu.q_fou_wh, [0.0; 3]);
+    assert_eq!(s.q_rep_wh, [0.0; 3]);
+    assert_eq!(
+        [
+            g.generateurs[0].n_basculement,
+            g.generateurs[1].n_basculement
+        ],
+        [20, 19]
+    );
+    // Hors saison de chauffage et hors période d'activation de l'ECS : désactivés, compteurs
+    // inchangés, demande reportée.
+    let mut e = entrees(&r);
+    e.aut_ch = false;
+    e.id_encl = false;
+    let s = g.pas(&e, 0).clone();
+    assert_eq!(s.q_rep_wh, [500.0, 0.0, 300.0]);
+    assert_eq!(
+        [
+            g.generateurs[0].n_basculement,
+            g.generateurs[1].n_basculement
+        ],
+        [20, 19]
+    );
+    // Une heure sans demande du réseau : les reports (800 Wh) sont servis par x, réinitialisé
+    // à 20 ; y passe à 18. Puis vingt heures sans demande : les deux compteurs tombent à zéro.
+    let vide: [ReseauVu; 0] = [];
+    g.pas(&entrees(&vide), 0);
+    assert_eq!(g.generateurs[0].jeu.q_fou_wh, [500.0, 0.0, 300.0]);
+    assert_eq!(
+        [
+            g.generateurs[0].n_basculement,
+            g.generateurs[1].n_basculement
+        ],
+        [20, 18]
+    );
+    for _ in 0..20 {
+        g.pas(&entrees(&vide), 0);
+    }
+    assert_eq!(
+        [
+            g.generateurs[0].n_basculement,
+            g.generateurs[1].n_basculement
+        ],
+        [0, 0]
+    );
+    // 0,5 Wh d'ECS : tient dans le suivant (1 W), x reste coupé ; y (sans suivant) est
+    // réinitialisé et le fournit.
+    let r = [reseau(Poste::Ecs, 0.5)];
+    let s = g.pas(&entrees(&r), 0).clone();
+    assert_eq!(g.generateurs[0].jeu.q_fou_wh, [0.0; 3]);
+    assert_eq!(g.generateurs[1].jeu.q_fou_wh, [0.0, 0.0, 0.5]);
+    assert_eq!(s.q_rep_wh, [0.0; 3]);
+}
