@@ -998,20 +998,8 @@ fn markdown_anomalies(indexes: &[Index]) -> String {
             }
         }
     }
-    s.push_str(INCOHERENCES_DU_TEXTE);
     s
 }
-
-/// Incohérences du texte lui-même (et non de son extraction), relevées à la main à la lecture
-/// des images ; elles s'ajoutent à la fin du fichier généré. Chacune renvoie à la question qui
-/// consigne la lecture retenue.
-const INCOHERENCES_DU_TEXTE: &str = "\n## Incohérences du texte (relevées à la lecture)\n\n\
-     Annexe III, vérifiées sur l'image de la page ; la lecture retenue est dans le fichier de \
-     question cité.\n\n\
-     - éq. (726) (p. 437) : le facteur ×3 600 donne un débit en m³/h alors que la nomenclature \
-     du tableau 69 donne `qvair` en m³/s et `v0` en m/s ; facteur écarté (Q231 point 2).\n\
-     - éq. (730) (p. 439) : « hiver » écrit pour « été » (puits réglé hors période de chauffage) ; \
-     lue « été » (Q231 point 1).\n";
 
 /// Fichiers générés : (chemin relatif au dépôt, contenu).
 pub fn generer(indexes: &[Index]) -> Vec<(String, String)> {
