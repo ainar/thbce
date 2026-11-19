@@ -95,7 +95,7 @@ thbce schema                 # JSON Schema du format d'entrée (--resultats pour
 thbce version                # version du moteur et de la méthode (aussi thbce --version, -V)
 ```
 
-`--meteo` est obligatoire. `--sans-arrondi` restitue les valeurs en pleine précision au lieu de l'arrondi à une décimale prévu par la méthode (§1.3.1). Une entrée peut déclarer `"$schema"` (adresse du JSON Schema, pour l'aide à la saisie des éditeurs) et `"version_format": 1`.
+`--meteo` est obligatoire. `--sans-arrondi` restitue les valeurs en pleine précision au lieu de l'arrondi à une décimale prévu par la méthode (§1.3.1). `--horaire <fichier>` écrit en plus les séries horaires principales (CSV, ou JSON si le nom finit par `.json` ; format dans `docs/modele-donnees.md`). Une entrée peut déclarer `"$schema"` (adresse du JSON Schema, pour l'aide à la saisie des éditeurs) et `"version_format": 1`.
 
 | Code de retour | Signification |
 |---|---|

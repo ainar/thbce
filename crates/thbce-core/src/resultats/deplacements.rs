@@ -46,6 +46,10 @@ pub struct ConsommationsCollectif {
     pub ventilation_parkings: PosteElectrique,
     /// Éclairage des parkings (§10.4, éq. 2353 et 2354).
     pub eclairage_parkings: PosteElectrique,
+    /// Escalators et tapis roulants (§10.2, éq. 2324) ; absent sans escalator. Compté avec les
+    /// ascenseurs dans le poste « déplacement » des indicateurs (éq. 2513).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub escalators: Option<PosteElectrique>,
 }
 
 impl ConsommationsCollectif {
@@ -55,6 +59,7 @@ impl ConsommationsCollectif {
             + self.ascenseurs.annuel_kwh
             + self.ventilation_parkings.annuel_kwh
             + self.eclairage_parkings.annuel_kwh
+            + self.escalators.as_ref().map_or(0.0, |e| e.annuel_kwh)
     }
 
     pub(crate) fn arrondir(&mut self) {
@@ -62,6 +67,9 @@ impl ConsommationsCollectif {
         self.ascenseurs.arrondir();
         self.ventilation_parkings.arrondir();
         self.eclairage_parkings.arrondir();
+        if let Some(e) = &mut self.escalators {
+            e.arrondir();
+        }
     }
 }
 
@@ -95,6 +103,31 @@ pub struct ResultatsParking {
     pub e_vent_kwh: f64,
     /// « Eec » : consommation annuelle de l'éclairage, en kWh (éq. 2354).
     pub e_ecl_kwh: f64,
+    /// Valeurs par défaut du texte appliquées.
+    pub valeurs_par_defaut: Vec<ValeurParDefaut>,
+}
+
+/// L'ensemble des escalators et tapis roulants d'un bâtiment (§10.2.3.4.3).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsEscalators {
+    /// « BVNB » : besoin de voyages annuel affecté à l'ensemble (éq. 2317).
+    pub bvnb: f64,
+    /// « M » : masse totale transportée sur l'année, en kg (éq. 2318).
+    pub m_kg: f64,
+    /// « Pnoload_m » et « Pnoload_d » : puissances à vide cumulées de montée et de descente, en W.
+    pub p_noload_m_w: f64,
+    /// Voir `p_noload_m_w`.
+    pub p_noload_d_w: f64,
+    /// « H_m » et « H_d » : hauteurs cumulées de montée et de descente, en m.
+    pub h_m_m: f64,
+    /// Voir `h_m_m`.
+    pub h_d_m: f64,
+    /// « Poff » : puissance cumulée à l'arrêt, en W (éq. 2322 et 2323).
+    pub p_off_w: f64,
+    /// Nombre d'heures d'occupation de l'année (`T(h) > 0`).
+    pub nb_h_occupation: usize,
+    /// Consommation annuelle de l'ensemble (somme de « Pesc(h) »), en kWh.
+    pub e_tot_kwh: f64,
     /// Valeurs par défaut du texte appliquées.
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,
 }

@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::entree::{Batiment, PlageHoraire, TechMac, UsageZone};
+use crate::entree::{Batiment, EtatFermeture, PlageHoraire, TechMac, UsageZone};
 
 use super::RapportValidation;
 
@@ -12,6 +12,7 @@ use super::RapportValidation;
 pub(super) fn valider_collectif(r: &mut RapportValidation, cb: &str, bat: &Batiment) {
     let zones: BTreeMap<&str, UsageZone> =
         bat.zones.iter().map(|z| (z.id.as_str(), z.usage)).collect();
+    valider_escalators(r, cb, bat, &zones);
     r.ids_uniques(
         &format!("{cb}.ascenseurs"),
         bat.ascenseurs.iter().map(|a| &a.id),
@@ -224,5 +225,107 @@ fn valider_plage(r: &mut RapportValidation, c: &str, p: PlageHoraire) {
             Some(format!("{} h – {} h", p.debut_h, p.fin_h)),
             "heures légales de 0 à 24, début au plus égal à la fin",
         );
+    }
+}
+
+/// Valide les escalators et tapis roulants (Th-BCE 2020 §10.2, tableau 318 ; Q115).
+fn valider_escalators(
+    r: &mut RapportValidation,
+    cb: &str,
+    bat: &Batiment,
+    zones: &BTreeMap<&str, UsageZone>,
+) {
+    r.ids_uniques(
+        &format!("{cb}.escalators"),
+        bat.escalators.iter().map(|e| &e.id),
+    );
+    for (i, e) in bat.escalators.iter().enumerate() {
+        let c = format!("{cb}.escalators[{i}]");
+        if let Some(v) = e.v_nom_m_s {
+            r.plage(format!("{c}.v_nom_m_s"), v, 0.0, 2.5);
+            if v == 0.0 {
+                r.erreur(
+                    format!("{c}.v_nom_m_s"),
+                    Some("0".into()),
+                    "doit être strictement positif",
+                );
+            }
+        }
+        r.positif(format!("{c}.h_m"), e.h_m);
+        r.positif(format!("{c}.p_noload_w"), e.p_noload_w);
+        for (nom, x) in [
+            ("p_slowspeed_w", e.p_slowspeed_w),
+            ("p_standby_w", e.p_standby_w),
+            ("p_autostart_w", e.p_autostart_w),
+        ] {
+            if let Some(x) = x {
+                r.positif(format!("{c}.{nom}"), x);
+            }
+        }
+        if e.slowspeed && e.p_slowspeed_w.is_none() {
+            r.erreur(
+                format!("{c}.p_slowspeed_w"),
+                None,
+                "requis avec une régulation basse vitesse (§10.2.3.3 : pas de valeur par défaut)",
+            );
+        }
+        if !e.slowspeed && e.p_slowspeed_w.is_some() {
+            r.avertissement(
+                format!("{c}.p_slowspeed_w"),
+                None,
+                "n'est employé qu'avec `slowspeed` vrai : ignoré",
+            );
+        }
+        if e.sc_veille {
+            let (champ, valeur) = match e.etat_fermeture.unwrap_or(EtatFermeture::ArretComplet) {
+                EtatFermeture::ArretComplet => ("p_standby_w", e.p_standby_w),
+                EtatFermeture::ArretSansPassager => ("p_autostart_w", e.p_autostart_w),
+                EtatFermeture::VitesseNominaleAVide => ("p_noload_w", Some(e.p_noload_w)),
+            };
+            if valeur.is_none() {
+                r.erreur(
+                    format!("{c}.{champ}"),
+                    None,
+                    "requis par l'état de fermeture choisi quand le scénario de veille est \
+                     connu (§10.2.3.3 : pas de valeur par défaut)",
+                );
+            }
+        } else if e.etat_fermeture.is_some() {
+            r.avertissement(
+                format!("{c}.etat_fermeture"),
+                None,
+                "n'est employé que si `sc_veille` est vrai : ignoré (88 W, éq. 2323)",
+            );
+        }
+        if e.zones_desservies.is_empty() {
+            r.erreur(
+                format!("{c}.zones_desservies"),
+                None,
+                "au moins une zone desservie (tableau 318 : C ≥ 1)",
+            );
+        }
+        let mut vues = std::collections::BTreeSet::new();
+        for (iz, id) in e.zones_desservies.iter().enumerate() {
+            match zones.get(id.as_str()) {
+                None => r.erreur(
+                    format!("{c}.zones_desservies[{iz}]"),
+                    Some(id.clone()),
+                    "zone inconnue dans ce bâtiment",
+                ),
+                Some(UsageZone::MaisonIndividuelle) => r.erreur(
+                    format!("{c}.zones_desservies[{iz}]"),
+                    Some(id.clone()),
+                    "pas de besoin de voyages pour la maison individuelle (tableau 310)",
+                ),
+                _ => {}
+            }
+            if !vues.insert(id) {
+                r.erreur(
+                    format!("{c}.zones_desservies"),
+                    Some(id.clone()),
+                    "zone listée deux fois",
+                );
+            }
+        }
     }
 }

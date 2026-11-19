@@ -4,6 +4,7 @@
 //! Toutes les fonctions travaillent sur des octets ou des chaînes en mémoire, jamais sur des
 //! chemins : elles servent aussi bien l'exécutable que le module WebAssembly.
 //!
+//! - [`horaire`] : séries horaires restituées sur demande (CSV et JSON) ;
 //! - [`json`] : format d'entrée JSON natif et son JSON Schema ;
 //! - [`meteo`] : lecture des fichiers météo fournis par l'utilisateur ;
 //! - [`rapport`] : mise en forme lisible des rapports de validation.
@@ -12,6 +13,7 @@
 //! l'arrêté ne nomme aucun élément XML. Il sera écrit à partir de fichiers d'exemple
 //! (décision Q3, `docs/questions/Q003.md`).
 
+pub mod horaire;
 pub mod json;
 pub mod meteo;
 pub mod rapport;

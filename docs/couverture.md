@@ -235,7 +235,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
 | 10.1 | C_Bat_Ascenseurs | 1295–1308 | 6e | `core/src/deplacements/ascenseurs.rs` | implémenté : éq. (2274) à (2310), tableaux 310 à 317 ; lectures Q50 ; la fiche d'application ministérielle n'est pas dans les références |
-| 10.2 | C_Bat_Escalators | 1309–1317 | après v1 | `core/src/deplacements/escalators.rs` | non commencé |
+| 10.2 | C_Bat_Escalators | 1309–1317 | 1-sor | `core/src/deplacements/escalators.rs`, `validation/collectif.rs` | implémenté : ensemble des escalators et tapis roulants, masse transportée (éq. 2315 à 2319), profil de mobilité (éq. 2320), puissances en occupation et à l'arrêt (éq. 2311 à 2314, 2321 à 2323), partition par zone (éq. 2324), tapis roulant (éq. 2325) ; lectures Q115 |
 | 10.3 | C_VEN_Calcul des consommations de ventilation des parcs de stationnement fermés | 1318–1326 | 6e | `core/src/deplacements/parkings.rs` | implémenté : éq. (2326) à (2346), tableau 321 ; hors habitation codé et testé mais inaccessible (zones d'habitation seules) ; lectures Q50 |
 | 10.4 | C_ECL_calcul des consommations d’éclairage des parkings | 1327–1332 | 6e | `core/src/deplacements/parkings.rs` | implémenté : éq. (2347) à (2354), tableau 323 ; lectures Q50 |
 
