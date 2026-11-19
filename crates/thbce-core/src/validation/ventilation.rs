@@ -610,12 +610,11 @@ pub(super) fn valider_ventilation(
                 valider_echangeur(r, &format!("{cc}.echangeur"), e);
             }
         }
-        SystemeVentilation::NaturelleParConduits | SystemeVentilation::Hybride => r
-            .hors_perimetre(
-                cs.clone(),
-                Some(nom_json(&v.systeme)),
-                "ventilation naturelle par conduits ou hybride (Th-BCE 2020 §6.6)",
-            ),
+        SystemeVentilation::NaturelleParConduits | SystemeVentilation::Hybride => r.hors_perimetre(
+            cs.clone(),
+            Some(nom_json(&v.systeme)),
+            "ventilation naturelle par conduits ou hybride (Th-BCE 2020 §6.6)",
+        ),
         SystemeVentilation::Aeration => valider_aeration(r, c, v, zone),
         SystemeVentilation::CentraleTraitementAir if !habitation => r.erreur(
             cs.clone(),
@@ -658,7 +657,11 @@ pub(super) fn valider_ventilation(
     }
     for (champ, requis, valeur) in [
         ("r_rep_m2k_w", a_reprise && !aeration, v.reseau.r_rep_m2k_w),
-        ("r_souf_m2k_w", a_soufflage && !aeration, v.reseau.r_souf_m2k_w),
+        (
+            "r_souf_m2k_w",
+            a_soufflage && !aeration,
+            v.reseau.r_souf_m2k_w,
+        ),
     ] {
         match valeur {
             Some(x) => r.positif(format!("{cr}.{champ}"), x),
@@ -1158,8 +1161,10 @@ fn valider_aeration(r: &mut RapportValidation, c: &str, v: &Ventilation, zone: &
                     format!("{cb}.isouf"),
                     Some("reprise".to_owned()),
                     "en aération, le débit repris d'un groupe est l'opposé de son débit \
-                     soufflé (Th-BCE 2020 §5.6.3.4.5, éq. 163) : cette bouche de reprise n'est \
-                     pas comptée ; décrire l'air neuf fourni par une bouche de soufflage",
+                     soufflé (Th-BCE 2020 §5.6.3.4.5, éq. 163) : cette bouche de reprise n'entre \
+                     pas dans le calcul des consommations ni du DH (le calcul du Bbio la lit \
+                     comme toute bouche, §6.1 et décision Q36) ; l'air neuf fourni par les \
+                     fenêtres se décrit par les bouches de soufflage",
                 );
             }
             for (champ, valeur, regle) in [

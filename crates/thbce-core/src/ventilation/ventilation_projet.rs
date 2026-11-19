@@ -36,8 +36,8 @@ use crate::resultats::ValeurParDefaut;
 use super::bouche_conduit::{
     a_cond_defaut_collectif_m2, a_cond_defaut_maison_m2, debits_dep_habitation,
     debits_dep_non_residentiel, k_res, q_fuites_m3_h, Debits, DebitsBoucheProjet, PressionReseau,
-    TypologieReseau, CDEP_DEFAUT, CFENB, CRDBNR_BBIO, CRDBNR_DEFAUT, DUGD_DEFAUT_H,
-    K_RES_BBIO, K_RES_DEFAUT,
+    TypologieReseau, CDEP_DEFAUT, CFENB, CRDBNR_BBIO, CRDBNR_DEFAUT, DUGD_DEFAUT_H, K_RES_BBIO,
+    K_RES_DEFAUT,
 };
 use super::cta_et_double_flux::{
     antigel, conditions_debit_nominal, debits_nominaux, delta_bypass, epsilon_detaille, epsilon_t,
@@ -1109,17 +1109,28 @@ impl VentilationProjet {
     /// Débits spécifiques d'un groupe au pas de temps en cours (régime fixé par
     /// [`VentilationProjet::preparer_pas`]).
     pub fn debits_groupe_pas(&self, g: usize) -> Debits {
-        self.bouches
-            .iter()
-            .filter(|b| b.groupe == g)
-            .fold(Debits::default(), |mut d, b| {
-                let debits = self.debits_pas(b, self.regime.i_vent);
-                match debits.isouf {
-                    Isouf::Reprise => d.q_rep_m3_h += debits.q_spec_m3_h(),
-                    Isouf::Soufflage => d.q_souffle_m3_h += debits.q_spec_m3_h(),
-                }
-                d
-            })
+        let d =
+            self.bouches
+                .iter()
+                .filter(|b| b.groupe == g)
+                .fold(Debits::default(), |mut d, b| {
+                    let debits = self.debits_pas(b, self.regime.i_vent);
+                    match debits.isouf {
+                        Isouf::Reprise => d.q_rep_m3_h += debits.q_spec_m3_h(),
+                        Isouf::Soufflage => d.q_souffle_m3_h += debits.q_spec_m3_h(),
+                    }
+                    d
+                });
+        self.selon_nature(d)
+    }
+
+    /// Éq. (163) : en aération, le débit repris d'un groupe est l'opposé de son débit soufflé
+    /// (les bouches de reprise ne sont pas comptées) ; sans effet sur les autres systèmes.
+    fn selon_nature(&self, mut d: Debits) -> Debits {
+        if self.nature == NatureSysteme::Aeration {
+            d.q_rep_m3_h = -d.q_souffle_m3_h;
+        }
+        d
     }
 
     /// Débits d'une bouche au pas de temps : selon le régime de la centrale de traitement d'air,
@@ -1170,17 +1181,19 @@ impl VentilationProjet {
     /// Débits spécifiques d'un groupe selon l'indicateur de ventilation `Ivent` de la zone
     /// (sans effet en habitation).
     pub fn debits_groupe_selon(&self, g: usize, i_vent: bool) -> Debits {
-        self.bouches
-            .iter()
-            .filter(|b| b.groupe == g)
-            .fold(Debits::default(), |mut d, b| {
-                let debits = b.debits_regime(self.regime_statique(i_vent));
-                match debits.isouf {
-                    Isouf::Reprise => d.q_rep_m3_h += debits.q_spec_m3_h(),
-                    Isouf::Soufflage => d.q_souffle_m3_h += debits.q_spec_m3_h(),
-                }
-                d
-            })
+        let d =
+            self.bouches
+                .iter()
+                .filter(|b| b.groupe == g)
+                .fold(Debits::default(), |mut d, b| {
+                    let debits = b.debits_regime(self.regime_statique(i_vent));
+                    match debits.isouf {
+                        Isouf::Reprise => d.q_rep_m3_h += debits.q_spec_m3_h(),
+                        Isouf::Soufflage => d.q_souffle_m3_h += debits.q_spec_m3_h(),
+                    }
+                    d
+                });
+        self.selon_nature(d)
     }
 
     /// Débits vus par les ventilateurs pour un groupe, en m³/h (éq. 430 et 431). Hors
@@ -1191,17 +1204,19 @@ impl VentilationProjet {
 
     /// Débits vus par les ventilateurs pour un groupe selon `Ivent`.
     pub fn debits_cond_groupe_selon(&self, g: usize, i_vent: bool) -> Debits {
-        self.bouches
-            .iter()
-            .filter(|b| b.groupe == g)
-            .fold(Debits::default(), |mut d, b| {
-                let debits = b.debits_regime(self.regime_statique(i_vent));
-                match debits.isouf {
-                    Isouf::Reprise => d.q_rep_m3_h += debits.q_cond_m3_h(),
-                    Isouf::Soufflage => d.q_souffle_m3_h += debits.q_cond_m3_h(),
-                }
-                d
-            })
+        let d =
+            self.bouches
+                .iter()
+                .filter(|b| b.groupe == g)
+                .fold(Debits::default(), |mut d, b| {
+                    let debits = b.debits_regime(self.regime_statique(i_vent));
+                    match debits.isouf {
+                        Isouf::Reprise => d.q_rep_m3_h += debits.q_cond_m3_h(),
+                        Isouf::Soufflage => d.q_souffle_m3_h += debits.q_cond_m3_h(),
+                    }
+                    d
+                });
+        self.selon_nature(d)
     }
 
     /// Puissance moyenne totale des ventilateurs du système, en W. Hors habitation, puissance

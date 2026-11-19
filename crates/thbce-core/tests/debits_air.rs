@@ -13,9 +13,9 @@ use thbce_core::entree::{AutoreglageEntreesAir, EntreesAir, Projet, UsageZone};
 use thbce_core::valider;
 use thbce_core::ventilation::debits_air_cep::{
     altitudes, coefficient_entree_air, coefficient_permeabilite, coefficients_pression,
-    delta_p_comp_pa, flux_aeration, flux_entrants, h_moy_m, hall_fictif, permea_verticale, q_v_def, rho_kg_m3,
-    trav_zone_conventionnel, EntreeAir, EtatGroupe, Exterieur, GroupeAeraulique, LectureAltitudes,
-    ZoneAeraulique,
+    delta_p_comp_pa, flux_aeration, flux_entrants, h_moy_m, hall_fictif, permea_verticale, q_v_def,
+    rho_kg_m3, trav_zone_conventionnel, EntreeAir, EtatGroupe, Exterieur, GroupeAeraulique,
+    LectureAltitudes, ZoneAeraulique,
 };
 
 const ENTREE: &str = include_str!("../../../tests/cas/squelette-maison/entree.json");
@@ -548,7 +548,10 @@ fn aeration_debit_repris_oppose_au_debit_souffle() {
     let flux = flux_entrants(g, &ext, &e, None);
     assert_eq!(flux.len(), 1);
     let a = flux_aeration(g, &e).unwrap();
-    assert_eq!((a.qm_kg_s, a.theta_c, a.omega_kg_kg), (g.q_m_spec_souffle_kg_s, 0.0, 0.0));
+    assert_eq!(
+        (a.qm_kg_s, a.theta_c, a.omega_kg_kg),
+        (g.q_m_spec_souffle_kg_s, 0.0, 0.0)
+    );
     // Hors aération, le flux d'air soufflé reste dans la liste et `flux_aeration` n'existe pas.
     e.aeration = false;
     assert!(flux_aeration(g, &e).is_none());

@@ -24,7 +24,8 @@ use crate::entree::{Catalogue, Zone};
 use crate::erreur::Erreur;
 use crate::scenarios::ScenariosZone;
 use crate::ventilation::debits_air_cep::{
-    flux_aeration, flux_entrants, hall_fictif, trav_zone_conventionnel, EtatGroupe, Exterieur, ZoneAeraulique,
+    flux_aeration, flux_entrants, hall_fictif, trav_zone_conventionnel, EtatGroupe, Exterieur,
+    ZoneAeraulique,
 };
 use crate::ventilation::ven_bbio::{omega_air_souffle_kg_kg, t_air_souffle_c};
 use crate::ventilation::ventilation_projet::{
@@ -401,7 +402,10 @@ impl ZoneHoraire {
         let est_aeration = self.ventilation.as_ref().is_some_and(|v| v.est_aeration());
         if est_aeration {
             for (g, a) in self.groupes.iter().zip(self.air_souffle.iter_mut()) {
-                if let Some(e) = g.aeration_espace_tampon.and_then(|i| espaces_tampons.get(i)) {
+                if let Some(e) = g
+                    .aeration_espace_tampon
+                    .and_then(|i| espaces_tampons.get(i))
+                {
                     a.t_air_souffle_c = e.theta_et_c;
                 }
             }

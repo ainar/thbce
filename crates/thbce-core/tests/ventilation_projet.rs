@@ -616,7 +616,8 @@ fn aeration_debits_a_la_main() {
     // fuite.
     let d = v.debits_groupe(0);
     proche(d.q_souffle_m3_h, 1.7 * 111.25);
-    assert_eq!(d.q_rep_m3_h, 0.0);
+    // Éq. (163) : le débit repris est l'opposé du débit soufflé, sans bouche de reprise.
+    proche(d.q_rep_m3_h, -1.7 * 111.25);
     proche(v.debits_cond_groupe(0).q_souffle_m3_h, 1.7 * 111.25);
     // Aucun ventilateur.
     assert_eq!((v.p_vent_w(), v.p_vent_groupe_w(0)), (0.0, 0.0));
@@ -650,7 +651,12 @@ fn aeration_validation() {
     );
     let mut p = aeration();
     zone_mut(&mut p).groupes[0].bouches_conduits[0].a_cond_m2 = Some(1.0);
-    zone_mut(&mut p).ventilation.as_mut().unwrap().reseau.ratfuitevc = Some(0.5);
+    zone_mut(&mut p)
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .reseau
+        .ratfuitevc = Some(0.5);
     assert_eq!(
         chemins(&p),
         ["batiments[0].zones[0].groupes[0].bouches_conduits[0].a_cond_m2"]
@@ -676,10 +682,18 @@ fn aeration_validation() {
     );
     // Paramètres de réseau sans objet : avertissement.
     let mut p = aeration();
-    zone_mut(&mut p).ventilation.as_mut().unwrap().reseau.ratfuitevc = Some(0.5);
+    zone_mut(&mut p)
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .reseau
+        .ratfuitevc = Some(0.5);
     let r = valider(&p);
     assert!(r.est_valide());
-    assert_eq!(r.avertissements[0].chemin, "batiments[0].zones[0].ventilation.reseau");
+    assert_eq!(
+        r.avertissements[0].chemin,
+        "batiments[0].zones[0].ventilation.reseau"
+    );
     // L'espace tampon de l'aération ne se saisit qu'avec ce système, et doit exister.
     let mut p = projet();
     zone_mut(&mut p).groupes[0].aeration_espace_tampon = Some("serre".into());
