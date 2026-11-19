@@ -154,7 +154,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 6.9 | C_VEN_Puits_hydraulique | 440–448 | après v1 | `core/src/ventilation/puits_hydraulique.rs` | non commencé ; refusé par la validation (message « non pris en charge ») |
 | 6.10 | C_VEN_gestion_régulation_Puits_climatique | 449–453 | après v1 | `core/src/ventilation/gestion_regulation_puits_climatique.rs` | non commencé ; refusé par la validation (message « non pris en charge ») |
 | 6.11 | S1_BAT_assemblage_puits_climatique | 454–460 | après v1 | `core/src/ventilation/assemblage_puits_climatique.rs` | non commencé ; refusé par la validation (message « non pris en charge ») |
-| 6.12 | C_VEN_Fonctions de rafraichissement par surventilation mécanique des systèmes de ventilation | 461–469 | après v1 | `core/src/ventilation/fonctions_de_rafraichissement_par_surventilation.rs` | non commencé ; refusé par la validation (message « non pris en charge ») |
+| 6.12 | C_VEN_Fonctions de rafraichissement par surventilation mécanique des systèmes de ventilation | 461–469 | 1-ven6 | `core/src/ventilation/surventilation_mecanique.rs`, `core/src/ventilation/ventilation_projet.rs` | complet : `rafraichissement_surventilation` des systèmes simple flux, basse pression, double flux et `cta` (types 1 à 4, consignes d'été et de mi-saison), débits par bouche (éq. 758, 759, 775), régulation saisonnière et horaire (éq. 762 à 774), surfaces de conduit (éq. 760, 761), bypass, tout air neuf, traitements coupés (éq. 776 à 778), ventilateurs relevés (éq. 779, 780) ; Th-C et Th-D ; lecture Q230 ; exemples `tests/cas/maison-surventilation-ademe`, `tests/cas/bureaux-cta-surventilation-ademe` |
 
 ### 7. Eclairage (p. 470–503)
 
