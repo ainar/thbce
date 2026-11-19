@@ -357,10 +357,10 @@ fn erreurs_de_saisie() {
         .unwrap()
         .centrale = None;
     assert_eq!(chemins(&p).0, [format!("{c}.batterie_chaude")]);
-    // L'humidification reste hors périmètre (code 3).
+    // L'humidification sans description est une erreur de saisie (lot 1-ven3).
     let mut p = bureaux_dav();
     cta_mut(&mut p).humidification = Some(true);
-    assert_eq!(chemins(&p), (vec![format!("{c}.humidification")], true));
+    assert_eq!(chemins(&p), (vec![format!("{c}.humidification")], false));
 }
 
 fn meteo_reglementaire(p: &Projet) -> MeteoProjet {

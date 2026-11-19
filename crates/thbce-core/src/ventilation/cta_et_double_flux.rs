@@ -20,9 +20,9 @@
 //!   et de refroidissement, latente comprise (éq. 596 à 612), ventilateurs (éq. 614) ;
 //!   lectures `docs/questions/Q095.md`.
 //!
-//! Hors de cette version, refusés par la validation : humidification d'hiver, rafraîchissement
-//! évaporatif, surventilation mécanique, puits climatique ou hydraulique.
-//! L'air neuf est donc l'air extérieur (éq. 413) et `θextr3 = θextr2` (éq. 484 et 485).
+//! Humidification d'hiver et rafraîchissement évaporatif : [`super::humidification`].
+//! Hors de cette version, refusés par la validation : surventilation mécanique, puits
+//! climatique ou hydraulique ; l'air neuf est donc l'air extérieur (éq. 413).
 //!
 //! Les numéros d'équation sont ceux de la fiche 6.3, sauf mention « fiche 6.2 » (les deux
 //! fiches emploient les mêmes numéros, voir `docs/reference/index/anomalies.md`).

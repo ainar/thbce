@@ -67,6 +67,23 @@ pub struct ResultatsVentilationMode {
     /// négative (« Qfroid(rec) », éq. 611) ; absente sans elle.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub q_froid_kwh: Option<f64>,
+    /// Énergie de l'humidificateur d'hiver, en kWh (« QHR », éq. 529 ; nulle pour un
+    /// humidificateur à pulvérisation, éq. 533) ; absente sans humidificateur. Demandée à la
+    /// génération désignée pour un humidificateur à vapeur (éq. 939).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub q_hr_kwh: Option<f64>,
+    /// Consommation de la pompe de l'humidificateur d'hiver, en kWh (« Waux,chaudHR », éq.
+    /// 568) ; absente sans humidificateur. Comprise dans `c_aux_vent_kwh`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub w_aux_chaudhr_kwh: Option<f64>,
+    /// Nombre d'heures où le rafraîchissement évaporatif est autorisé (« Aut_adiab = 1 »,
+    /// §6.3.3.4.2) ; absent sans rafraîchissement évaporatif.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nbh_adiab: Option<u32>,
+    /// Consommation de la pompe du rafraîchissement évaporatif, en kWh (« Waux,adiab », éq.
+    /// 566 et 617) ; absente sans rafraîchissement évaporatif. Comprise dans `c_aux_vent_kwh`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub w_aux_adiab_kwh: Option<f64>,
 }
 
 /// Ventilation du projet vue d'un groupe (Th-BCE 2020 §6.2 à 6.5).

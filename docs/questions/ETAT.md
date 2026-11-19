@@ -101,6 +101,8 @@
 | Q93 | Réseaux de distribution des CTA (fiche 8.11) : réseau fictif par batterie, température vue par la génération, répartition entre les groupes | lecture du lot 1-ven, à confirmer par un cas de référence |
 | Q94 | Périmètre de la ventilation après le lot 1-ven : refus ciblés (mode actif des CTA à charge variable, humidification, rafraîchissement évaporatif, surventilation mécanique, puits, ventilation naturelle et aération) ; consommation relevée, échangeur rotatif, tableau 62 | lecture du lot 1-ven, à confirmer par un cas de référence |
 | Q95 | Mode actif des centrales à charge variable (fiche 6.3, §6.3.3.5) : émetteur contenu dans les bouches de soufflage, demande remplacée par celle de la centrale, état des groupes vu par le recalcul, signe de PZN à l'éq. 592, report d'énergie | lecture du lot 1-ven2, à confirmer par un cas de référence |
+| Q96 | Humidification d'hiver et rafraîchissement évaporatif des centrales (fiche 6.3) : unités de FADIAB, borne de l'humidification adiabatique, température moyenne de l'autorisation, profil à hystérésis, ordre des traitements, saison de refroidissement en Th-D, périmètre | lecture du lot 1-ven3, à confirmer par un cas de référence |
+| Q97 | Pompes des humidificateurs (éq. 566, 568 et 615) : unité du débit d'eau | lecture du lot 1-ven3, à confirmer par un cas de référence |
 | Q105 | ECS : plusieurs assemblages de ballons et heures non couvertes | tranchée, pas d'écart au texte |
 | Q106 | ECS : accumulateur en eau technique et échangeur de ballon (fiches 9.11 et 9.12) | tranchée, à confirmer par un cas de référence |
 | Q107 | ECS : IdCET sur eau (fiche 9.22) reste refusé ; fiche 9.21 levée par Q108 | refus 9.22 maintenu ; point 1 (9.21) remplacé par Q108 le 18 novembre 2026 |

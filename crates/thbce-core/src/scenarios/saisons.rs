@@ -151,6 +151,9 @@ pub struct Saisons {
     pub aut_ch: bool,
     /// « Autfr,pro(j) ».
     pub aut_fr: bool,
+    /// « Autfr,pro(j) » calculée sans égard pour `iclim`, pour la saison équivalente de
+    /// refroidissement d'une centrale (§6.3.3.4.1, éq. 411 ; lecture Q96 point 6).
+    pub aut_fr_passif: bool,
     jours_ch_consecutifs: u16,
     nb_redemarrage: u8,
     debut_mgdh_ch: Option<u16>,
@@ -199,6 +202,7 @@ impl Saisons {
             en_cours: Journee::default(),
             aut_ch: true,
             aut_fr: false,
+            aut_fr_passif: false,
             jours_ch_consecutifs: 0,
             nb_redemarrage: 0,
             debut_mgdh_ch: None,
@@ -365,21 +369,29 @@ impl Saisons {
 
         // Refroidissement.
         let fr_prec = self.aut_fr;
-        let aut_fr = if !self.froid_possible || j < J_DEMARRAGE_FR {
-            false
-        } else if j < J_AUTORISATION_FR {
-            fr_prec || confort_adaptatif_th_d || {
-                let cumul = self.somme(fenetre(J_DEMARRAGE_FR));
-                cumul.dh_fr_c_h >= self.seuil_debut(cumul.nbh_occ)
+        let regle = |prec: bool| {
+            if j < J_DEMARRAGE_FR {
+                false
+            } else if j < J_AUTORISATION_FR {
+                prec || confort_adaptatif_th_d || {
+                    let cumul = self.somme(fenetre(J_DEMARRAGE_FR));
+                    cumul.dh_fr_c_h >= self.seuil_debut(cumul.nbh_occ)
+                }
+            } else if j < J_ARRET_FR {
+                true
+            } else if prec {
+                let mgb_fr = self.mgb_fr_wh_m2();
+                !(mgb_fr <= SEUIL_FIN_WH_M2 && !confort_adaptatif_th_d)
+            } else {
+                false
             }
-        } else if j < J_ARRET_FR {
-            true
-        } else if fr_prec {
-            let mgb_fr = self.mgb_fr_wh_m2();
-            !(mgb_fr <= SEUIL_FIN_WH_M2 && !confort_adaptatif_th_d)
-        } else {
-            false
         };
+        let aut_fr = self.froid_possible && regle(fr_prec);
+        // Saison de refroidissement équivalente des fonctions de rafraîchissement passif d'une
+        // centrale (§6.3.3.4.1, éq. 411) : la même procédure, sans égard pour `iclim`
+        // (lecture Q96 point 6).
+        let passif = regle(self.aut_fr_passif);
+        self.aut_fr_passif = passif;
         if fr_prec && !aut_fr {
             self.j_fin_fr = Some(j);
         }

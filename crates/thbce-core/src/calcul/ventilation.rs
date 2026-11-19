@@ -46,6 +46,10 @@ pub(super) fn resultats_mode(
         q_froid_kwh: batteries
             .and_then(|b| b.froid)
             .map(|_| c.q_froid_wh / 1000.0),
+        q_hr_kwh: v.humidificateur.map(|_| c.q_hr_wh / 1000.0),
+        w_aux_chaudhr_kwh: v.humidificateur.map(|_| c.w_aux_chaudhr_wh / 1000.0),
+        nbh_adiab: v.adiabatique.map(|_| c.nbh_adiab),
+        w_aux_adiab_kwh: v.adiabatique.map(|_| c.w_aux_adiab_wh / 1000.0),
     }
 }
 
