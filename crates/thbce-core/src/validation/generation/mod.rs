@@ -117,6 +117,20 @@ pub(super) fn valider_generations(r: &mut RapportValidation, cb: &str, bat: &Bat
                 "au prérefroidissement",
             );
         }
+        // Éq. (939) : humidificateur d'hiver à vapeur (« idchaudHR »).
+        if let Some(id) = v
+            .systeme
+            .humidificateur()
+            .and_then(|h| h.generation.as_ref())
+        {
+            designee(
+                r,
+                format!("{cs}.humidificateur.generation"),
+                id,
+                0,
+                "à l'humidificateur d'hiver",
+            );
+        }
         // Éq. (940) : batteries régulées sur la charge des centrales à charge variable.
         if let SystemeVentilation::Cta(cta) = &v.systeme {
             for (present, champ, id, poste, role) in [

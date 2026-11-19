@@ -34,16 +34,17 @@
             "c_aux_vent_kwh": 7350.5,
             "th_d": {
               "nbh_bypass": 3382,
-              "q_ag_kwh": 11.7,
+              "q_ag_kwh": 11.2,
               "nbh_mode_actif": 870,
               "nbh_sous_dimensionnement": 30,
               "q_chaud_kwh": 19635.0
             },
             "th_c": {
               "nbh_bypass": 3068,
-              "q_ag_kwh": 11.0,
+              "q_ag_kwh": 10.4,
               "nbh_mode_actif": 1019,
               "nbh_sous_dimensionnement": 31,
+              "nbh_sous_dimensionnement_consecutives": 3,
               "q_chaud_kwh": 23386.9
             }
           },

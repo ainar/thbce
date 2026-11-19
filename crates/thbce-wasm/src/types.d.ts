@@ -989,7 +989,12 @@ export interface Cta {
    * pourvue d'un générateur de refroidissement.
    */
   generation_batterie_froide?: string | null;
-  /** Humidificateur d'hiver (« Is_ChaudHR ») : non pris en charge dans cette version. */
+  /** Description de l'humidificateur d'hiver (lot 1-ven3) ; absent : pas d'humidificateur. */
+  humidificateur?: HumidificateurHiver | null;
+  /**
+   * Humidificateur d'hiver (« Is_ChaudHR ») : `true` exige sa description
+   * `humidificateur` ; forme conservée pour la compatibilité (sans effet propre).
+   */
   humidification?: boolean | null;
   /** « Pvent,rep,CH » : puissance du ventilateur de reprise en mode actif (nominal), en W. */
   p_vent_rep_ch_w: number;
@@ -1010,8 +1015,13 @@ export interface Cta {
   /** « Pvent,sou,ZN occ » : la même pour le ventilateur de soufflage, en W. */
   p_vent_sou_zn_occ_w: number;
   /**
-   * Rafraîchissement évaporatif (« Type_humidification_Eté ») : non pris en charge dans
-   * cette version.
+   * Description du rafraîchissement évaporatif (lot 1-ven3) ; absent : pas de
+   * rafraîchissement évaporatif.
+   */
+  rafraichissement_adiabatique?: RafraichissementEvaporatif | null;
+  /**
+   * Rafraîchissement évaporatif (« Type_humidification_Eté ») : `true` exige sa
+   * description `rafraichissement_adiabatique` ; forme conservée pour la compatibilité.
    */
   rafraichissement_evaporatif?: boolean | null;
   /**
@@ -1276,7 +1286,12 @@ export interface DoubleFlux {
   batterie_prerefroidissement?: BatteriePrerefroidissement | null;
   /** Échangeur. Absent : pas d'échangeur (`type_échangeur = 0`, éq. 496). */
   echangeur?: Echangeur | null;
-  /** Humidificateur d'hiver (« Is_ChaudHR ») : non pris en charge dans cette version. */
+  /** Description de l'humidificateur d'hiver (lot 1-ven3) ; absent : pas d'humidificateur. */
+  humidificateur?: HumidificateurHiver | null;
+  /**
+   * Humidificateur d'hiver (« Is_ChaudHR ») : `true` exige sa description
+   * `humidificateur` ; forme conservée pour la compatibilité (sans effet propre).
+   */
   humidification?: boolean | null;
   /**
    * « Pvent,base,rep » : puissance électrique du ventilateur de reprise en débit de base, en W.
@@ -1320,8 +1335,13 @@ export interface DoubleFlux {
    */
   prechauffage?: boolean | null;
   /**
-   * Rafraîchissement évaporatif (« Type_humidification_Eté ») : non pris en charge dans
-   * cette version.
+   * Description du rafraîchissement évaporatif (lot 1-ven3) ; absent : pas de
+   * rafraîchissement évaporatif.
+   */
+  rafraichissement_adiabatique?: RafraichissementEvaporatif | null;
+  /**
+   * Rafraîchissement évaporatif (« Type_humidification_Eté ») : `true` exige sa
+   * description `rafraichissement_adiabatique` ; forme conservée pour la compatibilité.
    */
   rafraichissement_evaporatif?: boolean | null;
   /**
@@ -2501,6 +2521,30 @@ export interface IndicateursOccupants {
   valeurs_par_defaut?: ValeurParDefaut[];
   /** Nombre d'occupants de chaque zone. */
   zones: OccupantsZone[];
+}
+
+/**
+ * Th-BCE 2020 §6.3.3.4.9.2 — humidificateur d'hiver (« Is_ChaudHR = 1 ») d'un double flux ou
+ * d'une centrale à débit constant (types 1 et 2), en saison de chauffage, après la batterie
+ * de préchauffage.
+ */
+export interface HumidificateurHiver {
+  /**
+   * « ηhum » : efficacité d'un humidificateur à pulvérisation (0 à 1) ; 0,8 par défaut
+   * (tableau 61 et éq. 530), valeur signalée ; refusée pour un humidificateur à vapeur.
+   */
+  eta_hum?: number | null;
+  /**
+   * Génération qui fournit l'énergie d'un humidificateur à vapeur (« QchaudHR », éq. 529),
+   * par un réseau de distribution de CTA fictif (fiche 8.11, « idchaudHR », éq. 939) :
+   * identifiant d'une génération du bâtiment pourvue d'un générateur de chauffage. Requise
+   * pour un humidificateur à vapeur, refusée sinon (« QHR = 0 », éq. 533).
+   */
+  generation?: string | null;
+  /** « ωcons » : humidité spécifique de consigne de l'air soufflé, en kg/kg d'air sec (0 à 1). */
+  omega_cons_kg_kg: number;
+  /** « TypeHumidification ». */
+  type_humidification: TypeHumidificationHiver;
 }
 
 /**
@@ -3694,6 +3738,33 @@ export type RaccordementSsc = {
     delta_theta_reg_boucle_chauffage_k: number;
   };
 } | "raccorde";
+
+/**
+ * Th-BCE 2020 §6.3.2 et §6.3.3.4.2 — rafraîchissement évaporatif (adiabatique) d'un double
+ * flux ou d'une centrale de traitement d'air.
+ */
+export interface RafraichissementEvaporatif {
+  /**
+   * « Δθi1 » : paramètre du profil à hystérésis des débits d'une centrale à débit variable
+   * (éq. 426), en K, strictement positif ; requis pour une centrale à débit variable,
+   * refusé sinon.
+   */
+  delta_theta_i1_k?: number | null;
+  /** « Δθi2 » : voir `delta_theta_i1_k`. */
+  delta_theta_i2_k?: number | null;
+  /**
+   * « ηhum_dir » ou « ηhum_indir » : rendement de l'humidificateur (0 à 1) ; 0,8 par défaut
+   * (tableau 61), valeur signalée.
+   */
+  eta_hum?: number | null;
+  /**
+   * « θi_base » : température intérieure au-dessus de laquelle le rafraîchissement est
+   * autorisé (§6.3.3.4.2), en °C ; au moins 22 °C.
+   */
+  theta_i_base_c: number;
+  /** « Type_humidification_Eté » : direct ou indirect. */
+  type_rafraichissement: TypeRafraichissementEvaporatif;
+}
 
 /** Les deux valeurs d'une cellule de la matrice `M_Rprot1_auto` (figure 31, hystérésis). */
 export interface RatiosHysteresis {
@@ -5202,6 +5273,11 @@ export interface ResultatsVentilationGroupe {
 
 /** Fonctionnement annuel du système de ventilation du projet dans un calcul. */
 export interface ResultatsVentilationMode {
+  /**
+   * Nombre d'heures où le rafraîchissement évaporatif est autorisé (« Aut_adiab = 1 »,
+   * §6.3.3.4.2) ; absent sans rafraîchissement évaporatif.
+   */
+  nbh_adiab?: number | null;
   /** Nombre d'heures où l'échangeur d'un double flux est contourné par son bypass (éq. 494). */
   nbh_bypass: number;
   /**
@@ -5214,6 +5290,12 @@ export interface ResultatsVentilationMode {
    * 60 °C ou en deçà de la surface de la batterie froide, éq. 597 et 605) ; absent sans elles.
    */
   nbh_sous_dimensionnement?: number | null;
+  /**
+   * Plus longue série d'heures consécutives de sous-dimensionnement de ces batteries
+   * (« Nbsousdim_DAV », éq. 597 et 605) ; au-delà de 6 heures, un avertissement invite à
+   * revoir le dimensionnement ; absente sans ces batteries.
+   */
+  nbh_sous_dimensionnement_consecutives?: number | null;
   /** Énergie fournie pour la sécurité antigel de l'échangeur, en kWh (éq. 508). */
   q_ag_kwh: number;
   /**
@@ -5227,6 +5309,12 @@ export interface ResultatsVentilationMode {
    */
   q_froid_kwh?: number | null;
   /**
+   * Énergie de l'humidificateur d'hiver, en kWh (« QHR », éq. 529 ; nulle pour un
+   * humidificateur à pulvérisation, éq. 533) ; absente sans humidificateur. Demandée à la
+   * génération désignée pour un humidificateur à vapeur (éq. 939).
+   */
+  q_hr_kwh?: number | null;
+  /**
    * Énergie fournie par la batterie de préchauffage, en kWh (éq. 523) ; absente sans
    * batterie. Demandée à la génération désignée en calcul des consommations.
    */
@@ -5236,6 +5324,16 @@ export interface ResultatsVentilationMode {
    * lecture Q91) ; absente sans batterie.
    */
   q_prefroid_kwh?: number | null;
+  /**
+   * Consommation de la pompe du rafraîchissement évaporatif, en kWh (« Waux,adiab », éq.
+   * 566 et 617) ; absente sans rafraîchissement évaporatif. Comprise dans `c_aux_vent_kwh`.
+   */
+  w_aux_adiab_kwh?: number | null;
+  /**
+   * Consommation de la pompe de l'humidificateur d'hiver, en kWh (« Waux,chaudHR », éq.
+   * 568) ; absente sans humidificateur. Comprise dans `c_aux_vent_kwh`.
+   */
+  w_aux_chaudhr_kwh?: number | null;
 }
 
 /** Système de ventilation du projet d'une zone (Th-BCE 2020 §6.2 à 6.5). */
@@ -5531,6 +5629,9 @@ export type TypeEmetteurFroid = "soufflage_air_froid" | "poutre_froide" | "plafo
  */
 export type TypeHorloge = "aucune" | "crepusculaire" | "personnalisable";
 
+/** Th-BCE 2020 §6.3.2 et §6.3.3.4.9.2 — type d'humidificateur d'hiver (« TypeHumidification »). */
+export type TypeHumidificationHiver = "vapeur" | "pulverisation";
+
 /** Type de local au sens de l'éclairage (§7.1.2, « type_local » ; tableau 78). */
 export type TypeLocal = "bureau_standard" | "salle_reunion" | "circulation_accueil" | "sanitaires_collectifs" | "salle_classe" | "salle_repos" | "sanitaires_vestiaires" | "salle_enseignement_informatique" | "salle_conference" | "centre_documentation" | "salle_professeurs" | "salle_multi_fonctions" | "local_service" | "chambre_sans_cuisine" | "salle_petits_dejeuners" | "bar" | "salle_seminaires_reunion" | "salle_jeux" | "salle_restaurant" | "cuisine" | "aire_vente_inferieure300" | "aire_vente_superieure300" | "douches_collectives" | "salle_commune" | "locaux_soins_offices" | "salle_attente_consultation" | "aire_production" | "espace_voyageurs" | "commerces" | "inspection_filtrage" | "salle_sport";
 
@@ -5565,6 +5666,9 @@ export type TypePm = "volet" | "store_enroulable" | "store_venitien";
 
 /** « idtype_priorite » (§8.17.1) : mode de gestion des priorités entre générateurs. */
 export type TypePriorite = "sans_priorite" | "cascade" | "alternance";
+
+/** Th-BCE 2020 §6.3.2 — type de rafraîchissement évaporatif (« Type_humidification_Eté »). */
+export type TypeRafraichissementEvaporatif = "direct" | "indirect";
 
 /** Type d'un réseau de chaleur (§8.28.3.1, tableaux 247 et 248). */
 export type TypeReseauChaleurSaisi = "eau_chaude_basse_temperature" | "eau_chaude_haute_temperature" | "vapeur_basse_pression" | "vapeur_haute_pression";

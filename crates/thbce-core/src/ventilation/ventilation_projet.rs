@@ -28,7 +28,8 @@ use crate::climat::calendrier::date_scenario;
 use crate::conventions::NB_HEURES_AN;
 use crate::entree::{
     BatteriePrechauffage, BatteriePrerefroidissement, Echangeur, Isouf, RegulationAirNeuf,
-    RepresentationEchangeur, StatutEchangeur, SystemeVentilation, TypeCta, UsageZone, Zone,
+    RepresentationEchangeur, StatutEchangeur, SystemeVentilation, TypeCta, TypeHumidificationHiver,
+    TypeRafraichissementEvaporatif, UsageZone, Zone,
 };
 use crate::resultats::ValeurParDefaut;
 
@@ -45,6 +46,11 @@ use super::cta_et_double_flux::{
 use super::cta_et_double_flux::{
     charge_debit_variable, cp_air_humide_j_kg_k, exp_h, froid_rec, q_chaud_rec_wh,
     theta_sou_bouches_charge_c, w_vent_rec_wh, ChargeCentrale, THETA_SOUF_MAX_C,
+};
+use super::humidification::{
+    aut_adiab, consignes_hysteresis_c, groupe_assez_sec, humidificateur_adiabatique,
+    humidification_hiver, p_vent_adiab_w, position_hysteresis, w_aux_pompe_wh, TypeHumidificateur,
+    ETA_HUM_CONV,
 };
 use super::mecanique_basse_pression;
 use super::mecanique_sf::{
@@ -136,6 +142,19 @@ pub struct BatterieFroideCharge {
     pub theta_dim_c: f64,
 }
 
+/// Rafraîchissement évaporatif d'une centrale, prêt pour le calcul (§6.3.3.4.2).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AdiabatiqueResolu {
+    /// Indirect (sur l'air extrait) ; direct sinon.
+    pub indirect: bool,
+    /// « ηhum_dir » ou « ηhum_indir ».
+    pub eta: f64,
+    /// « θi_base », en °C.
+    pub theta_i_base_c: f64,
+    /// Consignes du profil à hystérésis d'une centrale à débit variable (éq. 426).
+    pub consignes: Option<[f64; 4]>,
+}
+
 /// Résultat du mode actif d'une centrale au pas de temps (§6.3.3.5).
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct ModeActif {
@@ -151,6 +170,21 @@ pub struct ModeActif {
     pub q_lat_wh: f64,
     /// Sous-dimensionnement de la batterie (éq. 597 et 605).
     pub sous_dimensionnee: bool,
+    /// Le mode actif a chauffé l'air (sinon, s'il est actif, il l'a refroidi).
+    pub chauffage: bool,
+    /// « θsouf,mel(rec)(h) » : température après la boîte de mélange recalculée
+    /// (§6.3.3.5.6), vue par la génération des batteries (éq. 951), en °C.
+    pub theta_souf_mel_c: f64,
+    /// « Wag(rec)(h) » pondérée par les durées de fonctionnement : `τ·Wag(rec) + (1 − τ)·Wag`
+    /// (§6.3.3.5.5.4, lecture Q95 point 11), en Wh.
+    pub w_ag_wh: f64,
+    /// Demandes des émetteurs contenus dans les bouches que le mode actif n'assure pas
+    /// (chauffage et refroidissement au même pas, centrale sans débit) : transmises telles
+    /// quelles à la génération de la batterie de même fonction (lecture Q95 point 8), en Wh
+    /// (chaud positif, froid négatif).
+    pub q_direct_wh: (f64, f64),
+    /// « Waux,adiab(rec)(h) » pondérée par les durées de fonctionnement (éq. 615 à 617), en Wh.
+    pub w_aux_adiab_wh: f64,
 }
 
 /// Grandeurs de la première phase (zone neutre) gardées pour le mode actif.
@@ -165,6 +199,10 @@ struct ZoneNeutre {
     w_vent_wh: f64,
     /// « Wech(h) », en Wh.
     w_ech_wh: f64,
+    /// « Wag(h) », en Wh (éq. 508).
+    w_ag_wh: f64,
+    /// « Waux,adiab(h) » de la zone neutre, en Wh (éq. 566).
+    w_aux_adiab_wh: f64,
 }
 
 /// Circuits d'un système jusqu'au ventilateur de soufflage.
@@ -180,6 +218,8 @@ struct Centrale {
     omega_souf2_kg_kg: f64,
     /// « Wech(h) », en Wh.
     w_ech_wh: f64,
+    /// « qm,eau_été^pompe(h) » du rafraîchissement indirect, en kg/s (éq. 486).
+    qm_eau_ete_kg_s: f64,
 }
 
 /// Régime d'une centrale au pas de temps, fixé avant le calcul des groupes.
@@ -193,6 +233,11 @@ pub struct Regime {
     pub conditions_nominales: bool,
     /// Débits nominaux (indice CH) employés ; débits de zone neutre sinon.
     pub nominal: bool,
+    /// « Aut_adiab » : rafraîchissement évaporatif autorisé (§6.3.3.4.2).
+    pub adiab: bool,
+    /// Débits et ventilateurs d'une centrale à débit variable selon le profil à hystérésis
+    /// (éq. 426 à 428, 449, 450, 466 et 467) : `Aut_adiab` et conditions du débit nominal.
+    pub hysteresis: bool,
 }
 
 /// Relevé de la consommation des auxiliaires d'une centrale double flux hors habitation
@@ -230,6 +275,27 @@ pub struct BoucheProjet {
     /// « TauxAN_min,occ » et « TauxAN_min,inocc » d'une bouche de soufflage reliée à une
     /// centrale de traitement d'air (fiche 6.2, éq. 393, 397, 408 et 411) ; 1 sinon.
     pub taux_an_min: (f64, f64),
+    /// Position du débit dans le profil à hystérésis du rafraîchissement évaporatif d'une
+    /// centrale à débit variable, de 0 (zone neutre) à 1 (mode actif) (éq. 427 et 449).
+    pub x_adiab: f64,
+}
+
+/// « Autfr(j) » d'une centrale (§6.3.3.4.1) : saison effective de refroidissement si la
+/// centrale dessert au moins un groupe climatisé (éq. 410), sinon la plus large des saisons
+/// propres de refroidissement des groupes desservis (éq. 411).
+fn aut_fr_centrale(groupes: &[EtatGroupeVentilation], dessert: impl Fn(usize) -> bool) -> bool {
+    let desservis = || {
+        groupes
+            .iter()
+            .enumerate()
+            .filter(|(g, _)| dessert(*g))
+            .map(|(_, x)| x)
+    };
+    if desservis().any(|g| g.clim) {
+        desservis().any(|g| g.saison_de_refroidissement)
+    } else {
+        desservis().any(|g| g.aut_fr_propre)
+    }
 }
 
 impl BoucheProjet {
@@ -250,6 +316,22 @@ impl BoucheProjet {
                     occ
                 } else {
                     inocc
+                }
+            }
+            Some((occ, inocc)) if regime.hysteresis && self.x_adiab > 0.0 => {
+                // Éq. (427) et (449) : entre le débit de zone neutre et celui du mode actif.
+                // Borne basse : débit de zone neutre en occupation « ZN,occ », y compris en
+                // relance (éq. 426 à 428, figure 73 ; Q96 point 4, lot 1-ven4).
+                let zn = self.debits;
+                let ch = if regime.i_vent { occ } else { inocc };
+                let x = self.x_adiab;
+                let l = |a: f64, b: f64| a + x * (b - a);
+                DebitsBoucheProjet {
+                    q_max_m3_h: l(zn.q_max_m3_h, ch.q_max_m3_h),
+                    q_base_m3_h: l(zn.q_base_m3_h, ch.q_base_m3_h),
+                    q_dep_m3_h: l(zn.q_dep_m3_h, ch.q_dep_m3_h),
+                    q_fuites_m3_h: l(zn.q_fuites_m3_h, ch.q_fuites_m3_h),
+                    ..zn
                 }
             }
             _ => self.debits_selon(regime.i_vent),
@@ -275,6 +357,10 @@ pub struct EtatGroupeVentilation {
     pub besoin_ch: bool,
     /// « Isbesoin_fr^gr(h−1) » : besoin de refroidissement du groupe au pas précédent.
     pub besoin_fr: bool,
+    /// Groupe climatisé (« Is_climatisé^gr », éq. 410).
+    pub clim: bool,
+    /// Saison propre de refroidissement du groupe (« Autfr,pro », éq. 411).
+    pub aut_fr_propre: bool,
 }
 
 /// Air soufflé dans un groupe par le système au pas de temps.
@@ -310,6 +396,15 @@ pub struct PasVentilation {
     pub theta_souf_mel_c: f64,
     /// « TauxAN(h) » (éq. 441).
     pub taux_an: f64,
+    /// « QHR(h) » : énergie de l'humidificateur d'hiver à vapeur, en Wh (éq. 529).
+    pub q_hr_wh: f64,
+    /// « Waux,chaudHR(h) » : pompe de l'humidificateur d'hiver à pulvérisation, en Wh (éq.
+    /// 568).
+    pub w_aux_chaudhr_wh: f64,
+    /// « Waux,adiab(h) » : pompe du rafraîchissement évaporatif, en Wh (éq. 566).
+    pub w_aux_adiab_wh: f64,
+    /// « Aut_adiab » du pas de temps (§6.3.3.4.2).
+    pub adiab: bool,
 }
 
 /// Système de ventilation du projet d'une zone d'habitation, prêt pour le calcul.
@@ -345,6 +440,19 @@ pub struct VentilationProjet {
     /// Relevé de la consommation des ventilateurs pendant la simulation : centrales double
     /// flux hors habitation ; `None` sinon (consommation déduite des puissances).
     pub releve: Option<ReleveVentilation>,
+    /// « isreport_ch^g(h−1) » et « isreport_fr^g(h−1) » : la génération de la batterie chaude
+    /// (froide) régulée sur la charge était en situation de report d'énergie au pas précédent
+    /// (§6.3.3.1.4, éq. 583, 584, 588 et 594 ; défini p. 1721 ; lecture Q95 point 7) ; écrit
+    /// par le bâtiment avant chaque pas de temps.
+    pub isreport: [bool; 2],
+    /// Humidificateur d'hiver (§6.3.3.4.9.2) ; `None` sans humidificateur.
+    pub humidificateur: Option<TypeHumidificateur>,
+    /// « ωcons » de l'humidificateur d'hiver, en kg/kg.
+    pub omega_cons_kg_kg: f64,
+    /// Rafraîchissement évaporatif (§6.3.3.4.2) ; `None` sans.
+    pub adiabatique: Option<AdiabatiqueResolu>,
+    /// « θi,fin(h−2) » de chaque groupe, pour le sens de variation du profil à hystérésis.
+    theta_prec: Vec<f64>,
     /// Régime du pas de temps en cours.
     regime: Regime,
     /// « ρair_soufflé^g,s(h−1) » de chaque bouche, en kg/m³.
@@ -652,6 +760,7 @@ impl VentilationProjet {
                     _ => (None, (1.0, 1.0)),
                 };
                 bouches.push(BoucheProjet {
+                    x_adiab: 0.0,
                     groupe: ig,
                     debits,
                     debits_inocc,
@@ -737,6 +846,53 @@ impl VentilationProjet {
                 dernier_wh: 0.0,
             });
         let rho_initiale = rho_kg_m3(theta_initiale_c);
+        // §6.3.3.4.9.2 : humidificateur d'hiver ; ηhum conventionnel de 0,8 (éq. 530).
+        let humidificateur = v
+            .systeme
+            .humidificateur()
+            .map(|h| match h.type_humidification {
+                TypeHumidificationHiver::Vapeur => TypeHumidificateur::Vapeur,
+                TypeHumidificationHiver::Pulverisation => TypeHumidificateur::Pulverisation {
+                    eta: h.eta_hum.unwrap_or_else(|| {
+                        valeurs_par_defaut.push(defaut(
+                            "ventilation.systeme.humidificateur.eta_hum".to_owned(),
+                            ETA_HUM_CONV,
+                            "Th-BCE 2020 §6.3.2, tableau 61 et éq. (530) : « ηhum », efficacité \
+                         fixée conventionnellement à 80 %",
+                        ));
+                        ETA_HUM_CONV
+                    }),
+                },
+            });
+        let omega_cons_kg_kg = v
+            .systeme
+            .humidificateur()
+            .map_or(0.0, |h| h.omega_cons_kg_kg);
+        // §6.3.3.4.2 : rafraîchissement évaporatif ; rendement conventionnel de 0,8.
+        let adiabatique = v.systeme.rafraichissement_adiabatique().map(|a| {
+            let variable = cta
+                .as_ref()
+                .is_some_and(|c| c.type_cta == TypeCta::DebitVariable);
+            AdiabatiqueResolu {
+                indirect: a.type_rafraichissement == TypeRafraichissementEvaporatif::Indirect,
+                eta: a.eta_hum.unwrap_or_else(|| {
+                    valeurs_par_defaut.push(defaut(
+                        "ventilation.systeme.rafraichissement_adiabatique.eta_hum".to_owned(),
+                        ETA_HUM_CONV,
+                        "Th-BCE 2020 §6.3.2, tableau 61 : « ηhum_dir », « ηhum_indir » \
+                         conventionnels de 0,8",
+                    ));
+                    ETA_HUM_CONV
+                }),
+                theta_i_base_c: a.theta_i_base_c,
+                consignes: match (variable, a.delta_theta_i1_k, a.delta_theta_i2_k) {
+                    (true, Some(d1), Some(d2)) => {
+                        Some(consignes_hysteresis_c(a.theta_i_base_c, d1, d2))
+                    }
+                    _ => None,
+                },
+            }
+        });
         Some(Self {
             id: v.id.clone(),
             nature,
@@ -757,11 +913,18 @@ impl VentilationProjet {
             prechauffage: v.systeme.batterie_prechauffage().cloned(),
             prerefroidissement: v.systeme.batterie_prerefroidissement().cloned(),
             releve,
+            isreport: [false; 2],
+            humidificateur,
+            omega_cons_kg_kg,
+            adiabatique,
+            theta_prec: vec![theta_initiale_c; nb_groupes],
             regime: Regime {
                 i_vent: true,
                 i_vent_h1: true,
                 conditions_nominales: true,
                 nominal: true,
+                adiab: false,
+                hysteresis: false,
             },
         })
     }
@@ -778,7 +941,38 @@ impl VentilationProjet {
             i_vent_h1,
             groupes.iter().any(|g| g.besoin_ch),
             groupes.iter().any(|g| g.besoin_fr),
-        );
+        ) || self.report_type_3();
+        // §6.3.3.4.2 : autorisation du rafraîchissement évaporatif (sans surventilation
+        // mécanique, hors de cette version) ; profil à hystérésis des centrales à débit
+        // variable dans les conditions du débit nominal (éq. 426 à 428 et 449 à 450).
+        let adiab = self.adiabatique.is_some_and(|a| {
+            aut_adiab(
+                self.theta_moy_desservis_c(groupes),
+                a.theta_i_base_c,
+                aut_fr_centrale(groupes, |g| self.dessert(g)),
+                false,
+            )
+        });
+        let consignes = self.adiabatique.and_then(|a| a.consignes);
+        let hysteresis = adiab && conditions && consignes.is_some();
+        for b in &mut self.bouches {
+            b.x_adiab = match (hysteresis, consignes, groupes.get(b.groupe)) {
+                (true, Some(c), Some(g)) => position_hysteresis(
+                    g.theta_i_fin_c,
+                    self.theta_prec
+                        .get(b.groupe)
+                        .copied()
+                        .unwrap_or(g.theta_i_fin_c),
+                    b.x_adiab,
+                    c,
+                ),
+                // Éq. (425), (428), (448) et (450) : débit de zone neutre.
+                _ => 0.0,
+            };
+        }
+        for (t, g) in self.theta_prec.iter_mut().zip(groupes) {
+            *t = g.theta_i_fin_c;
+        }
         self.regime = Regime {
             i_vent,
             i_vent_h1,
@@ -787,7 +981,42 @@ impl VentilationProjet {
                 .cta
                 .as_ref()
                 .is_some_and(|c| debits_nominaux(c.type_cta, conditions)),
+            adiab,
+            hysteresis,
         };
+    }
+
+    /// « θi,moy » des groupes desservis par la centrale au pas précédent, pour l'autorisation
+    /// du rafraîchissement évaporatif (§6.3.3.4.2 : « température moyenne des groupes reliés
+    /// à la centrale ») : moyenne arithmétique (lecture Q96 point 3).
+    fn theta_moy_desservis_c(&self, groupes: &[EtatGroupeVentilation]) -> f64 {
+        let (n, somme) = groupes
+            .iter()
+            .enumerate()
+            .filter(|(g, _)| self.dessert(*g))
+            .fold((0.0, 0.0), |(n, s), (_, x)| (n + 1.0, s + x.theta_i_fin_c));
+        if n > 0.0 {
+            somme / n
+        } else {
+            f64::NEG_INFINITY
+        }
+    }
+
+    /// §6.3.3.1.4 (p. 355) : une centrale de type 3 passe aussi au débit nominal lorsque la
+    /// génération de ses batteries était en report d'énergie au pas précédent
+    /// (`isreport_ch^g(h−1) = 1` ou `isreport_fr^g(h−1) = 1`), condition que les éq. (423) et
+    /// (446) n'écrivent pas (lecture Q95 point 7).
+    fn report_type_3(&self) -> bool {
+        self.cta.as_ref().is_some_and(|c| {
+            matches!(c.type_cta, TypeCta::DebitConstantTemperatureVariable)
+                && c.batteries_charge.is_some()
+        }) && (self.isreport[0] || self.isreport[1])
+    }
+
+    /// Le système a une bouche dans le groupe `g` (§8.11.3.2, éq. 938 : groupes connectés à
+    /// la centrale).
+    pub fn dessert(&self, g: usize) -> bool {
+        self.bouches.iter().any(|b| b.groupe == g)
     }
 
     /// Régime du pas de temps en cours.
@@ -806,6 +1035,8 @@ impl VentilationProjet {
                 .cta
                 .as_ref()
                 .is_some_and(|c| debits_nominaux(c.type_cta, i_vent)),
+            adiab: false,
+            hysteresis: false,
         }
     }
 
@@ -814,6 +1045,35 @@ impl VentilationProjet {
     /// sinon.
     fn p_vent_regime(&self, regime: Regime) -> (f64, f64) {
         match &self.cta {
+            // Éq. (466) et (467) : centrale à débit variable en rafraîchissement évaporatif.
+            Some(c) if regime.hysteresis => {
+                let r = |isouf: Isouf| {
+                    let (mut ecart, mut plage) = (0.0, 0.0);
+                    for b in self.bouches.iter() {
+                        // Éq. (467) : écarts aux débits de zone neutre en occupation.
+                        let zn = b.debits;
+                        let Some((occ, inocc)) = b.debits_ch else {
+                            continue;
+                        };
+                        if zn.isouf != isouf {
+                            continue;
+                        }
+                        let ch = if regime.i_vent { occ } else { inocc };
+                        let d = (ch.q_cond_m3_h() - zn.q_cond_m3_h()).abs();
+                        ecart += b.x_adiab * d;
+                        plage += d;
+                    }
+                    if plage > 0.0 {
+                        ecart / plage
+                    } else {
+                        0.0
+                    }
+                };
+                (
+                    p_vent_adiab_w(c.p_vent_zn_occ_w.0, c.p_vent_ch_w.0, r(Isouf::Reprise)),
+                    p_vent_adiab_w(c.p_vent_zn_occ_w.1, c.p_vent_ch_w.1, r(Isouf::Soufflage)),
+                )
+            }
             Some(c) => p_vent_cta_w(
                 c.type_cta,
                 regime.conditions_nominales,
@@ -1078,8 +1338,12 @@ impl VentilationProjet {
         }
         // Air neuf : air extérieur (éq. 413 et 657, sans puits).
         let theta_an = theta_ext_c;
-        // Éq. (432) et (435) à (439).
+        // §6.3.3.4.5.3 : rafraîchissement évaporatif indirect autorisé (« Aut_adiab = 1 » et
+        // « Type_Humidification_Ete = 2 ») ; pas de recyclage (éq. 440), pas de bypass (éq. 493).
+        let indirect = regime.adiab && self.adiabatique.is_some_and(|a| a.indirect);
+        // Éq. (432) et (435) à (440).
         let qm_an = match &self.cta {
+            Some(_) if indirect => qm_sou,
             Some(c) => qm_air_neuf_kg_s(
                 qm_an_min,
                 qm_sou,
@@ -1110,6 +1374,18 @@ impl VentilationProjet {
             (qm_rep, qm_rep)
         };
         let t_extr2 = t_apres_ventilateur_c(t_extr1, p_vent_rep_w, qm_rep_cond);
+        // Éq. (478) à (486) : humidification indirecte de l'air extrait ; sinon `θextr3 =
+        // θextr2` (éq. 484 et 485).
+        let (t_extr3, qm_eau_ete) = match self.adiabatique {
+            Some(a) if indirect => {
+                let x = humidificateur_adiabatique(t_extr2, omega_extr, a.eta);
+                (
+                    x.theta_c,
+                    qm_rep_cond * (x.omega_kg_kg - omega_extr).max(0.0),
+                )
+            }
+            _ => (t_extr2, 0.0),
+        };
         let mut c = Centrale {
             sorties: PasVentilation {
                 theta_air_extrait_c: t_extr2,
@@ -1122,6 +1398,7 @@ impl VentilationProjet {
             theta_souf2_c: theta_an,
             omega_souf2_kg_kg: omega_ext_kg_kg,
             w_ech_wh: 0.0,
+            qm_eau_ete_kg_s: qm_eau_ete,
         };
         if qm_sou <= 0.0 {
             return c;
@@ -1134,9 +1411,10 @@ impl VentilationProjet {
                     None => (theta_an, 0.0),
                     Some(e) => {
                         // Éq. (492) à (495) : bypass, avec la température des groupes repris.
-                        let bypass = e.bypass.as_ref().is_some_and(|by| {
-                            delta_bypass(by, saison_de_chauffage, theta_an, theta_i_moy)
-                        });
+                        let bypass = !indirect
+                            && e.bypass.as_ref().is_some_and(|by| {
+                                delta_bypass(by, saison_de_chauffage, theta_an, theta_i_moy)
+                            });
                         sorties.bypass = bypass;
                         // Éq. (496) à (505), avec les débits d'air neuf et d'air rejeté
                         // (éq. 499).
@@ -1156,14 +1434,13 @@ impl VentilationProjet {
                                 }
                             }
                         };
-                        // Éq. (506) à (511) ; θextr3 = θextr2 sans humidification
-                        // indirecte (éq. 484 et 485).
+                        // Éq. (506) à (511), avec θextr3.
                         let a = antigel(
                             epsilon,
                             e.antigel,
                             saison_de_chauffage,
                             theta_an,
-                            t_extr2,
+                            t_extr3,
                             e.theta_s_ech_rep_lim_c,
                             qm_an,
                         );
@@ -1173,7 +1450,7 @@ impl VentilationProjet {
                 };
                 // Éq. (512) et (513).
                 let (theta_souf1, theta_rejete) =
-                    sorties_echangeur_c(theta_souf_ag, t_extr2, epsilon);
+                    sorties_echangeur_c(theta_souf_ag, t_extr3, epsilon);
                 sorties.theta_air_extrait_c = theta_rejete;
                 (theta_souf1, epsilon)
             }
@@ -1245,10 +1522,14 @@ impl VentilationProjet {
             &self.rho_souffle,
         );
         let mut sorties = centrale.sorties;
+        sorties.adiab = regime.adiab;
+        // Éq. (486) et (566) : pompe du rafraîchissement indirect.
+        sorties.w_aux_adiab_wh = w_aux_pompe_wh(centrale.qm_eau_ete_kg_s);
         let w_ech_wh = centrale.w_ech_wh;
         let qm_sou = centrale.qm_sou_kg_s;
         self.zn.w_vent_wh = p_vent_rep_w + p_vent_sou_w;
         self.zn.w_ech_wh = w_ech_wh;
+        self.zn.w_ag_wh = sorties.w_ag_wh;
         self.zn.omega_souffle_kg_kg = omega_ext_kg_kg;
         self.zn.souffle.fill((0.0, 0.0));
         self.rho_souffle_h1.copy_from_slice(&self.rho_souffle);
@@ -1272,12 +1553,30 @@ impl VentilationProjet {
                 }
                 _ => theta_souf2,
             };
+            // Éq. (526) à (537) : humidificateur d'hiver en saison de chauffage.
+            let (theta_hr, omega_hr) = match self.humidificateur {
+                Some(t) => {
+                    let x = humidification_hiver(
+                        t,
+                        saison_de_chauffage,
+                        theta_pre,
+                        omega_mel,
+                        self.omega_cons_kg_kg,
+                        qm_sou,
+                    );
+                    sorties.q_hr_wh = x.q_hr_wh;
+                    // Éq. (568) et (569) : pompe d'un humidificateur à pulvérisation.
+                    sorties.w_aux_chaudhr_wh = w_aux_pompe_wh(x.qm_eau_kg_s);
+                    (x.theta_souf3_c, x.omega_souf3_kg_kg)
+                }
+                None => (theta_pre, omega_mel),
+            };
             // Éq. (538) à (548) : prérefroidissement en saison de refroidissement (éq. 410).
             let (theta_souf3, omega_souf3) = match &self.prerefroidissement {
                 Some(p) if groupes.iter().any(|g| g.saison_de_refroidissement) => {
                     let r = prerefroidissement(
-                        theta_pre,
-                        omega_mel,
+                        theta_hr,
+                        omega_hr,
                         theta_ext_c,
                         p.theta_cons_c,
                         p.theta_ex_c,
@@ -1287,7 +1586,27 @@ impl VentilationProjet {
                     sorties.q_prefroid_wh = r.q_prefroid_wh;
                     (r.theta_souf3_c, r.omega_souf3_kg_kg)
                 }
-                _ => (theta_pre, omega_mel),
+                _ => (theta_hr, omega_hr),
+            };
+            // Éq. (549) à (559) : rafraîchissement évaporatif direct, si l'air des groupes
+            // desservis est assez sec (sur l'air de l'étape précédente, `θsouf2` sans
+            // préchauffage ni humidificateur d'hiver ; lecture Q96 point 5).
+            let (theta_souf3, omega_souf3) = match self.adiabatique {
+                Some(a)
+                    if regime.adiab
+                        && !a.indirect
+                        && groupes.iter().enumerate().all(|(g, x)| {
+                            !self.dessert(g)
+                                || groupe_assez_sec(x.theta_i_fin_c, x.omega_i_fin_kg_kg)
+                        }) =>
+                {
+                    let x = humidificateur_adiabatique(theta_souf3, omega_souf3, a.eta);
+                    // Éq. (559) et (566).
+                    sorties.w_aux_adiab_wh =
+                        w_aux_pompe_wh(qm_sou * (x.omega_kg_kg - omega_souf3).max(0.0));
+                    (x.theta_c, x.omega_kg_kg)
+                }
+                _ => (theta_souf3, omega_souf3),
             };
             // Éq. (560) et (561) : sortie de la centrale.
             let theta_sortie_centrale = theta_souf3;
@@ -1336,11 +1655,17 @@ impl VentilationProjet {
             }
         }
 
-        // Éq. (565) et (570) : consommation des ventilateurs et de l'échangeur, répartie entre
-        // les groupes au prorata des débits soufflés vus par le ventilateur (lecture Q42), ceux
-        // de l'occupation si aucun débit n'est soufflé (lecture Q60).
+        self.zn.w_aux_adiab_wh = sorties.w_aux_adiab_wh;
+        // Éq. (565) et (570) : consommation des ventilateurs, de l'échangeur et des pompes
+        // d'humidificateurs, répartie entre les groupes au prorata des débits soufflés vus par
+        // le ventilateur (lecture Q42), ceux de l'occupation si aucun débit n'est soufflé
+        // (lecture Q60).
         if self.releve.is_some() {
-            let w = p_vent_rep_w + p_vent_sou_w + w_ech_wh;
+            let w = p_vent_rep_w
+                + p_vent_sou_w
+                + w_ech_wh
+                + sorties.w_aux_adiab_wh
+                + sorties.w_aux_chaudhr_wh;
             let r_pas = if est_cta {
                 regime
             } else {
@@ -1398,8 +1723,42 @@ impl VentilationProjet {
     /// 6.3.3.5.7), puis la température aux bouches (éq. 582 à 594), à la sortie de la centrale
     /// (éq. 595), l'énergie des batteries (éq. 596 à 612) et les ventilateurs (éq. 614), dont
     /// la consommation remplace celle de la zone neutre dans le relevé (éq. 618).
+    ///
+    /// La demande que le mode actif n'assure pas (chauffage et refroidissement au même pas
+    /// dans des groupes différents, centrale sans débit soufflé) est rendue dans
+    /// [`ModeActif::q_direct_wh`] pour être transmise à la génération de la batterie de même
+    /// fonction (lecture Q95 point 8) : elle n'est jamais perdue.
     #[allow(clippy::too_many_arguments)]
     pub fn mode_actif(
+        &mut self,
+        theta_ext_c: f64,
+        omega_ext_kg_kg: f64,
+        zn: &[EtatGroupeVentilation],
+        moy: &[EtatGroupeVentilation],
+        i_vent: bool,
+        q_sys_ch_wh: f64,
+        q_sys_fr_wh: f64,
+    ) -> ModeActif {
+        let mut m = self.mode_actif_centrale(
+            theta_ext_c,
+            omega_ext_kg_kg,
+            zn,
+            moy,
+            i_vent,
+            q_sys_ch_wh,
+            q_sys_fr_wh,
+        );
+        let ch_assure = m.actif && m.chauffage;
+        let fr_assure = m.actif && !m.chauffage;
+        m.q_direct_wh = (
+            if ch_assure { 0.0 } else { q_sys_ch_wh.max(0.0) },
+            if fr_assure { 0.0 } else { q_sys_fr_wh.min(0.0) },
+        );
+        m
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn mode_actif_centrale(
         &mut self,
         theta_ext_c: f64,
         omega_ext_kg_kg: f64,
@@ -1417,13 +1776,17 @@ impl VentilationProjet {
             return ModeActif::default();
         };
         // §6.3.3.1.5, figure 72 : saison effective de la centrale (éq. 409 et 410 : un groupe
-        // suffit) et demande des émetteurs.
-        let chauffe =
-            batteries.chaud && zn.iter().any(|g| g.saison_de_chauffage) && q_sys_ch_wh > 0.0;
+        // suffit), demande des émetteurs ou report d'énergie de la génération de la batterie au
+        // pas précédent (éq. 583, 584, 588 et 594 : `isreport^g(h−1) = 1`, lecture Q95 point 7).
+        let [report_ch, report_fr] = self.isreport;
+        let chauffe = batteries.chaud
+            && zn.iter().any(|g| g.saison_de_chauffage)
+            && (q_sys_ch_wh > 0.0 || report_ch);
         let refroidit = !chauffe
             && batteries.froid.is_some()
             && zn.iter().any(|g| g.saison_de_refroidissement)
-            && q_sys_fr_wh < 0.0;
+            && (q_sys_fr_wh < 0.0 || report_fr);
+        let report = if chauffe { report_ch } else { report_fr };
         if !chauffe && !refroidit {
             return ModeActif::default();
         }
@@ -1484,7 +1847,12 @@ impl VentilationProjet {
             return ModeActif::default();
         }
         let theta_i_moy = somme_theta_i / qm_spec;
-        let q_sys = if chauffe { q_sys_ch_wh } else { q_sys_fr_wh };
+        // Demande du mode engagé (sans demande, mode actif engagé par le seul report).
+        let q_sys = if chauffe {
+            q_sys_ch_wh.max(0.0)
+        } else {
+            q_sys_fr_wh.min(0.0)
+        };
         // Éq. (582) à (594).
         let charge = match cta.type_cta {
             TypeCta::DebitVariable => {
@@ -1499,7 +1867,13 @@ impl VentilationProjet {
                         .unwrap_or(theta_i_moy);
                     (somme_sans_froid / qm_cond).min(nom)
                 };
-                charge_debit_variable(q_sys, theta_nom, theta_i_moy, p_zn, cp, qm_spec)
+                let c = charge_debit_variable(q_sys, theta_nom, theta_i_moy, p_zn, cp, qm_spec);
+                // Éq. (588) et (594) : en report, débit nominal pendant tout le pas de temps.
+                if report && c.tau < 1.0 {
+                    ChargeCentrale { tau: 1.0, ..c }
+                } else {
+                    c
+                }
             }
             // Éq. (582) à (584) : débit constant, température variable, τ = 100 %.
             _ => ChargeCentrale {
@@ -1526,9 +1900,17 @@ impl VentilationProjet {
             somme_sortie += qm_c * (charge.theta_sou_bouches_c - lnc * (1.0 - e)) / e;
         }
         let theta_souf_rec = somme_sortie / qm_cond;
+        // §6.3.3.5.5.4 : sécurité antigel recalculée avec les débits du mode actif, pondérée
+        // par les durées de fonctionnement en mode actif et en zone neutre comme les autres
+        // consommations du §6.3.3.5.8.4.1 (éq. 614 et 617 ; lecture Q95 point 11).
+        let w_ag_wh = charge.tau * centrale.sorties.w_ag_wh + (1.0 - charge.tau) * self.zn.w_ag_wh;
         let mut resultat = ModeActif {
             actif: true,
             tau: charge.tau,
+            chauffage: chauffe,
+            // §6.3.3.5.6 : boîte de mélange recalculée, vue par la génération (éq. 951).
+            theta_souf_mel_c: centrale.sorties.theta_souf_mel_c,
+            w_ag_wh,
             ..ModeActif::default()
         };
         if chauffe {
@@ -1551,12 +1933,64 @@ impl VentilationProjet {
             resultat.q_lat_wh = r.q_lat_wh;
             resultat.sous_dimensionnee = r.sous_dimensionnee;
         }
-        // Éq. (614) et (618) : ventilateurs, échangeur de la zone neutre.
+        // Éq. (614) à (618) : ventilateurs, échangeur de la zone neutre, pompe du
+        // rafraîchissement indirect recalculée (éq. 615 et 617 ; nulle pour le direct, éq. 616).
+        let w_aux_adiab = charge.tau * w_aux_pompe_wh(centrale.qm_eau_ete_kg_s)
+            + (1.0 - charge.tau) * self.zn.w_aux_adiab_wh;
+        resultat.w_aux_adiab_wh = w_aux_adiab;
         if self.releve.is_some() {
-            let w =
-                w_vent_rec_wh(charge.tau, cta.p_vent_ch_w, self.zn.w_vent_wh) + self.zn.w_ech_wh;
+            let w = w_vent_rec_wh(charge.tau, cta.p_vent_ch_w, self.zn.w_vent_wh)
+                + self.zn.w_ech_wh
+                + w_aux_adiab;
             self.repartir_releve(w, regime);
         }
         resultat
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn debits(q: f64) -> DebitsBoucheProjet {
+        DebitsBoucheProjet {
+            isouf: Isouf::Soufflage,
+            q_max_m3_h: q,
+            q_base_m3_h: q,
+            q_dep_m3_h: q,
+            q_fuites_m3_h: 0.0,
+            ratfuitevc: 1.0,
+            a_cond_m2: 0.0,
+        }
+    }
+
+    /// Éq. (427) en relance (inoccupation) : la borne basse du profil à hystérésis est le débit
+    /// de zone neutre en occupation `Qv_sou_ZN,occ` (éq. 466, figure 73), non celui de
+    /// l'inoccupation ; calcul à la main : 100 + 0,5 × (400 − 100) = 250 m³/h.
+    #[test]
+    fn hysteresis_bornee_a_la_zone_neutre_en_occupation() {
+        let b = BoucheProjet {
+            groupe: 0,
+            debits: debits(100.0),
+            debits_inocc: Some(debits(20.0)),
+            dugd_h: 14.0,
+            h_cond_ext_w_k: 0.0,
+            debits_ch: Some((debits(500.0), debits(400.0))),
+            taux_an_min: (1.0, 1.0),
+            x_adiab: 0.5,
+        };
+        let regime = Regime {
+            i_vent: false,
+            hysteresis: true,
+            ..Regime::default()
+        };
+        let d = b.debits_regime(regime);
+        assert!((d.q_dep_m3_h - 250.0).abs() < 1e-12, "{}", d.q_dep_m3_h);
+        // En occupation : 100 + 0,5 × (500 − 100) = 300 m³/h.
+        let d = b.debits_regime(Regime {
+            i_vent: true,
+            ..regime
+        });
+        assert!((d.q_dep_m3_h - 300.0).abs() < 1e-12);
     }
 }

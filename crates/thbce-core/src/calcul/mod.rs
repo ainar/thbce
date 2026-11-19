@@ -216,6 +216,7 @@ fn calculer_selon(
             zones.push(resultats_zone);
         }
         avertissements.extend(avertissements_generations(&bat.id, &th_c));
+        avertissements.extend(ventilation::avertissements_ventilation(&bat.id, &th_c));
         // Lot 6e : postes propres au logement collectif et aux parkings (§7.2, §10.1, §10.3 et
         // §10.4), calculés d'après les scénarios et la saisie.
         let sref_zones: Vec<f64> = zones.iter().map(|z| z.sref_m2).collect();
