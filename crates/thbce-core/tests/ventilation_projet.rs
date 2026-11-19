@@ -790,6 +790,18 @@ fn validation_du_puits_climatique() {
     assert_eq!(r.erreurs.len(), 2, "{r:?}");
     assert!(r.erreurs[0].hors_perimetre);
     assert!(r.erreurs[1].message.contains("386"));
+    // Plusieurs centrales sur un même puits (`Id_Puits_Climatique`) : refus explicite, code 3.
+    let mut p = double_flux_avec_puits(None);
+    zone_mut(&mut p)
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .id_puits_climatique = Some("P1".into());
+    let r = valider(&p);
+    assert_eq!(r.erreurs.len(), 1, "{r:?}");
+    assert_eq!(r.erreurs[0].chemin, format!("{c}.id_puits_climatique"));
+    assert!(r.erreurs[0].hors_perimetre);
+    assert!(r.erreurs[0].message.contains("Id_Puits_Climatique"));
 }
 
 /// État d'un groupe à 20 °C en saison de chauffage.

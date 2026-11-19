@@ -7,6 +7,16 @@ use crate::entree::{Puits, PuitsClimatique, SystemeVentilation, Ventilation};
 
 /// Contrôle `puits` et `puits_climatique` d'un système de ventilation de chemin `c`.
 pub(super) fn valider_puits(r: &mut RapportValidation, c: &str, v: &Ventilation) {
+    if v.id_puits_climatique.is_some() {
+        // Plusieurs centrales sur un même puits (`Id_Puits_Climatique`, §6.8.2, éq. 722, 753 et
+        // 754 sommées sur les systèmes du puits) : docs/questions/Q232.md.
+        r.hors_perimetre(
+            format!("{c}.id_puits_climatique"),
+            v.id_puits_climatique.clone(),
+            "puits climatique partagé entre plusieurs centrales (Id_Puits_Climatique) ; un puits \
+             ne dessert que la centrale dont il est la description",
+        );
+    }
     match (v.puits, &v.puits_climatique) {
         (None, None) => return,
         (Some(Puits::Hydraulique), _) => {
