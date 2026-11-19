@@ -69,11 +69,10 @@ pub struct ZoneDesservie<'a> {
 }
 
 /// « Bv(k) » du tableau 310 pour un usage de zone ; `None` pour l'usage 1, absent du tableau.
+/// Le tableau est commun aux ascenseurs et aux escalators (fiche 10.2) : il est porté par
+/// [`super::escalators::bv`] (Q115 point 4, Q119 pour les zones non résidentielles).
 pub fn bv(usage_numero: u8) -> Option<f64> {
-    match usage_numero {
-        2 => Some(1582.4),
-        _ => None,
-    }
+    super::escalators::bv(usage_numero)
 }
 
 /// Résultats d'une cabine.
@@ -435,6 +434,53 @@ mod tests {
         let avec = calculer_cabine(&a, &[z()], &Lectures::default());
         assert!(avec.eti_wh < sans.eti_wh);
         assert!(avec.eti_wh > 0.0);
+    }
+
+    /// Zone non résidentielle (Q119, usage 3 : Bv = 1 731,9) : la durée d'immobilité de nuit
+    /// vaut (12·365 + 52·48 + 9·24)·3600 s (éq. 2295) au lieu de 8·365·3600 s (éq. 2294), ce qui
+    /// change la puissance moyenne de veille quand la cabine a un décrément de veille (éq. 2303).
+    #[test]
+    fn zone_non_residentielle_durees_d_immobilite_eq_2295() {
+        let u = vec![1.0; NB_H];
+        let zone = |habitation| ZoneDesservie {
+            q_z_kg: 630.0,
+            nb_z: 20.0,
+            bv_z: 1731.9,
+            u_z: &u,
+            habitation,
+        };
+        let mut a = cabine();
+        a.sc_veille = true;
+        a.pti_w = Some(300.0);
+        a.dp1_w = Some(50.0);
+        a.t1_s = Some(3600.0);
+        a.dp2_w = Some(0.0);
+        a.t2_s = Some(86_400.0);
+        let tertiaire = calculer_cabine(&a, &[zone(false)], &Lectures::default());
+        let habitat = calculer_cabine(&a, &[zone(true)], &Lectures::default());
+        // Éq. (2283) : 20 × 1 731,9 × 75 / (630 × 0,2) démarrages, mobilité (éq. 2291) :
+        // (Ch·H/V + V/a)·Ndem avec Ch = 5/6 × 1,1 et a = 0,5 m/s².
+        let ndem = 20.0 * 1731.9 * 75.0 / 126.0;
+        assert!((tertiaire.nb_demarrages - ndem).abs() < 1e-9);
+        let t_mob = (5.0 / 6.0 * 1.1 * 12.0 + 2.0) * ndem;
+        assert!((tertiaire.t_mob_s - t_mob).abs() < 1e-6);
+        let t_immob = 24.0 * 365.0 * 3600.0 - t_mob;
+        let (tn_tertiaire, tn_habitat) = (
+            (12.0 * 365.0 + 52.0 * 48.0 + 9.0 * 24.0) * 3600.0,
+            8.0 * 365.0 * 3600.0,
+        );
+        // Arrêts de jour de 278 s < T1 : pas de décrément ; nuits de 19,4 h ou de 8 h : le
+        // décrément de 50 W agit après T1 = 3 600 s.
+        let attendu = |tn: f64| {
+            let tj = t_immob - tn;
+            assert!(tj / ndem < 3600.0);
+            let longueur_nuit = tn / 365.0;
+            let p_nuit = 300.0 - 50.0 * (1.0 - 3600.0 / longueur_nuit);
+            (300.0 * tj + p_nuit * tn) / 3600.0
+        };
+        assert!((tertiaire.eti_wh - attendu(tn_tertiaire)).abs() < 1e-6 * tertiaire.eti_wh);
+        assert!((habitat.eti_wh - attendu(tn_habitat)).abs() < 1e-6 * habitat.eti_wh);
+        assert!(tertiaire.eti_wh < habitat.eti_wh);
     }
 
     /// Effet des variantes de lecture (Q50) sur la cabine du cas d'exemple de l'immeuble :

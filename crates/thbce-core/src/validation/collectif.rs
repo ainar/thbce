@@ -93,21 +93,15 @@ pub(super) fn valider_collectif(r: &mut RapportValidation, cb: &str, bat: &Batim
                     Some(id.clone()),
                     "zone inconnue dans ce bâtiment",
                 ),
-                // Tableau 310 : le besoin de voyages Bv n'est défini que pour les usages 2 et
-                // suivants ; les ascenseurs ne se calculent que dans les zones de logement
-                // collectif.
-                // Usage non résidentiel calculé : ascenseurs reconnus mais pas encore calculés
-                // (besoin de voyages et nombre d'occupants de la zone hors habitation).
-                Some(u) if !u.est_habitation() && u.est_pris_en_charge() => r.hors_perimetre(
+                // Tableau 310 : le besoin de voyages Bv est défini pour les usages 2 à 28 ; il
+                // manque pour l'usage 1 (maison individuelle). Les zones non résidentielles
+                // sont calculées avec les mêmes équations (éq. 2294 et 2295 : durée d'immobilité
+                // de nuit selon que la zone est ou non d'habitation ; Q119).
+                Some(u) if crate::deplacements::ascenseurs::bv(u.numero()).is_none() => r.erreur(
                     format!("{c}.zones_desservies[{iz}]"),
                     Some(id.clone()),
-                    "ascenseur desservant une zone d'usage non résidentiel (Th-BCE 2020 §10.1)",
-                ),
-                Some(u) if *u != UsageZone::LogementCollectif => r.erreur(
-                    format!("{c}.zones_desservies[{iz}]"),
-                    Some(id.clone()),
-                    "les ascenseurs ne sont calculés que pour les zones de logement collectif \
-                     (tableau 310 : pas de besoin de voyages pour la maison individuelle)",
+                    "les ascenseurs ne sont pas calculés pour une maison individuelle \
+                     (tableau 310 : pas de besoin de voyages pour l'usage 1)",
                 ),
                 _ => {}
             }

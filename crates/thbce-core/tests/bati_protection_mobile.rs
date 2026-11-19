@@ -13,8 +13,8 @@ use thbce_core::bati::protection_mobile::{
     ConditionsGpm, EtatGpm, GestionResolue, Horloge, SaisonGpm, TemperaturesMaximales,
 };
 use thbce_core::entree::{
-    Automatisme, GestionPm, HorairesJour, LigneAutoVolet, MatriceAutoVolet, ProtectionMobile,
-    RatiosHysteresis, TypeHorloge, TypePm, TypoPm,
+    Automatisme, GestionPm, GestionSv, HorairesJour, LigneAutoVolet, MatriceAutoVolet,
+    ProtectionMobile, RatiosHysteresis, TypeHorloge, TypePm, TypoPm,
 };
 
 fn proche(a: f64, b: f64) -> bool {
@@ -273,6 +273,48 @@ fn regles_du_calcul_th_d() {
     let p = g.protections(&th_d(occupe(0.0, SaisonGpm::Ete)));
     assert_proche!(p.r_prot1_part_gpm, 0.50);
     assert_proche!(p.r_prot1_hors_part_gpm, 0.50);
+}
+
+#[test]
+fn store_venitien_regles_du_calcul_th_d() {
+    // §5.9.3.6 (préambule, p. 216) et tableau 34 (p. 218), lecture Q103 : les ratios Th-D du store
+    // vénitien (90 % en occupation, 70 % en inoccupation, au-dessus de Eclim_manu_sv = 15 000 lux)
+    // ne valent qu'en confort adaptatif avec Topj-1max ≥ 26,5 °C. Famille « bureau » (figure 42),
+    // gestion manuelle, été (dernière ligne) : occupation 70 % au-dessus du seuil, 20 % en dessous, inoccupation de jour 40 %.
+    let mut p = pm(
+        TypePm::StoreVenitien,
+        GestionPm::ManuelleMotorisee,
+        false,
+        false,
+    );
+    p.gestion_sv = Some(GestionSv::ManuellePositionFixe);
+    let g = GestionResolue::nouvelle(&p, 3).unwrap();
+    let th_d = |top_j1_max_c: f64, base: ConditionsGpm| ConditionsGpm {
+        top_j1_max_c,
+        confort_adaptatif_th_d: true,
+        ..base
+    };
+    let hors_th_d = occupe(20_000.0, SaisonGpm::Ete);
+    let hors_th_d_inocc = inoccupe(0, SaisonGpm::Ete);
+    let ref_occ = g.protections(&hors_th_d);
+    assert_proche!(ref_occ.r_prot1_part_gpm, 0.70);
+    assert_proche!(g.protections(&hors_th_d_inocc).r_prot1_hors_part_gpm, 0.40);
+    // Veille chaude (27 °C) : 90 % et 70 %.
+    let p = g.protections(&th_d(27.0, occupe(20_000.0, SaisonGpm::Ete)));
+    assert_proche!(p.r_prot1_part_gpm, 0.90);
+    let p = g.protections(&th_d(27.0, inoccupe(0, SaisonGpm::Ete)));
+    assert_proche!(p.r_prot1_hors_part_gpm, 0.70);
+    // Limite : 26,5 °C est déjà « chaud » (≥).
+    let p = g.protections(&th_d(26.5, occupe(20_000.0, SaisonGpm::Ete)));
+    assert_proche!(p.r_prot1_part_gpm, 0.90);
+    // Veille fraîche (26,0 °C) : valeurs de la matrice Th-BC, comme pour les volets (éq. 203).
+    let frais_occ = th_d(26.0, occupe(20_000.0, SaisonGpm::Ete));
+    assert_eq!(g.protections(&frais_occ), ref_occ);
+    let frais_inocc = th_d(26.0, inoccupe(0, SaisonGpm::Ete));
+    assert_eq!(g.protections(&frais_inocc), g.protections(&hors_th_d_inocc));
+    // Sous le seuil d'éclairement, même veille chaude : valeur de la matrice (20 %).
+    let p = g.protections(&th_d(27.0, occupe(5_000.0, SaisonGpm::Ete)));
+    assert_proche!(p.r_prot1_part_gpm, 0.20);
 }
 
 #[test]

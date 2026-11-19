@@ -398,6 +398,49 @@ mod tests {
     }
 
     #[test]
+    fn puissance_a_l_arret_par_defaut_plusieurs_machines_sans_donnee() {
+        // Éq. (2323), p. 1317 : 88 W par machine sans scénario de veille (lecture retenue, Q115
+        // point 2) ou 88 W pour l'ensemble des escalators du bâtiment (variante littérale). Trois
+        // machines sans donnée (tapis ou machines de hauteur nulle), profil de 3 650 h d'occupation
+        // et 5 110 h de fermeture.
+        let u = profil();
+        let z = || ZoneEscalators {
+            nb_z: 100.0,
+            bv_z: 1731.9,
+            u_z: &u,
+        };
+        let machines = [
+            machine(SensEscalator::Montee, 0.0, 1000.0),
+            machine(SensEscalator::Montee, 0.0, 800.0),
+            machine(SensEscalator::Descente, 0.0, 600.0),
+        ];
+        let retenue = calculer(&machines, &[z()], &Lectures::default());
+        let litterale = calculer(
+            &machines,
+            &[z()],
+            &Lectures {
+                standby_defaut_pour_l_ensemble: true,
+                ..Lectures::default()
+            },
+        );
+        assert_eq!(retenue.p_off_w, 3.0 * 88.0);
+        assert_eq!(litterale.p_off_w, 88.0);
+        // Un seul signalement dans les deux lectures.
+        assert_eq!(retenue.valeurs_par_defaut.len(), 1);
+        assert_eq!(litterale.valeurs_par_defaut.len(), 1);
+        // Heures de fermeture : 264 Wh contre 88 Wh ; heures d'occupation identiques (masse
+        // transportée nulle : H = 0, seule la puissance à vide compte, 1 000 + 800 + 600 W).
+        assert_eq!(retenue.pesc_wh[3], 264.0);
+        assert_eq!(litterale.pesc_wh[3], 88.0);
+        assert_eq!(retenue.pesc_wh[10], 2400.0);
+        assert_eq!(litterale.pesc_wh[10], 2400.0);
+        // Écart annuel : (264 − 88) W × 5 110 h = 899,36 kWh.
+        let ecart_kwh =
+            (retenue.pesc_wh.iter().sum::<f64>() - litterale.pesc_wh.iter().sum::<f64>()) / 1000.0;
+        assert!((ecart_kwh - 176.0 * 5110.0 / 1000.0).abs() < 1e-9);
+    }
+
+    #[test]
     fn bv_tableau_310() {
         assert_eq!(bv(17), Some(4158.0));
         assert_eq!(bv(22), Some(7665.0));
