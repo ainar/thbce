@@ -92,6 +92,25 @@ pub struct ResultatsVentilationMode {
     /// sans puits.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub puits_climatique: Option<ResultatsPuitsClimatique>,
+    /// Fonctionnement du puits hydraulique de l'air neuf (fiche 6.9) ; absent sans puits.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub puits_hydraulique: Option<ResultatsPuitsHydraulique>,
+}
+
+/// Fonctionnement annuel d'un puits hydraulique dans un calcul.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsPuitsHydraulique {
+    /// Nombre d'heures où la pompe tourne (« QPH(h) > 0 », éq. 746 et 747) et où l'air neuf
+    /// traverse la batterie (débit d'air neuf non nul).
+    pub nbh_actif: u32,
+    /// Énergie apportée à l'air neuf en préchauffage, en kWh : somme positive de
+    /// `Cpa × qm,air_neuf × (θan − θext)` (éq. 415).
+    pub q_prechauffage_kwh: f64,
+    /// Énergie retirée à l'air neuf en prérafraîchissement, en kWh, négative.
+    pub q_prerefroidissement_kwh: f64,
+    /// Consommation électrique de la pompe, en kWh (éq. 748 et 749), comptée dans les
+    /// auxiliaires de ventilation.
+    pub w_pompe_kwh: f64,
 }
 
 /// Fonctionnement annuel d'un puits climatique dans un calcul.

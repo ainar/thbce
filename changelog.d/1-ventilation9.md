@@ -6,3 +6,4 @@
 ### Modifié
 
 - Q231 : complément (ordre de grandeur de `hi` en lecture littérale de l'éq. 726, ajout de la centrale de traitement d'air à la fiche 6.11) ; renvois « point 1 » et « point 2 » inversés corrigés dans `ventilation/puits_climatique.rs`.
+- Puits hydraulique : avertissement de validation non bloquant quand le débit calorifique de l'air neuf dépasse celui de l'eau de la boucle (éq. 415 lue à la lettre, Q233) ; anomalies de l'éq. 747 et du tableau 71 consignées.

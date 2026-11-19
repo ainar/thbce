@@ -667,7 +667,7 @@ pub(super) fn valider_ventilation(
             }
         }
     }
-    super::puits::valider_puits(r, c, v);
+    super::puits::valider_puits(r, c, v, zone);
 
     // Réseau ; sans conduit en aération (§6.7).
     let aeration = matches!(v.systeme, SystemeVentilation::Aeration);

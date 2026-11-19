@@ -107,6 +107,8 @@ pub struct CumulsVentilation {
     pub nbh_adiab: u32,
     /// Nombre de pas de temps où la surventilation mécanique est en service (éq. 766).
     pub nbh_rafnoc: u32,
+    /// Consommation de la pompe du puits hydraulique, en Wh (éq. 748, 749 et 617).
+    pub w_puits_wh: f64,
     /// Nombre de pas de temps où l'air neuf traverse le puits climatique (non contourné).
     pub nbh_puits: u32,
     /// Énergie échangée dans le puits climatique en préchauffage, en Wh (positive).
@@ -406,6 +408,7 @@ impl ZoneHoraire {
             cv.nbh_adiab += u32::from(sv.adiab);
             cv.nbh_rafnoc += u32::from(sv.rafnoc);
             cv.nbh_puits += u32::from(sv.puits_actif);
+            cv.w_puits_wh += sv.w_puits_wh;
             cv.q_puits_chaud_wh += sv.q_puits_wh.max(0.0);
             cv.q_puits_froid_wh += sv.q_puits_wh.min(0.0);
         } else {
@@ -553,6 +556,9 @@ impl ZoneHoraire {
                     // Éq. (617) : pompe du rafraîchissement évaporatif recalculée.
                     cv.w_aux_adiab_wh += m.w_aux_adiab_wh - self.sorties_ventilation.w_aux_adiab_wh;
                     self.sorties_ventilation.w_aux_adiab_wh = m.w_aux_adiab_wh;
+                    // §6.3.3.5.5.1 : pompe du puits hydraulique recalculée.
+                    cv.w_puits_wh += m.w_puits_wh - self.sorties_ventilation.w_puits_wh;
+                    self.sorties_ventilation.w_puits_wh = m.w_puits_wh;
                 }
                 cv.q_chaud_wh += m.q_chaud_wh;
                 cv.q_froid_wh += m.q_froid_wh;

@@ -1,0 +1,75 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b"
+  },
+  "batiments": [
+    {
+      "id": "bureaux",
+      "sref_m2": 1000.0,
+      "bbio_pts": 94.3,
+      "dh_c_h": 268.3,
+      "cep_kwhep_m2": 68.4,
+      "cep_nr_kwhep_m2": 68.4,
+      "ic_energie_kgco2_m2": 244.1,
+      "indicateurs": {
+        "cef_kwhef_m2": 41.8,
+        "exigences": {
+          "bbio_max_pts": 87.9,
+          "cep_max_kwhep_m2": 82.7,
+          "cep_nr_max_kwhep_m2": 73.0,
+          "ic_energie_max_kgco2_m2": 194.7,
+          "conforme": false
+        },
+        "electricite_consommee": {
+          "chauffage_kwh": 133.0,
+          "ecs_kwh": 3195.4,
+          "eclairage_kwh": 6033.1,
+          "auxiliaires_ventilation_kwh": 10975.5
+        }
+      },
+      "zones": [
+        {
+          "id": "bureaux",
+          "ventilation": {
+            "p_vent_w": 3000.0,
+            "c_aux_vent_kwh": 10975.5,
+            "th_d": {
+              "nbh_bypass": 3508,
+              "q_ag_kwh": 0.0,
+              "q_prechaud_kwh": 2569.6,
+              "puits_hydraulique": {
+                "nbh_actif": 4644,
+                "q_prechauffage_kwh": 10360.1,
+                "q_prerefroidissement_kwh": -10885.7,
+                "w_pompe_kwh": 696.6
+              }
+            },
+            "th_c": {
+              "nbh_bypass": 3344,
+              "q_ag_kwh": 0.0,
+              "q_prechaud_kwh": 2264.9,
+              "puits_hydraulique": {
+                "nbh_actif": 4812,
+                "q_prechauffage_kwh": 10576.6,
+                "q_prerefroidissement_kwh": -10913.9,
+                "w_pompe_kwh": 721.8
+              }
+            }
+          },
+          "groupes": [
+            {
+              "id": "plateaux",
+              "ventilation": {
+                "q_spec_repris_m3_h": -6836.9,
+                "q_spec_souffle_m3_h": 6836.9,
+                "q_souffle_cond_m3_h": 7199.2,
+                "c_aux_vent_kwh": 10975.5
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

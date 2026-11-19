@@ -86,11 +86,18 @@ pub struct Sol {
 impl Sol {
     /// Sol d'un puits décrit, pour la température extérieure horaire `te_c` du site.
     pub fn nouveau(p: &PuitsClimatique, te_c: &[f64]) -> Self {
+        Self::pour(p.type_sol, p.profondeur_m, te_c)
+    }
+
+    /// Sol de nature `type_sol` à la profondeur `z_m`, pour la température extérieure horaire
+    /// `te_c` du site. Le puits hydraulique emploie les mêmes équations (éq. 732 à 734 =
+    /// éq. 719 à 721, tableau 72 = tableau 70).
+    pub fn pour(type_sol: TypeSolPuits, z_m: f64, te_c: &[f64]) -> Self {
         let (theta_am_c, delta_theta_a_k) = moyennes_mensuelles(te_c);
         Self {
-            gm: gm(p.type_sol),
-            ah: facteur_ah(p.profondeur_m),
-            vs_h: dephasage_vs_h(p.profondeur_m),
+            gm: gm(type_sol),
+            ah: facteur_ah(z_m),
+            vs_h: dephasage_vs_h(z_m),
             theta_am_c,
             delta_theta_a_k,
         }

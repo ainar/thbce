@@ -56,9 +56,13 @@ use super::humidification::{
 use super::mecanique_basse_pression;
 use super::mecanique_sf::{
     dugd_equ_h, h_cond_ext_w_k, p_vent_groupe_w, p_vent_residentiel_w, qm_kg_s, rho_kg_m3,
-    t_apres_conduit_c, t_apres_ventilateur_c, t_lnc_c, theta_i_cond_c, C_PA_J_KG_K,
+    t_apres_conduit_c, t_apres_ventilateur_c, t_lnc_c, theta_i_cond_c, C_PA_J_KG_K, RHO_REF_KG_M3,
 };
 use super::puits_climatique::EtatPuits;
+use super::puits_hydraulique::{
+    efficacite_batterie_ch, efficacite_batterie_fr, EtatPuitsHydraulique, CP_AIR_PH_J_KG_K,
+    CP_EAU_GL_J_KG_K, EPS_BATT_DEFAUT, RHO_EAU_GL_KG_M3,
+};
 use super::surventilation_mecanique::{a_cond_rafnoc_m2, SurventilationResolue};
 
 /// Nature du système, résolue pour le calcul.
@@ -190,6 +194,9 @@ pub struct ModeActif {
     pub q_direct_wh: (f64, f64),
     /// « Waux,adiab(rec)(h) » pondérée par les durées de fonctionnement (éq. 615 à 617), en Wh.
     pub w_aux_adiab_wh: f64,
+    /// « Wélec^PH,S(rec)(h) » de la pompe du puits hydraulique, pondérée par les durées de
+    /// fonctionnement : `τ·Wélec(rec) + (1 − τ)·Wélec` (§6.3.3.5.8.4.1), en Wh.
+    pub w_puits_wh: f64,
 }
 
 /// Grandeurs de la première phase (zone neutre) gardées pour le mode actif.
@@ -208,6 +215,8 @@ struct ZoneNeutre {
     w_ag_wh: f64,
     /// « Waux,adiab(h) » de la zone neutre, en Wh (éq. 566).
     w_aux_adiab_wh: f64,
+    /// « Wélec^PH,S(h) » de la zone neutre, en Wh (éq. 748 et 749).
+    w_puits_wh: f64,
 }
 
 /// Circuits d'un système jusqu'au ventilateur de soufflage.
@@ -437,6 +446,9 @@ pub struct PasVentilation {
     /// Énergie échangée dans le puits climatique, en Wh : `Cpa × qm,air_neuf × (θan − θext)`,
     /// positive en préchauffage, négative en prérafraîchissement.
     pub q_puits_wh: f64,
+    /// « Wélec^PH,S(h) » : consommation de la pompe du puits hydraulique attribuée au système,
+    /// en Wh (éq. 748 et 749), comptée dans les auxiliaires de ventilation.
+    pub w_puits_wh: f64,
 }
 
 /// Système de ventilation du projet d'une zone d'habitation, prêt pour le calcul.
@@ -488,6 +500,15 @@ pub struct VentilationProjet {
     pub surventilation: Option<SurventilationResolue>,
     /// Puits climatique de l'air neuf (§6.8, 6.10 et 6.11) et son état ; `None` sans.
     pub puits: Option<EtatPuits>,
+    /// Puits hydraulique de l'air neuf (§6.9) et son état ; `None` sans.
+    pub puits_h: Option<EtatPuitsHydraulique>,
+    /// Erreur de saisie du puits hydraulique : puissance de batterie supérieure à ce que le débit
+    /// de référence admet (efficacité > 1, §6.3.3.3.4). Contrôlée par la validation.
+    pub erreur_puits_h: Option<String>,
+    /// Avertissement non bloquant du puits hydraulique : débit calorifique de l'air neuf
+    /// supérieur à celui de l'eau de la boucle, l'énergie cédée à l'air (éq. 415) pouvant alors
+    /// dépasser ce que l'eau transporte (Q233 point 2). Contrôlé par la validation.
+    pub avertissement_puits_h: Option<String>,
     /// « θi,fin(h−2) » de chaque groupe, pour le sens de variation du profil à hystérésis.
     theta_prec: Vec<f64>,
     /// Régime du pas de temps en cours.
@@ -926,16 +947,73 @@ impl VentilationProjet {
             _ => None,
         };
         let nb_groupes = zone.groupes.len();
-        // Relevé horaire : centrales double flux hors habitation, et tout système à
-        // surventilation mécanique (puissance variable d'heure en heure, éq. 779 et 780).
-        let releve = (non_residentiel && v.systeme.nom_centrale().is_some() || surv).then(|| {
-            ReleveVentilation {
-                serie_wh: vec![0.0; NB_HEURES_AN],
-                mensuel_groupes_kwh: vec![[0.0; 12]; nb_groupes],
-                dernier_groupes_wh: vec![0.0; nb_groupes],
-                dernier_wh: 0.0,
+        // §6.9 et §6.3.3.3.4 : puits hydraulique ; efficacité de la batterie déduite des
+        // puissances déclarées aux débits d'air neuf de référence (éq. 399 à 407, `ρref` de la
+        // fiche 6.3) ou valeur par défaut (éq. 408).
+        let mut erreur_puits_h = None;
+        let mut avertissement_puits_h = None;
+        let puits_h = match (v.puits, v.puits_hydraulique) {
+            (Some(crate::entree::Puits::Hydraulique), Some(d)) => {
+                let qm_ref = |debit: &dyn Fn(&BoucheProjet) -> Option<DebitsBoucheProjet>| -> f64 {
+                    bouches
+                        .iter()
+                        .filter_map(debit)
+                        .filter(|x| x.isouf == Isouf::Soufflage)
+                        .map(|x| qm_kg_s(RHO_REF_KG_M3, x.q_cond_m3_h()))
+                        .sum()
+                };
+                // Éq. (399) et (400) : débit nominal en occupation, fuites comprises ; éq.
+                // (403) à (405) : débit de surventilation si elle est synchronisée.
+                let qm_hiv = qm_ref(&|b| Some(b.debits_ch.map_or(b.debits, |c| c.0)));
+                let qm_ete = if d.surventilation_synchronisee {
+                    qm_ref(&|b| b.debits_rafnoc)
+                } else {
+                    qm_hiv
+                };
+                let eps = match d.batterie {
+                    Some(b) => efficacite_batterie_ch(b.p_ch_kw, qm_hiv).and_then(|ch| {
+                        efficacite_batterie_fr(b.p_fr_kw, qm_ete).map(|fr| (ch, fr))
+                    }),
+                    None => {
+                        valeurs_par_defaut.push(defaut(
+                            "ventilation.puits_hydraulique.batterie".to_owned(),
+                            EPS_BATT_DEFAUT,
+                            "Th-BCE 2020 §6.3.3.3.4, éq. (408) : « Type_eff_echangeur_PH » = 0, \
+                             efficacité par défaut de la batterie eau/air",
+                        ));
+                        Ok((EPS_BATT_DEFAUT, EPS_BATT_DEFAUT))
+                    }
+                };
+                let (ch, fr) = eps.unwrap_or_else(|e| {
+                    erreur_puits_h = Some(e);
+                    (EPS_BATT_DEFAUT, EPS_BATT_DEFAUT)
+                });
+                // Éq. (415) lue à la lettre : avertir quand `DCair` dépasse `DCeau` (éq. 736 à 738).
+                let dc_air = qm_hiv.max(qm_ete) * CP_AIR_PH_J_KG_K;
+                let dc_eau = d.q_max_m3_h * RHO_EAU_GL_KG_M3 * CP_EAU_GL_J_KG_K / 3600.0;
+                if dc_air > dc_eau {
+                    avertissement_puits_h = Some(format!(
+                        "le débit calorifique de l'air neuf ({dc_air:.1} W/K) dépasse celui de \
+                         l'eau de la boucle ({dc_eau:.1} W/K) : l'énergie cédée à l'air par la \
+                         batterie (éq. 415) peut dépasser ce que l'eau transporte ; revoir le \
+                         débit de la pompe (Th-BCE 2020 §6.9.3.2.2, éq. 736 à 738)"
+                    ));
+                }
+                Some(EtatPuitsHydraulique::nouveau(d, ch, fr))
             }
-        });
+            _ => None,
+        };
+        // Relevé horaire : centrales double flux hors habitation, tout système à
+        // surventilation mécanique (puissance variable d'heure en heure, éq. 779 et 780) et tout
+        // système à puits hydraulique (pompe, éq. 748 et 749).
+        let releve =
+            (non_residentiel && v.systeme.nom_centrale().is_some() || surv || puits_h.is_some())
+                .then(|| ReleveVentilation {
+                    serie_wh: vec![0.0; NB_HEURES_AN],
+                    mensuel_groupes_kwh: vec![[0.0; 12]; nb_groupes],
+                    dernier_groupes_wh: vec![0.0; nb_groupes],
+                    dernier_wh: 0.0,
+                });
         let rho_initiale = rho_kg_m3(theta_initiale_c);
         // §6.3.3.4.9.2 : humidificateur d'hiver ; ηhum conventionnel de 0,8 (éq. 530).
         let humidificateur = v
@@ -1021,6 +1099,9 @@ impl VentilationProjet {
             },
             surventilation,
             puits,
+            puits_h,
+            erreur_puits_h,
+            avertissement_puits_h,
         })
     }
 
@@ -1137,12 +1218,79 @@ impl VentilationProjet {
         if let Some(p) = &mut self.puits {
             p.preparer(h, te_c, theta_ext_c, chauffage, theta_i);
         }
+        if let Some(p) = &mut self.puits_h {
+            p.preparer(h, te_c, theta_ext_c, chauffage);
+        }
+    }
+
+    /// Le système a un puits, climatique ou hydraulique, sur son air neuf.
+    pub fn a_un_puits(&self) -> bool {
+        self.puits.is_some() || self.puits_h.is_some()
+    }
+
+    /// « θan(h) » du pas avec les débits d'air neuf de la fin du pas précédent, et le puits en
+    /// service (non contourné, ou pompe en marche) ; `None` sans puits.
+    fn puits_precedent(&self) -> Option<(f64, bool)> {
+        match (&self.puits, &self.puits_h) {
+            (Some(p), _) => Some((p.theta_an_c(), !p.contourne())),
+            (_, Some(p)) => {
+                let s = p.sortie();
+                Some((s.theta_an_c, s.en_marche))
+            }
+            _ => None,
+        }
+    }
+
+    /// « θan(h) » recalculé au débit d'air neuf `qm_kg_s` (mode actif, éq. 487 à 491, ou premier
+    /// pas), et puits en service ; `None` sans puits.
+    fn puits_au_debit(&self, theta_ext_c: f64, qm_kg_s: f64) -> Option<(f64, bool)> {
+        match (&self.puits, &self.puits_h) {
+            (Some(p), _) => Some((p.sortie_c(theta_ext_c, qm_kg_s), !p.contourne())),
+            (_, Some(p)) => {
+                let s = p.sortie_pour(theta_ext_c, qm_kg_s);
+                Some((s.theta_an_c, s.en_marche))
+            }
+            _ => None,
+        }
+    }
+
+    /// Aucun débit n'est connu : le premier pas se calcule avec son propre débit d'air neuf.
+    fn puits_sans_historique(&self) -> bool {
+        match (&self.puits, &self.puits_h) {
+            (Some(p), _) => p.sans_historique(),
+            (_, Some(p)) => p.sans_historique(),
+            _ => false,
+        }
+    }
+
+    /// Retient le débit d'air neuf de la fin du pas pour `θan` du pas suivant (éq. 414, 415 et
+    /// 658).
+    fn retenir_debit_puits(&mut self, qm_kg_s: f64) {
+        if let Some(p) = &mut self.puits {
+            p.retenir_debit(qm_kg_s);
+        }
+        if let Some(p) = &mut self.puits_h {
+            p.retenir_debit(qm_kg_s);
+        }
+    }
+
+    /// « Wélec^PH,S(h) » : la pompe tourne et l'air neuf circule (éq. 748 ; éq. 749 : la totalité
+    /// pour l'unique système du puits), en Wh sur le pas d'une heure.
+    fn w_puits_wh(&self, en_marche: bool, qm_an_kg_s: f64) -> f64 {
+        match &self.puits_h {
+            // Écart au texte : la condition « qm_an > 0 » n'est pas écrite à l'éq. (748) ; elle
+            // évite la division par zéro de l'éq. (749) (répartition de la consommation de la
+            // pompe au prorata des débits d'air neuf, nuls quand l'air neuf ne circule pas).
+            // Q233 point 5 ; sans effet quand l'air neuf circule.
+            Some(p) if en_marche && qm_an_kg_s > 0.0 => p.description.p_max_w,
+            _ => 0.0,
+        }
     }
 
     /// « θan(h) » : température de l'air neuf du pas, avec le puits climatique (éq. 414), ou
     /// `theta_ext_c` sans puits.
     pub fn theta_an_c(&self, theta_ext_c: f64) -> f64 {
-        self.puits.as_ref().map_or(theta_ext_c, |p| p.theta_an_c())
+        self.puits_precedent().map_or(theta_ext_c, |(t, _)| t)
     }
 
     /// « θi,moy » des groupes desservis par la centrale au pas précédent, pour l'autorisation
@@ -1552,7 +1700,8 @@ impl VentilationProjet {
         }
         // Air neuf : air extérieur sans puits (éq. 413 et 657) ; avec un puits climatique, sortie
         // du puits avec les débits d'air neuf de la fin du pas précédent (éq. 414 et 658).
-        let theta_an_prec = self.puits.as_ref().map_or(theta_ext_c, |p| p.theta_an_c());
+        let precedent = self.puits_precedent();
+        let theta_an_prec = precedent.map_or(theta_ext_c, |(t, _)| t);
         // §6.3.3.4.5.3 : rafraîchissement évaporatif indirect autorisé (« Aut_adiab = 1 » et
         // « Type_Humidification_Ete = 2 ») ; pas de recyclage (éq. 440), pas de bypass (éq. 493).
         let indirect = regime.adiab && self.adiabatique.is_some_and(|a| a.indirect);
@@ -1573,11 +1722,12 @@ impl VentilationProjet {
         };
         // Éq. (488) : en mode actif, `θan` est recalculée avec les nouveaux débits d'air neuf ;
         // au tout premier pas, aucun débit n'est connu : le débit du pas sert (Q231 point 3).
-        let theta_an = match &self.puits {
-            Some(p) if regime.recalcul_puits || p.sans_historique() => {
-                p.sortie_c(theta_ext_c, qm_an)
-            }
-            _ => theta_an_prec,
+        let (theta_an, puits_en_marche) = match precedent {
+            Some(_) if regime.recalcul_puits || self.puits_sans_historique() => self
+                .puits_au_debit(theta_ext_c, qm_an)
+                .unwrap_or((theta_ext_c, false)),
+            Some(x) => x,
+            None => (theta_ext_c, false),
         };
         // Éq. (454) à (456) : débit recyclé, débit repris et débit rejeté rééquilibrés. Le texte
         // (p. 372) écrit les débits repris en valeurs signées, négatives : `qm,rep,cond =
@@ -1616,9 +1766,10 @@ impl VentilationProjet {
                 qm_air_extrait_kg_s: qm_extrait,
                 theta_souf_mel_c: theta_an,
                 taux_an: if qm_sou > 0.0 { qm_an / qm_sou } else { 1.0 },
-                theta_an_c: self.puits.as_ref().map(|_| theta_an),
-                puits_actif: self.puits.as_ref().is_some_and(|p| !p.contourne()) && qm_an > 0.0,
-                q_puits_wh: if self.puits.is_some() {
+                theta_an_c: self.a_un_puits().then_some(theta_an),
+                puits_actif: puits_en_marche && qm_an > 0.0,
+                w_puits_wh: self.w_puits_wh(puits_en_marche, qm_an),
+                q_puits_wh: if self.a_un_puits() {
                     C_PA_J_KG_K * qm_an * (theta_an - theta_ext_c)
                 } else {
                     0.0
@@ -1768,10 +1919,8 @@ impl VentilationProjet {
             (p_vent_rep_w, p_vent_sou_w),
             &self.rho_souffle,
         );
-        if let Some(p) = &mut self.puits {
-            // Débit d'air neuf de la fin du pas, pour `θan` du pas suivant (éq. 414 et 658).
-            p.retenir_debit(centrale.qm_an_kg_s);
-        }
+        // Débit d'air neuf de la fin du pas, pour `θan` du pas suivant (éq. 414, 415 et 658).
+        self.retenir_debit_puits(centrale.qm_an_kg_s);
         let mut sorties = centrale.sorties;
         sorties.adiab = regime.adiab;
         sorties.rafnoc = regime.rafnoc;
@@ -1782,6 +1931,7 @@ impl VentilationProjet {
         self.zn.w_vent_wh = p_vent_rep_w + p_vent_sou_w;
         self.zn.w_ech_wh = w_ech_wh;
         self.zn.w_ag_wh = sorties.w_ag_wh;
+        self.zn.w_puits_wh = sorties.w_puits_wh;
         self.zn.omega_souffle_kg_kg = omega_ext_kg_kg;
         self.zn.souffle.fill((0.0, 0.0));
         self.rho_souffle_h1.copy_from_slice(&self.rho_souffle);
@@ -1920,7 +2070,8 @@ impl VentilationProjet {
                 + p_vent_sou_w
                 + w_ech_wh
                 + sorties.w_aux_adiab_wh
-                + sorties.w_aux_chaudhr_wh;
+                + sorties.w_aux_chaudhr_wh
+                + sorties.w_puits_wh;
             let r_pas = if est_cta {
                 regime
             } else {
@@ -2084,10 +2235,8 @@ impl VentilationProjet {
             cta.p_vent_ch_w,
             &self.rho_souffle,
         );
-        if let Some(p) = &mut self.puits {
-            // Débits d'air neuf recalculés : ce sont ceux de la fin du pas (éq. 487 et 488).
-            p.retenir_debit(centrale.qm_an_kg_s);
-        }
+        // Débits d'air neuf recalculés : ce sont ceux de la fin du pas (éq. 487 à 489).
+        self.retenir_debit_puits(centrale.qm_an_kg_s);
         let qm_cond = centrale.qm_sou_kg_s;
         if qm_cond <= 0.0 {
             return ModeActif::default();
@@ -2221,10 +2370,15 @@ impl VentilationProjet {
         let w_aux_adiab = charge.tau * w_aux_pompe_wh(centrale.qm_eau_ete_kg_s)
             + (1.0 - charge.tau) * self.zn.w_aux_adiab_wh;
         resultat.w_aux_adiab_wh = w_aux_adiab;
+        // Pompe du puits hydraulique recalculée avec les débits du mode actif (§6.3.3.5.5.1).
+        let w_puits =
+            charge.tau * centrale.sorties.w_puits_wh + (1.0 - charge.tau) * self.zn.w_puits_wh;
+        resultat.w_puits_wh = w_puits;
         if self.releve.is_some() {
             let w = w_vent_rec_wh(charge.tau, cta.p_vent_ch_w, self.zn.w_vent_wh)
                 + self.zn.w_ech_wh
-                + w_aux_adiab;
+                + w_aux_adiab
+                + w_puits;
             self.repartir_releve(w, regime);
         }
         resultat
