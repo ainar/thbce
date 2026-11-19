@@ -31,6 +31,12 @@ pub struct Ventilation {
     /// ce système.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub puits_climatique: Option<PuitsClimatique>,
+    /// Identifiant partagé d'un puits climatique desservant plusieurs centrales
+    /// (`Id_Puits_Climatique`, §6.8.2 et §6.11, p. 434-436). **Non pris en charge** : renseigner
+    /// ce champ est refusé (code 3, voir `docs/questions/Q232.md`) ; un puits dessert la seule
+    /// centrale dont il est la description.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id_puits_climatique: Option<String>,
     /// Réseau de distribution de CTA hydraulique de chauffage (fiche 8.11, « idtype = 1 »,
     /// §8.11.3.6.2 et fiche 8.12) : relie la centrale à la génération qui fournit l'énergie de
     /// ses fonctions de chauffage (préchauffage, sécurité antigel, humidificateur à vapeur,
