@@ -1129,6 +1129,10 @@ fn valider_aeration(r: &mut RapportValidation, c: &str, v: &Ventilation, zone: &
         .iter()
         .flat_map(|g| &g.bouches_conduits)
         .any(|b| b.isouf == Isouf::Soufflage);
+    // Une zone sans aucune bouche est déjà refusée en code 2 par la règle commune à tous les
+    // systèmes : hors habitation par `valider_ventilation` (§6.2.3.1.1.1), en habitation pour
+    // chaque groupe par `valider_groupe` (§6.2.3.1.1.2). Le message propre à l'aération ne
+    // s'ajoute qu'en présence de bouches, toutes de reprise (Q98, complément du 19/11/2026).
     let sans_bouche = zone.groupes.iter().all(|g| g.bouches_conduits.is_empty());
     if !a_soufflage && !sans_bouche {
         r.erreur(
