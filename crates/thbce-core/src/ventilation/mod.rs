@@ -12,12 +12,14 @@
 //! - [`mecanique_basse_pression`] : fiche `C_VEN_Mécanique_Basse-Pression` (§6.4).
 //! - [`cta_et_double_flux`] : fiche `C_VEN_CTA et Double_flux` (§6.3), double flux en
 //!   habitation.
+//! - [`humidification`] : fiche 6.3, humidificateur d'hiver et rafraîchissement évaporatif.
 //! - [`ventilation_projet`] : système de ventilation du projet d'une zone, pour les calculs
 //!   Th-C et Th-D.
 
 pub mod bouche_conduit;
 pub mod cta_et_double_flux;
 pub mod debits_air_cep;
+pub mod humidification;
 pub mod mecanique_basse_pression;
 pub mod mecanique_sf;
 pub mod ven_bbio;

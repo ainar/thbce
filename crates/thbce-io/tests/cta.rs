@@ -282,7 +282,9 @@ fn double_flux_non_residentiel() {
         batterie_prechauffage: None,
         batterie_prerefroidissement: None,
         humidification: None,
+        humidificateur: None,
         rafraichissement_evaporatif: None,
+        rafraichissement_adiabatique: None,
         surventilation_mecanique: None,
     });
     for b in &mut p.batiments[0].zones[0].groupes[0].bouches_conduits {
@@ -330,10 +332,10 @@ fn refus_et_erreurs() {
             false
         )
     );
-    // Humidification : hors périmètre.
+    // Humidification sans description (lot 1-ven3) : erreur de saisie.
     let mut p = bureaux_cta();
     cta_mut(&mut p).humidification = Some(true);
-    assert_eq!(chemins(&p), (vec![format!("{c}.humidification")], true));
+    assert_eq!(chemins(&p), (vec![format!("{c}.humidification")], false));
     // Préchauffage d'une centrale à température variable : erreur (§6.3.3.4.9).
     let mut p = bureaux_cta();
     cta_mut(&mut p).type_cta = TypeCta::DebitConstantTemperatureVariable;

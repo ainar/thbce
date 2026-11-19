@@ -307,6 +307,9 @@ impl Resultats {
                         m.q_prefroid_kwh = m.q_prefroid_kwh.map(a);
                         m.q_chaud_kwh = m.q_chaud_kwh.map(a);
                         m.q_froid_kwh = m.q_froid_kwh.map(a);
+                        m.q_hr_kwh = m.q_hr_kwh.map(a);
+                        m.w_aux_chaudhr_kwh = m.w_aux_chaudhr_kwh.map(a);
+                        m.w_aux_adiab_kwh = m.w_aux_adiab_kwh.map(a);
                     }
                 }
                 if let Some(c) = &mut z.consommations_collectif {

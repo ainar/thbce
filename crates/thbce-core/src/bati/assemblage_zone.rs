@@ -85,11 +85,25 @@ pub struct CumulsVentilation {
     /// Nombre de pas de temps où la batterie régulée sur la charge est sous-dimensionnée (éq.
     /// 597 et 605).
     pub nbh_sous_dimensionnement: u32,
+    /// « Nbsousdim_DAV_Ch(h) » et « Nbsousdim_DAV_Cr(h) » : heures consécutives de
+    /// sous-dimensionnement en chauffage et en refroidissement (éq. 597 et 605).
+    pub nb_sousdim: [u32; 2],
+    /// Plus longue série d'heures consécutives de sous-dimensionnement, en chauffage ou en
+    /// refroidissement (éq. 597 et 605).
+    pub nbh_sous_dimensionnement_consecutives: u32,
     /// Énergie fournie par la batterie chaude régulée sur la charge, en Wh (éq. 599).
     pub q_chaud_wh: f64,
     /// Énergie fournie par la batterie froide régulée sur la charge, latente comprise, en Wh,
     /// négative (éq. 611).
     pub q_froid_wh: f64,
+    /// Énergie de l'humidificateur d'hiver à vapeur, en Wh (éq. 529).
+    pub q_hr_wh: f64,
+    /// Consommation de la pompe de l'humidificateur d'hiver, en Wh (éq. 568).
+    pub w_aux_chaudhr_wh: f64,
+    /// Consommation de la pompe du rafraîchissement évaporatif, en Wh (éq. 566 et 617).
+    pub w_aux_adiab_wh: f64,
+    /// Nombre de pas de temps où le rafraîchissement évaporatif est autorisé (§6.3.3.4.2).
+    pub nbh_adiab: u32,
 }
 
 impl ZoneHoraire {
@@ -340,6 +354,8 @@ impl ZoneHoraire {
                         },
                         besoin_ch: s.is_some_and(|x| x.q_sys_ch_wh > 0.0),
                         besoin_fr: s.is_some_and(|x| x.q_sys_fr_wh < 0.0),
+                        clim: g.i_clim,
+                        aut_fr_propre: g.etat.saisons.aut_fr_passif,
                     }
                 }));
             v.preparer_pas(i_vent, &self.etats_ventilation);
@@ -365,6 +381,12 @@ impl ZoneHoraire {
             self.cumuls_ventilation.w_ag_wh += self.sorties_ventilation.w_ag_wh;
             self.cumuls_ventilation.q_prechaud_wh += self.sorties_ventilation.q_prechaud_wh;
             self.cumuls_ventilation.q_prefroid_wh += self.sorties_ventilation.q_prefroid_wh;
+            let sv = self.sorties_ventilation;
+            let cv = &mut self.cumuls_ventilation;
+            cv.q_hr_wh += sv.q_hr_wh;
+            cv.w_aux_chaudhr_wh += sv.w_aux_chaudhr_wh;
+            cv.w_aux_adiab_wh += sv.w_aux_adiab_wh;
+            cv.nbh_adiab += u32::from(sv.adiab);
         } else {
             for (a, g) in self.air_souffle.iter_mut().zip(&self.groupes) {
                 *a = AirSouffle {
@@ -476,6 +498,25 @@ impl ZoneHoraire {
                 let cv = &mut self.cumuls_ventilation;
                 cv.nbh_mode_actif += u32::from(m.actif);
                 cv.nbh_sous_dimensionnement += u32::from(m.sous_dimensionnee);
+                // Éq. (597) et (605) : compteurs d'heures consécutives, remis à zéro à la
+                // première heure sans sous-dimensionnement.
+                for (k, n) in cv.nb_sousdim.iter_mut().enumerate() {
+                    *n = if m.sous_dimensionnee && m.chauffage == (k == 0) {
+                        *n + 1
+                    } else {
+                        0
+                    };
+                    cv.nbh_sous_dimensionnement_consecutives =
+                        cv.nbh_sous_dimensionnement_consecutives.max(*n);
+                }
+                if m.actif {
+                    // §6.3.3.5.5.4 : sécurité antigel recalculée (lecture Q95 point 11).
+                    cv.w_ag_wh += m.w_ag_wh - self.sorties_ventilation.w_ag_wh;
+                    self.sorties_ventilation.w_ag_wh = m.w_ag_wh;
+                    // Éq. (617) : pompe du rafraîchissement évaporatif recalculée.
+                    cv.w_aux_adiab_wh += m.w_aux_adiab_wh - self.sorties_ventilation.w_aux_adiab_wh;
+                    self.sorties_ventilation.w_aux_adiab_wh = m.w_aux_adiab_wh;
+                }
                 cv.q_chaud_wh += m.q_chaud_wh;
                 cv.q_froid_wh += m.q_froid_wh;
             }
