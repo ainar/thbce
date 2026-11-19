@@ -203,10 +203,10 @@ fn option_version() {
 #[test]
 fn messages_en_francais() {
     // Option retirée : erreur d'usage, en français.
-    let s = thbce(&["calcul", &entree(), "--meteo", "m.csv", "--horaire"]);
+    let s = thbce(&["calcul", &entree(), "--meteo", "m.csv", "--inconnue"]);
     assert_eq!(s.status.code(), Some(1));
     let e = String::from_utf8_lossy(&s.stderr).into_owned();
-    assert!(e.contains("argument inattendu : --horaire"), "{e}");
+    assert!(e.contains("argument inattendu : --inconnue"), "{e}");
     // Aide en français.
     let s = thbce(&["--help"]);
     let aide = String::from_utf8_lossy(&s.stdout).into_owned();
