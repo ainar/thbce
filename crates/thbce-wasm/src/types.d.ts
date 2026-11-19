@@ -2494,6 +2494,30 @@ export interface HorairesJour {
   fin_h: number;
 }
 
+/**
+ * Th-BCE 2020 §6.3.3.4.9.2 — humidificateur d'hiver (« Is_ChaudHR = 1 ») d'un double flux ou
+ * d'une centrale à débit constant (types 1 et 2), en saison de chauffage, après la batterie
+ * de préchauffage.
+ */
+export interface HumidificateurHiver {
+  /**
+   * « ηhum » : efficacité d'un humidificateur à pulvérisation (0 à 1) ; 0,8 par défaut
+   * (tableau 61 et éq. 530), valeur signalée ; refusée pour un humidificateur à vapeur.
+   */
+  eta_hum?: number | null;
+  /**
+   * Génération qui fournit l'énergie d'un humidificateur à vapeur (« QchaudHR », éq. 529),
+   * par un réseau de distribution de CTA fictif (fiche 8.11, « idchaudHR », éq. 939) :
+   * identifiant d'une génération du bâtiment pourvue d'un générateur de chauffage. Requise
+   * pour un humidificateur à vapeur, refusée sinon (« QHR = 0 », éq. 533).
+   */
+  generation?: string | null;
+  /** « ωcons » : humidité spécifique de consigne de l'air soufflé, en kg/kg d'air sec (0 à 1). */
+  omega_cons_kg_kg: number;
+  /** « TypeHumidification ». */
+  type_humidification: TypeHumidificationHiver;
+}
+
 /** Indicateurs par occupant d'un bâtiment (fiche 13.6, annexe II §5.2.3 et §5.3.1). */
 export interface IndicateursOccupants {
   /**
@@ -2521,30 +2545,6 @@ export interface IndicateursOccupants {
   valeurs_par_defaut?: ValeurParDefaut[];
   /** Nombre d'occupants de chaque zone. */
   zones: OccupantsZone[];
-}
-
-/**
- * Th-BCE 2020 §6.3.3.4.9.2 — humidificateur d'hiver (« Is_ChaudHR = 1 ») d'un double flux ou
- * d'une centrale à débit constant (types 1 et 2), en saison de chauffage, après la batterie
- * de préchauffage.
- */
-export interface HumidificateurHiver {
-  /**
-   * « ηhum » : efficacité d'un humidificateur à pulvérisation (0 à 1) ; 0,8 par défaut
-   * (tableau 61 et éq. 530), valeur signalée ; refusée pour un humidificateur à vapeur.
-   */
-  eta_hum?: number | null;
-  /**
-   * Génération qui fournit l'énergie d'un humidificateur à vapeur (« QchaudHR », éq. 529),
-   * par un réseau de distribution de CTA fictif (fiche 8.11, « idchaudHR », éq. 939) :
-   * identifiant d'une génération du bâtiment pourvue d'un générateur de chauffage. Requise
-   * pour un humidificateur à vapeur, refusée sinon (« QHR = 0 », éq. 533).
-   */
-  generation?: string | null;
-  /** « ωcons » : humidité spécifique de consigne de l'air soufflé, en kg/kg d'air sec (0 à 1). */
-  omega_cons_kg_kg: number;
-  /** « TypeHumidification ». */
-  type_humidification: TypeHumidificationHiver;
 }
 
 /**
