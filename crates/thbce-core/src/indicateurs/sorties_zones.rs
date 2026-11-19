@@ -11,6 +11,9 @@
 //! à quelle zone ou à quel groupe l'attribuer. La somme des zones redonne ainsi exactement le
 //! bilan horaire du bâtiment (§13.4).
 
+// Les boucles sur l'indice de poste parcourent plusieurs tableaux parallèles (`poste::*`).
+#![allow(clippy::needless_range_loop)]
+
 use crate::bati::assemblage_batiment::BatimentHoraire;
 use crate::chauffage_refroidissement::calculs_generation::{Energie, Poste};
 use crate::climat::calendrier::date_scenario;
