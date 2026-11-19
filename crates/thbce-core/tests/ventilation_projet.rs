@@ -992,6 +992,30 @@ fn validation_du_puits_hydraulique() {
         format!("{c}.puits_hydraulique.batterie")
     );
     assert!(r.erreurs[0].message.contains("préchauffage"));
+    // Éq. (415) : avertissement non bloquant quand DCair dépasse DCeau. Air neuf de référence
+    // 100 m³/h à ρref = 1,2 kg/m³ : 0,03333 kg/s × 1 004 = 33,47 W/K ; eau : Qmax × 1 040 ×
+    // 3 751 / 3 600 = 1 083,6 × Qmax, soit 1 300,3 W/K à 1,2 m³/h (pas d'avertissement) et
+    // 32,51 W/K à 0,03 m³/h (avertissement).
+    let p = double_flux_avec_puits_h(TemperatureExterieure, None);
+    assert!(valider(&p).avertissements.is_empty());
+    let mut p = double_flux_avec_puits_h(TemperatureExterieure, None);
+    zone_mut(&mut p)
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .puits_hydraulique
+        .as_mut()
+        .unwrap()
+        .q_max_m3_h = 0.03;
+    let r = valider(&p);
+    assert!(r.est_valide(), "{:?}", r.erreurs);
+    assert_eq!(r.avertissements.len(), 1, "{r:?}");
+    assert_eq!(
+        r.avertissements[0].chemin,
+        format!("{c}.puits_hydraulique.q_max_m3_h")
+    );
+    assert!(r.avertissements[0].message.contains("33.5 W/K"));
+    assert!(r.avertissements[0].message.contains("32.5 W/K"));
     // Surventilation synchronisée sans système de surventilation.
     let mut p = double_flux_avec_puits_h(TemperatureExterieure, None);
     zone_mut(&mut p)

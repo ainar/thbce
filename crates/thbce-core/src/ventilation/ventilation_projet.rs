@@ -60,7 +60,8 @@ use super::mecanique_sf::{
 };
 use super::puits_climatique::EtatPuits;
 use super::puits_hydraulique::{
-    efficacite_batterie_ch, efficacite_batterie_fr, EtatPuitsHydraulique, EPS_BATT_DEFAUT,
+    efficacite_batterie_ch, efficacite_batterie_fr, EtatPuitsHydraulique, CP_AIR_PH_J_KG_K,
+    CP_EAU_GL_J_KG_K, EPS_BATT_DEFAUT, RHO_EAU_GL_KG_M3,
 };
 use super::surventilation_mecanique::{a_cond_rafnoc_m2, SurventilationResolue};
 
@@ -504,6 +505,10 @@ pub struct VentilationProjet {
     /// Erreur de saisie du puits hydraulique : puissance de batterie supérieure à ce que le débit
     /// de référence admet (efficacité > 1, §6.3.3.3.4). Contrôlée par la validation.
     pub erreur_puits_h: Option<String>,
+    /// Avertissement non bloquant du puits hydraulique : débit calorifique de l'air neuf
+    /// supérieur à celui de l'eau de la boucle, l'énergie cédée à l'air (éq. 415) pouvant alors
+    /// dépasser ce que l'eau transporte (Q233 point 2). Contrôlé par la validation.
+    pub avertissement_puits_h: Option<String>,
     /// « θi,fin(h−2) » de chaque groupe, pour le sens de variation du profil à hystérésis.
     theta_prec: Vec<f64>,
     /// Régime du pas de temps en cours.
@@ -946,6 +951,7 @@ impl VentilationProjet {
         // puissances déclarées aux débits d'air neuf de référence (éq. 399 à 407, `ρref` de la
         // fiche 6.3) ou valeur par défaut (éq. 408).
         let mut erreur_puits_h = None;
+        let mut avertissement_puits_h = None;
         let puits_h = match (v.puits, v.puits_hydraulique) {
             (Some(crate::entree::Puits::Hydraulique), Some(d)) => {
                 let qm_ref = |debit: &dyn Fn(&BoucheProjet) -> Option<DebitsBoucheProjet>| -> f64 {
@@ -982,6 +988,17 @@ impl VentilationProjet {
                     erreur_puits_h = Some(e);
                     (EPS_BATT_DEFAUT, EPS_BATT_DEFAUT)
                 });
+                // Éq. (415) lue à la lettre : avertir quand `DCair` dépasse `DCeau` (éq. 736 à 738).
+                let dc_air = qm_hiv.max(qm_ete) * CP_AIR_PH_J_KG_K;
+                let dc_eau = d.q_max_m3_h * RHO_EAU_GL_KG_M3 * CP_EAU_GL_J_KG_K / 3600.0;
+                if dc_air > dc_eau {
+                    avertissement_puits_h = Some(format!(
+                        "le débit calorifique de l'air neuf ({dc_air:.1} W/K) dépasse celui de \
+                         l'eau de la boucle ({dc_eau:.1} W/K) : l'énergie cédée à l'air par la \
+                         batterie (éq. 415) peut dépasser ce que l'eau transporte ; revoir le \
+                         débit de la pompe (Th-BCE 2020 §6.9.3.2.2, éq. 736 à 738)"
+                    ));
+                }
                 Some(EtatPuitsHydraulique::nouveau(d, ch, fr))
             }
             _ => None,
@@ -1084,6 +1101,7 @@ impl VentilationProjet {
             puits,
             puits_h,
             erreur_puits_h,
+            avertissement_puits_h,
         })
     }
 
@@ -1260,6 +1278,10 @@ impl VentilationProjet {
     /// pour l'unique système du puits), en Wh sur le pas d'une heure.
     fn w_puits_wh(&self, en_marche: bool, qm_an_kg_s: f64) -> f64 {
         match &self.puits_h {
+            // Écart au texte : la condition « qm_an > 0 » n'est pas écrite à l'éq. (748) ; elle
+            // évite la division par zéro de l'éq. (749) (répartition de la consommation de la
+            // pompe au prorata des débits d'air neuf, nuls quand l'air neuf ne circule pas).
+            // Q233 point 5 ; sans effet quand l'air neuf circule.
             Some(p) if en_marche && qm_an_kg_s > 0.0 => p.description.p_max_w,
             _ => 0.0,
         }

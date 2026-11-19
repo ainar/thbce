@@ -108,9 +108,12 @@ pub(super) fn valider_puits(r: &mut RapportValidation, c: &str, v: &Ventilation,
         // §6.3.3.3.4 : efficacité de la batterie > 1 (message d'erreur du texte), contrôlée sur le
         // système résolu quand le reste de l'entrée est valide.
         if r.est_valide() {
-            if let Some(e) = VentilationProjet::nouvelle(zone, 18.0).and_then(|x| x.erreur_puits_h)
-            {
-                r.erreur(format!("{c}.puits_hydraulique.batterie"), None, e);
+            if let Some(x) = VentilationProjet::nouvelle(zone, 18.0) {
+                if let Some(e) = x.erreur_puits_h {
+                    r.erreur(format!("{c}.puits_hydraulique.batterie"), None, e);
+                } else if let Some(a) = x.avertissement_puits_h {
+                    r.avertissement(format!("{c}.puits_hydraulique.q_max_m3_h"), None, a);
+                }
             }
         }
     }
