@@ -348,6 +348,11 @@ impl Resultats {
                             p.q_prechauffage_kwh = a(p.q_prechauffage_kwh);
                             p.q_prerefroidissement_kwh = a(p.q_prerefroidissement_kwh);
                         }
+                        if let Some(p) = &mut m.puits_hydraulique {
+                            p.q_prechauffage_kwh = a(p.q_prechauffage_kwh);
+                            p.q_prerefroidissement_kwh = a(p.q_prerefroidissement_kwh);
+                            p.w_pompe_kwh = a(p.w_pompe_kwh);
+                        }
                     }
                 }
                 if let Some(c) = &mut z.consommations_collectif {

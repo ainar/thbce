@@ -380,6 +380,20 @@ export interface BatteriePrerefroidissement {
   theta_ex_c: number;
 }
 
+/**
+ * Puissances déclarées de la batterie eau/air du puits hydraulique (§6.3.2, tableau 61 ;
+ * éq. 401 à 407).
+ */
+export interface BatteriePuitsHydraulique {
+  /**
+   * « Pch » : puissance en préchauffage (air neuf à −10 °C, eau entrant à 10 °C, selon
+   * l'éq. 401), aux débits nominaux d'air et d'eau, en kW.
+   */
+  p_ch_kw: number;
+  /** « Pfr » : puissance en prérefroidissement (air neuf à 30 °C, eau entrant à 10 °C), en kW. */
+  p_fr_kw: number;
+}
+
 /** Besoins et besoin bioclimatique d'un mois ou de l'année (Th-BCE 2020 §13.1.2, sorties). */
 export interface BesoinsBbio {
   /**
@@ -2491,6 +2505,9 @@ export type GestionEauxPluviales = "infiltration" | "separatif" | "unitaire";
 /** « Type-GPM » (§5.9.2) : gestion d'un volet ou d'un store enroulable. */
 export type GestionPm = "automatique_avec_derogation" | "manuelle_non_motorisee" | "manuelle_motorisee";
 
+/** « typegest_PH » : gestion de la pompe du puits hydraulique (§6.9.3.2.3). */
+export type GestionPuitsHydraulique = "temperature_exterieure" | "temperatures_exterieure_et_eau";
+
 /** « Type-GPM-sv » (§5.9.2) : gestion d'un store vénitien. */
 export type GestionSv = "suivi_soleil_avec_derogation" | "manuelle_position_fixe" | "automatique45_avec_derogation";
 
@@ -3904,6 +3921,59 @@ export interface PuitsClimatique {
   type_sol: TypeSolPuits;
 }
 
+/**
+ * Th-BCE 2020 §6.9.2, tableau 71 — puits hydraulique : une batterie eau/air préchauffe ou
+ * prérafraîchit l'air neuf, l'eau glycolée circulant dans un conduit enterré (pompe, sol,
+ * gestion de la pompe) ; le prétraitement de l'efficacité de la batterie est celui du
+ * §6.3.3.3.4 (éq. 399 à 408).
+ */
+export interface PuitsHydraulique {
+  /**
+   * Puissances déclarées de la batterie eau/air (« Type_eff_echangeur_PH » = 1) ; absent :
+   * efficacité par défaut de 0,65 (« Type_eff_echangeur_PH » = 0, éq. 408, valeur signalée
+   * dans `valeurs_par_defaut`).
+   */
+  batterie?: BatteriePuitsHydraulique | null;
+  /** « di » : diamètre intérieur du conduit, en m (strictement positif). */
+  di_m: number;
+  /** « ep » : épaisseur du conduit, en m (positive ou nulle). */
+  ep_m: number;
+  /** « typegest_PH » : gestion de la pompe. */
+  gestion: GestionPuitsHydraulique;
+  /** « Lpuits » : longueur du conduit hydraulique enterré, en m (strictement positive). */
+  l_m: number;
+  /** « λtube » : conductivité thermique du conduit, en W/(m.K) (strictement positive). */
+  lambda_tube_w_m_k: number;
+  /** « Pmax_PH » : puissance nominale de la pompe, en W (positive ou nulle). */
+  p_max_w: number;
+  /** « Z » : profondeur d'enfouissement du conduit, en m (positive ou nulle). */
+  profondeur_m: number;
+  /**
+   * « Qmax_PH » : débit maximal de la pompe, en **m³/h** (strictement positif). Le tableau 71
+   * donne des m³/s, mais les éq. (737), (743) et (745) divisent ou multiplient par 3 600 : le
+   * débit s'y lit en m³/h (Q233 point 1).
+   */
+  q_max_m3_h: number;
+  /**
+   * « Type_Surventilation_PH » = 1 : la surventilation d'été de la centrale est synchronisée
+   * avec le puits ; le débit d'air neuf de référence de l'éq. (403) est alors celui de la
+   * surventilation (la centrale doit avoir un `rafraichissement_surventilation`).
+   */
+  surventilation_synchronisee?: boolean;
+  /**
+   * « θext,arrêt_PH^été » : température extérieure de consigne au-dessous de laquelle la
+   * pompe peut être arrêtée hors période de chauffage, en °C (positive ou nulle).
+   */
+  theta_ext_arret_ete_c: number;
+  /**
+   * « θext,arrêt_PH^hiver » : température extérieure de consigne au-dessus de laquelle la
+   * pompe peut être arrêtée en période de chauffage, en °C (positive ou nulle).
+   */
+  theta_ext_arret_hiver_c: number;
+  /** Nature du sol (tableau 72, mêmes valeurs de `gm` que le tableau 70). */
+  type_sol: TypeSolPuits;
+}
+
 /** Quantités d'eau annuelles du bâtiment (§4.4.2) et de la parcelle (§4.6.2), en m³/an. */
 export interface QuantitesEauAcv {
   /** « Nocc » (§5.2.3). */
@@ -5273,6 +5343,27 @@ export interface ResultatsPuitsClimatique {
   q_prerefroidissement_kwh: number;
 }
 
+/** Fonctionnement annuel d'un puits hydraulique dans un calcul. */
+export interface ResultatsPuitsHydraulique {
+  /**
+   * Nombre d'heures où la pompe tourne (« QPH(h) > 0 », éq. 746 et 747) et où l'air neuf
+   * traverse la batterie (débit d'air neuf non nul).
+   */
+  nbh_actif: number;
+  /**
+   * Énergie apportée à l'air neuf en préchauffage, en kWh : somme positive de
+   * `Cpa × qm,air_neuf × (θan − θext)` (éq. 415).
+   */
+  q_prechauffage_kwh: number;
+  /** Énergie retirée à l'air neuf en prérafraîchissement, en kWh, négative. */
+  q_prerefroidissement_kwh: number;
+  /**
+   * Consommation électrique de la pompe, en kWh (éq. 748 et 749), comptée dans les
+   * auxiliaires de ventilation.
+   */
+  w_pompe_kwh: number;
+}
+
 /** Récupérateur de chaleur collectif sur les eaux grises, calcul Th-C (§9.21.6). */
 export interface ResultatsRecuperateurCollectif {
   /** « εech_eg_fixe » retenue pour l'échangeur central (§9.21.6.3.2.1). */
@@ -5565,6 +5656,8 @@ export interface ResultatsVentilationMode {
    * sans puits.
    */
   puits_climatique?: ResultatsPuitsClimatique | null;
+  /** Fonctionnement du puits hydraulique de l'air neuf (fiche 6.9) ; absent sans puits. */
+  puits_hydraulique?: ResultatsPuitsHydraulique | null;
   /** Énergie fournie pour la sécurité antigel de l'échangeur, en kWh (éq. 508). */
   q_ag_kwh: number;
   /**
@@ -6202,8 +6295,8 @@ export interface Ventilation {
   id_puits_climatique?: string | null;
   /**
    * Raccordement à un puits climatique ou hydraulique (§6.8 à 6.11). Le puits climatique
-   * (`climatique`) se décrit par `puits_climatique` ; le puits hydraulique n'est pas encore
-   * pris en charge.
+   * (`climatique`) se décrit par `puits_climatique`, le puits hydraulique (`hydraulique`) par
+   * `puits_hydraulique`.
    */
   puits?: Puits | null;
   /**
@@ -6213,6 +6306,13 @@ export interface Ventilation {
    * ce système.
    */
   puits_climatique?: PuitsClimatique | null;
+  /**
+   * Description du puits hydraulique (fiche 6.9, tableau 71), requise si `puits` vaut
+   * `hydraulique` et interdite sinon. Le système doit être un simple flux par insufflation,
+   * un double flux ou une centrale de traitement d'air ; le puits ne dessert que ce système
+   * (Q233). Jamais avec un puits climatique (§6.3.3.1, éq. 386).
+   */
+  puits_hydraulique?: PuitsHydraulique | null;
   /**
    * Réseau de conduits : étanchéité et parties hors volume chauffé (§6.2.3.4, §6.3.3.3.2,
    * §6.5.3.4).

@@ -21,8 +21,8 @@ pub struct Ventilation {
     /// §6.5.3.4).
     pub reseau: ReseauAeraulique,
     /// Raccordement à un puits climatique ou hydraulique (§6.8 à 6.11). Le puits climatique
-    /// (`climatique`) se décrit par `puits_climatique` ; le puits hydraulique n'est pas encore
-    /// pris en charge.
+    /// (`climatique`) se décrit par `puits_climatique`, le puits hydraulique (`hydraulique`) par
+    /// `puits_hydraulique`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub puits: Option<Puits>,
     /// Description du puits climatique (fiches 6.8, 6.10 et 6.11), requise si `puits` vaut
@@ -37,6 +37,12 @@ pub struct Ventilation {
     /// centrale dont il est la description.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id_puits_climatique: Option<String>,
+    /// Description du puits hydraulique (fiche 6.9, tableau 71), requise si `puits` vaut
+    /// `hydraulique` et interdite sinon. Le système doit être un simple flux par insufflation,
+    /// un double flux ou une centrale de traitement d'air ; le puits ne dessert que ce système
+    /// (Q233). Jamais avec un puits climatique (§6.3.3.1, éq. 386).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub puits_hydraulique: Option<PuitsHydraulique>,
     /// Réseau de distribution de CTA hydraulique de chauffage (fiche 8.11, « idtype = 1 »,
     /// §8.11.3.6.2 et fiche 8.12) : relie la centrale à la génération qui fournit l'énergie de
     /// ses fonctions de chauffage (préchauffage, sécurité antigel, humidificateur à vapeur,
@@ -737,6 +743,74 @@ pub enum Puits {
     Hydraulique,
 }
 
+/// Th-BCE 2020 §6.9.2, tableau 71 — puits hydraulique : une batterie eau/air préchauffe ou
+/// prérafraîchit l'air neuf, l'eau glycolée circulant dans un conduit enterré (pompe, sol,
+/// gestion de la pompe) ; le prétraitement de l'efficacité de la batterie est celui du
+/// §6.3.3.3.4 (éq. 399 à 408).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PuitsHydraulique {
+    /// « Qmax_PH » : débit maximal de la pompe, en **m³/h** (strictement positif). Le tableau 71
+    /// donne des m³/s, mais les éq. (737), (743) et (745) divisent ou multiplient par 3 600 : le
+    /// débit s'y lit en m³/h (Q233 point 1).
+    pub q_max_m3_h: f64,
+    /// « Pmax_PH » : puissance nominale de la pompe, en W (positive ou nulle).
+    pub p_max_w: f64,
+    /// « Lpuits » : longueur du conduit hydraulique enterré, en m (strictement positive).
+    pub l_m: f64,
+    /// « λtube » : conductivité thermique du conduit, en W/(m.K) (strictement positive).
+    pub lambda_tube_w_m_k: f64,
+    /// « ep » : épaisseur du conduit, en m (positive ou nulle).
+    pub ep_m: f64,
+    /// « di » : diamètre intérieur du conduit, en m (strictement positif).
+    pub di_m: f64,
+    /// « Z » : profondeur d'enfouissement du conduit, en m (positive ou nulle).
+    pub profondeur_m: f64,
+    /// Nature du sol (tableau 72, mêmes valeurs de `gm` que le tableau 70).
+    pub type_sol: TypeSolPuits,
+    /// « typegest_PH » : gestion de la pompe.
+    pub gestion: GestionPuitsHydraulique,
+    /// « θext,arrêt_PH^hiver » : température extérieure de consigne au-dessus de laquelle la
+    /// pompe peut être arrêtée en période de chauffage, en °C (positive ou nulle).
+    pub theta_ext_arret_hiver_c: f64,
+    /// « θext,arrêt_PH^été » : température extérieure de consigne au-dessous de laquelle la
+    /// pompe peut être arrêtée hors période de chauffage, en °C (positive ou nulle).
+    pub theta_ext_arret_ete_c: f64,
+    /// Puissances déclarées de la batterie eau/air (« Type_eff_echangeur_PH » = 1) ; absent :
+    /// efficacité par défaut de 0,65 (« Type_eff_echangeur_PH » = 0, éq. 408, valeur signalée
+    /// dans `valeurs_par_defaut`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub batterie: Option<BatteriePuitsHydraulique>,
+    /// « Type_Surventilation_PH » = 1 : la surventilation d'été de la centrale est synchronisée
+    /// avec le puits ; le débit d'air neuf de référence de l'éq. (403) est alors celui de la
+    /// surventilation (la centrale doit avoir un `rafraichissement_surventilation`).
+    #[serde(default, skip_serializing_if = "est_faux")]
+    pub surventilation_synchronisee: bool,
+}
+
+/// « typegest_PH » : gestion de la pompe du puits hydraulique (§6.9.3.2.3).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GestionPuitsHydraulique {
+    /// 0 : gestion sur la seule température extérieure (éq. 746 et 747).
+    TemperatureExterieure,
+    /// 1 : gestion sur la température extérieure et sur la température de l'eau en sortie du
+    /// capteur enterré.
+    TemperaturesExterieureEtEau,
+}
+
+/// Puissances déclarées de la batterie eau/air du puits hydraulique (§6.3.2, tableau 61 ;
+/// éq. 401 à 407).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BatteriePuitsHydraulique {
+    /// « Pch » : puissance en préchauffage (air neuf à −10 °C, eau entrant à 10 °C, selon
+    /// l'éq. 401), aux débits nominaux d'air et d'eau, en kW.
+    pub p_ch_kw: f64,
+    /// « Pfr » : puissance en prérefroidissement (air neuf à 30 °C, eau entrant à 10 °C), en kW.
+    pub p_fr_kw: f64,
+}
+
 /// Th-BCE 2020 §6.8.2, tableau 69 — puits climatique (ou canadien) : conduits enterrés dans
 /// lesquels circule l'air neuf, et gestion de son bypass (§6.10.2, tableau 73).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -926,6 +1000,11 @@ pub enum Isouf {
     Reprise,
     /// 1 : insufflation (bouches et conduits de soufflage).
     Soufflage,
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn est_faux(x: &bool) -> bool {
+    !*x
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)]

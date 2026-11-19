@@ -10,9 +10,10 @@
 )]
 
 use thbce_core::entree::{
-    BoucheConduit, Bypass, BypassPuits, ClasseEtancheite, DoubleFlux, Echangeur,
-    EchangeurSimplifie, Isouf, Projet, Puits, PuitsClimatique, RepresentationEchangeur,
-    StatutEchangeur, SystemeVentilation, TypeSolPuits, UsageZone, VentilateurSimpleFlux, Zone,
+    BatteriePuitsHydraulique, BoucheConduit, Bypass, BypassPuits, ClasseEtancheite, DoubleFlux,
+    Echangeur, EchangeurSimplifie, GestionPuitsHydraulique, Isouf, Projet, Puits, PuitsClimatique,
+    PuitsHydraulique, RepresentationEchangeur, StatutEchangeur, SystemeVentilation, TypeSolPuits,
+    UsageZone, VentilateurSimpleFlux, Zone,
 };
 use thbce_core::valider;
 use thbce_core::ventilation::mecanique_sf::{rho_kg_m3, C_PA_J_KG_K, P_EL};
@@ -359,11 +360,15 @@ fn validation_du_systeme_de_ventilation() {
             e[0].message.contains("non pris en charge") || e[0].message.contains("non résidentiel")
         );
     }
-    // Puits hydraulique (fiche 6.9), pas encore pris en charge : refusé.
+    // Puits hydraulique (fiche 6.9) déclaré sans description : erreur de saisie, plus un refus
+    // de périmètre (voir `validation_du_puits_hydraulique`).
     let mut p = projet();
     zone_mut(&mut p).ventilation.as_mut().unwrap().puits = Some(Puits::Hydraulique);
-    assert_eq!(chemins(&p), ["batiments[0].zones[0].ventilation.puits"]);
-    assert!(valider(&p).erreurs[0].hors_perimetre);
+    assert_eq!(
+        chemins(&p),
+        ["batiments[0].zones[0].ventilation.puits_hydraulique"]
+    );
+    assert!(!valider(&p).erreurs[0].hors_perimetre);
     // Sens des bouches : un double flux souffle et extrait.
     let mut p = double_flux(None, false);
     zone_mut(&mut p).groupes[0].bouches_conduits.pop();
@@ -787,9 +792,9 @@ fn validation_du_puits_climatique() {
     let mut p = double_flux_avec_puits(None);
     zone_mut(&mut p).ventilation.as_mut().unwrap().puits = Some(Puits::Hydraulique);
     let r = valider(&p);
-    assert_eq!(r.erreurs.len(), 2, "{r:?}");
-    assert!(r.erreurs[0].hors_perimetre);
-    assert!(r.erreurs[1].message.contains("386"));
+    assert_eq!(r.erreurs.len(), 1, "{r:?}");
+    assert!(!r.erreurs[0].hors_perimetre);
+    assert!(r.erreurs[0].message.contains("386"));
     // Plusieurs centrales sur un même puits (`Id_Puits_Climatique`) : refus explicite, code 3.
     let mut p = double_flux_avec_puits(None);
     zone_mut(&mut p)
@@ -892,4 +897,213 @@ fn sans_puits_l_air_neuf_est_a_la_temperature_exterieure() {
     let s = v.pas(3.0, 0.004, &etat, &mut air, true);
     assert_eq!(s.theta_an_c, None);
     assert!(!s.puits_actif);
+}
+
+/// Puits hydraulique de 100 m de conduit (di 32 mm, ep 3 mm, λ 0,4 W/(m.K)) à 1,5 m, sol humide
+/// (`gm` = 1), pompe de 1,2 m³/h et 60 W, arrêtée au-dessus de 12 °C en période de chauffage
+/// et en dessous de 22 °C sinon.
+fn puits_hydraulique(
+    gestion: GestionPuitsHydraulique,
+    batterie: Option<BatteriePuitsHydraulique>,
+) -> PuitsHydraulique {
+    PuitsHydraulique {
+        q_max_m3_h: 1.2,
+        p_max_w: 60.0,
+        l_m: 100.0,
+        lambda_tube_w_m_k: 0.4,
+        ep_m: 0.003,
+        di_m: 0.032,
+        profondeur_m: 1.5,
+        type_sol: TypeSolPuits::SolHumide,
+        gestion,
+        theta_ext_arret_hiver_c: 12.0,
+        theta_ext_arret_ete_c: 22.0,
+        batterie,
+        surventilation_synchronisee: false,
+    }
+}
+
+fn double_flux_avec_puits_h(
+    gestion: GestionPuitsHydraulique,
+    batterie: Option<BatteriePuitsHydraulique>,
+) -> Projet {
+    let mut p = double_flux(None, false);
+    let v = zone_mut(&mut p).ventilation.as_mut().unwrap();
+    v.puits = Some(Puits::Hydraulique);
+    v.puits_hydraulique = Some(puits_hydraulique(gestion, batterie));
+    p
+}
+
+#[test]
+fn validation_du_puits_hydraulique() {
+    use GestionPuitsHydraulique::{TemperatureExterieure, TemperaturesExterieureEtEau};
+    let c = "batiments[0].zones[0].ventilation";
+    // Double flux avec puits décrit : valide, avec ou sans puissances de batterie.
+    let p = double_flux_avec_puits_h(TemperatureExterieure, None);
+    assert!(valider(&p).est_valide(), "{:?}", valider(&p).erreurs);
+    let batt = BatteriePuitsHydraulique {
+        p_ch_kw: 0.6,
+        p_fr_kw: 0.5,
+    };
+    let p = double_flux_avec_puits_h(TemperaturesExterieureEtEau, Some(batt));
+    assert!(valider(&p).est_valide(), "{:?}", valider(&p).erreurs);
+    // Décrit sans déclaration.
+    let mut p = double_flux_avec_puits_h(TemperatureExterieure, None);
+    zone_mut(&mut p).ventilation.as_mut().unwrap().puits = None;
+    assert_eq!(chemins(&p), [format!("{c}.puits")]);
+    // Plages du tableau 71.
+    let mut p = double_flux_avec_puits_h(TemperatureExterieure, Some(batt));
+    let d = zone_mut(&mut p)
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .puits_hydraulique
+        .as_mut()
+        .unwrap();
+    d.q_max_m3_h = 0.0;
+    d.di_m = -1.0;
+    d.theta_ext_arret_ete_c = -3.0;
+    d.batterie = Some(BatteriePuitsHydraulique {
+        p_ch_kw: 0.0,
+        p_fr_kw: 0.5,
+    });
+    assert_eq!(
+        chemins(&p),
+        [
+            format!("{c}.puits_hydraulique.q_max_m3_h"),
+            format!("{c}.puits_hydraulique.di_m"),
+            format!("{c}.puits_hydraulique.theta_ext_arret_ete_c"),
+            format!("{c}.puits_hydraulique.batterie.p_ch_kw"),
+        ]
+    );
+    // Puissance de batterie supérieure à la puissance maximale admissible au débit de
+    // référence (100 m³/h, 0,03333 kg/s : 0,6 kW donne ε = 0,8946, 0,7 kW donne ε = 1,0437).
+    let p = double_flux_avec_puits_h(
+        TemperatureExterieure,
+        Some(BatteriePuitsHydraulique {
+            p_ch_kw: 0.7,
+            p_fr_kw: 0.5,
+        }),
+    );
+    let r = valider(&p);
+    assert_eq!(r.erreurs.len(), 1, "{r:?}");
+    assert_eq!(
+        r.erreurs[0].chemin,
+        format!("{c}.puits_hydraulique.batterie")
+    );
+    assert!(r.erreurs[0].message.contains("préchauffage"));
+    // Surventilation synchronisée sans système de surventilation.
+    let mut p = double_flux_avec_puits_h(TemperatureExterieure, None);
+    zone_mut(&mut p)
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .puits_hydraulique
+        .as_mut()
+        .unwrap()
+        .surventilation_synchronisee = true;
+    assert_eq!(
+        chemins(&p),
+        [format!("{c}.puits_hydraulique.surventilation_synchronisee")]
+    );
+    // Un simple flux par extraction n'a pas d'air neuf soufflé : refusé (§6.9.1).
+    let mut p = projet();
+    let v = zone_mut(&mut p).ventilation.as_mut().unwrap();
+    v.puits = Some(Puits::Hydraulique);
+    v.puits_hydraulique = Some(puits_hydraulique(TemperatureExterieure, None));
+    assert_eq!(chemins(&p), [format!("{c}.puits")]);
+}
+
+#[test]
+fn double_flux_avec_puits_hydraulique_a_la_main() {
+    use GestionPuitsHydraulique::{TemperatureExterieure, TemperaturesExterieureEtEau};
+    // Calculs à la main (même équations, autre langage : `ven9-calc2.py`) : Re = 9 098,57,
+    // hi = 1 089,05 W/(m².K), Ug = 12,9014 W/(m.K), εsol-eau = 0,629222 (éq. 743 à 745) ;
+    // DCeau = 1,2 × 1 040 × 3 751/3 600 = 1 300,347 W/K (éq. 737). θsol = 10 °C (température
+    // extérieure de 10 °C toute l'année, sol humide : θsol = gm × θAM, éq. 734).
+    let te = vec![10.0; 8760];
+    let etat = groupe_en_chauffage(20.0);
+    let mut air = [AirSouffle::default()];
+
+    // Efficacité par défaut de 0,65 (éq. 408). Premier pas, θext = 0 °C, en chauffage : aucun
+    // débit connu, le débit du pas (100 m³/h à 18 °C : 0,0335624 kg/s) sert. DCair = 33,6948 W/K
+    // (Cp = 1 004), Rdc = 0,0259136, εbatt = 0,65 × Rdc ; θeau-out = 9,901721 °C (éq. 741 et
+    // 742) ; la pompe tourne (0 < 12 °C) : θan = 0,65 × 9,901721 = 6,436118 °C (éq. 415).
+    let p = double_flux_avec_puits_h(TemperatureExterieure, None);
+    let mut v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
+    assert!(v.releve.is_some());
+    assert!(v
+        .valeurs_par_defaut
+        .iter()
+        .any(|d| d.champ == "ventilation.puits_hydraulique.batterie" && d.valeur == 0.65));
+    v.preparer_puits(0, &te, 0.0, &etat);
+    let s = v.pas(0.0, 0.004, &etat, &mut air, true);
+    proche_a(s.theta_an_c.unwrap(), 6.436_118, 1e-5);
+    assert!(s.puits_actif);
+    // Éq. (748) : Welec = Pmax pendant l'heure ; énergie échangée Cpa × qm × (θan − θext).
+    assert_eq!(s.w_puits_wh, 60.0);
+    let qm0 = rho_kg_m3(18.0) * 100.0 / 3600.0;
+    proche_a(
+        s.q_puits_wh,
+        C_PA_J_KG_K * qm0 * s.theta_an_c.unwrap(),
+        1e-6,
+    );
+    // Pas suivant, θext = 11 °C : la pompe tourne encore (11 < 12 °C) en gestion sur la seule
+    // température extérieure : θeau-out = 10,009828 °C, θan = 11 + 0,65 × (10,009828 − 11) =
+    // 10,356388 °C.
+    v.preparer_puits(1, &te, 11.0, &etat);
+    let s = v.pas(11.0, 0.004, &etat, &mut air, true);
+    proche_a(s.theta_an_c.unwrap(), 10.356_388, 1e-5);
+    assert_eq!(s.w_puits_wh, 60.0);
+    // Au-dessus de 12 °C en chauffage, la pompe est arrêtée : θan = θext, pas de consommation
+    // (éq. 417 et 748).
+    v.preparer_puits(2, &te, 13.0, &etat);
+    let s = v.pas(13.0, 0.004, &etat, &mut air, true);
+    assert_eq!(s.theta_an_c, Some(13.0));
+    assert!(!s.puits_actif);
+    assert_eq!((s.w_puits_wh, s.q_puits_wh), (0.0, 0.0));
+
+    // Gestion sur les deux températures : à 11 °C, l'eau (10,0098 °C) est plus fraîche que l'air
+    // en chauffage : la pompe s'arrête (éq. 746).
+    let p = double_flux_avec_puits_h(TemperaturesExterieureEtEau, None);
+    let mut v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
+    v.preparer_puits(0, &te, 11.0, &etat);
+    let s = v.pas(11.0, 0.004, &etat, &mut air, true);
+    assert_eq!(s.theta_an_c, Some(11.0));
+    assert_eq!(s.w_puits_wh, 0.0);
+
+    // Hors période de chauffage (éq. 747, lue « été ») : θext = 30 °C > 22 °C, la pompe tourne,
+    // θeau-out = 10,196559 °C, θan = 30 + 0,65 × (10,196559 − 30) = 17,127763 °C (prérafraîchi).
+    let p = double_flux_avec_puits_h(TemperatureExterieure, None);
+    let mut v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
+    let mut etat_ete = groupe_en_chauffage(24.0);
+    etat_ete[0].saison_de_chauffage = false;
+    v.preparer_puits(0, &te, 30.0, &etat_ete);
+    let s = v.pas(30.0, 0.004, &etat_ete, &mut air, true);
+    proche_a(s.theta_an_c.unwrap(), 17.127_763, 1e-5);
+    assert!(s.q_puits_wh < 0.0);
+    assert_eq!(s.w_puits_wh, 60.0);
+    // Sous 22 °C hors période de chauffage : arrêt.
+    v.preparer_puits(1, &te, 20.0, &etat_ete);
+    let s = v.pas(20.0, 0.004, &etat_ete, &mut air, true);
+    assert_eq!((s.theta_an_c, s.w_puits_wh), (Some(20.0), 0.0));
+
+    // Efficacité déduite des puissances déclarées (éq. 401 et 402, 406 et 407) : débit de
+    // référence 100 m³/h × 1,2 kg/m³ = 0,03333 kg/s, Cp = 1 006 : Pch = 0,6 kW donne ε =
+    // 0,894632 ; θan = 0,894632 × θeau-out avec εbatt = ε × Rdc : θeau-out = 9,865231 °C, θan =
+    // 8,825753 °C.
+    let batt = BatteriePuitsHydraulique {
+        p_ch_kw: 0.6,
+        p_fr_kw: 0.5,
+    };
+    let p = double_flux_avec_puits_h(TemperatureExterieure, Some(batt));
+    let mut v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
+    assert!(v.erreur_puits_h.is_none());
+    v.preparer_puits(0, &te, 0.0, &etat);
+    let s = v.pas(0.0, 0.004, &etat, &mut air, true);
+    proche_a(s.theta_an_c.unwrap(), 8.825_753, 1e-5);
+}
+
+fn proche_a(a: f64, b: f64, tol: f64) {
+    assert!((a - b).abs() < tol, "{a} au lieu de {b}");
 }

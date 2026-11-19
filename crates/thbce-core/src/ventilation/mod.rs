@@ -15,6 +15,8 @@
 //! - [`humidification`] : fiche 6.3, humidificateur d'hiver et rafraîchissement évaporatif.
 //! - [`puits_climatique`] : fiches 6.8, 6.10 et 6.11, température du sol, efficacité du
 //!   puits, bypass.
+//! - [`puits_hydraulique`] : fiche 6.9 et prétraitement du §6.3.3.3.4, batterie eau/air,
+//!   capteur enterré à eau glycolée, pompe.
 //! - [`surventilation_mecanique`] : fiche `C_VEN_Fonctions de rafraichissement par
 //!   surventilation mécanique` (§6.12), régulation et surfaces de conduit.
 //! - [`ventilation_projet`] : système de ventilation du projet d'une zone, pour les calculs
@@ -27,6 +29,7 @@ pub mod humidification;
 pub mod mecanique_basse_pression;
 pub mod mecanique_sf;
 pub mod puits_climatique;
+pub mod puits_hydraulique;
 pub mod surventilation_mecanique;
 pub mod ven_bbio;
 pub mod ventilation_projet;
