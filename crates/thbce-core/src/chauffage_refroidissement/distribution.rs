@@ -28,7 +28,9 @@ pub const THETA_EXT_LIM_CH_C: f64 = 15.0;
 /// conventionnelle).
 pub const THETA_DEP_CH_MIN_C: f64 = 20.0;
 /// « Pcirc_vc » d'un réseau du groupe : part de la consommation du circulateur transmise au
-/// volume chauffé (tableau 97, éq. 879 et 886 : 50 %).
+/// volume chauffé (tableau 97, éq. 879 et 886 : 50 %) ; même valeur pour un réseau de CTA
+/// hydraulique (colonne « Conv. » de la nomenclature de la fiche 8.12, p. 620 : `Pcirc_vc` 0,5,
+/// `θvc_ch` 20 °C, `θvc_fr` 26 °C).
 pub const P_CIRC_VC_GROUPE: f64 = 0.5;
 /// « Pcirc_vc » d'un réseau intergroupes (tableau 101, éq. 927 et 935 : 0 %).
 pub const P_CIRC_VC_INTERGROUPES: f64 = 0.0;

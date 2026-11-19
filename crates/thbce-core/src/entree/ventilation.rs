@@ -24,6 +24,21 @@ pub struct Ventilation {
     /// dans cette version.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub puits: Option<Puits>,
+    /// Réseau de distribution de CTA hydraulique de chauffage (fiche 8.11, « idtype = 1 »,
+    /// §8.11.3.6.2 et fiche 8.12) : relie la centrale à la génération qui fournit l'énergie de
+    /// ses fonctions de chauffage (préchauffage, sécurité antigel, humidificateur à vapeur,
+    /// batterie chaude du mode actif), qui désignent toutes cette génération. Une centrale
+    /// n'accepte qu'un seul réseau par fonction (§8.11.3.1). Absent : réseau fictif, sans
+    /// pertes ni circulateur (`idtype = 0`). Les paramètres sont ceux d'un réseau hydraulique
+    /// du groupe (§8.7.2 et §8.8.2) ; la température d'ambiance des pertes est celle,
+    /// conventionnelle, de 20 °C (`docs/questions/Q121.md`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reseau_cta_chaud: Option<ReseauHydrauliqueGroupe>,
+    /// Réseau de distribution de CTA hydraulique de refroidissement (§8.11.3.6.3) : même
+    /// règle pour le prérefroidissement et la batterie froide du mode actif ; température
+    /// d'ambiance conventionnelle de 26 °C.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reseau_cta_froid: Option<ReseauHydrauliqueGroupe>,
 }
 
 /// Nature d'un système de ventilation.
