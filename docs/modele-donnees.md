@@ -196,6 +196,15 @@ Resultats { version_moteur, version_methode, reglementaire, origine_meteo_th_bc,
 
 `reglementaire` est faux dès qu'un jeu météo n'est pas celui de la RE2020. Les valeurs sont arrondies à une décimale (§1.3.1, Q8) sauf `--sans-arrondi` (`arrondir: false`).
 
+### Séries horaires (lot 1-sor, Q118)
+
+Facultatives, absentes par défaut (la restitution est alors inchangée). En ligne de commande : `thbce calcul … --horaire <fichier>` écrit les séries dans ce fichier (JSON si le nom finit par `.json`, CSV sinon) et laisse la sortie des résultats telle quelle. Dans le module WebAssembly : option `series_horaires: true` de `calculer`, qui ajoute `batiments[].series_horaires` aux résultats. En Rust : `calculer_avec_series`.
+
+`series_horaires = { colonnes: [ { nom, unite, valeurs } ] }`, 8 760 valeurs par colonne (heure `h` de l'année, du 1er janvier 0 h), calcul Th-C sur le jeu météo « Th-BC », arrondies à une décimale comme le reste (sauf `--sans-arrondi`). Colonnes, dans l'ordre : `te` (température extérieure du site, °C) ; pour chaque groupe `<zone>.<groupe>.` suivi de `q_sys_ch` (Qsys chauffage, Wh, positif), `q_sys_fr` (Qsys refroidissement, Wh, négatif ou nul), `theta_air` et `theta_op` (températures d'air et opérative moyennes du pas de temps, °C) ; `elec.ch`, `elec.fr`, `elec.ecs`, `elec.ecl`, `elec.aux_vent`, `elec.aux_dist`, `elec.depl`, `elec.mob` (électricité consommée par poste du chapitre 13, Wh, usages mobiliers compris) et `elec.total` ; `cef.<poste>.<énergie>` (consommation d'énergie finale des générations, Wh ; postes `ch`, `fr`, `ecs` ; énergies `gaz`, `fioul`, `charbon`, `bois`, `electricite`, `reseau` ; colonnes nulles omises). La somme annuelle de `elec.<poste>` redonne `indicateurs.electricite_consommee`, au forfait de refroidissement près (annuel, §13.3.3.2, éq. 2494 à 2496 : compris dans l'indicateur, absent des séries).
+
+CSV : séparateur `,`, point décimal, en-tête `heure,<bâtiment>.<colonne> [<unité>],…`, puis 8 760 lignes dont la première colonne est le rang de l'heure (1 à 8 760). JSON du fichier : `{ "batiments": [ { "id", "colonnes": [ { "nom", "unite", "valeurs" } ] } ] }`. Poids : 0,6 Mo de CSV et 2,5 Mo de JSON indenté pour 16 colonnes (exemple `commerce-escalators-ademe`, un groupe) ; le module WebAssembly n'ajoute que le code du relevé (quelques ko), les séries ne sont construites que sur demande.
+
+
 ## Erreurs
 
 Rapport de validation : `erreurs` et `avertissements`, chacun `{ chemin, valeur?, message, hors_perimetre? }`. Natures d'erreur (module WebAssembly, propriété `cause.nature`) et codes de retour de la ligne de commande : `lecture` (JSON illisible, code 2), `saisie` (entrée invalide, 2), `meteo` (données météo, 2), `non_pris_en_charge` (entrée correcte mais hors du périmètre, 3), `calcul` (calcul impossible sur une entrée valide, 3). Aucune entrée ne provoque de `panic!`.

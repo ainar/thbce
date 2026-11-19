@@ -43,6 +43,7 @@ mod ecs;
 mod emission_distribution;
 mod enveloppe;
 mod generation;
+pub mod series;
 mod solaire;
 mod ventilation;
 // Famille à venir : ACV (Icconstruction, annexe II) — `mod acv;`.
@@ -98,6 +99,27 @@ pub fn calculer(
     meteo: &MeteoProjet,
     options: &Options,
 ) -> Result<Resultats, Erreur> {
+    calculer_selon(projet, meteo, options, false)
+}
+
+/// Comme [`calculer`], et restitue en plus les séries horaires principales de chaque bâtiment
+/// (`series_horaires` des résultats du bâtiment : température extérieure, besoins et
+/// températures des groupes, électricité par poste, consommations par poste et par énergie ;
+/// Q118). Les autres résultats sont identiques à ceux de [`calculer`].
+pub fn calculer_avec_series(
+    projet: &Projet,
+    meteo: &MeteoProjet,
+    options: &Options,
+) -> Result<Resultats, Erreur> {
+    calculer_selon(projet, meteo, options, true)
+}
+
+fn calculer_selon(
+    projet: &Projet,
+    meteo: &MeteoProjet,
+    options: &Options,
+    avec_series: bool,
+) -> Result<Resultats, Erreur> {
     let rapport = verifier(projet, meteo)?;
     // Fiche 5.11 : la classe d'exposition au bruit déduite des baies prend la place de la saisie
     // absente (Q202).
@@ -150,13 +172,21 @@ pub fn calculer(
         // L'électricité consommée par poste est relevée à chaque pas de temps pour les bilans
         // horaires du calcul des indicateurs (§13.4).
         let mut releve = ReleveElectrique::default();
+        let mut collecteur: Option<series::Collecteur> = None;
         let th_c = simuler_batiment_avec(
             bat,
             projet,
             ModeCalcul::ThC,
             &climat_th_bc,
             &confort_th_bc,
-            |h, b| releve.relever(h, b),
+            |h, b| {
+                releve.relever(h, b);
+                if avec_series {
+                    collecteur
+                        .get_or_insert_with(|| series::Collecteur::nouveau(b))
+                        .relever(h, b);
+                }
+            },
         )?;
         // §8.29, éq. (1499), (1506) et (1513) : consommations des générations attribuées aux
         // groupes, sommées par zone puis pour le bâtiment.
@@ -259,6 +289,7 @@ pub fn calculer(
         // Th-BCE 2020 §13.1.3, éq. (2378) : SREF_bat = somme des SREF_zn du bâtiment.
         let sref_m2: f64 = zones.iter().map(|z| z.sref_m2).sum();
         let bbio = sorties(&energies_bat, sref_m2);
+        let series_horaires = collecteur.map(|c| c.finir(&climat_th_bc.te_c, &releve));
         let generations = resultats_generations(&th_c);
         // §13.2 à 13.4 : indicateurs du bâtiment, dès qu'il a des générations.
         let c_ecl_zones_kwh: Vec<f64> = th_c
@@ -360,6 +391,7 @@ pub fn calculer(
                 .then(|| ResultatsProductionPv::depuis(&productions)),
             indicateurs,
             acv,
+            series_horaires,
             consommations_collectif: conso_collectif,
             ascenseurs,
             escalators,

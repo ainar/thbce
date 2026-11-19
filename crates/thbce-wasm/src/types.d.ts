@@ -814,6 +814,16 @@ export type ClasseEmetteurFroid = "A" | "B" | "C";
 /** « Cletres » : classe d'étanchéité d'un réseau aéraulique (tableau 59). */
 export type ClasseEtancheite = "A" | "B" | "C";
 
+/** Une série horaire : 8 760 valeurs, dans l'ordre des pas de temps de l'année. */
+export interface ColonneHoraire {
+  /** Nom de la série (voir `docs/modele-donnees.md`). */
+  nom: string;
+  /** Unité : `C` (degrés Celsius) ou `Wh` (par pas de temps d'une heure). */
+  unite: string;
+  /** Valeurs, une par heure de l'année (8 760). */
+  valeurs: number[];
+}
+
 /** « Lim_Theta » : 1 ou 2. */
 export type CombinaisonLimites = "l_une_ou_l_autre" | "l_une_et_l_autre";
 
@@ -4234,6 +4244,12 @@ export interface ResultatsBatiment {
    * récupérateur collectif.
    */
   recuperateurs_eaux_grises?: ResultatsRecuperateurCollectif[];
+  /**
+   * Séries horaires principales du calcul Th-C (8 760 pas de temps) ; présentes seulement à
+   * la demande (`calculer_avec_series`, option `--horaire` de la ligne de commande, option
+   * `series_horaires` du module WebAssembly ; Q118).
+   */
+  series_horaires?: SeriesHorairesBatiment | null;
   /** « SREF_bat » : surface de référence, en m² (Th-BCE 2020 §13.1.3, éq. 2378). */
   sref_m2: number;
   /** Résultats par zone. */
@@ -5283,6 +5299,16 @@ export interface ResultatsZone {
 
 /** Th-BCE 2020 §10.2.2, tableau 318 : sens de transport d'une machine. */
 export type SensEscalator = "montee" | "descente";
+
+/** Séries horaires d'un bâtiment, calculées sur le jeu météo « Th-BC » (calcul Th-C). */
+export interface SeriesHorairesBatiment {
+  /**
+   * Séries, dans un ordre fixe : `te`, séries par groupe (`<zone>.<groupe>.…`), séries
+   * d'électricité par poste (`elec.…`) puis consommations de finale par poste et par énergie
+   * (`cef.<poste>.<énergie>`, colonnes nulles omises).
+   */
+  colonnes: ColonneHoraire[];
+}
 
 /** « idamont-air-type » (§8.26.3.3.1) : source amont sur air. */
 export type SourceAmontSaisie = {

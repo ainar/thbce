@@ -10,7 +10,10 @@ use std::process::ExitCode;
 
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::{ArgAction, CommandFactory, Parser, Subcommand};
-use thbce_core::{calculer, valider, Erreur, Options, VERSION_METHODE, VERSION_MOTEUR};
+use thbce_core::{
+    calculer, calculer_avec_series, valider, Erreur, Options, VERSION_METHODE, VERSION_MOTEUR,
+};
+use thbce_io::horaire as horaire_io;
 use thbce_io::{json, meteo, rapport};
 
 const CODE_USAGE: u8 = 1;
@@ -63,6 +66,12 @@ enum Commande {
         /// Restitue les valeurs en pleine précision, sans l'arrondi à une décimale du §1.3.1.
         #[arg(long)]
         sans_arrondi: bool,
+        /// Écrit en plus les séries horaires principales (température extérieure, besoins et
+        /// températures des groupes, électricité par poste, consommations par poste et par
+        /// énergie) dans ce fichier : JSON si son nom finit par `.json`, CSV sinon. La sortie
+        /// des résultats n'est pas modifiée.
+        #[arg(long, value_name = "FICHIER")]
+        horaire: Option<PathBuf>,
     },
     /// Valide la description d'un projet sans la calculer.
     #[command(help_template = GABARIT_AIDE)]
@@ -173,6 +182,7 @@ fn executer(commande: Commande) -> Result<(), Echec> {
             meteo: chemin_meteo,
             sortie,
             sans_arrondi,
+            horaire,
         } => {
             let projet = lire_projet(&entree)?;
             let rapport_validation = valider(&projet);
@@ -192,7 +202,12 @@ fn executer(commande: Commande) -> Result<(), Echec> {
             let options = Options {
                 arrondir: !sans_arrondi,
             };
-            let resultats = calculer(&projet, &donnees, &options).map_err(|e| match e {
+            let calcul = if horaire.is_some() {
+                calculer_avec_series
+            } else {
+                calculer
+            };
+            let mut resultats = calcul(&projet, &donnees, &options).map_err(|e| match e {
                 Erreur::Saisie(r) => Echec(rapport::en_texte(&r), code_rapport(&r)),
                 Erreur::Meteo(_) => Echec(e.to_string(), CODE_ENTREE_INVALIDE),
                 Erreur::NonPrisEnCharge { .. } | Erreur::Calcul(_) => {
@@ -210,6 +225,21 @@ fn executer(commande: Commande) -> Result<(), Echec> {
             // Synthèse des indicateurs et de la conformité, sur la sortie d'erreur pour ne pas
             // mêler le JSON des résultats.
             eprint!("{}", rapport::synthese_indicateurs(&resultats));
+            // Séries horaires : écrites à part, les résultats gardent leur forme par défaut.
+            let series = horaire.map(|chemin| {
+                let document = if chemin.extension().is_some_and(|e| e == "json") {
+                    horaire_io::en_json(&resultats)
+                } else {
+                    horaire_io::en_csv(&resultats)
+                };
+                (chemin, document)
+            });
+            for b in &mut resultats.batiments {
+                b.series_horaires = None;
+            }
+            if let Some((chemin, document)) = series {
+                ecrire(&chemin, document)?;
+            }
             let document = json::ecrire_resultats(&resultats);
             match sortie {
                 Some(chemin) => ecrire(&chemin, document)?,
