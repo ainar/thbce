@@ -1,0 +1,6 @@
+# tableau 133, page 726 (corps p. 725-726), fiche 8.20, titre Matrice des consommations en énergies finales {Qcef (po;én) (h)}
+# remarque : matrice imprimée sur deux pages (ligne « 1 : Chauffage » p.725, lignes 2 et 3 p.726). Cellules « … » telles quelles, cellules vides conservées. Colonne 40: Bois vide, colonne 50 et 60 vides sauf « … » en ECS/réseau.
+usage (En Wh);10:Gaz;20:Fioul;30:Charbon;40:Bois;50:Electricité;60:Réseau
+1 : Chauffage;"Q_cef(1;10)";"Q_cef(1;20)";…;;;
+2: Refroidiss.;"Q_cef(2;10)";…;;;;
+3 : ECS;…;;;;;…

@@ -1,0 +1,7 @@
+# tableau 137, page 732, fiche 8.21, titre paramètres micro-cogénérateur standard et à condensation
+# remarque : en-tête de colonnes sur deux niveaux (libellé + ind_condensation = 0 / = 1), transcrit en un seul niveau. Valeurs de θ_av,ref imprimées en gras (les régimes entre parenthèses sont transcrits dans les cellules).
+Paramètre;Micro-cogénérateur standard (ind_condensation = 0);Micro-cogénérateur à condensation (ind_condensation = 1)
+α_th;0,04;0,2
+α_el;0;0
+θ_av,ref,chp100+sup0;53,5°C (régime 47/60°C);35°C (régime 30/40°C)
+θ_av,ref,chp100+sup100;70°C (régime 60/80°C);50°C (régime 40/60°C)

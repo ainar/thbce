@@ -1,0 +1,9 @@
+# tableau 136, page 732, fiche 8.21, titre Valeur du coefficient PCSI en fonction du type de combustible
+# remarque : les deux premières lignes du tableau 136 imprimé utilisent les libellés « 1 : », « 2 : » ... du paramètre type_combustible ; transcrits tels quels.
+Combustible (type_combustible);Id_engen;PCSI
+1 : Gaz naturel;10;1,11
+2 : GPL (Butane et Propane);10;1,09
+3 : FOD;20;1,07
+4 : Bois bûche;40;1,08
+5 : Bois granulés;40;1,08
+6 : Bois plaquettes;40;1,08

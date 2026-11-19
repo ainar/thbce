@@ -1,0 +1,83 @@
+# tableau 254, pages 972-976, fiche 8.31, Nomenclature des différentes variables du modèle
+Entrées du composant
+Groupe;Nom;Description;Unité
+Geocooling - Emission;θsd(h);Température de sonde intérieure au sens du §C_Emi_Systèmes émissions du groupe en chaud et en froid de Th-BCE.;°C
+Geocooling - Emission;θcons,fr(h);Température de consigne de refroidissement du groupe au pas de temps h;°C
+Geocooling - Emission;Aut_ch_eff(h);Autorisation de chauffage effective au pas de temps h;Ent.
+Geocooling - Emission;φcrois,raf(h);Puissance requise (négative) pour maintenir la température de consigne du rafraîchissement direct au pas de temps h;W
+Geocooling - Emission;"θi,moy(0;0)(h)";Température d'air intérieur moyenne sans prise en compte des puissances émises sur le pas de temps h;°C
+Geocooling - Emission;"θrm,moy(0;0)(h)";Température radiante moyenne sans prise en compte des puissances émises sur le pas de temps h;°C
+Source (si présence);θamont(h);Température de la source amont au pas de temps h;°C
+Source (si présence);Waux,am(h);Consommation électrique de la source amont géothermique au pas de temps h;Wh
+;θext(h);Température extérieure au pas de temps h;°C
+Paramètres intrinsèques du composant
+Groupe;Nom;Description;Unité;Min;Max;Conv.
+Emission;Typologie_Emetteur_Froid;Typologie d'emetteur pour la détermination du Pem_conv (voir Tableau 255).;-;0;6;
+Emission;Pem_conv;Ratio d'énergie convective sur l'énergie totale transmise (voir 8.1);-;0;1;-
+Emission;Pper,em;Ratio de pertes au dos de l'émetteur sur l'énergie émise.;-;0;1;-
+Emission;Kem,100%;Coefficient de transfert thermique à100% débit d'eau froide nominal entre l'émetteur et l'ambiance intérieure;W/K;0;+∞;
+Emission;Kem,30%;Coefficient de transfert thermique à 30% du débit d'eau froide nominal entre l'émetteur et l'ambiance intérieure;W/K;0;+∞;
+Emission;qnom^em;Débit volumique d'eau froide nominal pour l'émission du geocooling;m3/h;0;+∞;
+Emission;"PVCV_MV^em ; PVCV_veille^em";Puissance absorbée par les ventilateurs locaux d'émission du geocooling en moyenne vitesse (MV) et en mode veille;W;0;+∞;
+Emission;Is_Echangeur_Intermediaire;"Présence ou non de l'échangeur intermédiaire entre le circuit d'eau des capteurs géothermiques et le circuit d'eau du bâtiment : 0 : Pas d'échangeur intermédiaire ; 1 : Avec échangeur intermédiaire";-;0;1;
+Source amont (si présence d'un échangeur);θd,geo,nom;Température départ d'eau froide de consigne pour la fonction geocooling;°C;15;25;
+Source amont (si présence d'un échangeur);Δθhyst,d,Geo;Hystérésis de la régulation sur la température départ du système de geocooling;°C;0;2;1.0
+Source amont (si présence d'un échangeur);θr,source,lim;Température limite de retour d'eau côté source pour la désactivation de la fonction geocooling;°C;0;25;
+Source amont (si présence d'un échangeur);Δθd-r,source;Ecart de température nominal aux bornes de l'échangeur côté la source amont;°C;0;+∞;3
+Source amont (si présence d'un échangeur);UAgeo,nom;Coefficient de transfert thermique de l'échangeur de geocooling aux débits nominaux de part et d'autre;W/K;0;+∞;
+Source amont (si présence d'un échangeur);qnom,geo;Débit volumique nominal circulant dans l'échangeur de geocooling côté source géothermique;m3/h;0;+∞;
+Paramètres d'intégration du composant
+Groupe;Nom;Description;Unité;Min;Max;Conv.
+Emission;Lvc;Longueur totale du réseau de distribution du groupe en volume chauffé pour le composant geocooling - émission;m;0;+∞;
+Emission;Uvc;Coefficient de déperdition linéaire moyen du réseau de distribution du groupe en volume chauffé pour le composant geocooling - émission;W/(m.K);0;+∞;
+Distribution intergroupes;Lvc,dist;Longueur totale de distribution intergroupes de l'installation de geocooling;m;0;+∞;
+Distribution intergroupes;Uvc,dist;Coefficient de déperdition linéaire moyen du réseau de distribution;W/(m.K);0;+∞;
+Distribution intergroupes;bdist;Coefficient de prise en compte de l'impact du passage dans des espaces non-chauffés/rafraichis de la distribution;-;0;1;
+Distribution intergroupes;Pcirc,nom;Puissance électrique consommée par le ou les circulateurs de la distribution intergroupes et primaire au débit nominal;W;0;+∞;
+Distribution intergroupes;idcirc;"Mode de régulation du circulateur de distribution du geocooling : 1 : Vitesse constante, ; 2 : Vitesse variable et maintien du réseau à une pression différentielle constante, ; 3 : Vitesse variable et variations de la pression différentielle du réseau.";Ent.;0;3;-
+Sorties
+Groupe;Nom;Description;Unité
+;θcons(h);Température de consigne du rafraichissement au pas de temps h;°C
+;Is_On (h);Indicateur booléen d'activation du rafraichissement au pas de temps h;Bool
+;φutile,eff^em(h);Puissance de rafraichissement utile (négative) appliquée au groupe au pas de temps h;W
+;Φpertes,vc(h);Pertes thermiques récupérables totales liées au rafraichissement directe pour le groupe d'indice gr contenant l'émission em.;Wh
+;Waux,dis^em(h);Consommation électrique du rafraichissement pour le poste « distribution » (ramenée au groupe);Wh
+;Waux,vent^em(h);Consommation électrique du rafraichissement pour le poste « ventilation » (ramenée au groupe);Wh
+Si présence d'un échangeur;τcharge,geo(h);Taux de charge équivalent de l'échangeur de geocooling;-
+Si présence d'un échangeur;Pn,geo(h);Puissance nominale de rafraichissement de l'échangeur de geocooling;W
+Si présence d'un échangeur;Φrejet,geo(h);Puissance rejetée à la source amont par l'échangeur de geocooling (positive en rafraichissement);W
+Variables internes
+Groupe;Nom;Description;Unité
+Emission;On_Off(h);Indicateur booléen d'activation du geocooling au pas de temps h.;Bool
+Emission;Is_saison_ch(j);Indicateur booléen précisant si l'un des groupes connectés est en saison de chauffage;Bool
+Emission;"Kem,100%' ; Kem,30%'";Coefficients de transfert thermique Kem,100% et Kem,30% corrigés pour inclure les pertes aux dos;W/K
+Emission;Kem,eff'(h);Coefficients de transfert thermique au débit d'eau froide effectif;W/K
+Emission;θref^em(h);Température intérieure de référence pour le transfert thermique par l'émission du geocooling;°C
+Débits d'eau froide;qnom^dist;Débit volumique d'eau froide nominal au niveau de la génération;m3/h
+Débits d'eau froide;qeff^dist(h);Débit volumique effectif au pas de temps h pour la partie génération du geocooling;m3/h
+Débits d'eau froide;qeff^em(h);Débit volumique effectif au pas de temps h pour la partie émission du geocooling;m3/h
+Débits d'eau froide;Wcirc^dist(h);Consommation électrique du rafraichissement pour le poste distribution d'eau;Wh
+Débits d'eau froide;θamb,fr(h);Température ambiante équivalente pour le calcul des pertes des distributions intergroupes;°C
+Flux thermiques;φutile,nom^em(h);Puissance de rafraichissement utile au débit d'eau nominal disponible à l'émetteur (négative);W
+Flux thermiques;φutile,30%^em(h);Puissance de rafraichissement utile à 30% du débit d'eau nominal disponible à l'émetteur (négative);W
+Flux thermiques;"φpertes,d^em(h) ; φpertes,r^em(h)";Pertes thermiques sur les portions départ (d) et retour (r) du réseau de distribution terminal (du groupe);W
+Flux thermiques;"φpertes,d^dist(h) ; φpertes,r^dist(h)";Pertes thermiques sur les portions départ (d) et retour (r) du réseau de distribution intergroupes;W
+Températures d'eau aux différents nœuds;"θe,nom^em(h) ; θs,nom^em(h)";Températures d'eau entrant et sortant de l'émission de rafraichissement par geocooling au débit d'eau nominal;°C
+Températures d'eau aux différents nœuds;θs,30%^em(h);Température d'eau sortant de l'émission de rafraichissement par geocooling à 30% du débit d'eau nominal;°C
+Températures d'eau aux différents nœuds;"θe,eff^em(h) ; θs,eff^em(h)";Température d'eau effective entrant et sortant de l'émission de rafraichissement par geocooling;°C
+Températures d'eau aux différents nœuds;θr,dist^em(h);Température d'eau retour du réseau de distribution du groupe (associé à l'émission);°C
+Températures d'eau aux différents nœuds;"θd,dist(h) ; θr,dist(h)";Températures d'eau départ et retour moyenne des distributions du groupe;°C
+Températures d'eau aux différents nœuds;"θd,aval(h) ; θr,aval(h)";Températures d'eau départ et retour moyenne de l'échangeur de geocooling (si présence d'un échangeur);°C
+Températures d'eau aux différents nœuds;"θd,aval,pc(h) ; θd,aval,pc(h-1)";Températures d'eau départ à plein débit côté source au pas de temps h et h-1;°C
+Echangeur/stockage (si présence d'un échangeur);Qgeo,eff(h);Quantité d'énergie de rafraichissement effective à fournir par l'installation de geocooling;Wh
+Echangeur/stockage (si présence d'un échangeur);θr,amont(h);Température retour de source amont (température entrant dans l'échangeur côté source);°C
+Echangeur/stockage (si présence d'un échangeur);θd,amont(h);Température départ de source amont (température sortant de l'échangeur côté source);°C
+Echangeur/stockage (si présence d'un échangeur);εgeo(h);Efficacité de l'échangeur de geocooling au pas de temps h;-
+Echangeur/stockage (si présence d'un échangeur);NUT(h);Coefficient caractéristique adimensionnel NUT de l'échangeur de geocooling au pas de temps h;-
+Echangeur/stockage (si présence d'un échangeur);C(h);Rapport de déséquilibre des débits énergétiques de l'échangeur de geocooling;-
+Constantes
+Nom;Description;Unité;Conv.
+ρe;Masse volumique de l'eau;kg/m3;1006
+ce;Capacité calorifique massique de l'eau;J/(kg.K);4190
+θvc,ref,fr;Température intérieure du volume rafraichi de référence pour le calcul des pertes thermiques des distribution intergroupes;°C;26
+Part_recup_intgr;Part récupérable des pertes thermiques vers l'ambiance rafraichi des distributions intergroupes de geocooling;%;60%

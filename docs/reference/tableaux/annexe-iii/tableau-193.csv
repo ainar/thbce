@@ -1,0 +1,8 @@
+# tableau 193, pages 793, fiche 8.23, PAC eau glycolée/eau (ECS), coefficients Cnn pour le COP
+Températures aval;Températures amont
+Cnnav_COP(35,45) = 1.2;Cnnam_COP(3.5, -1.5) = 1.10
+Cnnav_COP(25,45) = 1.4;Cnnam_COP(8.5, -1.5) = 1.20
+Cnnav_COP(55,45) = 0.8;Cnnam_COP(-6.5, -1.5)= 0.90
+Cnnav_COP(15,45) = 1.6;Cnnam_COP(13.5, -1.5)= 1.30
+Cnnav_COP(65,45) = 0.6;
+Cnnav_COP(5,45) = 1.8;

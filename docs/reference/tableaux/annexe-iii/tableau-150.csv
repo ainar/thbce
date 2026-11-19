@@ -1,0 +1,7 @@
+# tableau 150, page 762, fiche 8.23, titre ordre de saisie des températures aval et amont des PAC air extérieur / eau (chauffage). Deux listes imprimées côte à côte, mises en colonnes ; la matrice de la figure 117 (p.762) n'est pas un tableau numéroté, non transcrite ici.
+Températures aval : M_θ_Aval_Ch;Températures amont : M_θ_Amont_Ch
+1 : 32.5°C;1 : 7 °C
+2 : 32.5°C et 42.5°C;2 : - 7 °C, 7 °C
+3 : 32.5°C, 42.5°C, 51°C;3 : -7°C, 2°C, 7°C
+4 : 23.5°C, 32.5°C, 42.5°C, 51°C;"4 : -7°C, 2°C; 7°C, 20°C"
+5 : 23.5°C, 32.5°C, 42.5°C, 51°C, 60°C;5 : -15°C, -7°C, 2°C, 7°C, 20°C

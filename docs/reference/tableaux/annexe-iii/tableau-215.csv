@@ -1,0 +1,6 @@
+# tableau 215, page 807 (légende en page 808), fiche 8.23, refroidisseurs eau de nappe (ou captage) / eau, coefficients Cnn pour Pabs, source: auto+image
+Températures aval;Températures amont
+Cnnav_Pabs(20.5, 9.5) = 1.11;Cnnam_Pabs(17.5, 12.5) = 0.95
+Cnnav_Pabs(15, 9.5) = 1.055;Cnnam_Pabs(7.5, 12.5) = 1.05
+Cnnav_Pabs(26, 9.5) = 1.165;Cnnam_Pabs(22.5, 12.5) = 1.10
+Cnnav_Pabs(4, 9.5) = 0.945;

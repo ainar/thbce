@@ -1,0 +1,7 @@
+# tableau 234, pages 902, fiche 8.25, Températures aux sources en chauffage pour la PAC MG air/air
+Températures aval;Températures amont
+20°C;7 °C
+20°C, 15°C;-7 °C, 7 °C
+25°C, 20°C, 15°C;-7°C, 2°C, 7°C
+25°C, 20°C, 15°C, 10°C;"-7°C, 2°C; 7°C, 20°C"
+25°C, 20°C, 15°C, 10°C, 5°C;-15°C, -7°C, 2°C, 7°C, 20°C

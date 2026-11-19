@@ -1,0 +1,30 @@
+# tableau 109, page 649 (corps p. 648-649), fiche 8.16, titre Nomenclature du modèle
+# remarques : colonnes Min/Max/Conv imprimées seulement pour Paramètres d'intégration ; ailleurs vides. Variables internes : Φ_rejet imprimé en Wh (tel quel).
+section;groupe;nom;description;unite;min;max;conv
+Entrées du composant;Pour le calcul de rejet;Q_cons;Energie consommé par un générateur hors auxiliaires, après appel en refroidissement.;Wh;;;
+Entrées du composant;Pour le calcul de rejet;Q_fou;Energie fournie par le générateur après appel en refroidissement (variable local);Wh;;;
+Entrées du composant;Pour le bilan du transfert entre locaux;Q_fou_fr^gnr(h);Energie fournie pour le poste refroidissement par le générateur gnr par poste au pas de temps h.;Wh;;;
+Entrées du composant;Pour le bilan du transfert entre locaux;Q_req;Demande en énergie pour un générateur, avant appel en chauffage.;Wh;;;
+Paramètres d'intégration du composant;;R_et^gnr (conventionnel);Rendement de récupération du rejet en chaud des générateurs de type thermofrigopompes ou DRV.;Ent.;0;1;0.6
+Variables internes;Variables locales;id_fonction;Indicateur d'usage d'un générateur. 1 : Chauffage 2 : Refroidissement 3 : ECS;Ent;;;
+Variables internes;Variables locales;R_pui_dispo;Ratio de puissance disponible pour le générateur.;Réel;;;
+Variables internes;Variables locales;"{Q_cef(poste;en)}";Matrice (3x6) de sortie d'un générateur permettant la concaténation de la matrice des consommations.;Wh;;;
+Variables internes;Variables locales;Q_cons;Energie consommé par un générateur hors auxiliaires propres.;Wh;;;
+Variables internes;Variables locales;Q_fou;Energie fournie par le générateur.;Wh;;;
+Variables internes;Variables locales;W_aux,pro;Consommations électrique des auxiliaires propres à un générateur.;Wh;;;
+Variables internes;Variables locales;τ_charge;Taux de charge d'un générateur vers l'ambiance.;Réel;;;
+Variables internes;Variables locales;Φ_rejet;Rejet d'un générateur thermodynamique (valeur positive en refroidissement).;Wh;;;
+Variables internes;Variables locales;Φ_vc;Pertes thermiques d'un générateur vers l'ambiance.;Wh;;;
+Variables internes;Variables locales;Q_req (ou Q_req_ch et Q_req_ecs);Demande en énergie pour un générateur.;Wh;;;
+Variables internes;Variables locales;Q_rest (ou Q_rest_ch et Q_rest_ecs);Demande(s) en énergie non-assurée(s) par un générateur.;Wh;;;
+Variables internes;Variables locales;Q_prelec;Energie électrique produite par un générateur.;Wh;;;
+Sorties;;Φ_rejet_expCH^gnr(h);Rejet en chaud du générateur gnr DRV ou thermofrigopompe exploitable en chauffage.;W;;;
+Sorties;;Q_cons^gnr(h);Energie consommée hors auxiliaires du générateur gnr.;Wh;;;
+Sorties;;W_aux^gnr(h);Consommation électrique globale des auxiliaires du générateur gnr.;Wh;;;
+Sorties;;Q_prelec^gnr(h);Energie électrique produite pas le générateur gnr au pas de temps h.;Wh;;;
+Sorties;;Q_fou_ch^gnr(h);Energie fournie en chauffage par le générateur gnr par poste au pas de temps h.;Wh;;;
+Sorties;;η_eff_ch^gnr(h);COP, EER ou rendement du générateur en chauffage.;Réel;;;
+Sorties;;Φ_rejet^gnr(h);Rejet du générateur thermodynamique au pas de temps h (valeur positive en refroidissement).;Wh;;;
+Sorties;;W_aux,pro^gnr(h);Consommations électrique des auxiliaires propres au générateur gnr.;Wh;;;
+Sorties;;τ_charge^gnr(h);Taux de charge du générateur gnr.;Réel;;;
+Sorties;;Φ_vc^gnr(h);Pertes thermiques du générateur gnr vers l'ambiance.;Wh;;;

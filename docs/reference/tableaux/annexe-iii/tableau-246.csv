@@ -1,0 +1,31 @@
+# tableau 246, pages 935-936, fiche 8.28, Nomenclature du modèle, source: image
+# remarque : la légende (Tableau 246 : Nomenclature du modèle) est en p936 ; le tableau commence en p935. Min/Max/Conv. vides là où rien n'est imprimé.
+Section;Nom;Description;Unité;Min;Max;Conv.
+Entrées du composant;θaval;Température de fonctionnement définie au niveau de la gestion/régulation de la génération.;°C;;;
+Entrées du composant;Qreq;Demande en énergie transmise au générateur via la gestion/régulation de la génération.;Wh;;;
+Entrées du composant;Rpuis_dispo;Temps de fonctionnement à charge maximale potentiellement disponible pour le chauffage.;Réel;;;
+Entrées du composant;id_fonction;Indicateur de fonction du générateur accompagnant le Qreq (1 : chauffage, 2: refroidissement, 3: ECS), pour les générateurs multi-fonctions.;Ent;;;
+Entrées du composant;θamb;Température d'ambiance du lieu où se trouve le générateur.;°C;;;
+Paramètres d'intégration du composant;id_pos;Position du générateur : 1 : En volume chauffé, 0 : Hors volume chauffé.;Ent;0;1;
+Paramètres d'intégration du composant;Rdim;Ratio de dimensionnement du générateur.;Ent;1;+∞;
+Paramètres intrinsèques du composant;id_type;Type du générateur. 600 : réseau de chaleur, 601 : réseau de froid.;Ent;600;699;-
+Paramètres intrinsèques du composant;Bss;Coefficient dépendant du type de réseau et de l'isolation des composants,;;0;+∞;
+Paramètres intrinsèques du composant;Dss;Coefficient caractérisant le réseau;;0;+∞;
+Paramètres intrinsèques du composant;θprs;Température primaire de l'échangeur;°C;0;+∞;
+Paramètres intrinsèques du composant;PEss;Puissance d'échange de la chaufferie dans les conditions nominales;kW;0;+∞;
+Sorties;{Qcef(po;en)};Consommation en énergie finale du générateur sous forme de matrice.;Wh;;;
+Sorties;Qcons;Consommation horaire du générateur en énergie finale.;Wh;;;
+Sorties;Qfou;Energie fournie par le générateur.;Wh;;;
+Sorties;τcharge;Taux de charge du générateur pour le poste considéré.;Réel;;;
+Sorties;Φvc;Pertes thermiques et puissances des auxiliaires du générateur transmises vers l'ambiance chauffée.;Wh;;;
+Sorties;Waux,pro;Consommations d'auxiliaire propre au générateur.;Wh;;;
+Sorties;Qrest;Puissance restant à fournir reportée à l'heure suivante;Wh;;;
+Sorties;ηeff;Efficacité ou rendement du générateur.;Réel;;;
+Sorties;Rfonctecs;Temps de fonctionnement du générateur pour la production d'ECS à charge maximale.;Réel;;;
+Variables internes;θwh,ss;Température de l'eau dans la partie secondaire de l'échangeur.;°C;;;
+Variables internes;Qreqact;Puissance requise au niveau du générateur, en tenant compte de Rdim.;Wh;;;
+Variables internes;Qfouact;Energie totale fournie par le générateur.;Wh;;;
+Variables internes;Qssact;Pertes horaires d'une sous-station;Wh;;;
+Variables internes;Qss;Pertes horaires de l'ensemble de sous-stations identiques.;Wh;;;
+Variables internes;Hss;Coefficient d'échange d'une sous-station.;W/°C;;;
+Variables internes;θss;Température moyenne de l'échangeur;°C;;;

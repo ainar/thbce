@@ -1,0 +1,19 @@
+# tableau 126, page 717, fiche 8.20, titre Rendements par défaut
+# remarques : en-tête sur deux niveaux (Libellé / Ntype ; R_Pn puis R_Pint). Colonnes B et D sans valeurs imprimées (cases grisées, non nécessaires) : vides. Lignes de groupe (en gras) reproduites avec cellules vides.
+Libellé (Ntype);A (R_Pn);B;C (R_Pint);D
+Radiateurs gaz, poêles et insert gaz;;;;
+Pn < 5 kW;80;;;
+Pn >= 5 kW sans ventilateur côté combustion;82;;;
+Pn >= 5 kW avec ventilateur côté combustion;84;;;
+Chauffe-eau gaz;;;;
+Chauffe-eau gaz < 10 kW;82;;;
+Chauffe-eau gaz > 10 kW;84;;;
+Accumulateurs gaz;;;;
+Accumulateur gaz;84;;;
+Accumulateur gaz à condensation;98;;;
+Générateurs d'air chaud gaz;;;;
+Standard;84;;77;
+Condensation;90;;83;
+Tubes et panneaux radiants gaz;;;;
+Tubes radiants;85;;;
+Panneaux radiants;90;;;

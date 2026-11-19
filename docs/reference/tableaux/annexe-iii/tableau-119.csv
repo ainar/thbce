@@ -1,0 +1,8 @@
+# tableau 119, page 702 (corps p. 701, légende p. 702), fiche 8.19, titre valeurs par défaut des chaudières gaz, fioul et bois, coefficients c7 à c10 et n
+# remarque : corps du tableau sur p.701, légende seule en tête de p.702. En-tête bois sur deux niveaux, répété. Le tableau 118 (c1 à c6) est sur p.701 au-dessus.
+Coefficient;Chaudière gaz ou fioul;Chaudière bois Chargement manuel, tirage naturel;Chaudière bois Chargement manuel, air pulsé;Chaudière bois Chargement automatique, tirage naturel;Chaudière bois Chargement automatique, air pulsé
+c7;0;0;74;0;74
+c8;45;0;0,5;10;10,5
+c9;0;0;74;0;74
+c10;15;0;0,5;10;10,5
+n;0,48;1;1;1;1

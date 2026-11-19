@@ -1,0 +1,6 @@
+# tableau 210, page 804, fiche 8.23, ordre de saisie des températures aval et amont des refroidisseurs eau de nappe (ou captage) / air, source: auto+image
+Températures aval : M_θ_Aval_Fr;Températures amont : M_θ_Amont_Fr
+1 : 27°C;1 : 12.5 °C
+2 : 22°C, 27°C;2 : 12.5 °C, 17.5 °C
+3 : 22°C, 27°C, 32 °C;3 : 7.5 °C, 12.5 °C, 17.5 °C
+4 : 22°C, 27°C, 32 °C, 37 °C;4 : 7.5 °C, 12.5 °C, 17.5 °C, 22.5 °C

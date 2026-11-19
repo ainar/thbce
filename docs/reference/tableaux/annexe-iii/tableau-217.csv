@@ -1,0 +1,111 @@
+# tableau 217, pages 823-827 (légende en page 827), fiche 8.24, nomenclature du modèle, source: texte couche pdftotext (823-826) + image (827) ; structure à vérifier sur image pour 823-826 ; champs non fusionnés
+Section;Nom;Description;Unité;Min;Max;Conv.
+Entrées du composant;θamont(h);température de la source amont;°C;;;
+Entrées du composant;θaval(h);température de la source aval (vers les émetteurs ou les ballons);°C;;;
+Entrées du composant;θamb(h);Température d’ambiance de la génération (selon sa position en volume chauffé/refroidi ou non).;°C;;;
+Entrées du composant;Qreq(h);énergie requise par le réseau;W;;;
+Entrées du composant;Idfonction;"mode de fonctionnement :
+1 : chauffage
+2 : refroidissement
+3 : ECS";entier;;;
+Paramètres intrinsèques;Idfougen;"Pour une machine ; Type de générateur : Chauffage = 1, froid = 2, ECS = 3";;;;
+Paramètres intrinsèques;Cat_gen;Catégorie de générateur : 504 PAC à absorption;entier;-;-;
+Paramètres intrinsèques;Syst_Ther_mo_FR;"Liste des systèmes thermodynamiques en fonctionnement refroidissement : 1 : refroidisseurs air / eau ; 2 : refroidisseurs eau / eau";entier;1;-;-
+Paramètres intrinsèques;Syst_Ther_mo_CH;"Liste des systèmes thermodynamiques en fonctionnement chauffage : 1 : GAHP air / eau classique ; 2 : GAHP air / eau haute température ; 3 : GAHP eau glycolée / eau classique ; 4/ GAHP eau glycolée / eau haute température ; 5 : GAHP eau / eau";entier;1;-;-
+Paramètres intrinsèques;Syst_Ther_mo_ECS;"Liste des systèmes thermodynamiques en fonctionnement ECS : 1 : GAHP air / eau classique ; 2 : GAHP eau glycolée / eau classique ; 3 : GAHP eau / eau";entier;1;-;-
+Paramètres intrinsèques;Fonc_brûl;"1 : Fonctionnement en mode continu du brûleur ou en cycles marche arrêt ; 2 : Fonctionnement en cycles marche arrêt du brûleur";entier;1;2;-
+Paramètres intrinsèques;Idechangeur;Indicateur de présence d’un échangeur eau/fumées en chauffage ou ECS : 0 : absence d’échangeur, 1 : présence d’échangeur;entier;0;1;
+Paramètres intrinsèques;{ValGUEch(Icol,Ilign)};matrice des performances en mode chauffage (GUE) selon les températures amont et aval;-;-;-;-
+Paramètres intrinsèques;{ValGUEfr(Icol,Ilign)};matrice des performances en mode refroidissement selon les températures amont et aval;-;-;-;-
+Paramètres intrinsèques;{ValGUEecs(Icol,Ilign)};matrice des performances en mode ECS selon les températures amont et aval;-;-;-;-
+Paramètres intrinsèques;{ValPabs(icol,Ilign)};matrice des puissances absorbées selon les températures amont et aval;W;-;-;-
+Paramètres intrinsèques;{ValCOR(Icol,Ilign)};matrice de correction des performances justifiées entrées sous forme de matrice;-;-;-;-
+Paramètres intrinsèques;{ValPauxpc(Icol,Ilign)};matrice des puissances d’auxiliaires selon les températures amont et aval à pleine charge en chauffage, on distingue la même matrice en mode refroidissement et en mode ECS;W;-;-;-
+Paramètres intrinsèques;Paux0;Puissances d’auxiliaires à charge nulle;W;0;+∞;-
+Paramètres intrinsèques;ValGUEch_pivot;valeur pivot déclarée des machines en mode chauffage lorsqu’il n’y a pas de performance certifiée ou justifiée.;-;-;-;-
+Paramètres intrinsèques;ValGUEfr_pivot;valeur pivot déclarée des machines en mode refroidissement lorsqu’il n’y a pas de performance certifiée ou justifiée.;-;-;-;-
+Paramètres intrinsèques;ValPauxch_pc_pivot;valeur pivot déclarée de la puissance des auxiliaires à pleine charge des machines en mode chauffage lorsqu’il n’y a pas de performance certifiée ou justifiée. On distingue la même variable en refroidissement et en ECS;W;-;-;-
+Paramètres intrinsèques;ValECS_pivot;valeur pivot déclarée des machines en mode ECS lorsqu’il n’y a pas de performance certifiée ou justifiée.;-;-;-;-
+Paramètres intrinsèques;ValPabs_pivot;valeur pivot déclarée de puissance lorsqu’il n’y a pas de performance certifiée ou justifiée.;W;-;-;-
+Paramètres intrinsèques;Statut_donnees;"1 : il existe des valeurs de performance certifiées ou mesurées ; 2 : il n’existe aucune valeur certifiée ou mesurée";entier;1;-;-
+Paramètres intrinsèques;statut_valeur_pivot;"1 : valeur déclarée ; 2 : valeur par défaut";entier;1;-;-
+Paramètres intrinsèques;statut_Paux_pivot;"1 : valeur déclarée ; 2 : valeur par défaut pour les auxiliaires";entier;1;-;-
+Paramètres intrinsèques;Theta_max_av;température maximale aval en mode chaud au delà de laquelle la machine ne peut fonctionner;°C;-;-;-
+Paramètres intrinsèques;Theta_min_am;température minimale amont en mode chaud en dessous de laquelle la machine ne peut fonctionner;°C;-;-;-
+Paramètres intrinsèques;Theta_min_av;température minimale aval en mode froid en-dessous de laquelle la machine ne peut fonctionner;°C;-;-;-
+Paramètres intrinsèques;Theta_max_am;température maximale amont en mode froid au-dessus de laquelle la machine ne peut fonctionner;°C;-;-;-
+Paramètres intrinsèques;Lim_Theta;"0 = pas de limite ; 1 = limite sur l’une ou l’autre des températures de source ; 2 = limite sur l’une et l’autre des températures de source";entier;1;-;-
+Paramètres intrinsèques;CcpLRcontmin;coefficient de correction de la performance pour un taux de charge égal à LRcontmin;-;0;+∞;-
+Paramètres intrinsèques;LRcontmin;Taux minimal de charge en fonctionnement continu. (= 1 si machine tout ou rien);-;-;1;-
+Paramètres intrinsèques;Deq;durée équivalente liée aux irréversibilités;minutes;0;-;Voir Table 227
+Paramètres intrinsèques;Rdtcomb_pivot;rendement sur PCI de combustion du gaz dans les conditions pivot;-;0;+∞;-
+Paramètres intrinsèques;Pertes40°C;Pertes de la machine durant les phases arrêt mesurées pour 40°C d’écart entre la température de machine et la température d’ambiance (volume chauffé/refroidi ou non-chauffé/non-refroidi).;W;0;+∞;-
+Paramètres intrinsèques;Idengen;Identificateur de l'énergie principale (gaz(=10), fuel(=20), charbon(=30) bois(=40) électricité(=50), réseau(=60));entier;10;69;10
+Paramètres intrinsèques;IdFluide_aval;identificateur du fluide aval : 1 eau, 2 air;;;;
+Paramètres d’intégration;Typo_emetteur;"Inertie du système de distribution en fonction des émetteurs en chauffage, en refroidissement et pour la production d’ECS : 1 : forte : plancher ou plafond intégré au bâti ; 2 : moyenne : radiateur, plafond d’inertie moyenne ; 3 : légère : VCV, plancher et plafond d’inertie faible ; 4 : très légère : systèmes à air ; 5 : production d’ECS.";-;1;5;-
+Paramètres d’intégration;Rdim;Nombre de machines identiques dans le même mode;entier;1;-;
+Paramètres d’intégration;Type_cycle_FR;"1 : machine à cycle simple effet ou GAX ; 2 : machine à cycle double effet";entier;1;2;-
+Sorties;Pfou_(h);Energie totale effectivement fournie par le générateur au pas de temps h.;Wh;;;
+Sorties;Qrest(h);Energie restant à fournir à la fin du pas de temps, faisant l’objet d’un report de demande à un autre générateur en séquence ou au pas de temps suivant.;Wh;;;
+Sorties;{Qcef(fonct.;en.)(h)};"Consommation en énergie finale du générateur, présentée sous forme de matrice {fonction ; type d’énergie}. Les lignes correspondent aux différents postes (6), les colonnes aux différentes sources d’énergie (6).";Wh;;;
+Sorties;Idalerte1(h);Alerte pour conditions de fonctionnement hors limite de puissance court terme;entier;;;
+Sorties;Waux,pro(h);consommation des auxiliaires au pas h;W;;;
+Sorties;η_eff(h);GUE ou rendement du générateur.;Réel;;;
+Sorties;τcharge;taux de charge du générateur;Réel;;;
+Sorties;Φrejet;Rejet du générateur thermodynamique au pas de temps h (valeur positive en refroidissement).;Wh;;;
+Variables internes;Val_util_max;"valeur maximale de la performance pour la valeur pivot d’une machine lorsqu’il n’y a pas de valeurs certifiées ou justifiées.
+si Idfonction = 1 (chauffage) Syst_Thermo_CH =
+1 : 1.51 ; 2 : 1.51 ; 3 : 1.51 ; 4 : 1.51 ; 5 : 1.65
+si Idfonction = 2 (refroidissement) Type_cycle_FR = 1 et Syst_Thermo_FR =
+1 : 0.7 ; 2 : 0.7
+Type_cycle_FR = 2 et Syst_Thermo_FR =
+1 : 1.0 ; 2 : 1.0
+si Idfonction = 3 (ECS) Syst_Thermo_ECS =
+1 : 1.13 ; 2 : 1.13 ; 3 : 1.13";-;;;
+Variables internes;Cnnav_Pabs(t1, t2);Coefficient de correction de la puissance à pleine charge en fonction de la température aval;réel;;;
+Variables internes;Cnnam_Pabs(t1, t2);Coefficient de correction de la puissance à pleine charge en fonction de la température amont;réel;;;
+Variables internes;Cnnav_GUEch(t1, t2);Coefficient de correction de la performance à pleine charge en fonction de la température aval en mode chaud;réel;;;
+Variables internes;Cnnam_GUEch(t1, t2);Coefficient de correction de la performance à pleine charge en fonction de la température amont en mode chaud;réel;;;
+Variables internes;Cnnav_GUEfr(t1, t2);Coefficient de correction de la performance à pleine charge en fonction de la température aval en mode froid;réel;;;
+Variables internes;Cnnam_GUEfr(t1, t2);Coefficient de correction de la performance à pleine charge en fonction de la température amont en mode froid;réel;;;
+Variables internes;Cnnav_Paux(t1, t2);Coefficient de correction de la puissance électrique auxiliaire à pleine charge en fonction de la température aval en mode froid;réel;;;
+Variables internes;Cnnam_Paux(t1, t2);Coefficient de correction de la puissance électrique auxiliaire à pleine charge en fonction de la température amont en mode froid;réel;;;
+Variables internes;Valθamont(iθamont);Température amont;°C;;;
+Variables internes;Valθaval(iθaval);Température aval;°C;;;
+Variables internes;Nθamont;Nombre de températures amont;entier;;;
+Variables internes;Nθaval;Nombre de températures aval;entier;;;
+Variables internes;iθam1 iθam2;variables intermédiaires du calcul de la performance à pleine charge à partir des matrices de performance;entier;;;
+Variables internes;θam1;variable intermédiaire du calcul de la performance à pleine charge à partir des matrices de performance;°C;;;
+Variables internes;θam2;variable intermédiaire du calcul de la performance à pleine charge à partir des matrices de performance;°C;;;
+Variables internes;iθav1 iθav2;variables intermédiaires du calcul de la performance à pleine charge à partir des matrices de performance;entier;;;
+Variables internes;θav1;variable intermédiaire du calcul de la performance à pleine charge à partir des matrices de performance;°C;;;
+Variables internes;θav2;variable intermédiaire du calcul de la performance à pleine charge à partir des matrices de performance;°C;;;
+Variables internes;Cθam(h);coefficient d’interpolation pour le calcul de la performance à pleine charge à partir des matrices de performance;réel;;;
+Variables internes;Cθav(h);coefficient d’interpolation pour le calcul de la performance à pleine charge à partir des matrices de performance;réel;;;
+Variables internes;GUEch_pc(h);GUE à pleine charge aux conditions non nominales en mode chauffage;réel;;;
+Variables internes;GUEfr_pc(h);GUE à pleine charge aux conditions non nominales en mode refroidissement;réel;;;
+Variables internes;GUEecs_pc(h);GUE à pleine charge aux conditions non nominales en mode ECS;réel;;;
+Variables internes;Pabs_pc(h);Puissance absorbée à pleine charge aux conditions non nominales;réel;;;
+Variables internes;Pgaz_cons_pc;Puissance gaz consommée à pleine charge aux conditions non nominales. On distingue la même variable en charge partielle;W;;;
+Variables internes;Pgaz_cons_pc_pivot;Puissance gaz consommée à pleine charge aux conditions non nominales pour la valeur pivot.;W;;;
+Variables internes;Acont;Pente de la droite d’évolution de Ccp en mode continu du brûleur.;réel;;;
+Variables internes;Pgaz;puissance gaz du brûleur en fonctionnement établi;W;;;
+Variables internes;Pgazma;puissance équivalente résultant des pertes lors des phases arrêt/démarrage;W;;;
+Variables internes;Pfou_pc;Puissance maximale que peut fournir le générateur dans les conditions de températures amont et aval au pas de temps h.;W;;;
+Variables internes;Pfou_LR;puissance fournie à charge partielle;W;;;
+Variables internes;LR;taux de charge;réel;;;
+Variables internes;pc;en indice signifie à pleine puissance;-;;;
+Variables internes;net;en indice signifie hors auxiliaires;-;;;
+Variables internes;contmin;en indice signifie pour le taux minimal de charge en fonctionnement continu du brûleur;-;;;
+Variables internes;CcpLR;correction de la performance en fonction de la charge en fonctionnement continu du brûleur;réel;;;
+Variables internes;Pertes;Pertes de la machine durant les phases arrêt pour l’écart effectif entre la température de machine et la température d’ambiance (volume chauffé/refroidi ou non-chauffé/non-refroidi).;W;;;
+Variables internes;Paux;puissance appelée par les auxiliaires;W;;;
+Variables internes;Pcons;puissance appelée par la machine;W;;;
+Variables internes;cycl;en indice signifie en fonctionnement discontinu (marche arrêt);;;;
+Variables internes;ValGUE_pivot_inter;intermédiaire de correction des valeurs pivot en mode chauffage. On a aussi ValGUE_pivot_inter, ValECS_pivot_inter respectivement pour les modes refroidissement et ECS;;;;
+Variables internes;ValPaux_pivot_inter;intermédiaire de correction des valeurs pivot en mode chauffage pour les auxiliaires.;;;;
+Variables internes;Qreq_act;Energie requise pour une machine;W;;;
+Variables internes;Qrest_act;Energie restant à fournir à la fin du pas de temps, faisant l’objet d’un report de demande à un autre générateur en séquence ou au pas de temps suivant, pour un générateur.;Wh;;;
+Variables internes;Tcyc;durée d’un cycle marche arrêt du brûleur pour un taux de charge donné;minutes;;;
+Variables internes;Dfou0;durée de fonctionnement à charge tendant vers 0;minutes;;;
+Constantes;Cpa;Chaleur massique de l’air;J/K/kg;;;1006

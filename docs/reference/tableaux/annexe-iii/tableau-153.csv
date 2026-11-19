@@ -1,0 +1,7 @@
+# tableau 153, page 766, fiche 8.23, titre ordre de saisie des températures aval et amont des PAC air extérieur/ air recyclé (chauffage). Deux listes imprimées côte à côte, mises en colonnes ; la matrice de la figure 118 (p.766) n'est pas un tableau numéroté, non transcrite ici.
+Températures aval : M_θ_Aval_Ch;Températures amont : M_θ_Amont_Ch
+1 : 20°C;1 : 7 °C
+2 : 20°C, 15°C;2 : - 7 °C, 7 °C
+3 : 25°C, 20°C, 15°C;3 : -7°C, 2°C, 7°C
+4 : 25°C, 20°C, 15°C, 10°C;"4 : -7°C, 2°C; 7°C, 20°C"
+5 : 25°C, 20°C, 15°C, 10°C, 5°C;5 : -15°C, -7°C, 2°C, 7°C, 20°C

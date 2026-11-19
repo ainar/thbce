@@ -1,0 +1,87 @@
+# tableau 243, pages 914-918, fiche 8.26, Nomenclature du modèle, source: image
+# remarque : la légende (Tableau 243 : Nomenclature du modèle) est en p918 ; le tableau commence en p914. Colonnes Min/Max/Conv. absentes des sections Entrées, Sorties, Variables internes (ligne vide ici).
+# remarque : P_vent_gaine est imprimé avec l'unité °C (tel quel) ; Δθ_Evap_CH n'a ni Min, ni Max, ni Conv. imprimés.
+Section;Nom;Description;Unité;Min;Max;Conv.
+Entrées du composant;θext(h);Température de l'air extérieur.;°C;;;
+Entrées du composant;ωext(h);Humidité spécifique de l'air extérieur;Kg/kg as;;;
+Entrées du composant;id_Mois(j);Numéro du mois de l'année.;Entier;;;
+Entrées du composant;θet(h);Température de l'espace tampon associé à la source amont.;°C;;;
+Entrées du composant;Tair_extrait^s(h);Température de l'air repris après impact du ventilateur d'extraction du système de ventilation simple flux par extraction ou double flux.;°C;;;
+Entrées du composant;Qm_air_extrait;Débit d'air extrait irrigant la source amont des machines sur air extrait;kg/s;;;
+Entrées du composant;τcharge^gnr(h);Taux de charge de la machine frigorifique au pas de temps h.;Réel;;;
+Entrées du composant;Φrejet^gnr(h-1);Puissance rejetée au pas précédent pour les systèmes sur eau de captage : valeur positive en refroidissement et négative en chauffage;W;;;
+Entrées du composant;Pfou_pc_brut(h);Puissance maximale, non compris les limites de fonctionnement, que peut fournir le générateur dans les conditions de températures amont et aval au pas de temps h.;W;;;
+Entrées du composant;Pabs_pc(h);Puissance absorbée à pleine charge aux conditions non nominales;réel;;;
+Générateur associé;Pngen^gnr;Puissance fournie en fonctionnement nominal (100% de charge) du générateur gnr;W;0;+∞;-
+Générateur associé;id_type^gnr;Type du générateur associé à la source amont.;Ent;1;1000;-
+Générateur associé;id_fluide-amont;"Type de fluide amont du générateur : 1 Eau ; 2 Air ; 3 Autre fluide.";Ent;1;3;-
+Générateur associé;id_amont-eau-type;"Type de source amont eau du générateur : 1 Captage ; 2 Tour de refroidissement ; 3 Boucle d'eau ; 4 Eau de nappe avec échangeur de séparation ; 5 Eau de nappe sans échangeur";Ent;1;2;-
+Générateur associé;id_tour;"Type de tour de refroidissement : 1 Tour humide ; 2 Tour sèche.";Ent;1;2;-
+Générateur associé;id_amont-air-type;"Type de source amont air du générateur : 1 Air extérieur ; 2 Air ambiant de volume non-chauffé ; 3 Air extrait.";Ent;1;3;-
+Générateur associé;Δθ_Cond_FR;Ecart de température aux bornes du condenseur en mode refroidissement.;°C;-;-;-
+Générateur associé;Δθ_Evap_CH;Ecart de température aux bornes de l'évaporateur en mode chauffage.;°C;;;
+Générateur associé;P_vent_gaine;Machines sur air : partie de la puissance des ventilateurs correspondant aux pertes de charge des conduits dans le cas de machines sur air gainées, la partie due aux pertes de charge des échangeurs étant comprise dans la performance.;°C;0;+∞;-
+Générateur associé;P_pompes_tour;Machines sur eau : partie de la puissance électrique des pompes du circuit de refroidissement correspondant aux pertes de charge des conduits.;W;0;+∞;-
+Générateur associé;P_vent_tour;Puissance électrique des ventilateurs de la tour.;W;0;+∞;-
+Générateur associé;Δθ_tour;3) Ecart de température entre l'eau en sortie de tour humide et la température humide de l'air extérieur. 4) Ecart de température entre l'eau en sortie de tour sèche et la température de l'air extérieur.;°C;0;+∞;
+Générateur associé;θes_tour_consigne;Consigne de température d'eau en sortie de tour.;°C;-∞;+∞;-
+Générateur associé;id_gest_captage;Gestion des auxiliaires de captage : 1 Marche permanente au cours de la saison de fonctionnement. 2 Fonctionnement en cas de demande d'énergie;Ent;1;3;-
+Générateur associé;id_gest_pompe_captage_cont_var;"1 : fonctionnement tout ou rien ; 2 : fonctionnement à vitesse variable";ent;1;2;-
+Générateur associé;P_pompes_captage;Machines sur eau : Puissance électrique des pompes de captage, nappe, boucle. Selon le type, on compte toute la puissance ou seulement la part correspondant aux pertes de charge des conduits.;W;0;+∞;-
+Générateur associé;P_pompes_inter;Machines sur eau de nappe : Puissance électrique des pompes du circuit intermédiaire. Selon le type, on compte toute la puissance ou seulement la part correspondant aux pertes de charge des conduits.;W;0;+∞;-
+Générateur associé;id_mois_mini;N° du mois durant lequel la température d'eau de captage est la plus faible.;Entier;1;12;-
+Générateur associé;θmin_source;Température minimale annuelle de l'interface avec le sol naturel ou de l'eau de nappe;°C;-∞;+∞;-
+Générateur associé;θmax_source;Température maximale annuelle de l'interface avec le sol naturel ou de l'eau de nappe;°C;-∞;+∞;-
+Générateur associé;θmin_boucle;Température minimale annuelle de l'eau dans la boucle.;°C;-∞;+∞;-
+Générateur associé;θmax_boucle;Température maximale annuelle de l'eau dans la boucle.;°C;-∞;+∞;-
+Générateur associé;Rb;Résistance thermique équivalente entre le fluide et l'interface avec le sol naturel;(K.m)/W;0;+∞;-
+Générateur associé;L;Longueur du conduit de captage;m;0;+∞;-
+Générateur associé;Qv_nappe_nom;débit nominal d'eau de nappe dans le circuit nappe;m3/h;-;-;-
+Générateur associé;Qv_inter_nom;débit total nominal de fluide (eau, eau glycolée) dans le circuit amont de la machine. Si plusieurs machines sont connectées au même échangeur, on compte le débit total.;m3/h;-;-;-
+Générateur associé;ρinter;masse volumique du fluide dans le circuit amont de la machine;kg/m3;-;-;-
+Générateur associé;UA;coefficient de l'échangeur;w/K;--;-;-
+Générateur associé;Cpe_inter;Chaleur spécifique du fluide dans le circuit amont de la machine;J/kg/K;-;-;-
+Générateur associé;type_echangeur;"nature de l'échangeur de barrage : 1 écoulements à contre courant ; 2 écoulements à courants parallèles ; 3 écoulements à courants croisés avec les deux fluides brassés";-;-;-;-
+Générateur associé;T_air_lim;"Machines sur air extrait : Température maximale autorisée de l'air en sortie de source amont en mode froid ; Température minimale autorisée de l'air en sortie de source amont en mode chaud";°C;-;-;-
+Générateur associé;Syst_Thermo_FR;Liste des systèmes thermodynamiques en fonctionnement refroidissement : 3 : refroidisseurs air extrait / air neuf;entier;1;-;-
+Générateur associé;Syst_Thermo_CH;Liste des systèmes thermodynamiques en fonctionnement chauffage : 3 : PAC air extrait / air neuf;entier;1;-;-
+Générateur associé;Syst_Thermo_ECS;Liste des systèmes thermodynamiques en fonctionnement ECS : 2 : PAC air extrait / eau;entier;1;-;-
+Générateur associé;Idfougen;Type de générateur : Chauffage = 1, froid = 2, ECS = 3;;;;
+Paramètres d'intégration du composant;R_dim;Nombre de machines identiques dans le même mode;entier;1;-;-
+Variables internes;τcharge;Taux de charge des machines frigorifiques;Réel;;;
+Variables internes;Φrejet(h-1);Puissance rejetée totale par les générateurs connectés au pas précédent pour les systèmes sur eau de captage : valeur positive en refroidissement et négative en chauffage;W;;;
+Variables internes;θ'as;Température humide de l'air en sortie de tour;°C;;;
+Variables internes;wsat;Humidité spécifique à saturation;kg/kg as;;;
+Variables internes;hsat;Enthalpie de l'air à saturation;J/kg as;;;
+Variables internes;hext;Enthalpie de l'air en entrée de la tour de refroidissement.;J/kg as;;;
+Variables internes;θes_tour_cont;Température d'eau en sortie de tour avant régulation;°C;;;
+Variables internes;θes_tour;Température d'eau en sortie de tour;°C;;;
+Variables internes;Wpompes_tour;Consommation électrique des pompes du circuit de refroidissement;Wh;;;
+Variables internes;Wvent_tour;Consommation électrique des ventilateurs de la tour.;Wh;;;
+Variables internes;θb(j);Température de l'interface avec le sol naturel le jour j.;°C;;;
+Variables internes;θbe(j);Température de l'eau dans la boucle le jour j.;°C;;;
+Variables internes;φ;Déphasage de la fonction de détermination de la température de captage.;rad;;;
+Variables internes;Wpompes_captage;Consommation des pompes de captage;Wh;;;
+Variables internes;θf(h);Température moyenne du fluide en sortie des sondes au pas de temps actuel.;°C;;;
+Variables internes;θamont(h);Température amont des générateurs;°C;;;
+Variables internes;Waux,am;Consommation électrique des auxiliaires amonts;Wh;;;
+Variables internes;Rat_Pngen^gnr;Ratio des puissances nominales;-;;;
+Variables internes;Rat_Phirejet^gnr;Ratio des puissances rejetées;-;;;
+Variables internes;Qm_nappe_reel;Débit réel d'eau de nappe dans le circuit nappe;kg/s;;;
+Variables internes;Qm_inter_reel;Débit réel de fluide (eau, eau glycolée) dans le circuit amont de la machine;kg/s;;;
+Variables internes;Tretour_amont;Température de retour (eau, eau glycolée) de la source amont vers la machine.;°C;;;
+Variables internes;NUT;Nombre d'unité de transfert de l'échangeur de barrage;-;;;
+Variables internes;ε;efficacité de l'échangeur de barrage;-;;;
+Variables internes;Cnappe;débit énergétique dans le circuit nappe;W/K;;;
+Variables internes;Cinter;débit énergétique dans le circuit intermédiaire;W/K;;;
+Variables internes;Qm_air_extrait_act;Débit d'air extrait irrigant la source amont d'une machine sur air extrait;kg/s;;;
+Variables internes;Pech_source_amont_maxi;Puissance maximale échangeable à la source amont des machines sur air extrait;W;;;
+Sorties;θamont^gnr(h);Température amont du générateur gnr dans le cas des générateurs thermodynamiques (sans objet sinon).;°C;;;
+Sorties;Waux,am^gnr;Consommation électrique des auxiliaires amont d'un générateur gnr.;Wh;;;
+Sorties;Tdepart_amont;Température du fluide (eau, eau glycolée) au départ de la machine vers la source amont;°C;;;
+Sorties;Pfou_source_amont_maxi;Puissance maximale disponible par les machines sur air extrait;W;;;
+Constantes;Cv;Chaleur massique de la vapeur d'eau;J/kgK;;;1830
+Constantes;Cpe;Chaleur massique de l'eau;J/kgK;;;4180
+Constantes;ρeau;Masse volumique de l'eau;kg/m3;;;1000
+Constantes;Ca;Chaleur massique de l'air;J/kgK;;;1006
+Constantes;Hfg;Chaleur latente de vaporisation de l'eau;J/kgK;;;25*10^5

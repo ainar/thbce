@@ -1,0 +1,6 @@
+# tableau 241, pages 907, fiche 8.25, Valeurs de Cnnav en refroidissement, source: image
+# remarque : sous l'en-tête imprimé GUE, les libellés internes sont Cnnav_EER(...) tels qu'imprimés
+GUE;Pabs;Paux,uext;ηth,ecs
+Cnnav_EER(22, 27) = 0,97;Cnnav_Pabs(22, 27) = 0,90;Cnnav_Paux,uext(22, 27) = 1;Cnnav_ηth,ecs(22, 27) = 1
+Cnnav_EER(32, 27) = 1,01;Cnnav_Pabs(32, 27) = 1,04;Cnnav_Paux,uext(32, 27) = 1;Cnnav_ηth,ecs(32, 27) = 1
+Cnnav_EER(37, 27) = 1,01;Cnnav_Pabs(37, 27) = 1,05;Cnnav_Paux,uext(37, 27) = 1;Cnnav_ηth,ecs(37, 27) = 1

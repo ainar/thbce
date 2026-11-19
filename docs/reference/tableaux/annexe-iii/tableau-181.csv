@@ -1,0 +1,8 @@
+# tableau 181, pages 785-785, fiche 8.23, PAC air extrait/eau (ECS), coefficients Cnn pour le COP
+Températures aval;Températures amont
+Cnnav_COP(35,45) = 1.2;Cnnam_COP(15, 20) = 0.9
+Cnnav_COP(25,45) = 1.4;Cnnam_COP(25, 20) = 1.1
+Cnnav_COP(55,45) = 0.8;Cnnam_COP(10, 20) = 0.8
+Cnnav_COP(15,45) = 1.6;Cnnam_COP(30, 20) = 1.2
+Cnnav_COP(65,45) = 0.6;Cnnam_COP(5, 20) = 0.7
+Cnnav_COP(5,45) = 1.8;

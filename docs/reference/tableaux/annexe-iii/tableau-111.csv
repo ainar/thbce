@@ -1,0 +1,29 @@
+# tableau 111, page 666 (corps p. 665-666), fiche 8.17, titre Types de générateurs
+# remarque : tableau à deux colonnes imprimé ; pas de Min/Max/Conv.
+id_type^gnr;Type associé
+100;Chaudière standard au gaz
+101;Chaudière basse température au gaz
+102;Chaudière à condensation au gaz
+103;Radiateurs gaz
+104;Chauffe-eau gaz
+105;Accumulateur gaz
+106;Générateur d'air chaud standard
+107;Générateur d'air chaud à condensation
+108;Tube radiant gaz
+109;Panneau radiant au gaz
+200;Chaudière standard au fioul
+201;Chaudière à condensation au fioul
+400;Chaudière au bois
+403;Poêle à bois
+404;Insert (bois)
+500;Générateur à effet joule direct (convecteurs, radiateurs…)
+501;Générateur d'ECS électrique direct
+502;Ballon électrique
+503;PAC à compression électrique
+504;PAC à absorption
+507;PAC sur boucle d'eau
+508;Thermo-frigo-pompe
+509;Générateur DRV
+600;Réseau de chaleur
+601;Réseau de froid
+700;Système de cogénération

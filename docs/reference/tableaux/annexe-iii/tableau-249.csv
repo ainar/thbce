@@ -1,0 +1,6 @@
+# tableau 249, page 940, fiche 8.28, Matrice des consommations en énergies finales {Qcef(poste;énergie)}, source: image
+# remarque : matrice symbolique ; "…" = cellules non détaillées dans l'impression, cellules vides = aucune valeur imprimée
+En Wh;10:Gaz;20:Fioul;30: Charbon;40: Bois;50: Electricité;60: Réseau
+1 : Chauffage;Qcef(1;10);Qcef(1;20);…;;;
+2: Refroidiss.;Qcef(2;10);…;;;;
+3 : ECS;…;;;;;…

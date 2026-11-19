@@ -1,0 +1,8 @@
+# tableau 220, page 843, fiche 8.24, températures aux sources (GAHP eau glycolée / eau classique, chauffage), source: auto+image
+Températures aval;Températures amont
+45°C;-2,5°C
+45°C et 50°C;-2,5°C, 2,5°C,
+45°C et 50°C, 30°C;-2,5°C, 2,5°C, 7,5°C,
+45°C et 50°C, 30°C, 35°C;-2,5°C, 2,5°C, 7,5°C, 12,5°C,
+;-2,5°C, 2,5°C, 7,5°C, 12,5°C, 17,5°C,
+# note : la figure 146 (matrice GUEch) et le bloc de correction en 8.24.3.3.3.1.1 ne font pas partie du tableau 220 et ne sont pas transcrits ici.

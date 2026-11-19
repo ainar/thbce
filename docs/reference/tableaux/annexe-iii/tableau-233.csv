@@ -1,0 +1,19 @@
+# tableau 233, pages 901, fiche 8.25, Valeurs de Cnnam en chauffage pour la PAC MG air/eau
+# mise en forme : bloc 2x2 du tableau imprimé mis à plat (une ligne par coefficient)
+Grandeur;Coefficient;Valeur
+GUE;Cnnam_GUE(-7, 7);0.4941
+GUE;Cnnam_GUE(2, 7);0,81
+GUE;Cnnam_GUE(20, 7);1,37
+GUE;Cnnam_GUE(-15, -7);0,78
+Pabs;Cnnam_Pabs(-7, 7);1,36
+Pabs;Cnnam_Pabs(2, 7);1,13
+Pabs;Cnnam_Pabs(20, 7);0,94
+Pabs;Cnnam_Pabs(-15, -7);1,07
+Paux;Cnnam_Paux(-7, 7);1
+Paux;Cnnam_Paux(2, 7);1
+Paux;Cnnam_Paux(20, 7);1
+Paux;Cnnam_Paux(-15, -7);1
+ηth,ecs;Cnnam_ηth,ecs(-7, 7);0
+ηth,ecs;Cnnam_ηth,ecs(2, 7);0
+ηth,ecs;Cnnam_ηth,ecs(20, 7);1
+ηth,ecs;Cnnam_ηth,ecs(-15, -7);1

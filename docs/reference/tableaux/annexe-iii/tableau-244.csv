@@ -1,0 +1,23 @@
+# tableau 244, pages 931-932, fiche 8.27, Nomenclature du modèle, source: image
+# remarque : la légende (Tableau 244 : Nomenclature du modèle) est en p932 ; le tableau commence en p931. Colonnes Min/Max/Conv. vides là où rien n'est imprimé.
+Section;Nom;Description;Unité;Min;Max;Conv.
+Entrées du composant;id_Mois(j);Numéro du mois de l'année.;Entier;;;
+Entrées du composant;τcharge^gnr(h);Taux de charge de la machine frigorifique au pas de temps h.;Réel;;;
+Entrées du composant;Φrejet^gnr(h-1);Puissance rejetée au pas précédent pour les systèmes sur eau de captage : valeur positive en refroidissement et négative en chauffage;W;;;
+Paramètres intrinsèques du composant;id_fougen;Type de générateur : Chauffage = 1, froid = 2, ECS = 3;;;;
+Paramètres intrinsèques du composant;id_type^gnr;Type du générateur associé à la source amont.;Ent;1;1000;-
+Paramètres intrinsèques du composant;Pngen^gnr;Puissance fournie en fonctionnement nominal (100% de charge) du générateur gnr;W;0;+∞;-
+Type de sources amont;id_fluide-amont;"Type de fluide amont du générateur : 1 Eau ; 2 Air ; 3 Sol";Ent;1;3;-
+Source amont de type sol;id_mois_mini_sol;N° du mois durant lequel la température d'interface entre le sol et les tubes de fluide frigorigène est la plus faible.;Entier;1;12;-
+Source amont de type sol;θmin_sol;Température minimale annuelle de l'interface entre le sol et les tubes de fluide frigorigène.;°C;-∞;+∞;-
+Source amont de type sol;θmax_sol;Température maximale annuelle de l'interface entre le sol et les tubes de fluide frigorigène.;°C;-∞;+∞;-
+Source amont de type sol;Rb;Résistance thermique équivalente entre le fluide amont et l'évaporateur/le condenseur.;K.m/W;0;+∞;-
+Source amont de type sol;L;Longueur du conduit de captage;m;0;+∞;-
+Variables internes;Φrejet(h-1);Puissance rejetée totale par les générateurs connectés au pas précédent pour les systèmes sur eau de captage : valeur positive en refroidissement et négative en chauffage;W;;;
+Variables internes;θb(j);Température de l'interface avec le sol naturel le jour j.;°C;;;
+Variables internes;φ;Déphasage de la fonction de détermination de la température de captage.;rad;;;
+Variables internes;θf(h);Température moyenne du fluide en sortie des sondes au pas de temps actuel.;°C;;;
+Variables internes;θamont(h);Température amont des générateurs;°C;;;
+Variables internes;Waux,am;Consommation électrique des auxiliaires amont;Wh;;;
+Sorties;θamont^gnr(h);Température amont du générateur gnr dans le cas des générateurs thermodynamiques (sans objet sinon).;°C;;;
+Sorties;Waux,am^gnr(h);Consommation électrique des auxiliaires amont d'un générateur gnr.;Wh;;;

@@ -1,0 +1,7 @@
+# tableau 225, pages 871, fiche 8.24, Températures aux sources
+Températures aval;Températures amont
+9.5 °C;35 °C
+9.5°C, 20.5°C,;35 °C, 45 °C
+9.5°C, 15 °C, 20.5°C;35 °C, 45 °C, 25°C,
+9.5°C, 15 °C, 20.5°C, 26 °C;35 °C, 45 °C, 25°C, 15°C,
+4°C, 9.5°C, 15 °C, 20.5°C, 26 °C;35 °C, 45 °C, 25°C, 15°C, 5°C

@@ -1,0 +1,6 @@
+# tableau 116, page 699, fiche 8.19, titre Valeur du coefficient PCSI en fonction du type de combustible
+Combustible;Id_engen;PCSI
+Gaz naturel;10;1,11
+GPL (Butane et Propane);10;1,09
+FOD;20;1,07
+Bois;40;1,08

@@ -1,0 +1,8 @@
+# tableau 188, pages 789-789, fiche 8.23, PAC eau de nappe/eau (ECS), coefficients Cnn pour Pabs
+Températures aval;Températures amont
+Cnnav_Pabs(35,45) = 1.10;Cnnam_Pabs(3.5, 8.5) = 0.95
+Cnnav_Pabs(25,45) = 1.20;Cnnam_Pabs(13.5, 8.5) = 1.05
+Cnnav_Pabs(55,45) = 0.90;Cnnam_Pabs(18.5, 8.5)=0.90
+Cnnav_Pabs(15,45) = 1.30;
+Cnnav_Pabs(65,45) = 0.80;
+Cnnav_Pabs(5,45) = 1.40;

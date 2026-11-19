@@ -1,0 +1,6 @@
+# tableau 120, page 703, fiche 8.19, titre paramètres de calcul pour le rendement à pleine charge et charge intermédiaire
+# remarque : en-tête de la première colonne vide dans l'original ; libellé de la ligne reproduit tel qu'imprimé.
+Type de chaudière;α_th,nom;θ_av,ref,nom;α_th,int;θ_av,ref,int
+Chaudière gaz ou fioul classique;0,04;70;0,05;40
+Chaudière gaz ou fioul à condensation;0,2;70;0,2;33
+Chaudière bois;0,0;70;0,0;70

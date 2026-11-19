@@ -1,0 +1,53 @@
+# tableau 253, pages 964-966, fiche 8.30, Nomenclature des différentes variables du modèle
+Entrées du composant
+Nom;Description;Unité;Min;Max;Conv.
+θamont(h);Température de source amont géothermique;°C;;;
+θaval(fr)(h);Température aval du générateur (température moyenne départ/retour réseau d'eau froide du bâtiment);°C;;;
+Waux,am(h);Consommation électrique des circulateurs de la source amont géothermique;W;;;
+Qreq,fr(h);Besoin énergétique pour le refroidissement;Wh;;;
+θamb(h);Température ambiante pour le calcul des pertes thermiques du générateur;°C;;;
+Paramètres intrinsèques du composant
+Nom;Description;Unité;Min;Max;Conv.
+qv,aval,nom;Débit volumique d'eau froide nominal de la production d'eau froide;m3/h;0;+∞;
+Δθaval;Ecart de température départ-retour nominal de la production d'eau froide;°C;0;8;
+qv,amont,nom;Débit volumique nominal circulant dans l'échangeur de geocooling côté source amont;m3/h;0;+∞;
+Δθamont;Ecart de température nominal aux bornes de l'échangeur côté source amont;°C;0;8;
+θr,source,lim;Température limite de retour d'eau côté source pour la désactivation de la fonction geocooling;°C;0;25;
+UAgeo,nom;Coefficient de transfert thermique de l'échangeur de geocooling aux débits nominaux de part et d'autre;W/K;0;+∞;
+Pcprim,nom;Puissance du circulateur du circuit primaire associée à l'échangeur de geocooling (le cas échéant);W;0;+∞;
+Paramètres d'intégration du composant
+Nom;Description;Unité;Min;Max;Conv.
+Is_Echangeur_Intermediaire;"Indicateur précisant la présence ou non de l'échangeur de géocooling entre le circuit d'eau des capteurs géothermiques et le circuit d'eau du bâtiment : 0 : Non ; 1 : Oui";-;0;1;
+idfougen;Mode de fonctionnement admis par le générateur : Refroidissement : 2;Ent;0;6;2
+idengen;Identificateur de l'énergie principale : Electricité: 5;Ent;1;6;5
+idfluide_aval;Nature du fluide aval : 1 : eau;Ent;1;2;1
+idfluide_amont;Nature de la source amont : 1 : eau;Ent;1;3;1
+Rdim;Nombre de générateur identique;Ent;1;+∞;1
+Type_Association;Type d'association avec les autres générateurs de froid: 0 - Base et complément, 1 - Alterné;Ent;0;1;0
+Sorties
+Nom;Description;Unité
+Qfou(h);Energie totale effectivement fournie par le générateur pour le mode sollicité.;Wh
+{Qcef(h)};Matrice des consommations par poste et par type d'énergie;Wh
+Waux,pro(h);Consommation d'auxiliaire propre au générateur (hors source amont);Wh
+Pn,gen,fr;Puissance de refroidissement de l'échangeur de geocooling dans les conditions nominales;W
+Qrest(h);Energie restant à fournir (dépassant la puissance maximale du générateur) pour le mode sollicité.;Wh
+Φrejet(h);Quantité d'énergie rejetée à la source amont (générateur thermodynamique);Wh
+τcharge(h);Taux de charge du générateur;-
+ηeff(h);Efficacité du générateur en énergie finale;-
+Variables internes
+Nom;Description;Unité
+Pmax(h);Puissance de refroidissement maximale au pas de temps h;W
+θd,aval,pc(h);Température de départ aval de l'échangeur à plein débit côté source;°C
+θr,aval(h);Température de retour aval de l'échangeur;°C
+θd,amont(h);Température de départ amont de l'échangeur;°C
+θr,amont(h);Température de retour amont de l'échangeur;°C
+qv,aval(h);Débit volumique d'eau dans l'échangeur de geocooling (ou dans le circuit hydraulique s'il n'y a pas d'échangeur) côté distribution;m3/h
+qv,amont(h);Débit volumique d'eau dans l'échangeur de geocooling (ou dans le circuit hydraulique s'il n'y a pas d'échangeur) côté source amont;m3/h
+Is_On(h);Indicateur booléen d'activation possible du geocooling au pas de temps h;Bool
+εgeo(h);Efficacité de l'échangeur de geocooling au pas de temps h;-
+NUT(h);Coefficient caractéristique adimensionnel NUT de l'échangeur de geocooling au pas de temps h;-
+C(h);Rapport de déséquilibre des débits énergétiques de l'échangeur de geocooling;-
+Constantes
+Nom;Description;Unité;Conv.
+ρe;Masse volumique de l'eau;kg/m3;1000
+ce;Capacité calorifique massique de l'eau;J/(kg.K);4190

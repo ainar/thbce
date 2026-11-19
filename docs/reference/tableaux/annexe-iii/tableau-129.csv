@@ -1,0 +1,6 @@
+# tableau 129, page 720, fiche 8.20, titre Coefficient de majoration des pertes pour les radiateurs gaz, poêles et inserts gaz
+# remarque : légende imprimée sur deux lignes (fin de titre « inserts gaz, »).
+Ventilateur côté combustion;Évacuation des fumées;f_maj
+Oui;Tout type;1,02
+Non;Par micro-ventouse;1,04
+Non;Par une cheminée;1,06
