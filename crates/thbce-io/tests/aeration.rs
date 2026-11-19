@@ -230,3 +230,27 @@ fn aeration_sur_la_meteo_reglementaire() {
     verifier_espace_tampon(&m, "réglementaire");
     verifier_bureaux(&m, "réglementaire");
 }
+
+/// Q98 (complément du 19/11/2026) : une zone en aération sans aucune bouche est refusée en
+/// code 2, en habitation comme hors habitation (aucun débit d'air neuf, éq. 162).
+#[test]
+fn aeration_sans_bouche_refusee() {
+    for nom in ["maison-aeration-ademe", "bureaux-simple-flux-ademe"] {
+        let mut p = cas(nom);
+        let z = &mut p.batiments[0].zones[0];
+        for g in &mut z.groupes {
+            g.bouches_conduits.clear();
+        }
+        let v = z.ventilation.as_mut().unwrap();
+        v.systeme = SystemeVentilation::Aeration;
+        v.reseau.r_rep_m2k_w = None;
+        let r = thbce_core::valider(&p);
+        assert!(!r.est_valide(), "{nom}");
+        assert!(r.erreurs.iter().all(|e| !e.hors_perimetre), "{nom}");
+        assert!(
+            r.erreurs.iter().any(|e| e.message.contains("bouche")),
+            "{nom} : {:?}",
+            r.erreurs
+        );
+    }
+}
