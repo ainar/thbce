@@ -114,7 +114,7 @@ impl Sol {
 ///
 /// Th-BCE 2020 §6.8.3.2.3, éq. (723) à (727). Le débit volumique de l'éq. (726) est en m³/s,
 /// comme le dit la nomenclature (la vitesse `v0` est en m/s) : le facteur 3 600 que le texte
-/// y écrit est écarté (`docs/questions/Q231.md` point 1). Un débit nul donne la limite, 1.
+/// y écrit est écarté (`docs/questions/Q231.md` point 2). Un débit nul donne la limite, 1.
 pub fn efficacite_sol_air(p: &PuitsClimatique, theta_ext_c: f64, qm_kg_s: f64) -> f64 {
     efficacite_avec_facteur(p, theta_ext_c, qm_kg_s, 1.0)
 }
@@ -178,7 +178,7 @@ pub fn delta_bypass(
 }
 
 /// « Iactivation_PC » selon la régulation propre à la fiche 6.8 (variante non exposée, Q231
-/// point 2) : en période de chauffage, le puits est activé si `θext < θext,arrêt_PC^hiver` ; hors
+/// point 1) : en période de chauffage, le puits est activé si `θext < θext,arrêt_PC^hiver` ; hors
 /// période de chauffage, s'il est activé si `θext > θext,arrêt_PC^été` (le texte écrit « hiver »
 /// à l'éq. 730, coquille). Avec `typegest_PC = 1`, une condition sur la température de sortie
 /// `θair-out` s'ajoute (lue sur la température de sortie du puits activé).
