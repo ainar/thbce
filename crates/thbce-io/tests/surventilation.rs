@@ -78,6 +78,24 @@ fn c_aux(r: &Resultats) -> f64 {
         .c_aux_vent_kwh
 }
 
+/// Résultats complets en JSON, sans le compteur d'heures de surventilation (`nbh_rafnoc`) ni les
+/// noms et libellés qui distinguent les deux projets comparés.
+fn json_hors_compteur(r: &Resultats) -> serde_json::Value {
+    fn nettoyer(v: &mut serde_json::Value) {
+        match v {
+            serde_json::Value::Object(o) => {
+                o.retain(|k, _| !matches!(k.as_str(), "nbh_rafnoc" | "nom" | "regle"));
+                o.values_mut().for_each(nettoyer);
+            }
+            serde_json::Value::Array(a) => a.iter_mut().for_each(nettoyer),
+            _ => {}
+        }
+    }
+    let mut v = serde_json::from_str(&json::ecrire_resultats(r)).unwrap();
+    nettoyer(&mut v);
+    v
+}
+
 fn nbh_rafnoc(r: &Resultats) -> (u32, u32) {
     let v = r.batiments[0].zones[0].ventilation.as_ref().unwrap();
     (
@@ -144,8 +162,8 @@ fn verifier_maison(m: &MeteoProjet, titre: &str) {
     let r = brut(&p, m);
     assert_eq!(nbh_rafnoc(&r), (0, 0), "{titre}");
     assert_eq!(
-        (bbio(&r), dh(&r), cep(&r)),
-        (bbio(&reference), dh(&reference), cep(&reference)),
+        json_hors_compteur(&r),
+        json_hors_compteur(&reference),
         "{titre}"
     );
     // Période d'été seulement : aucune heure hors saison de refroidissement propre, donc
@@ -191,8 +209,8 @@ fn verifier_cta(m: &MeteoProjet, titre: &str) {
     let r = brut(&p, m);
     assert_eq!(nbh_rafnoc(&r), (0, 0), "{titre}");
     assert_eq!(
-        (dh(&r), cep(&r), c_aux(&r)),
-        (dh(&reference), cep(&reference), c_aux(&reference)),
+        json_hors_compteur(&r),
+        json_hors_compteur(&reference),
         "{titre}"
     );
 }
@@ -282,8 +300,8 @@ fn verifier_simple_flux(m: &MeteoProjet, titre: &str) {
     jamais(&mut surventilation_mut(&mut p).ete);
     let r = brut(&p, m);
     assert_eq!(
-        (dh(&r), cep(&r), c_aux(&r)),
-        (dh(&reference), cep(&reference), c_aux(&reference)),
+        json_hors_compteur(&r),
+        json_hors_compteur(&reference),
         "{titre}"
     );
 }
@@ -378,6 +396,34 @@ fn surventilation_validation() {
     assert_eq!(
         chemins(&p),
         ["batiments[0].zones[0].ventilation.systeme.double_flux.surventilation_mecanique"]
+    );
+    // Booléen faux avec une description présente : incohérent (comme le rafraîchissement
+    // évaporatif d'un double flux).
+    let mut p = cas("maison-surventilation-ademe");
+    if let SystemeVentilation::DoubleFlux(d) = &mut p.batiments[0].zones[0]
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .systeme
+    {
+        d.surventilation_mecanique = Some(false);
+    }
+    assert_eq!(
+        chemins(&p),
+        ["batiments[0].zones[0].ventilation.systeme.double_flux.surventilation_mecanique"]
+    );
+    let mut p = cas("bureaux-cta-surventilation-ademe");
+    if let SystemeVentilation::Cta(c) = &mut p.batiments[0].zones[0]
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .systeme
+    {
+        c.surventilation_mecanique = Some(false);
+    }
+    assert_eq!(
+        chemins(&p),
+        ["batiments[0].zones[0].ventilation.systeme.cta.surventilation_mecanique"]
     );
     // Débit saisi sans surventilation : avertissement.
     let mut p = cas("maison-double-flux-ademe");

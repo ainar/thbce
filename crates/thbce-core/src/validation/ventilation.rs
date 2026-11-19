@@ -500,6 +500,16 @@ pub(super) fn valider_ventilation(
                      2020 §6.12.2, tableau 75)",
                 );
             }
+            if df.surventilation_mecanique == Some(false)
+                && df.rafraichissement_surventilation.is_some()
+            {
+                r.erreur(
+                    format!("{cd}.surventilation_mecanique"),
+                    Some("false".into()),
+                    "incohérent avec la description `rafraichissement_surventilation` (Th-BCE \
+                     2020 §6.12.2)",
+                );
+            }
             valider_humidification(
                 r,
                 &cd,
@@ -588,6 +598,16 @@ pub(super) fn valider_ventilation(
                     Some("true".into()),
                     "décrire le rafraîchissement par `rafraichissement_surventilation` (Th-BCE \
                      2020 §6.12.2, tableau 75)",
+                );
+            }
+            if cta.surventilation_mecanique == Some(false)
+                && cta.rafraichissement_surventilation.is_some()
+            {
+                r.erreur(
+                    format!("{cc}.surventilation_mecanique"),
+                    Some("false".into()),
+                    "incohérent avec la description `rafraichissement_surventilation` (Th-BCE \
+                     2020 §6.12.2)",
                 );
             }
             valider_humidification(

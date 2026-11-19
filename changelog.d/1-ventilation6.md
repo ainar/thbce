@@ -7,3 +7,5 @@
 
 - Aération (Q98, complément du 19/11/2026) : la variante « reprises comme air neuf » de la note du §6.2.3.1.1.1 est chiffrée (non exposée) ; le refus d'une zone en aération sans aucune bouche (code 2, règle commune à tous les systèmes) est documenté et testé. Aucun résultat ne change.
 - `surventilation_mecanique: true` n'est plus un refus de périmètre (code 3) : sans la description `rafraichissement_surventilation`, c'est une erreur de saisie (code 2). Compatible : aucun résultat existant ne change.
+- `surventilation_mecanique: false` avec une description `rafraichissement_surventilation` est une erreur de saisie (« incohérent avec la description »), comme le rafraîchissement évaporatif d'un double flux. Compatible.
+- Justification des surfaces de conduit recalculées citant les éq. (760) et (761) dans `valeurs_par_defaut` ; Q230 complétée (citation de la p. 465, tableau 60, variante « demande non servie » chiffrée). Tests de surventilation jamais déclenchée : comparaison de tout le JSON des résultats.

@@ -726,6 +726,7 @@ impl VentilationProjet {
                 let a_cond_m2 = if surfaces_saisies {
                     b.a_cond_m2.unwrap_or(0.0)
                 } else {
+                    let mut recalculee = false;
                     let a = match typologie {
                         // Éq. (421) à (423), surface répartie au prorata des débits de base.
                         TypologieReseau::MaisonIndividuelle => {
@@ -741,7 +742,10 @@ impl VentilationProjet {
                         // (lecture Q230 point 3).
                         TypologieReseau::BatimentCollectif | TypologieReseau::NonResidentiel => {
                             match b.q_spec_rafnoc_m3_h.filter(|_| surv) {
-                                Some(q) => a_cond_rafnoc_m2(q_max, q),
+                                Some(q) => {
+                                    recalculee = true;
+                                    a_cond_rafnoc_m2(q_max, q)
+                                }
                                 None => a_cond_defaut_collectif_m2(q_max),
                             }
                         }
@@ -749,8 +753,14 @@ impl VentilationProjet {
                     valeurs_par_defaut.push(defaut(
                         format!("groupes[{ig}].bouches_conduits[{ib}].a_cond_m2"),
                         a,
-                        "Th-BCE 2020 §6.2.3.4, éq. (421) à (427), tableau 60 : surface de \
-                         conduit par défaut",
+                        if recalculee {
+                            "Th-BCE 2020 §6.2.3.4, éq. (421) à (427), tableau 60, et §6.12.3.1, \
+                             éq. (760), (761) : surface de conduit par défaut, recalculée pour \
+                             le débit de surventilation"
+                        } else {
+                            "Th-BCE 2020 §6.2.3.4, éq. (421) à (427), tableau 60 : surface de \
+                             conduit par défaut"
+                        },
                     ));
                     a
                 };
