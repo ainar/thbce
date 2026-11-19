@@ -10,11 +10,13 @@
 
 use crate::chauffage_refroidissement::calculs_generation::{CumulsCef, Poste};
 use crate::chauffage_refroidissement::distribution::{
-    ApportReseauGroupe, DistributionIntergroupesResolue, SortiesDistributionIntergroupes,
+    ApportReseauGroupe, DistributionIntergroupesResolue, SortiesDistributionGroupe,
+    SortiesDistributionIntergroupes,
 };
 use crate::chauffage_refroidissement::generation::{
     ConditionsSource, EntreesGeneration, GenerationHoraire, ReseauVu,
 };
+use crate::chauffage_refroidissement::reseaux_cta::{CumulsReseauCta, ReseauCtaResolu};
 use crate::chauffage_refroidissement::saisons_fonctionnement::{
     autorisations_effectives, DesserteGroupe,
 };
@@ -126,6 +128,17 @@ pub struct SystemesBatiment {
     /// et de prérefroidissement de sa centrale double flux, par des réseaux de CTA fictifs
     /// (fiche 8.11, éq. 937 et 939).
     pub batteries_cta: Vec<BatteriesCta>,
+    /// Réseaux de distribution de CTA hydrauliques (fiches 8.11 et 8.12, `idtype = 1`) ; les
+    /// batteries d'une centrale sans réseau saisi sont reliées par un réseau fictif.
+    pub reseaux_cta: Vec<ReseauCtaResolu>,
+    /// Sorties de chaque réseau de CTA hydraulique au dernier pas de temps.
+    pub sorties_cta: Vec<SortiesDistributionGroupe>,
+    /// Cumuls annuels de chaque réseau de CTA hydraulique.
+    pub cumuls_cta: Vec<CumulsReseauCta>,
+    /// « Ratdess^CTA,gr » : part de chaque groupe (ordre global) dans les pertes et les
+    /// consommations de circulateur de chaque réseau de CTA hydraulique, au prorata des surfaces
+    /// des groupes de la zone (éq. 941 et 944, lecture Q121).
+    pub rat_dess_cta: Vec<Vec<f64>>,
     /// « Φrejet » : puissance puisée dans chaque espace tampon par les évaporateurs des
     /// générateurs thermodynamiques sur air ambiant au dernier pas de temps, en W (§5.4.3.2,
     /// éq. 109).
@@ -695,6 +708,92 @@ impl SystemesBatiment {
             .enumerate()
             .flat_map(|(iz, z)| z.groupes.iter().map(move |g| (iz, g.a_gr_m2)))
             .collect();
+        // Éq. (843) : une génération qui alimente une batterie de CTA dessert les groupes de la
+        // centrale, pour ses autorisations (éq. 839 à 841).
+        for (d, (iz, _)) in dessertes.iter_mut().zip(&groupes) {
+            let b = batteries_cta[*iz];
+            let chaud = [b.prechauffage, b.chaude, b.humidification, antigel[*iz]];
+            let froid = [b.prerefroidissement, b.froide];
+            for (liste, sources) in [(&mut d.chaud, &chaud[..]), (&mut d.froid, &froid[..])] {
+                for g in sources.iter().flatten() {
+                    if !liste.contains(g) {
+                        liste.push(*g);
+                    }
+                }
+            }
+        }
+        // Fiches 8.11 et 8.12 : réseaux de CTA hydrauliques (`idtype = 1`).
+        let mut reseaux_cta: Vec<ReseauCtaResolu> = Vec::new();
+        for (iz, z) in bat.zones.iter().enumerate() {
+            let Some(v) = z.ventilation.as_ref() else {
+                continue;
+            };
+            let b = batteries_cta[iz];
+            for (fonction, saisi, generation) in [
+                (
+                    FonctionReseau::Chauffage,
+                    &v.reseau_cta_chaud,
+                    b.prechauffage
+                        .or(b.chaude)
+                        .or(b.humidification)
+                        .or(antigel[iz]),
+                ),
+                (
+                    FonctionReseau::Refroidissement,
+                    &v.reseau_cta_froid,
+                    b.prerefroidissement.or(b.froide),
+                ),
+            ] {
+                let (Some(r), Some(generation)) = (saisi, generation) else {
+                    continue;
+                };
+                let rc = ReseauCtaResolu {
+                    zone: iz,
+                    fonction,
+                    generation,
+                    reseau: r.clone(),
+                    espace_tampon: r
+                        .espace_tampon
+                        .as_deref()
+                        .and_then(|id| ids_et.iter().position(|e| e == id)),
+                };
+                // Éq. (953) à (956) : températures extrêmes vues par la génération.
+                if let (Some(t), Some(gen)) = (
+                    rc.theta_extreme_nominale_c(),
+                    generations_horaires.get_mut(generation),
+                ) {
+                    if fonction == FonctionReseau::Chauffage {
+                        gen.theta_dist_ch_max_c =
+                            Some(gen.theta_dist_ch_max_c.map_or(t, |x| x.max(t)));
+                    } else {
+                        gen.theta_dist_fr_min_c =
+                            Some(gen.theta_dist_fr_min_c.map_or(t, |x| x.min(t)));
+                    }
+                }
+                reseaux_cta.push(rc);
+            }
+        }
+        let rat_dess_cta: Vec<Vec<f64>> = reseaux_cta
+            .iter()
+            .map(|r| {
+                let total: f64 = groupes
+                    .iter()
+                    .filter(|(z, _)| *z == r.zone)
+                    .map(|(_, a)| a)
+                    .sum();
+                groupes
+                    .iter()
+                    .map(|(z, a)| {
+                        if *z == r.zone && total > 0.0 {
+                            a / total
+                        } else {
+                            0.0
+                        }
+                    })
+                    .collect()
+            })
+            .collect();
+        let nb_reseaux_cta = reseaux_cta.len();
         // Éq. (988) et (989) : surfaces des groupes desservis par chaque génération.
         let rat_surf_gen: Vec<Vec<f64>> = (0..generations.len())
             .map(|ig| {
@@ -768,6 +867,10 @@ impl SystemesBatiment {
             cumuls_cef_groupes: vec![CumulsCef::default(); nb_groupes],
             cumuls_antigel_wh: vec![0.0; nb_zones],
             batteries_cta,
+            reseaux_cta,
+            sorties_cta: vec![SortiesDistributionGroupe::default(); nb_reseaux_cta],
+            cumuls_cta: vec![CumulsReseauCta::default(); nb_reseaux_cta],
+            rat_dess_cta,
             phi_rejet_et_w: vec![0.0; ids_et.len()],
             aut_gen: vec![(false, false); generations.len()],
             generations,
@@ -821,6 +924,14 @@ impl SystemesBatiment {
             .and_then(|r| r.collectif.as_deref())
             .and_then(|id| collectifs.iter().position(|c| c.id == id))
             .map_or(e.sorties_recuperateur.theta_entrant_c, |k| theta_ep[k])
+    }
+
+    /// Indice du réseau de CTA hydraulique de la zone `iz`, pour la fonction donnée, relié à la
+    /// génération `ig`.
+    fn reseau_cta_de(&self, iz: usize, fonction: FonctionReseau, ig: usize) -> Option<usize> {
+        self.reseaux_cta
+            .iter()
+            .position(|r| r.zone == iz && r.fonction == fonction && r.generation == ig)
     }
 
     /// Pas de temps des réseaux intergroupes, après celui des groupes ; à la bascule des
@@ -1056,6 +1167,14 @@ impl SystemesBatiment {
                 }
                 let w_ag = z.sorties_ventilation.w_ag_wh;
                 self.cumuls_antigel_wh[iz] += w_ag;
+                // Réseau de CTA hydraulique : la demande de l'antigel s'ajoute à celle des autres
+                // fonctions de chauffage (éq. 939), plus bas.
+                if self
+                    .reseau_cta_de(iz, FonctionReseau::Chauffage, ig)
+                    .is_some()
+                {
+                    continue;
+                }
                 vus.push(ReseauVu {
                     poste: Poste::Chauffage,
                     hydraulique: false,
@@ -1090,6 +1209,8 @@ impl SystemesBatiment {
                 } else {
                     v.theta_souf_mel_c
                 };
+                let (mut q_cta_ch, mut q_cta_fr) = (0.0_f64, 0.0_f64);
+                let mut theta_cta_mel: Option<f64> = None;
                 // Éq. (940) : énergies du mode actif des centrales à charge variable, sur leur
                 // réseau de CTA fictif, et demandes des émetteurs des bouches qu'il n'assure pas
                 // (lecture Q95, points 3 et 8).
@@ -1129,6 +1250,24 @@ impl SystemesBatiment {
                     if g != Some(ig) {
                         continue;
                     }
+                    // Réseau de CTA hydraulique : demandes additionnées (éq. 939 et 940).
+                    let fonction = match poste {
+                        Poste::Refroidissement => FonctionReseau::Refroidissement,
+                        _ => FonctionReseau::Chauffage,
+                    };
+                    if self.reseau_cta_de(iz, fonction, ig).is_some() {
+                        match fonction {
+                            FonctionReseau::Chauffage => {
+                                q_cta_ch += q;
+                                theta_cta_mel.get_or_insert(theta);
+                            }
+                            FonctionReseau::Refroidissement => {
+                                q_cta_fr += q;
+                                theta_cta_mel.get_or_insert(theta);
+                            }
+                        }
+                        continue;
+                    }
                     vus.push(ReseauVu {
                         poste,
                         hydraulique: false,
@@ -1137,6 +1276,62 @@ impl SystemesBatiment {
                         theta_dep_c: 0.0,
                         theta_i_aval_eq_c: theta,
                         // Éq. (938) : en relance si l'un des groupes reliés à la centrale l'est.
+                        relance: relance_cta(z),
+                        rat_surf_dess: 0.0,
+                        phi_pertes_prim_wh: 0.0,
+                    });
+                    origines.push(Origine::BatterieCta(iz));
+                }
+                // Fiches 8.11 et 8.12 : réseaux de CTA hydrauliques, sur la somme des demandes
+                // de la centrale (éq. 939 et 940) ; pertes et circulateur selon la procédure du
+                // réseau du groupe (§8.11.3.6.2 et 8.11.3.6.3).
+                for fonction in [FonctionReseau::Chauffage, FonctionReseau::Refroidissement] {
+                    let Some(k) = self.reseau_cta_de(iz, fonction, ig) else {
+                        continue;
+                    };
+                    let (poste, q_em, antigel_seul) = match fonction {
+                        FonctionReseau::Chauffage => {
+                            let ag = if self.antigel[iz] == Some(ig) {
+                                z.sorties_ventilation.w_ag_wh
+                            } else {
+                                0.0
+                            };
+                            (Poste::Chauffage, q_cta_ch + ag, theta_cta_mel.is_none())
+                        }
+                        FonctionReseau::Refroidissement => {
+                            // Demandes de froid négatives dans `q_cta_fr` (convention des
+                            // réseaux `ReseauVu` : valeur absolue, ci-dessous).
+                            (Poste::Refroidissement, -q_cta_fr, false)
+                        }
+                    };
+                    let b_therm_k = self.reseaux_cta[k]
+                        .espace_tampon
+                        .and_then(|i| espaces_tampons.get(i))
+                        .map_or(1.0, |e| e.b_therm);
+                    let s = self.reseaux_cta[k].pas(
+                        q_em,
+                        relance_cta(z),
+                        theta_ext_c,
+                        climat.base_ext_c,
+                        b_therm_k,
+                    );
+                    self.sorties_cta[k] = s;
+                    self.cumuls_cta[k].ajouter(&s);
+                    vus.push(ReseauVu {
+                        poste,
+                        hydraulique: true,
+                        q_sys_wh: match fonction {
+                            FonctionReseau::Chauffage => s.q_sys_ch_wh,
+                            FonctionReseau::Refroidissement => -s.q_sys_fr_wh,
+                        },
+                        theta_moy_c: 0.5 * (s.theta_dep_c + s.theta_ret_c),
+                        theta_dep_c: s.theta_dep_c,
+                        // Éq. (951) et (952) : après la boîte de mélange, ou air neuf pour la
+                        // sécurité antigel seule.
+                        theta_i_aval_eq_c: match (antigel_seul, theta_cta_mel) {
+                            (false, Some(t)) => t,
+                            _ => theta_ext_c,
+                        },
                         relance: relance_cta(z),
                         rat_surf_dess: 0.0,
                         phi_pertes_prim_wh: 0.0,
@@ -1357,13 +1552,20 @@ impl SystemesBatiment {
                     aux_dgr_wh: s.distributions.iter().map(|d| d.phi_aux_vc_wh).sum(),
                     pertes_dgr_wh: s.distributions.iter().map(|d| d.phi_pertes_vc_wh).sum(),
                     pertes_dgr_ecs_wh: sy.ecs.iter().map(|e| e.sorties.phi_pertes_vc_wh).sum(),
+                    // Réseaux intergroupes et réseaux de CTA hydrauliques (§8.12, éq. 944).
                     aux_dintgr_wh: par_surface(
                         &self.rat_surf,
                         &mut self.sorties.iter().map(|x| x.phi_aux_vc_wh),
+                    ) + par_surface(
+                        &self.rat_dess_cta,
+                        &mut self.sorties_cta.iter().map(|x| x.phi_aux_vc_wh),
                     ),
                     pertes_dintgr_wh: par_surface(
                         &self.rat_surf,
                         &mut self.sorties.iter().map(|x| x.phi_pertes_vc_wh),
+                    ) + par_surface(
+                        &self.rat_dess_cta,
+                        &mut self.sorties_cta.iter().map(|x| x.phi_pertes_vc_wh),
                     ),
                     aux_dintgr_ecs_wh: par_surface(
                         &self.rat_surf_ecs,

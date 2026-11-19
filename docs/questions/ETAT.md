@@ -113,6 +113,7 @@
 | Q107 | ECS : IdCET sur eau (fiche 9.22) reste refusé ; fiche 9.21 levée par Q108 | refus 9.22 maintenu ; point 1 (9.21) remplacé par Q108 le 18 novembre 2026 |
 | Q108 | ECS : récupérateur de chaleur sur les eaux grises (fiche 9.21, éq. 2156 à 2224) | tranchée (point 6 révisé le 18 novembre 2026 sur décision de l'orchestrateur : préchauffage déduit de la demande de la génération, variante Texte conservée) ; à confirmer par un cas de référence |
 | Q120 | Brasseurs d'air (fiche 8.32, éq. 1646 à 1666) : périodes d'emploi en Th-D et en Th-C, nuit en hébergement, consommation de l'ensemble, δθconsfr_BA sans objet, chaleur récupérée | lecture du lot 1-emi, à confirmer par un cas de référence |
+| Q121 | Réseaux de CTA hydrauliques (fiches 8.11 et 8.12, éq. 937 à 956) : température ambiante, génération unique, demande fusionnée, répartition et pertes récupérables | lecture du lot 1-emi, à confirmer par un cas de référence |
 | Q200 | Classement au bruit d'une baie : saisie facultative baie par baie (fiche 5.11, chapitre V partie I) — champs, libellés, données à saisir | tranchée, à confirmer par un cas de référence |
 | Q201 | Classement au bruit : tranche de distance d'une valeur égale à une borne (65 m dans « 0-65 m » et « 65-125 m ») | tranchée, à confirmer par un cas de référence |
 | Q202 | Classement au bruit : la classe déduite des baies tient lieu de saisie absente ; cohérence avec la saisie directe | tranchée, à confirmer par un cas de référence |

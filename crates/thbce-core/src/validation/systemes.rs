@@ -477,7 +477,7 @@ fn espace_tampon_connu(r: &mut RapportValidation, c: &str, et: Option<&str>, bat
 }
 
 /// Paramètres d'un réseau hydraulique du groupe (§8.7.2 et §8.8.2).
-fn valider_hydraulique_groupe(
+pub(super) fn valider_hydraulique_groupe(
     r: &mut RapportValidation,
     c: &str,
     h: &ReseauHydrauliqueGroupe,
