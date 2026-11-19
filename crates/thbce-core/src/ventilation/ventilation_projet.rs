@@ -241,6 +241,9 @@ pub struct Regime {
     /// Débits et ventilateurs d'une centrale à débit variable selon le profil à hystérésis
     /// (éq. 426 à 428, 449, 450, 466 et 467) : `Aut_adiab` et conditions du débit nominal.
     pub hysteresis: bool,
+    /// « irafnoc_activé(h) » : rafraîchissement par surventilation mécanique en service
+    /// (§6.12.3.3, éq. 766) ; ses débits et ses puissances remplacent ceux du régime.
+    pub rafnoc: bool,
 }
 
 /// Relevé de la consommation des auxiliaires d'une centrale double flux hors habitation
@@ -281,6 +284,9 @@ pub struct BoucheProjet {
     /// Position du débit dans le profil à hystérésis du rafraîchissement évaporatif d'une
     /// centrale à débit variable, de 0 (zone neutre) à 1 (mode actif) (éq. 427 et 449).
     pub x_adiab: f64,
+    /// Débits en rafraîchissement par surventilation mécanique (§6.12.3.4, éq. 758, 759 et
+    /// 775 : ni `Cdep` ni `Crdbnr`, fuites comprises) ; `None` sans surventilation.
+    pub debits_rafnoc: Option<DebitsBoucheProjet>,
 }
 
 /// « Autfr(j) » d'une centrale (§6.3.3.4.1) : saison effective de refroidissement si la
@@ -313,6 +319,10 @@ impl BoucheProjet {
     /// Débits de la bouche dans un régime de centrale : débits nominaux (mode actif) ou de
     /// zone neutre, selon l'occupation (fiche 6.2, éq. 406 à 418).
     pub fn debits_regime(&self, regime: Regime) -> DebitsBoucheProjet {
+        // Éq. (775) : débits du rafraîchissement par surventilation mécanique.
+        if let Some(d) = self.debits_rafnoc.filter(|_| regime.rafnoc) {
+            return d;
+        }
         match self.debits_ch {
             Some((occ, inocc)) if regime.nominal => {
                 if regime.i_vent {
@@ -364,6 +374,8 @@ pub struct EtatGroupeVentilation {
     pub clim: bool,
     /// Saison propre de refroidissement du groupe (« Autfr,pro », éq. 411).
     pub aut_fr_propre: bool,
+    /// « θop,fin^gr(h−1) », en °C, pour la surventilation mécanique (éq. 771 et 772).
+    pub theta_op_fin_c: f64,
 }
 
 /// Air soufflé dans un groupe par le système au pas de temps.
@@ -408,6 +420,8 @@ pub struct PasVentilation {
     pub w_aux_adiab_wh: f64,
     /// « Aut_adiab » du pas de temps (§6.3.3.4.2).
     pub adiab: bool,
+    /// « irafnoc_activé(h) » du pas de temps (§6.12.3.3, éq. 766).
+    pub rafnoc: bool,
 }
 
 /// Système de ventilation du projet d'une zone d'habitation, prêt pour le calcul.
@@ -454,6 +468,9 @@ pub struct VentilationProjet {
     pub omega_cons_kg_kg: f64,
     /// Rafraîchissement évaporatif (§6.3.3.4.2) ; `None` sans.
     pub adiabatique: Option<AdiabatiqueResolu>,
+    /// Rafraîchissement par surventilation mécanique (§6.12) et état de sa régulation ;
+    /// `None` sans.
+    pub surventilation: Option<SurventilationResolue>,
     /// « θi,fin(h−2) » de chaque groupe, pour le sens de variation du profil à hystérésis.
     theta_prec: Vec<f64>,
     /// Régime du pas de temps en cours.
@@ -943,7 +960,9 @@ impl VentilationProjet {
                 nominal: true,
                 adiab: false,
                 hysteresis: false,
+                rafnoc: false,
             },
+            surventilation,
         })
     }
 
@@ -952,6 +971,9 @@ impl VentilationProjet {
     /// zone neutre (§6.3.3.4.3.2), selon l'état des groupes desservis au pas précédent.
     pub fn preparer_pas(&mut self, i_vent: bool, groupes: &[EtatGroupeVentilation]) {
         let i_vent_h1 = self.regime.i_vent;
+        // §6.12.3.3 : surventilation mécanique régulée par
+        // [`VentilationProjet::reguler_surventilation`] avant ce régime.
+        let rafnoc = self.surventilation.is_some_and(|s| s.actif);
         // Note 1 du §6.3.3.1.4.1 : une relance ou un besoin d'un des groupes reliés suffit.
         let conditions = conditions_debit_nominal(
             i_vent,
@@ -960,15 +982,15 @@ impl VentilationProjet {
             groupes.iter().any(|g| g.besoin_ch),
             groupes.iter().any(|g| g.besoin_fr),
         ) || self.report_type_3();
-        // §6.3.3.4.2 : autorisation du rafraîchissement évaporatif (sans surventilation
-        // mécanique, hors de cette version) ; profil à hystérésis des centrales à débit
+        // §6.3.3.4.2 : autorisation du rafraîchissement évaporatif (`irafinocc_activé(h) = 0`) ;
+        // profil à hystérésis des centrales à débit
         // variable dans les conditions du débit nominal (éq. 426 à 428 et 449 à 450).
         let adiab = self.adiabatique.is_some_and(|a| {
             aut_adiab(
                 self.theta_moy_desservis_c(groupes),
                 a.theta_i_base_c,
                 aut_fr_centrale(groupes, |g| self.dessert(g)),
-                false,
+                rafnoc,
             )
         });
         let consignes = self.adiabatique.and_then(|a| a.consignes);
@@ -1001,7 +1023,38 @@ impl VentilationProjet {
                 .is_some_and(|c| debits_nominaux(c.type_cta, conditions)),
             adiab,
             hysteresis,
+            rafnoc,
         };
+    }
+
+    /// Régulation du rafraîchissement par surventilation mécanique au pas de temps `h`
+    /// (§6.12.3.2 et 6.12.3.3, éq. 762 à 774), à appeler avant
+    /// [`VentilationProjet::preparer_pas`] ; sans effet sans surventilation. `theta_an_c` :
+    /// « θan(h) », air neuf à la température extérieure (sans puits) ; `groupes` : état des
+    /// groupes au pas précédent, dont seuls ceux que le système dessert comptent (« gr ↔ s »).
+    pub fn reguler_surventilation(
+        &mut self,
+        h: usize,
+        theta_an_c: f64,
+        groupes: &[EtatGroupeVentilation],
+    ) {
+        let desservis: Vec<bool> = (0..groupes.len()).map(|g| self.dessert(g)).collect();
+        let Some(s) = &mut self.surventilation else {
+            return;
+        };
+        let theta_op = groupes
+            .iter()
+            .zip(&desservis)
+            .filter(|(_, d)| **d)
+            .map(|(g, _)| g.theta_op_fin_c);
+        // Éq. (762), (764) et (765) : « MIN Autfr_pro^gr(j) » des groupes desservis, saison
+        // propre sans égard pour `iclim` (lecture Q230 point 2).
+        let aut_fr_pro = groupes
+            .iter()
+            .zip(&desservis)
+            .filter(|(_, d)| **d)
+            .all(|(g, _)| g.aut_fr_propre);
+        s.reguler(h, theta_an_c, theta_op, aut_fr_pro);
     }
 
     /// « θi,moy » des groupes desservis par la centrale au pas précédent, pour l'autorisation
@@ -1055,6 +1108,7 @@ impl VentilationProjet {
                 .is_some_and(|c| debits_nominaux(c.type_cta, i_vent)),
             adiab: false,
             hysteresis: false,
+            rafnoc: false,
         }
     }
 
@@ -1062,6 +1116,11 @@ impl VentilationProjet {
     /// à (465) pour une centrale de traitement d'air, (458) et (459) ou puissances constantes
     /// sinon.
     fn p_vent_regime(&self, regime: Regime) -> (f64, f64) {
+        // Éq. (779) : puissances du rafraîchissement par surventilation mécanique (lecture Q230
+        // point 5 pour les centrales à débit variable).
+        if let Some(s) = self.surventilation.filter(|_| regime.rafnoc) {
+            return s.p_vent_w;
+        }
         match &self.cta {
             // Éq. (466) et (467) : centrale à débit variable en rafraîchissement évaporatif.
             Some(c) if regime.hysteresis => {
@@ -1136,7 +1195,7 @@ impl VentilationProjet {
     /// Débits d'une bouche au pas de temps : selon le régime de la centrale de traitement d'air,
     /// selon `Ivent` pour les autres systèmes.
     fn debits_pas(&self, b: &BoucheProjet, i_vent: bool) -> DebitsBoucheProjet {
-        if self.cta.is_some() {
+        if self.cta.is_some() || self.regime.rafnoc {
             b.debits_regime(self.regime)
         } else {
             b.debits_selon(i_vent)
@@ -1314,7 +1373,7 @@ impl VentilationProjet {
     ) -> Centrale {
         let est_cta = self.cta.is_some();
         let deb = |b: &BoucheProjet| {
-            if est_cta {
+            if est_cta || regime.rafnoc {
                 b.debits_regime(regime)
             } else {
                 b.debits_selon(i_vent)
@@ -1383,8 +1442,9 @@ impl VentilationProjet {
         // « Type_Humidification_Ete = 2 ») ; pas de recyclage (éq. 440), pas de bypass (éq. 493).
         let indirect = regime.adiab && self.adiabatique.is_some_and(|a| a.indirect);
         // Éq. (432) et (435) à (440).
+        // Éq. (777) : tout air neuf en surventilation mécanique.
         let qm_an = match &self.cta {
-            Some(_) if indirect => qm_sou,
+            Some(_) if indirect || regime.rafnoc => qm_sou,
             Some(c) => qm_air_neuf_kg_s(
                 qm_an_min,
                 qm_sou,
@@ -1452,10 +1512,13 @@ impl VentilationProjet {
                     None => (theta_an, 0.0),
                     Some(e) => {
                         // Éq. (492) à (495) : bypass, avec la température des groupes repris.
-                        let bypass = !indirect
-                            && e.bypass.as_ref().is_some_and(|by| {
-                                delta_bypass(by, saison_de_chauffage, theta_an, theta_i_moy)
-                            });
+                        // Éq. (776) : bypass forcé en surventilation mécanique, que l'échangeur
+                        // en ait un ou non (lecture Q230 point 4).
+                        let bypass = regime.rafnoc
+                            || !indirect
+                                && e.bypass.as_ref().is_some_and(|by| {
+                                    delta_bypass(by, saison_de_chauffage, theta_an, theta_i_moy)
+                                });
                         sorties.bypass = bypass;
                         // Éq. (496) à (505), avec les débits d'air neuf et d'air rejeté
                         // (éq. 499).
@@ -1475,6 +1538,11 @@ impl VentilationProjet {
                                 }
                             }
                         };
+                        // Éq. (778) : antigel coupé en surventilation mécanique (échangeur
+                        // en bypass, ε = 0).
+                        if regime.rafnoc {
+                            (theta_an, epsilon)
+                        } else {
                         // Éq. (506) à (511), avec θextr3.
                         let a = antigel(
                             epsilon,
@@ -1487,6 +1555,7 @@ impl VentilationProjet {
                         );
                         sorties.w_ag_wh = a.w_ag_wh;
                         (a.theta_souf_ag_c, a.epsilon)
+                        }
                     }
                 };
                 // Éq. (512) et (513).
@@ -1533,13 +1602,13 @@ impl VentilationProjet {
         let regime = self.regime;
         let est_cta = self.cta.is_some();
         let deb = |b: &BoucheProjet| {
-            if est_cta {
+            if est_cta || regime.rafnoc {
                 b.debits_regime(regime)
             } else {
                 b.debits_selon(i_vent)
             }
         };
-        let (p_vent_rep_w, p_vent_sou_w) = if est_cta {
+        let (p_vent_rep_w, p_vent_sou_w) = if est_cta || regime.rafnoc {
             self.p_vent_regime(regime)
         } else {
             self.p_vent_selon(i_vent)
@@ -1570,6 +1639,7 @@ impl VentilationProjet {
         );
         let mut sorties = centrale.sorties;
         sorties.adiab = regime.adiab;
+        sorties.rafnoc = regime.rafnoc;
         // Éq. (486) et (566) : pompe du rafraîchissement indirect.
         sorties.w_aux_adiab_wh = w_aux_pompe_wh(centrale.qm_eau_ete_kg_s);
         let w_ech_wh = centrale.w_ech_wh;
@@ -1586,8 +1656,11 @@ impl VentilationProjet {
             let omega_mel = centrale.omega_souf2_kg_kg;
             // Éq. (521) à (525) : préchauffage en saison de chauffage.
             let saison_de_chauffage = groupes.iter().any(|g| g.saison_de_chauffage);
+            // Éq. (778) : préchauffage, humidificateur d'hiver et prérefroidissement coupés en
+            // surventilation mécanique (`Tair_soufflé = Tsouf2`).
+            let traitement = !regime.rafnoc;
             let theta_pre = match &self.prechauffage {
-                Some(p) if saison_de_chauffage => {
+                Some(p) if saison_de_chauffage && traitement => {
                     let (t, q) = prechauffage(
                         theta_souf2,
                         theta_ext_c,
@@ -1602,7 +1675,7 @@ impl VentilationProjet {
             };
             // Éq. (526) à (537) : humidificateur d'hiver en saison de chauffage.
             let (theta_hr, omega_hr) = match self.humidificateur {
-                Some(t) => {
+                Some(t) if traitement => {
                     let x = humidification_hiver(
                         t,
                         saison_de_chauffage,
@@ -1616,11 +1689,11 @@ impl VentilationProjet {
                     sorties.w_aux_chaudhr_wh = w_aux_pompe_wh(x.qm_eau_kg_s);
                     (x.theta_souf3_c, x.omega_souf3_kg_kg)
                 }
-                None => (theta_pre, omega_mel),
+                _ => (theta_pre, omega_mel),
             };
             // Éq. (538) à (548) : prérefroidissement en saison de refroidissement (éq. 410).
             let (theta_souf3, omega_souf3) = match &self.prerefroidissement {
-                Some(p) if groupes.iter().any(|g| g.saison_de_refroidissement) => {
+                Some(p) if traitement && groupes.iter().any(|g| g.saison_de_refroidissement) => {
                     let r = prerefroidissement(
                         theta_hr,
                         omega_hr,
@@ -1718,6 +1791,7 @@ impl VentilationProjet {
             } else {
                 Regime {
                     nominal: false,
+                    rafnoc: regime.rafnoc,
                     ..self.regime_statique(i_vent)
                 }
             };
@@ -1730,6 +1804,16 @@ impl VentilationProjet {
     /// soufflés vus par le ventilateur dans le régime `r` (éq. 570 et 618), ceux de
     /// l'occupation si aucun débit n'est soufflé (lecture Q60).
     fn repartir_releve(&mut self, w_wh: f64, r: Regime) {
+        // Simple flux par extraction et basse pression : au prorata des débits spécifiques
+        // repris (éq. 642), par insufflation des débits spécifiques soufflés (éq. 644) ; double
+        // flux : des débits soufflés vus par le ventilateur (éq. 570).
+        let (circuit, cond) = match self.nature {
+            NatureSysteme::SimpleFluxExtraction | NatureSysteme::BassePression => {
+                (Isouf::Reprise, false)
+            }
+            NatureSysteme::SimpleFluxInsufflation => (Isouf::Soufflage, false),
+            _ => (Isouf::Soufflage, true),
+        };
         let parts = |r: Regime| -> Vec<f64> {
             (0..self.nb_groupes)
                 .map(|g| {
@@ -1737,8 +1821,14 @@ impl VentilationProjet {
                         .iter()
                         .filter(|b| b.groupe == g)
                         .map(|b| b.debits_regime(r))
-                        .filter(|d| d.isouf == Isouf::Soufflage)
-                        .map(|d| d.q_cond_m3_h())
+                        .filter(|d| d.isouf == circuit)
+                        .map(|d| {
+                            if cond {
+                                d.q_cond_m3_h()
+                            } else {
+                                d.q_spec_m3_h().abs()
+                            }
+                        })
                         .sum()
                 })
                 .collect()
@@ -1822,6 +1912,12 @@ impl VentilationProjet {
         else {
             return ModeActif::default();
         };
+        // §6.12.3.4, note : en surventilation mécanique, les débits ne sont pas recalculés pour
+        // un besoin de froid ; la centrale reste aux débits du rafraîchissement et la demande
+        // des émetteurs passe directement à la génération (lecture Q230 point 6, Q95).
+        if self.regime.rafnoc {
+            return ModeActif::default();
+        }
         // §6.3.3.1.5, figure 72 : saison effective de la centrale (éq. 409 et 410 : un groupe
         // suffit), demande des émetteurs ou report d'énergie de la génération de la batterie au
         // pas précédent (éq. 583, 584, 588 et 594 : `isreport^g(h−1) = 1`, lecture Q95 point 7).
