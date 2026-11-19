@@ -2443,6 +2443,13 @@ export type GradEcl = "aucune" | "manuelle" | "gradation_automatique" | "allumag
  * homogène en température et en humidité (§5.21.1).
  */
 export interface Groupe {
+  /**
+   * Identifiant de l'espace tampon par lequel transite l'air neuf fourni par les fenêtres du
+   * groupe pour l'aération (§6.7.3.1, « Iclimatique » : l'air soufflé est alors à la
+   * température de sortie de l'espace tampon, éq. 715). Absent : l'air vient directement de
+   * l'extérieur (éq. 716). Ne se saisit que pour un système d'aération (§6.7).
+   */
+  aeration_espace_tampon?: string | null;
   /** Baies vitrées (§5.8, 5.10). */
   baies?: Baie[];
   /**

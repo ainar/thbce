@@ -24,7 +24,8 @@ use crate::entree::{Catalogue, Zone};
 use crate::erreur::Erreur;
 use crate::scenarios::ScenariosZone;
 use crate::ventilation::debits_air_cep::{
-    flux_entrants, hall_fictif, trav_zone_conventionnel, EtatGroupe, Exterieur, ZoneAeraulique,
+    flux_aeration, flux_entrants, hall_fictif, trav_zone_conventionnel, EtatGroupe, Exterieur,
+    ZoneAeraulique,
 };
 use crate::ventilation::ven_bbio::{omega_air_souffle_kg_kg, t_air_souffle_c};
 use crate::ventilation::ventilation_projet::{
@@ -395,6 +396,20 @@ impl ZoneHoraire {
                 };
             }
         }
+        // §6.7.3.1, éq. (715) : en aération, l'air fourni par la fenêtre d'un groupe dont l'air
+        // neuf transite par un espace tampon est à la température de sortie de cet espace ;
+        // sinon à la température extérieure (éq. 716), déjà posée par le système.
+        let est_aeration = self.ventilation.as_ref().is_some_and(|v| v.est_aeration());
+        if est_aeration {
+            for (g, a) in self.groupes.iter().zip(self.air_souffle.iter_mut()) {
+                if let Some(e) = g
+                    .aeration_espace_tampon
+                    .and_then(|i| espaces_tampons.get(i))
+                {
+                    a.t_air_souffle_c = e.theta_et_c;
+                }
+            }
+        }
         self.etats.clear();
         self.etats
             .extend(self.groupes.iter().zip(&self.air_souffle).map(|(g, a)| {
@@ -409,6 +424,7 @@ impl ZoneHoraire {
                         .entree_air_espace_tampon
                         .and_then(|i| espaces_tampons.get(i))
                         .map(|e| e.theta_et_c),
+                    aeration: est_aeration,
                 }
             }));
         let bilan = self
@@ -442,6 +458,7 @@ impl ZoneHoraire {
                     continue;
                 }
                 let air = flux_entrants(b, &exterieur, &self.etats[g], hall);
+                groupe.aeration = flux_aeration(b, &self.etats[g]);
                 let apports = self.scenarios.apports_groupe(g, &scenarios);
                 let sorties = groupe
                     .pas_avec_espaces_tampons(&c, &apports, &air, espaces_tampons)
