@@ -348,7 +348,8 @@ fn validation_du_systeme_de_ventilation() {
     zone_mut(&mut p).ventilation = None;
     assert_eq!(chemins(&p), ["batiments[0].zones[0].ventilation"]);
     // Systèmes hors de la première version : refusés avec un message explicite.
-    for s in [SystemeVentilation::CentraleTraitementAir] {
+    {
+        let s = SystemeVentilation::CentraleTraitementAir;
         let mut p = projet();
         zone_mut(&mut p).ventilation.as_mut().unwrap().systeme = s;
         let e = valider(&p).erreurs;

@@ -16,8 +16,8 @@
 //! fictif (aucun groupe de circulation saisi). Les débits spécifiques sont ceux d'une ventilation
 //! mécanique à simple ou à double flux (éq. 154 à 157), ce qui couvre le système conventionnel
 //! du Bbio ; l'aération par les fenêtres (éq. 162 à 164, `EtatGroupe::aeration`, lot 1-ven5,
-//! `docs/questions/Q098.md`) ; la ventilation naturelle par conduit (éq. 165) viendra avec son
-//! système.
+//! `docs/questions/Q098.md`) ; la ventilation naturelle par conduit (éq. 165, lot 1-ven10) est
+//! calculée par son système.
 //! Lectures : `docs/questions/Q037.md`.
 
 use crate::bati::comportement_thermique::AirEntrant;

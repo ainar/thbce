@@ -17,6 +17,7 @@
 //!   puits, bypass.
 //! - [`puits_hydraulique`] : fiche 6.9 et prétraitement du §6.3.3.3.4, batterie eau/air,
 //!   capteur enterré à eau glycolée, pompe.
+//! - [`naturelle_hybride`] : fiche 6.6, ventilation naturelle et hybride par conduits.
 //! - [`surventilation_mecanique`] : fiche `C_VEN_Fonctions de rafraichissement par
 //!   surventilation mécanique` (§6.12), régulation et surfaces de conduit.
 //! - [`ventilation_projet`] : système de ventilation du projet d'une zone, pour les calculs
