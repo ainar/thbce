@@ -117,6 +117,12 @@ pub(super) fn valider_systemes_batiment(r: &mut RapportValidation, cb: &str, bat
         }
         for (ig, g) in zone.groupes.iter().enumerate() {
             valider_systemes_groupe(r, &format!("{cb}.zones[{iz}].groupes[{ig}]"), g, bat);
+            super::brasseurs_air::valider_brasseurs_groupe(
+                r,
+                &format!("{cb}.zones[{iz}].groupes[{ig}]"),
+                g,
+                zone.usage,
+            );
         }
     }
 }

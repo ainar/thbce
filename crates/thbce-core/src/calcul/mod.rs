@@ -39,6 +39,7 @@ use generation::{avertissements_generations, resultats_generations};
 // Restitution des résultats : un fichier par famille. Un lot ajoute la restitution de ses
 // résultats dans le fichier de sa famille, et son appel dans `calculer` ou `restituer_zone`.
 mod batiment;
+mod brasseurs_air;
 mod ecs;
 mod emission_distribution;
 mod enveloppe;

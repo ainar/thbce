@@ -22,6 +22,7 @@ use exigences::valider_exigences;
 mod acv;
 mod baies;
 mod batiment;
+mod brasseurs_air;
 mod bruit;
 mod collectif;
 mod eclairage;

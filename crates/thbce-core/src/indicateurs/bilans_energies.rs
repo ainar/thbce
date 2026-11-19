@@ -72,6 +72,10 @@ fn cumuls(b: &BatimentHoraire) -> [f64; NB_POSTES] {
     }
     for g in b.zones.iter().flat_map(|z| z.groupes.iter()) {
         c[poste::ECL] += g.cumuls.c_ecl_kwh.iter().sum::<f64>() * 1000.0;
+        // Fiche 8.32 : brasseurs d'air, comptés dans les auxiliaires de ventilation (§13.4).
+        if let Some(b) = &g.brasseurs {
+            c[poste::AUX_VENT] += b.cumuls.w_wh;
+        }
         if let Some(sy) = &g.systemes {
             c[poste::AUX_VENT] += sy.cumuls.w_vent_loc_wh;
             c[poste::AUX_DIST] += sy

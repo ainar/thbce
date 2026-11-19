@@ -100,9 +100,14 @@ pub(super) fn restituer_zone(
                     .as_ref()
                     .map(|v| ventilation_groupe(v, ig, sref_m2, &th_c.scenarios)),
                 systemes: resultats_systemes(gc),
+                brasseurs: super::brasseurs_air::resultats_brasseurs(d, gc),
                 consommations: None,
                 baies: resultats_baies(g, &projet.catalogue, zone.usage),
-                valeurs_par_defaut: defauts_groupe(g, &projet.catalogue),
+                valeurs_par_defaut: {
+                    let mut v = defauts_groupe(g, &projet.catalogue);
+                    v.extend(super::brasseurs_air::defauts_brasseurs(g, zone.usage));
+                    v
+                },
             }
         })
         .collect();

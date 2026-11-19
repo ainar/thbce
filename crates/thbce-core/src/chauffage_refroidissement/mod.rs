@@ -22,6 +22,7 @@
 //! - [`calculs_generation`] : matrices et cumuls des consommations (§8.29).
 
 pub mod bilan_hydrique;
+pub mod brasseurs_air;
 pub mod calculs_generation;
 pub mod chaudieres_gaz_fioul_bois;
 pub mod distribution;

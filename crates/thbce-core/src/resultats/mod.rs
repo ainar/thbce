@@ -16,6 +16,7 @@ use crate::entree::Id;
 pub mod acv;
 mod batiment;
 mod besoins_confort;
+mod brasseurs_air;
 mod consommations;
 mod deplacements;
 mod ecs;
@@ -27,6 +28,7 @@ mod ventilation;
 
 pub use batiment::*;
 pub use besoins_confort::*;
+pub use brasseurs_air::*;
 pub use consommations::*;
 pub use deplacements::*;
 pub use ecs::*;
@@ -335,6 +337,9 @@ impl Resultats {
                         for v in &mut c.dh_inc_c_fr_k_h {
                             *v = a(*v);
                         }
+                    }
+                    if let Some(b) = &mut g.brasseurs {
+                        b.arrondir();
                     }
                     if let Some(c) = &mut g.confort_ete {
                         c.dh_c_h = a(c.dh_c_h);

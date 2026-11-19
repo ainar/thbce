@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Maison d'exemple chauffée par la chaudière gaz de tests/cas/maison-chaudiere-gaz-ademe, non climatisée, avec des brasseurs d'air fixés au plafond (§8.32) : trois brasseurs de séjour en gestion manuelle (usage jour, 60 W et 12 000 m³/h certifiés) et deux brasseurs de chambres à thermostat (usage nuit, 40 W justifiés et 12 000 m³/h déclarés, écarts d'hystérésis 2, 3 et 0 K). L'effet sur la température opérative déplace la limite d'inconfort chaud du calcul de confort d'été (éq. 2547), la consommation est comptée dans les auxiliaires de ventilation et sa chaleur récupérée (§11.1). Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : ce n'est pas un cas de référence."
+meteo = "ademe"

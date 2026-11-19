@@ -1351,7 +1351,9 @@ impl SystemesBatiment {
                         .sum::<f64>()
                 };
                 let f = FluxVolumeChauffe {
-                    vent_loc_wh: s.phi_vent_loc_vc_wh,
+                    // « Φvent_loc_vc + Φth-BA-vc » (§11.1) : ventilateurs locaux et brasseurs d'air.
+                    vent_loc_wh: s.phi_vent_loc_vc_wh
+                        + g.brasseurs.as_ref().map_or(0.0, |b| b.derniere.phi_vc_wh),
                     aux_dgr_wh: s.distributions.iter().map(|d| d.phi_aux_vc_wh).sum(),
                     pertes_dgr_wh: s.distributions.iter().map(|d| d.phi_pertes_vc_wh).sum(),
                     pertes_dgr_ecs_wh: sy.ecs.iter().map(|e| e.sorties.phi_pertes_vc_wh).sum(),

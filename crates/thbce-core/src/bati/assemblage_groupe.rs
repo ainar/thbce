@@ -27,6 +27,9 @@ use thbce_data::protections_mobiles::parts_occupation;
 use crate::chauffage_refroidissement::bilan_hydrique::{
     bilan_th_c, omega_fin_bbio_kg_kg, BatterieFroide, EchangesHydriques,
 };
+use crate::chauffage_refroidissement::brasseurs_air::{
+    rat_us_defaut, BrasseursGroupe, ConditionsBrasseurs,
+};
 use crate::chauffage_refroidissement::emetteurs::ConditionsVentilateurs;
 use crate::chauffage_refroidissement::emission::{
     emission_avec_relance, Consignes, ConsignesRelance, EmetteurEquivalent,
@@ -568,6 +571,8 @@ pub struct GroupeHoraire {
     /// récupérées par le groupe au pas de temps, en W (§11.1, éq. 2364 et 2365, calculées au
     /// pas précédent).
     pub recup_w: (f64, f64),
+    /// Brasseurs d'air du groupe (§8.32) ; `None` sans brasseur ou en calcul du Bbio.
+    pub brasseurs: Option<BrasseursGroupe>,
     /// État du groupe.
     pub etat: EtatGroupeHoraire,
     /// Cumuls annuels.
@@ -761,6 +766,12 @@ impl GroupeHoraire {
                 .then(|| SystemesGroupe::nouveaux(groupe, usage, a_gr_m2, &Liens::default()))
                 .flatten(),
             recup_w: (0.0, 0.0),
+            brasseurs: (mode != ModeCalcul::ThB && !groupe.brasseurs_air.is_empty()).then(|| {
+                BrasseursGroupe::nouveau(&groupe.brasseurs_air, a_gr_m2, |b| {
+                    b.ratio_surface_occupee
+                        .unwrap_or_else(|| rat_us_defaut(usage, b.usage))
+                })
+            }),
             cumuls: CumulsGroupe::default(),
             ouvertures: Vec::with_capacity(nb_baies),
             entree_air_espace_tampon: groupe
@@ -1213,12 +1224,38 @@ impl GroupeHoraire {
         // §13.5.3.5 à 13.5.3.8 : confort d'été, sur la température opérative à la fin du pas
         // de temps (§13.5.2 : « θop(h), température opérative du groupe à la fin du pas de
         // temps h »).
+        // §8.32 : brasseurs d'air, sur les températures du pas de temps précédent ; en Th-D,
+        // leur effet déplace la zone de confort (éq. 2547, `Δθcorr_syst = Δθop^BA`).
+        let delta_theta_corr_syst = match &mut self.brasseurs {
+            Some(b) => {
+                let s = b.pas(&ConditionsBrasseurs {
+                    hleg: hleg(h),
+                    autorises: if mode == ModeCalcul::ThD {
+                        c.ext.is_conf_adapt
+                    } else {
+                        // Lecture Q120 point 2 : saison de refroidissement propre calculée sans
+                        // égard pour `iclim` (un groupe à brasseurs est non climatisé).
+                        self.etat.saisons.aut_fr_passif
+                    },
+                    i_occ_zone,
+                    theta_ii_fr_plus_c: c.theta_ii_fr_plus_c,
+                    delta_conf_adapt_c: delta_theta_conf_adapt,
+                    theta_op_fin_h1_c: theta_op_h1,
+                    theta_i_h1_c: theta_i_h1,
+                    theta_rm_h1_c: self.etat.fin.theta_rm_c,
+                    vol_m3: self.v_m3,
+                    hebergement: self.hebergement,
+                });
+                s.delta_theta_op_k
+            }
+            None => DELTA_THETA_CORR_SYST_C,
+        };
         let confort_ete = (mode == ModeCalcul::ThD).then(|| {
             PasConfortEte::nouveau(
                 c.ext.is_conf_adapt,
                 i_occ_zone,
                 e.fin.theta_op_c,
-                theta_op_conf_ch_corr_c(theta_op_conf_ch, DELTA_THETA_CORR_SYST_C),
+                theta_op_conf_ch_corr_c(theta_op_conf_ch, delta_theta_corr_syst),
             )
         });
         if let Some(p) = &confort_ete {

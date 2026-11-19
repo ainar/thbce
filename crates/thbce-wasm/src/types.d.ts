@@ -559,6 +559,41 @@ export interface BoucleSolaireSaisie {
 }
 
 /**
+ * Th-BCE 2020 §8.32 — type de brasseur d'air et ensemble des brasseurs de ce type installés
+ * dans un groupe.
+ */
+export interface BrasseurAir {
+  /** « mode_gestion_br_p » : gestion de la vitesse. */
+  gestion: GestionBrasseur;
+  /** Identifiant du type de brasseur, unique dans le groupe. */
+  id: string;
+  /** « Nbr_p » : nombre de brasseurs de ce type dans le groupe. */
+  nombre: number;
+  /** « type_Pelec_br_p_max » : caractère de la puissance maximale. */
+  p_elec_max_caractere: CaractereValeurBrasseur;
+  /** « Pelec_br_p_max » : puissance électrique individuelle maximale, en W. */
+  p_elec_max_w: number;
+  /** « type_Qvair_br_p_max » : caractère du débit maximal. */
+  q_v_max_caractere: CaractereValeurBrasseur;
+  /** « Qvair_br_p_max » : débit volumique individuel maximal, en m³/h. */
+  q_v_max_m3_h: number;
+  /**
+   * « Ratbr_p » : part de la surface utile du groupe, au titre des pièces cloisonnées
+   * couvertes par les brasseurs de ce type (0 à 1) ; ramenée à `15·Nbr_p/Agr` au plus
+   * (une surface de 15 m² par brasseur, éq. de §8.32.3.2.3).
+   */
+  ratio_surface_brassee: number;
+  /**
+   * « RatUs_BA_p » : part de la surface utile occupée pendant l'usage jour ou nuit du type.
+   * Absent : valeur par défaut du tableau 257 selon l'usage de la zone (1 pour un usage
+   * « jour et nuit »), signalée.
+   */
+  ratio_surface_occupee?: number | null;
+  /** « Usp » : usage jour, nuit, ou jour et nuit. */
+  usage: UsageBrasseur;
+}
+
+/**
  * Détermination détaillée de la classe d'exposition au bruit d'une baie (fiche d'application
  * 5.11 ; annexe de l'article R. 172-4, chapitre V, partie I, point 3). **Facultative** : elle
  * remplace la saisie directe de `expo_br`.
@@ -621,6 +656,12 @@ export interface CapteursSolaires {
   /** « A » : superficie d'entrée des capteurs d'un chauffe-eau, en m². */
   surface_m2: number;
 }
+
+/**
+ * Caractère de la valeur d'un paramètre de brasseur (§8.32.3.2.1) : le texte corrige la valeur
+ * saisie selon qu'elle est certifiée, justifiée ou déclarée.
+ */
+export type CaractereValeurBrasseur = "certifiee" | "justifiee" | "declaree";
 
 /** Composants décrits une fois par leurs paramètres intrinsèques. */
 export interface Catalogue {
@@ -2293,6 +2334,13 @@ export interface Generation {
  */
 export type GestEcl = "permanent" | "interrupteur_manuel" | "interrupteur_et_horloge" | "marche_et_arret_automatiques" | "marche_manuelle_arret_automatique";
 
+/** « mode_gestion_br_p » (§8.32.3.2.4). */
+export type GestionBrasseur = "manuelle" | {
+  automatique_thermostat: ParametresHysteresisBrasseur;
+} | {
+  automatique: ParametresHysteresisBrasseurAutomatique;
+};
+
 /** Gestion des eaux pluviales (§4.4.1.1.4). */
 export type GestionEauxPluviales = "infiltration" | "separatif" | "unitaire";
 
@@ -2335,6 +2383,12 @@ export interface Groupe {
    * de ventilation conventionnel (§6.1 et §6.2.3.1.3).
    */
   bouches_conduits?: BoucheConduit[];
+  /**
+   * Types de brasseurs d'air fixés au plafond du groupe (§8.32), un élément par type. Réservés
+   * aux groupes non climatisés (`iclim` faux ou absent) ; modélisés en Th-D (effet sur la
+   * zone de confort, éq. 2547) et en Th-C (consommation, pertes récupérables).
+   */
+  brasseurs_air?: BrasseurAir[];
   /** « Categorie_CE1_CE2 » (§13.1.2). */
   categorie_ce1_ce2: CategorieCe;
   /**
@@ -3122,6 +3176,37 @@ export interface ParametresExigencesAcv {
    * (`Miagrément_ext` des logements collectifs) ; 0 si absente.
    */
   s_agrement_ext_m2?: number;
+}
+
+/**
+ * Écarts de l'hystérésis d'une gestion automatique avec thermostats (« Δθop_1_br_p_th_aut »,
+ * « Δθop_2_br_p_th_aut », « Δθop_3_br_p_th_aut »), en K.
+ */
+export interface ParametresHysteresisBrasseur {
+  /** « Δθop_1 » : écart entre la température d'arrêt et la température de déclenchement, en K. */
+  delta_theta_op_1_k: number;
+  /**
+   * « Δθop_2 » : écart entre le passage à la vitesse intermédiaire et le passage à la vitesse
+   * maximale, en K.
+   */
+  delta_theta_op_2_k: number;
+  /**
+   * « Δθop_3 » : écart de la température de déclenchement à la consigne de refroidissement
+   * corrigée, en K.
+   */
+  delta_theta_op_3_k: number;
+}
+
+/** Paramètres d'une gestion toute automatique (éq. 1650). */
+export interface ParametresHysteresisBrasseurAutomatique {
+  /** « Δθop_1_br_p_aut », en K. */
+  delta_theta_op_1_k: number;
+  /** « Δθop_2_br_p_aut », en K. */
+  delta_theta_op_2_k: number;
+  /** « Δθop_3_br_p_aut », en K ; 0 par défaut (§8.32.3.2.4.3), valeur signalée. */
+  delta_theta_op_3_k?: number | null;
+  /** « θop_dec_br_p_aut » : température opérative de déclenchement, en °C. */
+  theta_op_dec_c: number;
 }
 
 /** Parcelle (§4.6, eau en calcul simplifié §4.6.2). */
@@ -4256,6 +4341,28 @@ export interface ResultatsBoucleSolaire {
   w_pompe_kwh: number;
 }
 
+/** Brasseurs d'air d'un groupe : consommation du calcul Th-C et effet du calcul Th-D. */
+export interface ResultatsBrasseurs {
+  /**
+   * « Δθop^BA » maximal du calcul Th-D : plus fort déplacement de la limite d'inconfort chaud
+   * dû aux brasseurs (éq. 2547), en K.
+   */
+  delta_theta_op_max_k: number;
+  /** Nombre d'heures de fonctionnement d'au moins un brasseur dans le calcul des consommations. */
+  nbh_fonctionnement: number;
+  /**
+   * Nombre d'heures de fonctionnement d'au moins un brasseur dans le calcul du confort d'été
+   * (Th-D, période de confort adaptatif).
+   */
+  nbh_fonctionnement_th_d: number;
+  /**
+   * « Wabs_BA » : consommation électrique annuelle des brasseurs du groupe (calcul des
+   * consommations, saison de refroidissement propre), en kWh d'énergie finale (éq. 1665).
+   * Comptée dans les auxiliaires de ventilation (§13.4).
+   */
+  w_abs_kwh: number;
+}
+
 /** Grandeurs du climat extérieur propres au projet (Th-BCE 2020 §3.1.3). */
 export interface ResultatsClimat {
   /** « altcorr » : altitude conventionnelle du site, en m. */
@@ -4662,6 +4769,8 @@ export interface ResultatsGroupe {
   baies: ResultatsBaie[];
   /** Besoins mensuels et annuels et Bbio du groupe (§13.1, « Sortie_Groupe_B »). */
   bbio: ResultatsBbio | null;
+  /** Brasseurs d'air du groupe (§8.32) ; absent sans brasseur. */
+  brasseurs?: ResultatsBrasseurs | null;
   /** Indicateurs de confort du groupe en calcul du Bbio (§4.5), en évolution libre. */
   confort_bbio: ResultatsConfort | null;
   /** Confort d'été du groupe, issu du calcul Th-D (§13.5). */
@@ -5534,6 +5643,9 @@ export interface UniteRecuperateur {
    */
   p_relevage_nominale_w?: number | null;
 }
+
+/** « Usp » : usage « jour » ou « nuit » d'un type de brasseur (§8.32.3.2.2). */
+export type UsageBrasseur = "nuit" | "jour" | "jour_et_nuit";
 
 /**
  * Th-BCE 2020 §4.1.3, tableau 4 — usages d'une zone.

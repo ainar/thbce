@@ -53,6 +53,7 @@ Point d'entrée unique : `calcul/mod.rs::calculer` (projet, météo, options →
 6. Éclairage (§7.1) : `eclairage/mod.rs::eclairage_habitation` en habitation, `eclairage/mod.rs::eclairage_locaux` dans les autres usages (locaux du groupe, conventionnels en Th-B, du projet sinon).
 7. Air entrant équivalent, sollicitations, inerties séquentielle et annuelle en Th-D (`bati/inerties_longues.rs`), puis matrice de comportement thermique (`bati/comportement_thermique.rs::GroupeThermique::matrice`, §5.21) ; les pertes récupérées du pas précédent y entrent (§11.1).
 8. Indicateurs de confort en évolution libre (§4.5) : `confort/indicateurs_confort.rs::indicateurs`.
+   Brasseurs d'air (§8.32, lot 1-emi, Th-D et Th-C) : `chauffage_refroidissement/brasseurs_air.rs::BrasseursGroupe::pas`, appelé à la fin du pas pour le groupe ; en Th-D, son effet `Δθop^BA` déplace la limite d'inconfort chaud (éq. 2547), en Th-C sa consommation va aux auxiliaires de ventilation (`indicateurs/bilans_energies.rs`) et sa chaleur aux pertes récupérables (§11.1).
 9. Relances (§8.5, Th-C seulement) : `chauffage_refroidissement/relances.rs`.
 10. Émission (§8.1) : `chauffage_refroidissement/emission.rs::emission_avec_relance` ; émetteur équivalent conventionnel en Th-B, émetteurs du projet en Th-C et Th-D (`chauffage_refroidissement/emetteurs.rs`).
 11. Énergies requises par émetteur et ventilateurs locaux (§8.1.3.7 et 8.1.3.8) : `chauffage_refroidissement/systemes_groupe.rs::SystemesGroupe::emettre`.
