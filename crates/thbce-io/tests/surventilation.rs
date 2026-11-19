@@ -71,7 +71,11 @@ fn cep(r: &Resultats) -> f64 {
 }
 
 fn c_aux(r: &Resultats) -> f64 {
-    r.batiments[0].zones[0].ventilation.as_ref().unwrap().c_aux_vent_kwh
+    r.batiments[0].zones[0]
+        .ventilation
+        .as_ref()
+        .unwrap()
+        .c_aux_vent_kwh
 }
 
 fn nbh_rafnoc(r: &Resultats) -> (u32, u32) {
@@ -119,7 +123,11 @@ fn verifier_maison(m: &MeteoProjet, titre: &str) {
     let (nc, nd) = nbh_rafnoc(&r);
     assert!(nc > 0 && nd > 0, "{titre}");
     let attendu = (35.0 * (8760 - nc) as f64 + 160.0 * nc as f64) / 1000.0;
-    assert!((c_aux(&r) - attendu).abs() < 1e-6, "{titre} : {} ≠ {attendu}", c_aux(&r));
+    assert!(
+        (c_aux(&r) - attendu).abs() < 1e-6,
+        "{titre} : {} ≠ {attendu}",
+        c_aux(&r)
+    );
     // Air neuf frais la nuit : moins d'inconfort d'été.
     assert!(dh(&r) < dh(&reference), "{titre}");
     println!(
@@ -203,8 +211,11 @@ fn verifier_dav(m: &MeteoProjet, titre: &str) {
         delta_theta_lim_k: 2.0,
         theta_ext_c: 12.0,
     };
-    if let SystemeVentilation::Cta(c) =
-        &mut p.batiments[0].zones[0].ventilation.as_mut().unwrap().systeme
+    if let SystemeVentilation::Cta(c) = &mut p.batiments[0].zones[0]
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .systeme
     {
         c.rafraichissement_surventilation = Some(SurventilationMecanique {
             type_surventilation: TypeSurventilation::FreecoolingAnnee,
@@ -242,8 +253,11 @@ fn verifier_simple_flux(m: &MeteoProjet, titre: &str) {
         delta_theta_lim_k: 2.0,
         theta_ext_c: 12.0,
     };
-    if let SystemeVentilation::SimpleFluxExtraction(s) =
-        &mut p.batiments[0].zones[0].ventilation.as_mut().unwrap().systeme
+    if let SystemeVentilation::SimpleFluxExtraction(s) = &mut p.batiments[0].zones[0]
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .systeme
     {
         s.rafraichissement_surventilation = Some(SurventilationMecanique {
             type_surventilation: TypeSurventilation::FreecoolingEte,
@@ -318,7 +332,8 @@ fn surventilation_validation() {
     };
     let base = cas("maison-surventilation-ademe");
     assert!(chemins(&base).is_empty());
-    let cs = "batiments[0].zones[0].ventilation.systeme.double_flux.rafraichissement_surventilation";
+    let cs =
+        "batiments[0].zones[0].ventilation.systeme.double_flux.rafraichissement_surventilation";
     // Débit de bouche manquant.
     let mut p = base.clone();
     p.batiments[0].zones[0].groupes[0].bouches_conduits[0].q_spec_rafnoc_m3_h = None;
@@ -336,7 +351,11 @@ fn surventilation_validation() {
         let e = &mut surventilation_mut(&mut p).ete;
         e.h_leg_deb_h = Some(deb);
         e.h_leg_fin_h = Some(fin);
-        assert_eq!(chemins(&p), [format!("{cs}.ete.h_leg_deb_h")], "{deb} {fin}");
+        assert_eq!(
+            chemins(&p),
+            [format!("{cs}.ete.h_leg_deb_h")],
+            "{deb} {fin}"
+        );
     }
     // Nocturne sans période.
     let mut p = base.clone();
@@ -348,8 +367,11 @@ fn surventilation_validation() {
     assert_eq!(chemins(&p), [format!("{cs}.ete.theta_ext_c")]);
     // Forme de compatibilité sans description : erreur de saisie.
     let mut p = cas("maison-double-flux-ademe");
-    if let SystemeVentilation::DoubleFlux(d) =
-        &mut p.batiments[0].zones[0].ventilation.as_mut().unwrap().systeme
+    if let SystemeVentilation::DoubleFlux(d) = &mut p.batiments[0].zones[0]
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .systeme
     {
         d.surventilation_mecanique = Some(true);
     }

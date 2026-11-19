@@ -54,11 +54,11 @@ use super::humidification::{
     ETA_HUM_CONV,
 };
 use super::mecanique_basse_pression;
-use super::surventilation_mecanique::{a_cond_rafnoc_m2, SurventilationResolue};
 use super::mecanique_sf::{
     dugd_equ_h, h_cond_ext_w_k, p_vent_groupe_w, p_vent_residentiel_w, qm_kg_s, rho_kg_m3,
     t_apres_conduit_c, t_apres_ventilateur_c, t_lnc_c, theta_i_cond_c, C_PA_J_KG_K,
 };
+use super::surventilation_mecanique::{a_cond_rafnoc_m2, SurventilationResolue};
 
 /// Nature du système, résolue pour le calcul.
 #[derive(Debug, Clone, PartialEq)]
@@ -607,7 +607,10 @@ impl VentilationProjet {
         };
         let aeration = nature == NatureSysteme::Aeration;
         // §6.12 : rafraîchissement par surventilation mécanique.
-        let surventilation = v.systeme.surventilation().map(SurventilationResolue::nouvelle);
+        let surventilation = v
+            .systeme
+            .surventilation()
+            .map(SurventilationResolue::nouvelle);
         let surv = surventilation.is_some();
 
         // §6.2.3.4, tableau 59 : coefficient de fuite.
@@ -1564,18 +1567,18 @@ impl VentilationProjet {
                         if regime.rafnoc {
                             (theta_an, epsilon)
                         } else {
-                        // Éq. (506) à (511), avec θextr3.
-                        let a = antigel(
-                            epsilon,
-                            e.antigel,
-                            saison_de_chauffage,
-                            theta_an,
-                            t_extr3,
-                            e.theta_s_ech_rep_lim_c,
-                            qm_an,
-                        );
-                        sorties.w_ag_wh = a.w_ag_wh;
-                        (a.theta_souf_ag_c, a.epsilon)
+                            // Éq. (506) à (511), avec θextr3.
+                            let a = antigel(
+                                epsilon,
+                                e.antigel,
+                                saison_de_chauffage,
+                                theta_an,
+                                t_extr3,
+                                e.theta_s_ech_rep_lim_c,
+                                qm_an,
+                            );
+                            sorties.w_ag_wh = a.w_ag_wh;
+                            (a.theta_souf_ag_c, a.epsilon)
                         }
                     }
                 };

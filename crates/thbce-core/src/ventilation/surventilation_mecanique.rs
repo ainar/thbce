@@ -148,7 +148,7 @@ pub fn i_comm(
 /// Heure de la période nuit (21 h à 8 h) admise pour le début ou la fin du rafraîchissement
 /// nocturne (éq. 767).
 pub fn heure_de_nuit(h: u8) -> bool {
-    h >= 21 && h <= 23 || h <= 8
+    (21..=23).contains(&h) || h <= 8
 }
 
 /// Test de cohérence de la période nocturne en début de simulation (éq. 767) : `Some(message)`
@@ -223,8 +223,8 @@ mod tests {
     #[test]
     fn surface_de_conduit() {
         // Éq. (760) : MAX(90 ; 300) × 0,05 = 15 m².
-        assert_eq!(a_cond_rafnoc_m2(-90.0, 300.0), 15.0);
-        assert_eq!(a_cond_rafnoc_m2(400.0, 300.0), 20.0);
+        assert!((a_cond_rafnoc_m2(-90.0, 300.0) - 15.0).abs() < 1e-12);
+        assert!((a_cond_rafnoc_m2(400.0, 300.0) - 20.0).abs() < 1e-12);
     }
 
     #[test]

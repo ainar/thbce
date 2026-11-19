@@ -490,7 +490,8 @@ pub(super) fn valider_ventilation(
                      2020 §6.3.3.4.9.1)",
                 );
             }
-            if df.surventilation_mecanique == Some(true) && df.rafraichissement_surventilation.is_none()
+            if df.surventilation_mecanique == Some(true)
+                && df.rafraichissement_surventilation.is_none()
             {
                 r.erreur(
                     format!("{cd}.surventilation_mecanique"),
