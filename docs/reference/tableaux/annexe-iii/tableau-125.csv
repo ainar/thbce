@@ -1,0 +1,6 @@
+# tableau 125, page 715, fiche 8.20, titre Valeur du coefficient PCSI en fonction du type de combustible
+# remarque : légende imprimée sous le tableau, mais le tableau 125 (corps) ne contient que 3 lignes (pas de ligne Bois, contrairement au tableau 116 de la fiche 8.19).
+Combustible;Id_engen;PCSI
+Gaz naturel;10;1,11
+GPL (Butane et Propane);10;1,09
+FOD;20;1,07

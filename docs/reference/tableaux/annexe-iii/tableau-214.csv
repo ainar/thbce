@@ -1,0 +1,6 @@
+# tableau 214, page 807, fiche 8.23, refroidisseurs eau de nappe (ou captage) / eau, coefficients Cnn pour l'EER, source: auto+image
+Températures aval;Températures amont
+Cnnav_EER(20.5, 9.5) = 1.15;Cnnam_EER(17.5, 12.5) = 0.90
+Cnnav_EER(15, 9.5) = 1.075;Cnnam_EER(7.5, 12.5) = 1.10
+Cnnav_EER(26, 9.5) = 1.225;Cnnam_EER(22.5, 12.5) = 0.80
+Cnnav_EER(4, 9.5) = 0.9;

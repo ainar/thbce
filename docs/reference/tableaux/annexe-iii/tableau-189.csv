@@ -1,0 +1,9 @@
+# tableau 189, pages 790-790, fiche 8.23, ordre de saisie des températures aval et amont des PAC sol / eau (ECS)
+Températures aval : M_θ_Aval_Ecs;Températures amont : M_θ_Amont_Ecs
+1 : 45°C;1 : 4°C
+2 : 45°C, 35 °C,;"2 : 1,5°C ; 4°C"
+3 : 45°C, 35 °C, 25 °C,;"3 : -4°C ; 1,5°C ; 4°C"
+4 : 45°C, 35 °C, 25 °C, 55 °C,;"4 : -4°C ; 1,5°C ; 4°C ; 6,5°C"
+5 : 45°C, 35 °C, 25 °C, 55 °C, 15 °C,;
+6 : 45°C, 35 °C, 25 °C, 55 °C, 15 °C, 65 °C,;
+7 : 45°C, 35 °C, 25 °C, 55 °C, 15 °C, 65 °C, 5 °C;

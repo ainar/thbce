@@ -1,0 +1,10 @@
+# tableau 157, page 769, fiche 8.23, titre coefficients de correction en fonction des températures aux sources. Côté aval = Températures aval, côté amont = Températures amont.
+Côté;Coefficient;Valeur
+aval;Cnnav_COP(-7,7);1.20
+aval;Cnnav_COP(2,7);1.1
+aval;Cnnav_COP(20,7);0.80
+aval;Cnnav_COP(-15,7);1.30
+amont;Cnnam_COP(15, 20);0.90
+amont;Cnnam_COP(25, 20);1.10
+amont;Cnnam_COP(10, 20);0.80
+amont;Cnnam_COP(5, 20);0.70

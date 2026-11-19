@@ -1,0 +1,7 @@
+# tableau 195, pages 794, fiche 8.23, ordre de saisie des températures aval et amont des refroidisseurs air extérieur/ eau
+Températures aval : M_θ_Aval_Fr;Températures amont : M_θ_Amont_Fr
+1 : 9.5 °C;1 : 35 °C
+2 : 9.5°C, 20.5°C,;2 : 25 °C, 35 °C
+3 : 9.5°C, 15 °C, 20.5°C;3 : 15 °C, 25 °C, 35 °C
+4 : 9.5°C, 15 °C, 20.5°C, 26 °C;4 : 5 °C, 15 °C, 25 °C, 35 °C
+5 : 4°C, 9.5°C, 15 °C, 20.5°C, 26 °C;5 : 5 °C, 15 °C, 25 °C, 35 °C, 45 °C

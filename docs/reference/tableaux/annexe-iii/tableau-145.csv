@@ -1,0 +1,11 @@
+# tableau 145, page 759, fiche 8.23, titre Generateur_Thermodynamique_Elec_NonReversible, technologies disponibles. Deux colonnes imprimées côte à côte ; lignes alignées sur l'ordre d'impression (cellules vides en fin de colonne Fr).
+Sys_thermo_Ch (mode chauffage seul);Sys_thermo_Fr (mode refroidissement seul)
+1 : PAC air extérieur/ eau;1 : refroidisseur air extérieur / eau
+2 : PAC air extérieur / air recyclé;2 : refroidisseur air extérieur / air recyclé
+3 : PAC air extrait / air neuf;3 : refroidisseur air extrait / air neuf
+4 : PAC eau de nappe / eau;4 : refroidisseur eau / eau et eau glycolée / eau
+5 : PAC eau glycolée / eau;5 : refroidisseur eau / air et eau de boucle / air recyclé
+6 : PAC eau de nappe / air recyclé;6 : refroidisseur eau de nappe / air recyclé
+7 : PAC eau de boucle / air recyclé;7 : refroidisseur eau de nappe / eau
+8 : PAC sol/ eau;
+9 : PAC sol/sol;

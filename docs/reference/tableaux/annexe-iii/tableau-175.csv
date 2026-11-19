@@ -1,0 +1,6 @@
+# tableau 175, pages 780-780, fiche 8.23, PAC sol /sol (chauffage), coefficients Cnn pour le COP
+Côté;Coefficient;Valeur
+Températures aval;Sans objet;
+Températures amont;"Cnnam_COP(-1;5 ; 4)";0,95
+Températures amont;"Cnnam_COP(-4 ; 4)";0,8
+Températures amont;"Cnnam_COP(6,5 ; 4)";1,07

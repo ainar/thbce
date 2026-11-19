@@ -1,0 +1,15 @@
+# tableau 265, pages 1017-1018, fiche 8.33, Valeurs des paramètres liés à l'émetteur de chaud
+Paramètres;Valeurs
+Is_emetteur_chaud;1 : Oui
+Is_emetteur_froid;0 : Non
+Carac_Haut_Plafond;"Utilisation du paramètre Carac_Haut_Plafond de l’émetteur chaud du groupe donc les possibilités sont : 0 : Local de moins de 4m sous plafond ; 1 : Local de 4 à 6m sous plafond ; 2 : Local de 6 à 8m sous plafond ; 3 : Local de plus de 8m sous plafond"
+Typologie_Emetteur_Chaud (-);1 : Soufflage d’air chaud
+Classe_Variation_Spatiale_Chaud (-);1 : Classe C
+δθvs_ch em (°C);"Plusieurs valeurs possibles selon la valeur du paramètre « Carac_Haut_Plafond » ; Si Carac_Haut_Plafond = 0 : δθvs_ch em = 0 ; Si Carac_Haut_Plafond = 1 : δθvs_ch em = 0.6 ; Si Carac_Haut_Plafond = 2 : δθvs_ch em = 1.7 ; Si Carac_Haut_Plafond = 3 : δθvs_ch em = 2.8"
+Couple_Regulateur_Emetteur (-);0 : Couple régulateur/émetteur ne permettant pas un arrêt total de l’émission
+Statut_Variation_Temporelle_Chaud (-);0 : Valeur certifiée
+δθvt_ch em (°C);1.8 (valeur par défaut issue de la méthode Th-BCE)
+detection_presence (-);0 : Autres cas
+Rat_s_ch (-);1
+Rat_t_ch (-);1
+Gest_vcv (-);0 : Pas de ventilateurs

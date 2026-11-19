@@ -1,0 +1,6 @@
+# tableau 149, page 761, fiche 8.23, titre Source_Ballon_Base_Thermodynamique_Elec_TripleService, liste des technologies disponibles
+Sys_thermo_ts;Valeur de Sys_thermo_Ch attribuée;Valeur de Sys_thermo_Ecs attribuée;Valeur de Sys_thermo_Fr attribuée
+1 : Générateur air extérieur/ eau;1 : PAC air extérieur/ eau;1 : PAC air extérieur / eau;1 : refroidisseur air extérieur / eau
+2: Générateur eau de nappe / eau;4 : PAC eau de nappe / eau;4 : PAC eau de nappe / eau;7 : refroidisseur eau de nappe / eau
+3 : Générateur eau glycolée / eau;5 : PAC eau glycolée / eau;6 : PAC eau glycolée / eau;4 : refroidisseur eau / eau et eau glycolée / eau
+5 : Générateur air extérieur/ air avec production ECS;2 : PAC air extérieur / air recyclé;1 : PAC air extérieur / eau;2 : refroidisseur air extérieur / air recyclé

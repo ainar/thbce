@@ -1,0 +1,12 @@
+# tableau 239, pages 905-906, fiche 8.25, Valeurs de Cnnam en refroidissement des PAC MG air/eau, source: image
+# remarque : table en deux blocs (GUE;Pabs puis Paux;ηth,ecs), chacun répété sur 4 lignes ; le dernier bloc se poursuit en p906 (ligne 5,15)
+GUE;Pabs
+Cnnam_GUE(45, 35) = 0,71;Cnnam_Pabs(45, 35) = 1,15
+Cnnam_GUE(25, 35) = 1,18;Cnnam_Pabs(25, 35) = 0,86
+Cnnam_GUE(15, 25) = 0,82;Cnnam_Pabs(15, 25) = 0,88
+Cnnam_GUE(5, 15) = 0,78;Cnnam_Pabs(5, 15) = 0,9
+Paux;ηth,ecs
+Cnnam_Paux(45, 35) = 1;Cnnam_ηth,ecs(45, 35) = 1
+Cnnam_Paux(25, 35) = 0,92;Cnnam_ηth,ecs(25, 35) = 1
+Cnnam_Paux(15, 25) = 0,61;Cnnam_ηth,ecs(15, 25) = 1
+Cnnam_Paux(5, 15) = 1;Cnnam_ηth,ecs(5, 15) = 1

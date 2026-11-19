@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Hôtel en deux zones du cas `hotel-pac-ademe` (parties nuit et jour de 900 et 300 m²), avec une installation photovoltaïque de 60 modules de 375 Wc (22,5 kWc, sud, 30°) rattachée au bâtiment, et sorties par zone et par groupe de la fiche 13.2 demandées (`sorties_detaillees = true`) : énergie importée et consommée par poste, production attribuée aux zones, besoins, Cef, Cep, Cep,nr. Météo ouverte ADEME (Tours, H2b). Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : valeurs du moteur au lot 1-sor3 (19 novembre 2026), figées pour détecter les régressions ; ce n'est pas un cas de référence. Recoupements : somme des zones = bâtiment (test `sorties_detaillees` de crates/thbce-io/tests/sorties_detaillees.rs)."
+meteo = "ademe"
+sorties_detaillees = true
+
+[tolerances]
+defaut = 0.005

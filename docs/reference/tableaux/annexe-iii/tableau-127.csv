@@ -1,0 +1,7 @@
+# tableau 127, page 717, fiche 8.20, titre Pertes à charge nulle par défaut
+# remarque : tableau sans en-tête de colonnes imprimé ; colonnes valeur_1 et valeur_2 nommées ici par ordre d'impression. Groupe « Autres générateurs » répété sur chaque ligne.
+groupe;libellé;valeur_1;valeur_2
+Autres générateurs;Générateurs d'air chaud;1,75;-0,55
+Autres générateurs;Accumulateurs gaz appareils de plus de 200l avec temps démontée en température <45 mn;1,7;0
+Autres générateurs;Autres accumulateurs gaz;1,5;0
+Autres générateurs;Chauffe-eaux gaz;1,5;0

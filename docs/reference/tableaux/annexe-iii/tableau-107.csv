@@ -1,0 +1,33 @@
+# tableau 107, page 629 (corps p. 627-629), fiche 8.14, titre Nomenclature du modèle
+# remarque : les sections Entrées et Sorties n'ont pas de colonnes Min/Max/Conv imprimées ; colonnes laissées vides. Colonne groupe = libellé vertical imprimé.
+section;groupe;nom;description;unite;min;max;conv
+Entrées du composant;Réseaux intergroupes CH/FR et ECS;θ_max_ch^dp (ou θ_max_ch^dCTA);Température maximale de la distribution intergroupe en chauffage.;°C;;;
+Entrées du composant;Réseaux intergroupes CH/FR et ECS;θ_min_fr^dp (ou θ_min_fr^dCTA);Température minimale de la distribution intergroupe en refroidissement;°C;;;
+Entrées du composant;Réseaux intergroupes CH/FR et ECS;Q_sys_ch^dp(h) (ou Q_sys_ch^dCTA(h));Besoins horaires en chauffage augmentés des pertes totales de distribution pour les différents réseaux intergroupes de chauffage;Wh;;;
+Entrées du composant;Réseaux intergroupes CH/FR et ECS;Q_sys_fr^dp(h) (ou Q_sys_fr^dCTA(h));Besoins horaires en chauffage augmentés des pertes totales de distribution pour les différents réseaux intergroupes.;Wh;;;
+Entrées du composant;Réseaux intergroupes CH/FR et ECS;Q_w_e^dp-e(h);Besoins horaires en ECS augmentés des pertes totales de distribution pour les différents réseaux intergroupes ECS.;Wh;;;
+Entrées du composant;Réseaux intergroupes CH/FR et ECS;W_rechauf-e^dp-e(h);Consommation électrique de l'éventuel réchauffeur de la distribution intergroupe bouclée d'ECS, en énergie finale;Wh;;;
+Entrées du composant;Réseaux intergroupes CH/FR et ECS;θ_moy^dp(h) θ_moy^dCTA(h);Températures moyennes des différents réseaux de chauffage et de refroidissement.;°C;;;
+Entrées du composant;Réseaux intergroupes CH/FR et ECS;θ_dep^dp(h) (ou θ_dep^dCTA(h));Températures de départ des différents réseaux de chauffage et de refroidissement.;°C;;;
+Entrées du composant;Réseaux intergroupes CH/FR et ECS;θ_i,aval,eq^dp(h);Température d'air équivalente vu par la distribution intergroupes.;°C;;;
+Entrées du composant;Réseaux intergroupes CH/FR et ECS;θ_moy^dp-e(h);Températures moyennes des différents réseaux intergroupes d'ECS.;°C;;;
+Entrées du composant;Réseaux intergroupes CH/FR et ECS;θ_dep^dp-e(h);Températures de départ des différents réseaux intergroupes d'ECS.;°C;;;
+Entrées du composant;Réseaux intergroupes CH/FR et ECS;id_encl^dp-e(j);Indicateur qui précise si le jour j est inclu dans la période de fonctionnement du réseau intergroupe.;Bool;;;
+Entrées du composant;Det. des saisons svst.;A_dess_ch^dp (ou A_dess_ch^dCTA);Surface totale desservie par la distribution intergroupe, en chauffage.;Réel;;;
+Entrées du composant;Det. des saisons svst.;A_dess_fr^dp (ou A_dess_fr^dCTA);Surface totale desservie par la distribution intergroupe, en refroidissement.;Réel;;;
+Entrées du composant;Det. des saisons svst.;A_dess_ecs^dp-e;Surface totale desservie par la distribution intergroupe, en ECS.;Réel;;;
+Entrées du composant;Det. des saisons svst.;Aut_ch(j);Indicateur de saison de fonctionnement de la génération en chauffage.;Bool;;;
+Entrées du composant;Det. des saisons svst.;Aut_fr(j);Indicateur de saison de fonctionnement de la génération en refroidissement.;Bool;;;
+Entrées du composant;note;Données d'entrée de la fiche « Sources amont des générateurs thermodynamiques »;;;;;
+Paramètres d'intégration du composant;Paramètres de la gestion/régulation de la génération;Emplacement de la génération.;;-;-;-;-
+Paramètres d'intégration du composant;Paramètres des générateurs;Nombre de générateurs identiques, niveau de priorité au niveau de la génération.;;-;-;-;-
+Paramètres intrinsèques du composant;Paramètres de la gestion/régulation de la génération;Gestion de la priorité, organisation hydraulique des générateurs et des réseaux de distribution.;;-;-;-;-
+Paramètres intrinsèques du composant;Paramètres des générateurs;Type, fonction, matrices de fonctionnement, rendements ou efficacités, puissances nominales, températures de fonctionnement.;;-;-;-;-
+Sorties;Calculs groupe;Q_req,ch^gen,gr(h);Demande en énergie de chauffage au niveau de la génération gen pour le groupe gr.;Wh;;;
+Sorties;Calculs groupe;Q_req,fr^gen,gr(h);Demande en énergie de refroidissement au niveau de la génération gen pour le groupe gr.;Wh;;;
+Sorties;P. et c.aux. recun.;"{Q_cef(po.;én.)^gen,gr(h)}";Matrice des consommations en énergie finale en fonction des postes et du type d'énergie, répartie au niveau du groupe;Wh;;;
+Sorties;P. et c.aux. recun.;Φ_vc_tot(h);Total des pertes thermiques et consommations d'auxiliaires transmises sous forme de chaleur aux locaux, pour la génération.;Wh;;;
+Sorties;P. et c.aux. recun.;Rat_surf_gen^gr;Ratio de la surface du groupe gr sur la surface totale desservie par la génération pour l'ensemble des postes.;-;;;
+Sorties;résultats (texte);Indicateurs de sous-dimensionnement de la génération pour les différents postes.;;;;;
+Sorties;résultats (texte);Résultats annuels et mensuels de consommations de la génération;;;;;
+Sorties;résultats (texte);Résultats annuels et mensuels de consommations des générateurs;;;;;

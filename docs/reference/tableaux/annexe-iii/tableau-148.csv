@@ -1,0 +1,7 @@
+# tableau 148, page 760, fiche 8.23, titre Source_Ballon_Base_Thermodynamique_Elec_DoubleService, liste des technologies disponibles
+Sys_thermo_ds;Valeur de Sys_thermo_Ch attribuée;Valeur de Sys_thermo_Ecs attribuée
+1 : PAC air extérieur/ eau;1 : PAC air extérieur/ eau;1 : PAC air extérieur / eau
+2: PAC eau de nappe / eau;4 : PAC eau de nappe / eau;4 : PAC eau de nappe / eau
+3 : PAC eau glycolée / eau;5 : PAC eau glycolée / eau;6 : PAC eau glycolée / eau
+4 : PAC sol / eau;8 : PAC sol/ eau;5 : PAC sol / eau
+5 : PAC air extérieur/ air avec production ECS;2 : PAC air extérieur / air recyclé;1 : PAC air extérieur / eau

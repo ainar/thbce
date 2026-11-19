@@ -1,0 +1,10 @@
+# tableau 170, pages 777-777, fiche 8.23, PAC eau de boucle / air (chauffage), coefficients Cnn pour Pabs
+Côté;Coefficient;Valeur
+Températures aval;Cnnav_Pabs(15, 20);1.05
+Températures aval;Cnnav_Pabs(25, 20);0.95
+Températures aval;Cnnav_Pabs(10, 20);1.10
+Températures aval;Cnnav_Pabs(5, 20);1.15
+Températures amont;Cnnam_Pabs(13.5, 18.5);0.95
+Températures amont;Cnnam_Pabs(23.5, 18.5);1.05
+Températures amont;Cnnam_Pabs(8.5, 18.5);0.9
+Températures amont;Cnnam_Pabs(28.5, 18.5);1.10

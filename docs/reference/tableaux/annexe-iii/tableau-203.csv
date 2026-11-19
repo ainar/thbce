@@ -1,0 +1,6 @@
+# tableau 203, pages 799, fiche 8.23, refroidisseurs air extrait / air neuf, coefficients Cnn pour Pabs
+Températures aval;Températures amont
+Cnnav_Pabs(25,35) = 0.9;Cnnam_Pabs(32 27) = 0.95
+Cnnav_Pabs(45,35) = 1.2;Cnnam_Pabs(22, 27) = 1.05
+Cnnav_Pabs(15,35) = 0.8;Cnnam_Pabs(37, 27)=0.9
+Cnnav_Pabs(5,35) = 0.7;

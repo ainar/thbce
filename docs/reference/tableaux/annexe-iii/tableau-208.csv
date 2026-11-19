@@ -1,0 +1,6 @@
+# tableau 208, page 803, fiche 8.23, refroidisseurs eau / air ou eau glycolée / air, coefficients Cnn pour l'EER, source: auto+image
+Températures aval;Températures amont
+Cnnav_EER(22, 27) = 0,9;Cnnam_EER(22,5, 32,5) = 1,2
+Cnnav_EER(32, 27) = 1,075;Cnnam_EER(12,5, 32,5) = 1,4
+Cnnav_EER(37, 27) = 1,15;Cnnam_EER(2,5, 32,5) = 1,6
+;Cnnam_EER(42,5, 32,5) = 0,8

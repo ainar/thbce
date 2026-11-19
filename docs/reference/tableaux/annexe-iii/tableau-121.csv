@@ -1,0 +1,5 @@
+# tableau 121, page 708, fiche 8.19, titre pertes par les parois du générateur à l'arrêt en fonction des propriétés du générateur
+id_pertes_parois;Propriété du générateur associée;p_Qp.g_arret
+1;Absence de ventilateur ou autre dispositif de circulation d'air ou de produit de combustion dans le circuit de combustion;0,50
+2;Présence de ventilateur ou autre dispositif de circulation d'air ou de produit de combustion dans le circuit de combustion;0,75
+3;Présence de clapet sur le conduit de fumées;1

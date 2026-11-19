@@ -1,0 +1,6 @@
+# tableau 199, pages 797, fiche 8.23, refroidisseurs air extérieur / air recyclé, coefficients Cnn pour l'EER
+Températures aval;Températures amont
+Cnnav_EER(22, 27) = 0.9;Cnnam_EER(25, 35) = 1.2
+Cnnav_EER(32, 27) = 1.075;Cnnam_EER(15, 35) = 1.4
+Cnnav_EER(37, 27) = 1.15;Cnnam_EER(5, 35)=1.6
+;Cnnam_EER(45, 35)= 0.8

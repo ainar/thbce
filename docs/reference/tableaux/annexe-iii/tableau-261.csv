@@ -1,0 +1,14 @@
+# tableau 261, pages 1014, fiche 8.33, Récapitulatif des valeurs prises par les paramètres de la gestion de la génération pour le système de chauffage effet joule par défaut
+Paramètres;Valeurs
+id^dp_fonction;1 : Chauffage
+id^dp_type;0 : Réseau de distribution fictif
+id^gnr_type;Générateur électrique effet joule
+id^gnr_fluide-aval;2 : Air
+id^gnr_fougen;1 : Chauffage
+id^gnr_priorite_ch;1
+P^gnr_ngen_ch (kW);Valeur définie par l’utilisateur
+id_type_priorite;1 : Sans priorité
+id_raccord_gnr;0 : Avec possibilité d’isolement
+id^gen_gestion_ch;2 : fonctionnement à la température moyenne des réseaux de distribution
+id^gen_pos (-);0 : Hors volume chauffé
+Rat^gnr_dim (-);1

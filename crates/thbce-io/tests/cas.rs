@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 use thbce_core::climat::MeteoProjet;
-use thbce_core::{calculer, Options};
+use thbce_core::{calculer_avec, Demandes, Options};
 use thbce_io::{json, meteo};
 
 /// Tolérance relative par défaut : 0,5 %.
@@ -171,7 +171,12 @@ fn cas_de_validation() {
             println!("{nom} : IGNORÉ (météo réglementaire requise, THBCE_METEO non défini)");
             continue;
         };
-        let resultats = match calculer(&projet, &donnees, &Options::default()) {
+        let resultats = match calculer_avec(
+            &projet,
+            &donnees,
+            &Options::default(),
+            &demandes_du_cas(&cas),
+        ) {
             Ok(r) => r,
             Err(e) => {
                 echecs.push(format!("{nom} : le calcul a échoué : {e}"));
@@ -214,4 +219,15 @@ fn le_harnais_detecte_un_ecart() {
     let mut ecarts = Vec::new();
     comparer("", "", &attendu, &obtenu, Some(&serre), &mut ecarts);
     assert_eq!(ecarts.len(), 3);
+}
+
+/// Sorties facultatives que le cas demande (`sorties_detaillees = true` dans `cas.toml`).
+fn demandes_du_cas(cas: &toml::Table) -> Demandes {
+    Demandes {
+        sorties_detaillees: cas
+            .get("sorties_detaillees")
+            .and_then(toml::Value::as_bool)
+            .unwrap_or(false),
+        ..Demandes::default()
+    }
 }

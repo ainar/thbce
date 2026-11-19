@@ -1,0 +1,67 @@
+# tableau 108, page 636 (corps p. 633-636), fiche 8.15, titre Nomenclature du modèle
+# remarques : Entrées et Sorties sans colonnes Min/Max/Conv imprimées (vides). Constantes : pas de colonne Min/Max. H_fg : unité imprimée « J/kg K » (telle quelle). Q_rep_fr(h-1) : description imprimée « chaud » (telle quelle).
+section;groupe;nom;description;unite;min;max;conv
+Entrées du composant;Env. ext.;θ_ext(h);Température de l'air extérieur.;°C;;;
+Entrées du composant;Env. ext.;ω_ext(h);Humidité spécifique de l'air extérieur;kg/kg as;;;
+Entrées du composant;G/R de la génération;Q_req,ch^gen,gr(h);Demande en énergie de chauffage au niveau de la génération gen pour le groupe gr.;Wh;;;
+Entrées du composant;G/R de la génération;Q_req,fr^gen,gr(h);Demande en énergie de refroidissement au niveau de la génération gen pour le groupe gr.;Wh;;;
+Entrées du composant;Reports d'énergie;Q_rep_ch(h-1);Demande en énergie totale de chaud de la génération reportée au pas de temps h.;Wh;;;
+Entrées du composant;Reports d'énergie;Q_rep_fr(h-1);Demande en énergie totale de chaud de la génération reportée au pas de temps h.;Wh;;;
+Entrées du composant;Reports d'énergie;Q_rep_BE_ch^gr(h-1);Energie en chauffage reportée du pas de temps précédent.;Wh;;;
+Entrées du composant;Reports d'énergie;Q_rep_BE_fr^gr(h-1);Energie en refroidissement reportée du pas de temps précédent.;Wh;;;
+Entrées du composant;Det. des saisons syst.;Aut_ch(j);Indicateur de saison de fonctionnement de la génération en chauffage.;Bool;;;
+Entrées du composant;Det. des saisons syst.;Aut_fr(j);Indicateur de saison de fonctionnement de la génération en refroidissement.;Bool;;;
+Entrées du composant;Températures fonctionnement;θ_aval_ch(h);Température de fonctionnement définie au niveau de la gestion/régulation de la génération en chauffage.;°C;;;
+Entrées du composant;Températures fonctionnement;θ_aval_fr(h);Température de fonctionnement définie au niveau de la gestion/régulation de la génération en refroidissement.;°C;;;
+Entrées du composant;Sour. amont;θ_be(j);Température de l'eau dans la boucle le jour j.;°C;;;
+Entrées du composant;Sour. amont;θ_amont^gnr(h);Température amont des générateurs thermodynamiques gnr correspondant à la température mensuelle de la boucle d'eau.;°C;;;
+Paramètres intrinsèques;;R_eff_trBE;Ratio d'efficacité du transfert d'énergie (conventionnel).;-;0;1;0.8
+Paramètres intrinsèques;Chaudière;P_ngen_ch;Puissance fournie nominale du générateur en chauffage et ECS.;W;0;+∞;-
+Paramètres intrinsèques;Chaudière;P_ngen_fr;Puissance fournie nominale du générateur en refroidissement.;W;0;+∞;-
+Paramètres intrinsèques;Chaudière;P_ngen;Puissance utile nominale de la chaudière.;kW;0;+∞;-
+Paramètres intrinsèques;Chaudière;Θ_max_rech_BE;Température de fonctionnement maximale de chauffage de la boucle d'eau.;°C;20;100;
+Paramètres intrinsèques;Tour de refroidissement sur la boucle;Θ_min_fr_BE;Température de fonctionnement minimale de refroidissement de la boucle d'eau.;°C;;;
+Paramètres intrinsèques;Tour de refroidissement sur la boucle;id_tour;Type de tour de refroidissement : 0 : Autre, 1 : Tour humide, 2 : Tour sèche.;Ent;0;2;-
+Paramètres intrinsèques;Tour de refroidissement sur la boucle;q_v,nom,tour;Débit nominal d'eau à refroidir circulant dans la tour sèche ou humide (paramètre de dimensionnement).;m³/h;0;+∞;-
+Paramètres intrinsèques;Tour de refroidissement sur la boucle;P_pompes_tour;Puissance électrique des pompes du circuit de la tour de refroidissement.;W;0;+∞;-
+Paramètres intrinsèques;Tour de refroidissement sur la boucle;P_vent_tour;Puissance électrique des ventilateurs de la tour.;W;0;+∞;-
+Paramètres intrinsèques;Tour de refroidissement sur la boucle;Δθ_tour;1) Ecart de température entre l'eau en sortie de tour humide et la température humide de l'air extérieur. 2) Ecart de température entre l'eau en sortie de tour sèche et la température de l'air extérieur.;°C;0;+∞;
+Paramètres intrinsèques;Tour de refroidissement sur la boucle;θ_es_tour_consigne;Consigne de température d'eau en sortie de tour.;°C;-∞;+∞;-
+Paramètres d'intégration;;N_pbe^gnr,gr;Nombre de générateurs thermodynamiques identiques sur la BE et appartenant au groupe gr.;-;1;+∞;-
+Variables internes;;θ_aval_chaud_BE(h);Température de fonctionnement du générateur de chaud associé à la boucle d'eau.;°C;;;
+Variables internes;;θ_aval_froid_BE(h);Température de fonctionnement du générateur de froid associé à la boucle d'eau.;°C;;;
+Variables internes;;Φ_rejet^gnr(h);Puissance rejetée par le générateur thermodynamique gnr (valeur positive en refroidissement et négative en chauffage).;W;;;
+Variables internes;;Q_req_BE_ch^gr(h);Demande totale en chauffage sur les générateurs thermodynamiques de la boucle d'eau pour le groupe gr.;Wh;;;
+Variables internes;;Q_req_BE_fr^gr(h);Demande totale en froid sur les générateurs thermodynamiques de la boucle d'eau pour le groupe gr.;Wh;;;
+Variables internes;;Φ_rejet_totBE_ch(h);Rejet de froid total des PAC en mode chauffage sur la boucle d'eau.;W;;;
+Variables internes;;Φ_rejet_totBE_froid(h);Rejet de chaleur total des PAC en mode refroidissement sur la boucle d'eau.;W;;;
+Variables internes;;Q_sys_BE_ch(h);Demande en énergie de chauffage transmise aux générateurs qui desservent la boucle d'eau.;Wh;;;
+Variables internes;;Q_sys_BE_fr(h);Demande en énergie de refroidissement transmise aux générateurs qui desservent la boucle d'eau.;Wh;;;
+Variables internes;Gestion des générateurs thermodynamiques sur BE;P_ngen_tot_ch^gr;Puissance nominale totale en chauffage des PAC sur boucle d'eau pour le groupe gr.;Réel;;;
+Variables internes;Gestion des générateurs thermodynamiques sur BE;P_ngen_tot_fr^gr;Puissance nominale totale en refroidissement des PAC sur boucle d'eau pour le groupe gr.;Réel;;;
+Variables internes;Gestion des générateurs thermodynamiques sur BE;Rat_pngen_ch^gnr,gr;Ratio de répartition des charges sur les différents générateurs sur boucle d'eau, au prorata de leurs puissances nominales en chauffage, pour le groupe gr.;Réel;;;
+Variables internes;Gestion des générateurs thermodynamiques sur BE;Rat_pngen_fr^gnr,gr;Ratio de répartition des charges sur les différents générateurs sur boucle d'eau, au prorata de leurs puissances nominales en refroidissement, pour le groupe gr.;Réel;;;
+Variables internes;Tour de refroidissement;θ_es_tour;Température d'eau en sortie de tour;°C;;;
+Variables internes;Tour de refroidissement;W_pompes_tour;Consommation électrique des pompes du circuit de refroidissement;Wh;;;
+Variables internes;Tour de refroidissement;P_max;Puissance maximale de froid que peut fournir la tour dans les conditions du pas de temps actuel.;W;;;
+Variables internes;Tour de refroidissement;W_vent_tour;Consommation électrique des ventilateurs de la tour.;Wh;;;
+Sorties;Report d'énergie;Q_rep_ch(h);Demande en énergie totale de chaud de la génération reportée au pas de temps h+1.;Wh;;;
+Sorties;Report d'énergie;Q_rep_fr(h);Demande en énergie totale de froid de la génération reportée au pas de temps h+1.;Wh;;;
+Sorties;Report d'énergie;Q_rep_BE_ch^gr(h);Energie restant à fournir pour les générateurs thermodynamiques sur boucle d'eau (reportée au pas de temps suivant).;Wh;;;
+Sorties;Report d'énergie;Q_rep_BE_fr^gr(h);Energie reprise pour les générateurs thermodynamiques sur boucle d'eau au pas de temps suivant.;Wh;;;
+Sorties;Calculs génération;"{Q_cef(po.;en)^gnr(h)}";Matrice des consommations horaires en énergie finale du générateur gnr.;Wh;;;
+Sorties;Calculs génération;"{Q_cef(po;en)^gen(h)}";Matrice des consommations horaires en énergie finale de la génération.;Wh;;;
+Sorties;Calculs génération;Q_cons^gnr(h);Energie consommée hors auxiliaires du générateur gnr.;Wh;;;
+Sorties;Calculs génération;Q_fou_ch^gnr(h), Q_fou_fr^gnr(h), Q_fou_ecs^gnr(h);Energies fournies par le générateur gnr par poste au pas de temps h.;Wh;;;
+Sorties;Calculs génération;Q_prelec^gnr(h);Energie électrique produite pas le générateur gnr au pas de temps h.;Wh;;;
+Sorties;Données par générateur;W_aux^gnr(h);Consommation électrique globale des auxiliaires du générateur gnr.;Wh;;;
+Sorties;Données par générateur;W_aux,pro^gnr(h);Consommations électrique des auxiliaires propres au générateur gnr.;Wh;;;
+Sorties;Données par générateur;τ_charge^gnr(h);Taux de charge du générateur gnr.;Réel;;;
+Sorties;Données par générateur;Φ_vc^gnr(h);Pertes thermiques du générateur gnr vers l'ambiance.;Wh;;;
+Sorties;Données par générateur;η_eff_ch^gnr(h);COP, EER ou rendement du générateur en chauffage.;Réel;;;
+Sorties;Données par générateur;η_eff_fr^gnr(h);COP, EER ou rendement du générateur en refroidissement.;Réel;;;
+Constantes;;C_v;Chaleur massique de la vapeur d'eau;J/kg K;;;1830
+Constantes;;C_pe;Chaleur massique de l'eau;J/kg K;;;4180
+Constantes;;ρ_eau;Masse volumique de l'eau;kg/m³;;;1000
+Constantes;;C_a;Chaleur massique de l'air;J/kg K;;;1006
+Constantes;;H_fg;Chaleur latente de vaporisation de l'eau;J/kg K;;;25.10^5

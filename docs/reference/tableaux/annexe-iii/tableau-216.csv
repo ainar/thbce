@@ -1,0 +1,8 @@
+# tableau 216, page 809, fiche 8.23, valeurs conventionnelles de Dfou0 en minutes pour différents systèmes d'émission, source: auto+image
+Mode;Typo_emetteur;Dfou0 en min
+Mode chauffage et/ou refroidissement;1 : Plancher et plafond chauffant ou rafraîchissants intégrés au bâti d’inertie forte;32
+Mode chauffage et/ou refroidissement;"2 : Radiateurs; plafonds chauffants ou rafraîchissants d'inertie moyenne";19
+Mode chauffage et/ou refroidissement;"3 : Ventilo convecteurs; valeur par défaut pour la distribution à eau; plafonds chauffants ou rafraichissant d'inertie faible";6
+Mode chauffage et/ou refroidissement;4 : Systèmes à air;2
+Mode ECS;;26
+# fusion : la cellule « Mode chauffage et/ou refroidissement » (colonne 1, lignes 1 à 4) est répétée sur chaque ligne ; l en-tête de la colonne 1 est vide dans l image.

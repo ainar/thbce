@@ -1,0 +1,10 @@
+# tableau 158, page 769, fiche 8.23, titre PAC air extérieur / air recyclé (chauffage), coefficients Cnn pour Pabs. Côté aval = Températures aval, côté amont = Températures amont. Le titre imprimé dans la légende est « PAC air extérieur / air recyclé » ; le tableau 158 figure sous les étapes de calcul de la fiche « PAC air extrait / air neuf » (p.769) : à vérifier en relecture.
+Côté;Coefficient;Valeur
+aval;Cnnav_Pabs(-7,7);1.14
+aval;Cnnav_Pabs(2,7);1.05
+aval;Cnnav_Pabs(20,7);0.87
+aval;Cnnav_Pabs(-15,7);1.22
+amont;Cnnam_Pabs(15, 20);0.95
+amont;Cnnam_Pabs(25, 20);1.05
+amont;Cnnam_Pabs(10, 20);0.90
+amont;Cnnam_Pabs(5, 20);0.85

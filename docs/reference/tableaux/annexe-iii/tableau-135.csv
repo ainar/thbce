@@ -1,0 +1,64 @@
+# tableau 135, page 731 (corps p. 727-731), fiche 8.21, titre Nomenclature du modèle
+# remarques : le texte p.727 renvoie à « Tableau 134 » pour la nomenclature, mais la légende imprimée en p.731 est « Tableau 135 » et l'index ne liste pas de tableau 134 : transcrit ici sous 135 (numéro de légende). Colonne Déf/Valeur par défaut transcrite dans conv. Renvois « Voir Tableau 136 » et « Voir Tableau 137 » tels quels. Les lignes sans min/max imprimés restent vides.
+section;groupe;nom;description;unite;min;max;conv
+Entrées du composant;Gestion/régulation de la génération;θ_aval,ECS(h) θ_aval,CH(h);Température moyenne d'eau de chauffage ou ECS au pas de temps h;°C;;;
+Entrées du composant;Gestion/régulation de la génération;θ_amb(h);Température d'ambiance du lieu où se trouve le générateur.;°C;;;
+Entrées du composant;Gestion/régulation de la génération;Q_req,CH(h) Q_req,ECS(h);Quantité d'énergie thermique à fournir par le générateur au pas de temps h pour le poste chauffage ou ECS;Wh;;;
+Entrées du composant;Gestion/régulation de la génération;i_ECS_seule(h);Indicateur de production ECS seule au pas de temps h;Bool;;;
+Paramètres d'intégration du composant;;R_dim;Nombre de générateurs identiques raccordés en parallèle;Ent;1;+∞;
+Paramètres d'intégration du composant;;id_raccord_gnr;Type de raccordement hydraulique des générateurs composant la génération : 0 : Permanent, 1 : Avec isolement possible;Ent;0;1;
+Paramètres d'intégration du composant;;id_pos_gen;Position de la génération : 1 : En volume chauffé, 0 : Hors volume chauffé.;Ent;0;1;
+Paramètres utilisateurs;Généralités;id_fougen;Fonction du générateur : 1 : chauffage seul, 3 : ECS seule, 4 : chauffage et ECS;Ent;1;6;Non
+Paramètres utilisateurs;Généralités;type_combustible;Type de combustible du générateur : 0 : gaz naturel, 1 : GPL, 2 : fioul domestique, 3 : bois bûches, 4 : bois granulés, 5 : bois plaquettes;Ent;0;5;Non
+Paramètres utilisateurs;Généralités;ind_condensation;Indicateur de micro-cogénérateur à condensation : 0 : micro-cogénérateur standard, 1 : micro-cogénérateur à condensation;Ent;0;1;Oui
+Paramètres utilisateurs;Généralités;type_chp;Type de micro-cogénérateur : 0 : moteur à combustion interne, 1 : moteur Stirling, 2 : micro-turbine;Ent;0;2;Non
+Paramètres utilisateurs;Généralités;id_app_inte;Présence d'un appoint intégré de type brûleur : 0 : Non, 1 : Oui;Bool;0;1;Non
+Paramètres utilisateurs;Cogénérateur et appoint intégré;"P_th;chp_100+sup_100,nom";Puissance thermique nominale, à 100% de charge du générateur CHP et 100% de charge de l'appoint intégré;kW;0;70;Non
+Paramètres utilisateurs;Cogénérateur et appoint intégré;type_valeur_Pw_aux,chp_100+sup_100;Statut de la donnée de puissance thermique nominale, à 100% de charge du générateur CHP et 100% de charge de l'appoint intégré (désignée aussi par « à pleine charge ») : 0 : Valeur par défaut, 1 : Valeur mesurée;Ent;0;1;Non
+Paramètres utilisateurs;Cogénérateur et appoint intégré;Statut_chp100sup100;Statut des données de rendements thermique et de production électrique sur PCS du générateur à 100% de charge du générateur CHP et 100% de charge de l'appoint intégré : 0 : Valeur par défaut, 1 : Valeur déclarée, 2 : Valeur justifiée, 3 : Valeur certifiée;Ent;0;3;Non
+Paramètres utilisateurs;Cogénérateur et appoint intégré;Pw_aux,chp_100+sup_100;Puissance électrique absorbée par les auxiliaires à 100% de charge du générateur CHP et 100% de charge de l'appoint intégré (désignée aussi par « à pleine charge »);kW;0;+∞;Oui
+Paramètres utilisateurs;Cogénérateur seul;"η_th;chp_100+sup_100,nom";Rendement thermique sur PCS du générateur à 100% de charge du générateur CHP et 100% de charge de l'appoint intégré (si toutes valeurs autres que par défaut);%;0;100;Oui
+Paramètres utilisateurs;Cogénérateur seul;"η_el;chp_100+sup_100,nom";Rendement de production électrique sur PCS du générateur à 100% de charge du générateur CHP et 100% de charge de l'appoint intégré (si toutes valeurs autres que par défaut);%;0;100;Oui
+Paramètres utilisateurs;Cogénérateur seul;"P_th;chp_100+sup_0,nom";Puissance thermique nominale, à 100% de charge du générateur CHP et 0% de charge de l'appoint intégré;kW;0;70;Non
+Paramètres utilisateurs;Cogénérateur seul;Statut_chp100sup0;Statut des données de rendements thermique et de production électrique sur PCS, et de puissances électriques d'auxiliaires absorbées, à 100% de charge du générateur CHP et 0% de charge de l'appoint intégré : 0 : Valeur par défaut, 1 : Valeur déclarée, 2 : Valeur justifiée, 3 : Valeur certifiée;Ent;0;3;Non
+Paramètres utilisateurs;Cogénérateur seul;Pw_aux,chp_100+sup_0;Puissance électrique absorbée par les auxiliaires à 100% de charge du générateur CHP et 0% de charge de l'appoint intégré (désignée aussi par « à charge partielle ») (si valeur mesurée);kW;0;+∞;Oui
+Paramètres utilisateurs;Cogénérateur seul;"η_th;chp_100+sup_0,nom";Rendement thermique sur PCS du générateur à 100% de charge du générateur CHP et 0% de charge de l'appoint intégré (si toutes valeurs autres que par défaut);%;0;100;Oui
+Paramètres utilisateurs;Cogénérateur seul;"η_el;chp_100+sup_0,nom";Rendement de production électrique sur PCS du générateur à 100% de charge du générateur CHP et 0% de charge de l'appoint intégré (si toutes valeurs autres que par défaut);%;0;100;Oui
+Paramètres utilisateurs;Cogénérateur seul;Statut_Pth_chp_min;Statut de la donnée de puissance thermique minimale de fonctionnement stabilisé du générateur CHP : 0 : Valeur par défaut, 1 : Valeur mesurée;Ent;0;1;Non
+Paramètres utilisateurs;Cogénérateur seul;P_th,chp_min;Puissance thermique minimale de fonctionnement stabilisé du générateur CHP (si valeur mesurée);kW;0;70;Oui
+Paramètres utilisateurs;A l'arrêt;Statut_Phi_th_stab_30;Statut de la donnée de pertes thermiques en régime stabilisé de l'appareil (φ_th,stab,30) : 0 : Valeur par défaut, 1 : Valeur mesurée;Ent;0;1;Non
+Paramètres utilisateurs;A l'arrêt;φ_th,stab,30;Pertes thermiques en régime stabilisé de l'appareil pour une température moyenne d'eau de 50°C et une température ambiante de 20°C (si valeur mesurée);W;0;+∞;Oui
+Paramètres utilisateurs;A l'arrêt;Statut_Pw_aux_veille;Statut de la donnée de puissance électrique absorbée en mode veille (Pw_aux,veille) : 0 : Valeur par défaut, 1 : Valeur mesurée;Ent;0;1;Non
+Paramètres utilisateurs;A l'arrêt;Pw_aux,veille;Puissance électrique absorbée par les auxiliaires en mode veille;W;0;+∞;Oui
+Paramètres conventionnels;;id_engen;Indicateur relatif à l'énergie principale du générateur.;ent;;;Voir Tableau 136
+Paramètres conventionnels;;PCSI;Valeur de PCSI adoptée pour le calcul;réel;;;Voir Tableau 136
+Paramètres conventionnels;;α_th α_el;Coefficients de correction du rendement thermique et électrique en fonction de la température aval;réel;;;Voir Tableau 137
+Paramètres conventionnels;;θ_av,ref,chp100+sup0;Température aval de référence pour la définition des rendements à 100% de charge du générateur CHP et 0% de charge de l'appoint intégré;°C;;;Voir Tableau 137
+Paramètres conventionnels;;θ_av,ref,chp100+sup100;Température aval de référence pour la définition des rendements à 100% de charge du générateur CHP et 100% de charge de l'appoint intégré;°C;;;Voir Tableau 137
+Paramètres conventionnels;;f_pa;Fraction des pertes du générateur correspondant à un échange thermique avec l'ambiance dans lequel il se situe;réel;;;0,3
+Sorties;;"{Q_cef(fo.;en.)}(h)";Consommation en énergie finale du générateur, présenté sous forme de matrice {fonction / type d'énergie}.;Wh;;;
+Sorties;;Q_cons(h);Quantité d'énergie totale consommée par le générateur pour le type d'énergie principal;Wh;;;
+Sorties;;Q_fou,ch(h) Q_fou,ecs(h);Quantité d'énergie totale effectivement fournie par le générateur en chauffage et ECS;Wh;;;
+Sorties;;τ_charge(h);Taux de charge du générateur pour le poste considéré.;Réel;;;
+Sorties;;W_aux,pro(h);Consommations d'auxiliaire propre au processus de génération.;Wh;;;
+Sorties;;η_eff(h);Rendement du générateur exprimé sous forme de réel.;Réel;;;
+Sorties;;Q_rest(h);Energie restant à fournir à la fin du pas de temps, faisant l'objet d'un report de demande à un autre générateur en séquence ou au pas de temps suivant.;Wh;;;
+Sorties;;Φ_vc(h);Quantité d'énergie échangée entre le générateur et l'ambiance dans lequel il est placé.;Wh;;;
+Sorties;;R_fonctecs(h);Temps de fonctionnement du générateur pour la production d'ECS, à puissance maximale.;Réel;;;
+Sorties;;Q_prelec(h);Energie électrique produite pas l'ensemble des générateurs identiques.;Wh;;;
+Variables internes;;P_ngen;Puissance utile nominale du système de cogénération, appoint intégré inclus;W;;;
+Variables internes;;θ_aval(h);Température moyenne d'eau aval au pas de temps h;°C;;;
+Variables internes;;P_max,ch(h) P_max,ecs(h);Puissance maximale du générateur au pas de temps h pour les services chauffage et ECS;W;;;
+Variables internes;;P_max,chp(h) P_min,chp(h);Puissance minimale et maximale du générateur sans recourt au brûleur d'appoint au pas de temps h;W;;;
+Variables internes;;τ_charge_ch(h);Taux de charge du générateur pour le service chauffage;Réel;;;
+Variables internes;;R_puis,dispo(h);Ratio de puissance disponible pour le poste chauffage;Réel;;;
+Variables internes;;Q_pertes(h);Quantité d'énergie perdue par l'enveloppe du micro-cogénérateur et dans les fumées;Wh;;;
+Variables internes;;Q_req(h);Quantité d'énergie à fournir totale, tout poste confondu;Wh;;;
+Variables internes;;Q_fou(h);Quantité d'énergie fournie totale, tout poste confondu;Wh;;;
+Variables internes;;φ_th,stab(h);Pertes thermiques en régime stabilisé de l'appareil ramenée à la température aval;W;;;
+Variables internes;;Φ_pertes,chpmin(h);Pertes thermiques du micro-cogénérateur au taux de charge correspondant à P_chp,min;W;;;
+Variables internes;;Φ_pertes,chp100+sup0(h);Pertes thermiques du micro-cogénérateur à 100% de charge du module CHP et 0% de charge du brûleur d'appoint;W;;;
+Variables internes;;Φ_pertes,chp100+sup100(h);Pertes thermiques du micro-cogénérateur à 100% de charge du module CHP et 100% de charge du brûleur d'appoint;W;;;
+Variables internes;;fx;Facteur d'interpolation;Réel;;;
+Constantes;;PCSI{type_combustible};Ratio du PCS (Pouvoir Calorifique Supérieur) sur le PCI (Pouvoir Calorifique Inférieur);Réel;;;Voir Tableau 136
+Constantes;;t_h;Durée d'un pas de temps de simulation;h;;;1

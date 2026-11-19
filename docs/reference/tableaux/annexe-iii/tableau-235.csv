@@ -1,0 +1,19 @@
+# tableau 235, pages 903, fiche 8.25, Valeurs de Cnnav en chauffage pour la PAC MG air/air
+# mise en forme : bloc 2x2 du tableau imprimé mis à plat (une ligne par coefficient)
+Grandeur;Coefficient;Valeur
+GUE;Cnnav_GUE(15, 20);0,97
+GUE;Cnnav_GUE(25, 20);0,92
+GUE;Cnnav_GUE(10, 20);0,94
+GUE;Cnnav_GUE(5, 20);0,91
+Pabs;Cnnav_Pabs(15, 20);1,05
+Pabs;Cnnav_Pabs(25, 20);1,0
+Pabs;Cnnav_Pabs(10, 20);1,1
+Pabs;Cnnav_Pabs(5, 20);1,15
+Paux,uext;Cnnav_Paux,uext(15, 20);1
+Paux,uext;Cnnav_Paux,uext(25, 20);1
+Paux,uext;Cnnav_Paux,uext(10, 20);1
+Paux,uext;Cnnav_Paux,uext(5, 20);1
+ηth,ecs;Cnnav_ηth,ecs(15, 20);1
+ηth,ecs;Cnnav_ηth,ecs(25, 20);1
+ηth,ecs;Cnnav_ηth,ecs(10, 20);1
+ηth,ecs;Cnnav_ηth,ecs(5, 20);1

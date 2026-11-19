@@ -1,0 +1,6 @@
+# tableau 242, pages 907, fiche 8.25, Valeurs de Cnnam en refroidissement, source: image
+GUE;Pabs;Paux,uext;ηth,ecs
+Cnnam_GUE(5, 35) = 1,3;Cnnam_Pabs(5, 35) = 0,75;Cnnam_Paux,uext(5, 35) = 1;Cnnam_ηth,ecs(5, 35) = 1
+Cnnam_GUE(15, 35) = 1,2;Cnnam_Pabs(15, 35) = 0,85;Cnnam_Paux,uext(15, 35) = 1;Cnnam_ηth,ecs(15, 35) = 1
+Cnnam_GUE(25, 35) = 1,1;Cnnam_Pabs(25, 35) = 0,92;Cnnam_Paux,uext(25, 35) = 1;Cnnam_ηth,ecs(25, 35) = 1
+Cnnam_GUE(45, 35) = 0,7;Cnnam_Pabs(45, 35) = 1,2;Cnnam_Paux,uext(45, 35) = 1;Cnnam_ηth,ecs(45, 35) = 1

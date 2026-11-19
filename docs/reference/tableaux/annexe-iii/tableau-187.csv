@@ -1,0 +1,8 @@
+# tableau 187, pages 789-789, fiche 8.23, PAC eau de nappe/eau (ECS), coefficients Cnn pour le COP
+Températures aval;Températures amont
+Cnnav_COP(35,45) = 1.2;Cnnam_ECS(3.5, 8.5) = 0.9
+Cnnav_COP(25,45) = 1.4;Cnnam_ECS(13.5, 8.5) = 1.1
+Cnnav_COP(55,45) = 0.8;Cnnam_ECS(18.5, 8.5)= 1.2
+Cnnav_COP(15,45) = 1.6;
+Cnnav_COP(65,45) = 0.6;
+Cnnav_COP(5,45) = 1.8;

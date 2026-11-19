@@ -1,0 +1,7 @@
+# tableau 255, pages 981-982, fiche 8.31, Parts convectives par défaut de Pemconv pour le rafraichissement en fonction de la typologie d'émetteur
+Typologie_Emetteur_Froid;Pemconv
+Soufflage d'air froid (ventilo-convecteurs…);0,95
+Poutre froide;0,80
+Plafonds rafraîchissant, panneaux rafraîchissants de plafond;0,50
+Murs rafraîchissants;0,35
+Plancher rafraîchissant;0,20

@@ -1,0 +1,9 @@
+# tableau 124, page 715, fiche 8.20, titre Liste des générateurs à combustion
+# remarque : colonne Type de générateur en libellés complets ; cellules id_type « 106, 107 » telles quelles.
+Type de générateur;id_type;id_engen;id_fougen;id_fluide_aval
+Radiateurs gaz, poêles et inserts gaz Pn< 5 kW / Pn> 5 kW avec ou sans ventilateur;103;10;1;2
+Chauffe eau gaz : Pn< 10kW / Pn> 10 kW;104;10;3;1
+Accumulateur gaz : standard / condensation;105;10;3;1
+Générateur d'air chaud : standard / condensation;106, 107;10;1;2
+Tube radiant gaz;108;10;1;2
+Panneau radiant gaz;109;10;1;2

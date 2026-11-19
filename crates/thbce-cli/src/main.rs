@@ -11,7 +11,7 @@ use std::process::ExitCode;
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::{ArgAction, CommandFactory, Parser, Subcommand};
 use thbce_core::{
-    calculer, calculer_avec_series, valider, Erreur, Options, VERSION_METHODE, VERSION_MOTEUR,
+    calculer_avec, valider, Demandes, Erreur, Options, VERSION_METHODE, VERSION_MOTEUR,
 };
 use thbce_io::horaire as horaire_io;
 use thbce_io::{json, meteo, rapport};
@@ -72,6 +72,12 @@ enum Commande {
         /// des résultats n'est pas modifiée.
         #[arg(long, value_name = "FICHIER")]
         horaire: Option<PathBuf>,
+        /// Ajoute aux résultats, pour chaque bâtiment qui a des générations, les sorties par
+        /// zone et par groupe de la fiche 13.2 (`batiments[].sorties_detaillees` : énergie
+        /// importée et consommée par poste, production photovoltaïque attribuée, besoins, Cef,
+        /// Cep, Cep,nr).
+        #[arg(long)]
+        sorties_detaillees: bool,
     },
     /// Valide la description d'un projet sans la calculer.
     #[command(help_template = GABARIT_AIDE)]
@@ -183,6 +189,7 @@ fn executer(commande: Commande) -> Result<(), Echec> {
             sortie,
             sans_arrondi,
             horaire,
+            sorties_detaillees,
         } => {
             let projet = lire_projet(&entree)?;
             let rapport_validation = valider(&projet);
@@ -202,18 +209,18 @@ fn executer(commande: Commande) -> Result<(), Echec> {
             let options = Options {
                 arrondir: !sans_arrondi,
             };
-            let calcul = if horaire.is_some() {
-                calculer_avec_series
-            } else {
-                calculer
+            let demandes = Demandes {
+                series: horaire.is_some(),
+                sorties_detaillees,
             };
-            let mut resultats = calcul(&projet, &donnees, &options).map_err(|e| match e {
-                Erreur::Saisie(r) => Echec(rapport::en_texte(&r), code_rapport(&r)),
-                Erreur::Meteo(_) => Echec(e.to_string(), CODE_ENTREE_INVALIDE),
-                Erreur::NonPrisEnCharge { .. } | Erreur::Calcul(_) => {
-                    Echec(e.to_string(), CODE_HORS_PERIMETRE)
-                }
-            })?;
+            let mut resultats =
+                calculer_avec(&projet, &donnees, &options, &demandes).map_err(|e| match e {
+                    Erreur::Saisie(r) => Echec(rapport::en_texte(&r), code_rapport(&r)),
+                    Erreur::Meteo(_) => Echec(e.to_string(), CODE_ENTREE_INVALIDE),
+                    Erreur::NonPrisEnCharge { .. } | Erreur::Calcul(_) => {
+                        Echec(e.to_string(), CODE_HORS_PERIMETRE)
+                    }
+                })?;
             for a in &resultats.avertissements {
                 eprintln!("avertissement : {a}");
             }

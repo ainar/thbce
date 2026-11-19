@@ -1,0 +1,131 @@
+# tableau 229, pages 891-895, fiche 8.25, Nomenclature du modèle
+Nom;Description;Unité;Min;Max;Conv.
+idfougen;"Mode de fonctionnement admis par le générateur :
+Chauffage: 1
+Refroidissement : 2";Ent;;;
+Cat;"Catégorie de générateur :
+800: générateur thermodynamique dont le compresseur est entraîné par un moteur alimenté au gaz";Ent;;;503
+Idengen;"Identificateur de l'énergie principale :
+Gaz : 1";Ent;1;69;50
+Idfluide_aval;"Nature du fluide aval :
+1 : eau
+2 : air";Ent;1;2;
+Idfluide_amont;"Nature de la source amont :
+2 : air";Ent;1;3;
+Syst_thermo_ch/fr;"Technologie du générateur en chauffage/refroidissement :
+2 : PAC air extérieur / eau
+3: PAC air extérieur / air recyclé";Ent;1;-;
+{θaval(i)};Liste des températures aval principales de la machine.;°C;-50;100;Voir selon technologie
+{θamont(j)};Liste des températures amont principales de la machine.;°C;-50;100;Voir selon technologie
+Nθaval;Nombre de températures aval principales;Ent;1;;Voir selon technologie
+Nθamont;Nombre de températures amont principales;Ent;1;;Voir selon technologie
+θam,ms;Température seuil de basculement en dessous de laquelle l'évaporateur secondaire est seul à être utilisé (mode chauffage);°C;;;-3
+Statut_données_PC;"Statut des performances à pleine charge renseignées :
+1 : il existe des valeurs de performance certifiées ou justifiées
+2 : il n'existe aucune valeur certifiée ou justifiée";Ent;1;-;
+# section : Production d'ECS indirecte
+Statut_données_ECS;"Statut de l'efficacité de production indirecte d'ECS :
+0 : Production indirecte d'ECS dont l'efficacité n'est pas connue (valeur par défaut)
+1 : Production indirecte d'ECS dont l'efficacité est déclarée par le fabricant
+2 : Production indirecte d'ECS dont l'efficacité est justifiée
+3 : Production indirecte d'ECS dont l'efficacité est certifiée";Ent;0;3;
+θECS,max;Température maximale de sortie du moteur pour la production indirecte ECS.;°C;0;90;75
+θaval(ecs),nom;Température moyenne nominale en aval de l'échangeur de production indirecte d'ECS;°C;0;90;55
+Ppompe,ECS;Puissance absorbée par la pompe de charge de la production ECS indirecte (pompe extérieure à la machine).;W;0;+∞;
+# section : Saisie des performances certifiées ou justifiées
+{Statut(i,j)};"Matrice des statuts de données :
+1 : valeur certifiée,
+2 : valeur justifiée.";{Ent};1;2;
+{GUE(i,j)} / {EER(i,j)};Matrice des performances en mode chauffage (GUE)/refroidissement (EER) selon les températures amont et aval avant correction;{-};0;+∞;
+{Pabs(i,j)};Matrice des puissances absorbées en gaz selon les températures amont et aval;{kW};0;+∞;
+{Paux,uext(i,j)};Matrice des puissances électriques d'auxiliaires des unités extérieures absorbées;{kW};0;+∞;
+{ηth,ecs(i,j)};Efficacité de la production indirecte d'ECS en mode chauffage/refroidissement ramenée à Pabs, dans les conditions du point pivot;{-};0;+∞;
+# section : Saisie des performances déclarées ou par défaut
+Statut[GUEpivot] / Statut[EERpivot] / Statut[Paux_uext_pivot];"Statut des valeurs pivots :
+1 : valeurs déclarées
+2 : valeur par défaut";Ent;1;2;-
+GUEpivot;Valeur pivot déclarée des machines en mode chauffage lorsqu'il n'y a pas de performance certifiée ou justifiée.;-;0;+∞;-
+EERpivot;Valeur pivot déclarée des machines en mode refroidissement lorsqu'il n'y a pas de performance certifiée ou justifiée.;-;0;+∞;-
+Pabs_pivot;Valeur pivot déclarée de puissance absorbée en gaz lorsqu'il n'y a pas de performance certifiée ou justifiée.;kW;0;+∞;-
+ηth,ecs;Valeur pivot déclarée d'efficacité de production ECS ramenée à la puissance gaz consommée;-;0;+∞;-
+# section : Fonctionnement à charge partielle
+Fonct_moteur;"Mode de fonctionnement du moteur :
+0 : Fonctionnement en cycles marche arrêt du moteur (par défaut)
+1 : Fonctionnement à vitesse variable";Ent;1;2;2
+CcpLRcontmin;Coefficient de correction de la performance pour un taux de charge égal à LRcontmin;Réel;0;2;
+Statut[CcpLRcontmin];"2 : par défaut
+1 : justifié
+0 : certifié";Ent;0;2;
+LRcontmin;Taux minimal de charge en fonctionnement continu. (= 1 si machine tout ou rien);Réel;0;1;
+Deq;Durée équivalente liée aux irréversibilités;Min;0;60;
+Dfou0;Durée de fonctionnement à charge tendant vers zéro.;Min;0;60;
+# section : Puissance d'auxiliaires de la machine
+Statut_Paux0%;"Statut de la saisie de la puissance d'auxiliaire à charge nulle
+1 : déclarée
+2 : par défaut";Ent;0;1;
+Paux0%;Puissance électrique d'auxiliaire à charge nulle;W;0;+∞;
+# section : Préprocesseur : composition des matrices de performance
+{Cnnav_Pabs(θi, θj)};Coefficient de passage de Pabs (θaval = θj) à Pabs(θaval=θi), pour θamont fixée.;Réel;;;Voir selon technologie
+{Cnnam_Pabs(θi, θj)};Coefficient de passage de Pabs(θam=θj) à Pabs( θam=θi), pour θaval fixée.;Réel;;;Voir selon technologie
+{Cnnav_GUE(θi, θj)};Coefficient de passage entre de GUE (θaval=θj) à GUE(θaval=θi), pour θamont fixée.;Réel;;;Voir selon technologie
+{Cnnam_GUE(θi, θj)};Coefficient de passage de GUE( θam=θj) à GUE( θam= θi), pour θaval fixée.;Réel;;;Voir selon technologie
+{Cnnav_Paux(θi, θj)};Coefficient de passage entre de Paux,uext (θaval=θj) à Paux,uext (θaval=θi), pour θamont fixée.;Réel;;;Voir selon technologie
+{Cnnam_Paux(θi, θj)};Coefficient de passage de Paux,uext( θam=θj) à Paux,uext ( θam= θi), pour θaval fixée.;Réel;;;Voir selon technologie
+{Cnnav_ηth,ecs(θi, θj)};Coefficient de passage entre de ηth,ecs(θaval=θj) à ηth,ecs(θaval=θi), pour θamont fixée.;Réel;;;Voir selon technologie
+{Cnnam_ηth,ecs(θi, θj)};Coefficient de passage de ηth,ecs( θam=θj) à ηth,ecs( θam= θi), pour θaval fixée.;Réel;;;Voir selon technologie
+# section : Paramètres d'intégration du composant
+Rdim;Nombre de machines identiques.;entier;1;-;
+Statut[Paux_uint_pc];"Statut de la saisie de la puissance absorbée par les unités intérieures :
+1 : déclarée
+2 : par défaut";Ent;0;1;
+Paux,uint,pc;Puissance électrique absorbée par les unités intérieures à pleine charge;W;0;+∞;
+# section : Sorties (Nom / Description / Unité)
+Qfou(h);Energie totale effectivement fournie par le générateur pour le mode sollicité.;Wh;;;
+{Qcef(h)};Matrice des consommations par poste et par type d'énergie;Wh;;;
+Qcons(h);Consommation horaire du générateur en énergie finale.;Wh;;;
+Qecs(h);Quantité d'énergie disponible pour la production ECS indirecte au pas de temps h;Wh;;;
+Qrest(h);Energie restant à fournir (dépassant la puissance maximale du générateur) pour le mode sollicité.;Wh;;;
+Waux,pro(h);Consommation électrique d'auxiliaires du générateur;Wh;;;
+Φrejet(h);Quantité d'énergie rejetée à la source amont (générateur thermodynamique);Wh;;;
+τcharge(h);Taux de charge du générateur;-;;;
+ηeff(h);Efficacité du générateur en énergie finale;-;;;
+# section : Variables internes (Nom / Description / Unité)
+Val_util_max;"valeur maximale de la performance pour la valeur pivot d'une machine lorsqu'il n'y a pas de valeurs certifiées ou justifiées.
+si Idfonction = 1 (chauffage)
+Syst_Thermo_CH =
+1 (PAC MG air/eau) : Val_util_max = 1.51
+2 (PAC MG air/air) : Val_util_max = 1.4
+
+si Idfonction = 2 (refroidissement)
+Type_cycle_FR = 1 et Syst_Thermo_FR =
+1 (PAC MG air/eau) : Val_util_max = 0.7
+2 (PAC MG air/air) : Val_util_max = 1.25
+Type_cycle_FR = 2 et Syst_Thermo_FR =
+1 (PAC MG air/eau) : Val_util_max = 1.0
+2 (PAC MG air/air) : Val_util_max = 1.25";-;;;
+{GUEutil(i,j)} / {EERutil(i,j)} / {Paux,uext (i,j)};Matrice des performances en mode chauffage/refroidissement selon les températures amont et aval après remplissage complet et corrections associées aux statuts de données.;{-};;;
+{ηth,ecs(i,j)};Matrice des efficacités de la production ECS indirecte ramenée à Pabs en fonction des températures amont et aval;{-};;;
+LR(h);Taux de charge par rapport à la puissance maximale (pleine charge);-;;;
+LRcycl(h);Taux de charge calculé par rapport à LRcontmin, lorsque le compresseur fonctionne en marche/arrêt.;-;;;
+GUE_pc(h) / GUE_LRcontmin(h) / GUE_LR(h);GUE utile à pleine charge et à charge réelle;-;;;
+Pfou_pc(h) / Pfou_LRcontmint(h) / Pfou_LR(h);Puissance fournie par une machine à pleine charge, à charge minimale du fonctionnement continu  et à charge réelle;W;;;
+Pabs_pc(h) / Pabs_LR(h);Puissance absorbée par une machine à pleine charge et à charge réelle;W;;;
+Pgaz_PC(h) / Pgaz_LRcontmint(h) / Pgaz_LR(h);Puissance appelée par le compresseur à pleine charge, à charge minimale du fonctionnement continu  et à charge réelle.;W;;;
+Paux,uext,pc(h);Puissance appelée par les auxiliaires des unités extérieures en chauffage;W;;;
+Pgaz_MA,LR(h);Puissance appelée à cause des irréversibilités à charge réelle;W;;;
+Qreq,act(h);Quantité d'énergie à fournir par une machine;W;;;
+Qrest,act(h);Energie restant à fournir à la fin du pas de temps, faisant l'objet d'un report de demande à un autre générateur en séquence ou au pas de temps suivant, pour un générateur.;Wh;;;
+ηth,ecs(h);Efficacité de la production indirecte ECS ramenée à la consommation de gaz;-;;;
+LIMECS(h);Coefficient de limitation de la puissance de production indirecte d'ECS associé à la température limite de l'eau en sortie du moteur;-;;;
+Waux,ecs(h);Consommation de la pompe de charge de la production ECS indirecte;Wh;;;
+# section : Constantes (Nom / Description / Unité / Conv.)
+Cpa;Chaleur massique de l'air;J.K-1.kg-1;;;1006
+GUEutil_max(ch);Valeur maximale de GUE pivot;-;;;1,4
+EERutil_max(fr);Valeur maximale de EER pivot;-;;;1,25
+CcpLRcontmin,def;Valeur par défaut de CcpLRcontmin;-;;;1,0
+LRcontmin,def;Valeur par défaut de LRcontmin;-;;;0,4
+Paux0,def;Valeur par défaut de la puissance d'auxiliaire absorbée à charge nulle;kW;;;0,12
+ηth,ecs,utile_max(ch) / ηth,ecs,utile_max(fr);Valeur utile maximale pour ηth,ecs pivot en chauffage et refroidissement;kW;;;
+Paux,uint,def(ch) / Paux,uint,def(fr);Valeur par défaut de la puissance absorbée à pleine charge par l'ensemble des unités intérieures en chauffage et refroid.;kW;;;Voir § 8.25.3.1
+Paux,uext,pivot,utile_min(ch) / Paux,uext,pivot,utile_min(fr);Valeurs utiles minimales de la puissance des auxiliaires des unités extérieures en chauffage et refroid.;kW;;;Voir § 8.25.3.1
+# fusion : colonne Conv. « Voir selon technologie » (rangs {θaval(i)} à Nθamont, puis preprocesseur Cnn) ; « Voir § 8.25.3.1 » fusionné sur les deux dernières lignes de Paux,uint,def et Paux,uext,pivot,utile_min

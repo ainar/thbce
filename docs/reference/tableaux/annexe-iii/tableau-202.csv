@@ -1,0 +1,6 @@
+# tableau 202, pages 799, fiche 8.23, refroidisseurs air extrait / air neuf, coefficients Cnn pour l'EER
+Températures aval;Températures amont
+Cnnav_EER(25,35) = 0.9;Cnnam_EER(32, 27) = 0.9
+Cnnav_EER(45,35) = 1.2;Cnnam_EER(22, 27) = 1.075
+Cnnav_EER(15,35) = 0.8;Cnnam_EER(37, 27) = 0.8
+Cnnav_EER(5,35) = 0.7;

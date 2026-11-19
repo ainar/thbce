@@ -1,0 +1,173 @@
+# tableau 259, pages 1004-1011, fiche 8.33, Nomenclature des différentes variables du modèle
+Nom;Description;Unité;Min;Max;Conv.
+Entrées du composant
+Données générales
+hleg(h);Heure légale au pas de temps h (0 à 24h).;h;;;
+Usagez;Type d'usage de la zone n°z;-;;;
+Ratl_loc;Ratio de surface utile du local l/surface utile de la zone;-;;;
+Az;Surface de la zone n°z du bâtiment;m²;;;
+Ag;Surface du groupe n°g de la zone n°z;m;;;
+Id_groupe;Index du groupe n°g;-;;;
+Mode;Mode de calcul en cours;-;;;
+Données liées au générateur électrique effet joule par défaut
+Qreq;Demande en énergie transmise au générateur via la gestion/régulation de la génération.;Wh;0;+∞;-
+idfonction;Indicateur de fonction du générateur accompagnant le Qreq (1 : chauffage, 2: refroidissement, 3: ECS), pour les générateurs multi-fonctions.;Ent;1;3;-
+Données liées à l'émission de chaud
+iocc_zone(h);Indicateur d'occupation au temps h;Ent.;;;
+iocc_zone(h-1);Indicateur d'occupation au temps h-1;Ent.;;;
+"θi,moy(0;0)(h)";Température moyenne de l'air à puissance nulle;°C;;;
+"θi,moy(10;0)(h)";Température moyenne de l'air pour une puissance émise de 10 W/m intégralement convective.;°C;;;
+"θi,moy(0;10)(h)";Température moyenne de l'air pour une puissance émise de 10 W/m intégralement radiative.;°C;;;
+"θs,moy(0;0)(h)";Température moyenne secondaire du groupe à puissance nulle;°C;;;
+"θs,moy(10;0)(h)";Température moyenne secondaire pour une puissance émise de 10 W/m intégralement convective.;°C;;;
+"θs,moy(0;10)(h)";Température moyenne secondaire pour une puissance émise de 10 W/m intégralement radiative.;°C;;;
+"θm,moy(0;0)(h)";Température moyenne de masse à puissance nulle;°C;;;
+"θm,moy(10;0)(h)";Température moyenne de masse pour une puissance émise de 10 W/m intégralement convective.;°C;;;
+"θm,moy(0;10)(h)";Température moyenne de masse pour une puissance émise de 10 W/m intégralement radiative.;°C;;;
+"θrm,moy(0;0)(h)";Température radiante moyenne à puissance nulle;°C;;;
+"θrm,moy(10;0)(h)";Température radiante moyenne pour une puissance émise de 10 W/m intégralement convective.;°C;;;
+"θrm,moy(0;10)(h)";Température radiante moyenne pour une puissance émise de 10 W/m intégralement radiative.;°C;;;
+"θop,moy(0;0)(h)";Température opérative moyenne ressentie à puissance nulle;°C;;;
+"θop,moy(10;0)(h)";Température opérative moyenne une puissance émise de 10 W/m intégralement convective.;°C;;;
+"θop,moy(0;10)(h)";Température opérative moyenne ressentie pour une puissance émise de 10 W/m intégralement radiative.;°C;;;
+irelance(h);Indicateur de période de relance au pas de temps h.;Ent.;;;
+θiifr_relance(h);Température de consigne initiale de refroidissement définie par le scénario de relance au pas de temps h.;°C;;;
+θiifr(h);Température de consigne initiale de refroidissement au pas de temps h;°C;;;
+Aut_ch,eff(j);Indicateur de saison effective de chauffage. 1 : le groupe est en saison de chauffage.;Ent.;;;
+Aut_fr,eff(j);Indicateur de saison effective de refroidissement. 1 : le groupe est en saison de refroidissement.;Ent.;;;
+Qsys_lat^em(h);Energie latente fournie par l'émetteur em au pas de temps h.;Wh;;;
+Qsys_lat(h);Energie latente fournie par l'ensemble des émetteurs au pas de temps h.;Wh;;;
+Données liées aux réseaux de distribution intergroupe de chaud
+Rat_eff_fr^gr,em;Part de l'énergie effective assurée par l'émetteur em en refroidissement, pour le groupe gr desservi par la distribution intergroupes.;Ent;;;
+θi,moy^gr(h);Température de l'air intérieur moyenne dans le groupe gr au pas de temps h (après croisement).;°C;;;
+θair_souffle^gr,s(h);Température d'air soufflé en amont de l'ensemble bouche/conduit de soufflage s du groupe gr.;°C;;;
+qm,spec_souffle^gr,s(h);Débit massique d'air soufflé de l'ensemble bouche/conduit de soufflage s du groupe gr.;kg/s;;;
+irelance^ds(h);Indicateur de période de relance au pas de temps h, à transmettre au réseau de distribution intergroupes.;Ent.;;;
+δfonct^ds(h);Indicateur de débit dans le réseau du groupe : 0 : Le réseau du groupe ne débite pas, 1 : Le réseau du groupe débite.;Entier;;;
+qeff^ds(h);Débit volumique dans le réseau du groupe en refroidissement.;m3/h;;;
+θdep^ds(h);Température du départ du réseau du groupe ds, pour le refroidissement.;°C;;;
+θret^ds(h);Température du départ du réseau du groupe ds, pour le refroidissement.;°C;;;
+Qsys_fr^ds(h);Energie requise par le réseau du groupe ds en refroidissement.;Wh;;;
+Variables d'intégration
+Variables liées à l'objet générateur électrique effet joule
+idfougen;Fonction du générateur : 1 : Chauffage, 2 : Refroidissement, 3 : ECS, 4 : Chauffage et ECS, 5 : Chauffage et refroidissement.;Ent;1;5;1
+idengen;Energie principale du générateur.;Ent;10;69;50
+Pngen;Puissance fournie en fonctionnement nominal (100% de charge) du générateur.;W;0;+∞;-
+Φthrecact;Pertes thermiques effectives du générateur vers l'ambiance au pas de temps h.;Wh;0;+∞;-
+Variables liées à l'emission de chaud
+idem_chaud^em;Booléen indiquant si l'émetteur em a une fonction de chauffage.;Bool;0;1;1
+idem_froid^em;Booléen indiquant si l'émetteur em a une fonction de refroidissement (un émetteur peut avoir les deux fonctions).;Bool;0;1;0
+δθvs_ch^em;Variation spatiale en mode chauffage.;°C;-∞;+∞;Voir Tableau 260
+Pemconv_ch^em;Ratio d'énergie convective sur l'énergie totale transmise pour le chauffage;-;0;1;0.95
+Pper^em;Ratio de pertes au dos de l'émetteur sur l'énergie émise.;-;0;1;0
+GestVCV^em;"Mode de gestion/régulation des ventilateurs locaux de l'émetteur : 0 : Pas de ventilateurs ; 1 : Régulation automatique permettant un arrêt total des ventilateurs lorsque la température de consigne est atteinte";Ent.;0;1;
+ispv^em;Présence d'un régime de super petite vitesse automatique sur le ventilo-convecteur : 0 : Non;Bool;0 (Non);0 (Non);0
+PVCV_GV^em;Puissance des ventilateurs locaux du ventilo-convecteur en régime de grande vitesse.;W;0;+∞;Voir Tableau 262
+PVCV_MV^em;Puissance des ventilateurs locaux du ventilo-convecteur en régime de moyenne vitesse.;W;0;+∞;Voir Tableau 262
+PVCV_PV^em;Puissance des ventilateurs locaux du ventilo-convecteur en régime de petite vitesse.;W;0;+∞;Voir Tableau 262
+PVCV_SPV^em;Puissance des ventilateurs locaux du ventilo-convecteur en régime de super petite vitesse.;W;0;+∞;Voir Tableau 262
+idregul_batt;Type de régulation de la batterie de refroidissement : 1 – Autre cas;-;1;-;1
+θbatt_dim^em;Température de dimensionnement de la batterie froide de l'émetteur.;°C;0;25;-
+FBbatt^em;Facteur de by-pass de la batterie pour une batterie à débit d'eau régulé de façon progressive (conventionnel).;Réel;0;1;0.8
+δθvt_ch^em;Variation temporelle en mode chauffage.;°C;0,2;+∞;1.8
+Psd_ch^em;Ratio caractéristique de la mesure de température effectuée par le régulateur de l'émetteur pour le chaud. Valeurs extrêmes : 0 : mesure sur la température radiante, 1 : mesure sur la température de l'air.;Réel;0;1;0.5
+Paramètres initialement d'intégration
+Rats_ch^em;Ratio de la surface utile traitée par l'émetteur à la surface utile totale du groupe en chaud;-;0;1;
+Rat_t_ch^em;Part assurée par l'émetteur dans l'énergie de chaud totale fournie à la surface utile traitée.;-;0;1;
+iclim;Booléen indiquant si le groupe est refroidi.;Bool;0;0;0
+Agr;Surface utile du groupe.;m;0;+∞;-
+idtype;Type de réseau de distribution du groupe : 0 : réseau de distribution fictif;Ent.;0;-;-
+idgest_ch;Mode de régulation de la température de la distribution du groupe associée à l'émetteur : 0 : sans objet;Ent;0;-;-
+θdep_dim_ch;Température de départ de dimensionnement;°C;-∞;+∞;0
+θret_dim_ch;Température de retour de dimensionnement;°C;-∞;+∞;0
+Δθem_dim_ch;Différence nominale de température dans le réseau de distribution du groupe entre départ et retour, liée au dimensionnement en chaud;°C;-∞;+∞;0
+Variables initialement internes
+Rat_em_eq_ch;Part de l'énergie fournie au groupe assurée par l'émetteur équivalent en chaud;-;;;
+δθvt_ch;Variation temporelle de l'émetteur équivalent de chaud;°C;;;
+δθvs_ch;Variation spatiale de l'émetteur équivalent de chaud.;°C;;;
+Pemconv_eq_ch;Ratio d'énergie convective de l'émetteur équivalent de chaud;-;;;
+Psd_eq_ch;Ratio caractéristique de la mesure de température effectuée par le régulateur associé à l'émetteur équivalent de chaud. Valeurs extrêmes : 0 : mesure sur la température radiante, 1 : mesure sur la température de l'air.;-;;;
+θi_eq_ch(h);Température de consigne équivalente en chauffage;°C;;;
+θsd_eq_ch(h);Température vue par la sonde de l'émetteur équivalent de chaud au début du pas de temps.;°C;;;
+Pemconv;Ratio d'énergie convective de l'émetteur équivalent de froid sollicité.;-;0;1;0.95
+Psd;Ratio caractéristique de la mesure de température effectuée par le régulateur associé à l'émetteur équivalent de froid sollicité. Valeurs extrêmes : 0 : mesure sur la température radiante, 1 : mesure sur la température de l'air.;-;0;1;0.5
+θsd_0(h);Température vue par la sonde associée au régulateur de l'émetteur équivalent de chaud sollicité, en fin de temps et à puissance émise nulle.;°C;;;
+θsd_10(h);Température vue par la sonde associée au régulateur de l'émetteur équivalent de chaud sollicité, en fin de temps et à puissance émise de 10 kW.;°C;;;
+θic(h);Température de consigne équivalente de chaud.;°C;;;
+Wvent_loc^em(h);Consommation électrique des ventilateurs locaux de l'émetteur em.;Wh;;;
+Φvent_loc_amb^em(h);Energie transmise à l'ambiance par les ventilateurs sous forme de chaleur.;Wh;;;
+Qv_recirc^em(h);Débit volumique de recirculation des ventilateurs locaux de l'émetteur em.;m3/h;;;
+Qm_recirc^em(h);Débit massique de recirculation des ventilateurs locaux de l'émetteur em.;kg/s;;;
+θbatt^em(h);Température de batterie froide de l'émetteur pour le calcul de la déshumidification.;°C;;;
+a0;Ordonnée à l'origine de la droite du groupe;W;;;
+a1;Pente de la droite du groupe;W/°C;;;
+Φutil(h);Puissance moyenne utile appelée par le groupe;W;;;
+Φcrois(h);Puissance nécessaire issue du croisement;W;;;
+Gestion/régulation des réseaux de distribution intergroupes de froid
+Paramètres initialement d'intégration
+idfonction;Fonction du réseau de distribution intergroupes : 1 : chauffage;Entier;1;-;-
+Paramètres initialement intrinsèques
+idtype;Type de réseau de distribution intergroupes : 0 : réseau de distribution fictif.;Entier;0;-;-
+idv_air^ds;Type de batterie associée à la distribution du groupe ds: 0 : Batterie sur air du local.;Entier;0;-;-
+idcirc_ch;Mode de régulation du circulateur : 0 : Pas de circulateurs.;Ent.;0;-;-
+θdep_dim_ch^ds;Température de départ de dimensionnement.;°C;-∞;+∞;0
+θret_dim_ch^ds;Température de retour de dimensionnement.;°C;-∞;+∞;0
+Δθem_dim_ch^ds;Différence nominale de température dans le réseau de distribution du groupe entre départ et retour, liée au dimensionnement.;°C;-∞;+∞;0
+qresid^ds;Débit résiduel minimal dû à des circulateurs en régime de fonctionnement permanent.;m /h;-∞;+∞;0
+qnom_fr^ds;Débit volumique nominal dans le réseau du groupe.;m /h;-∞;+∞;-
+Variables initialement internes
+qtot_req(h);Débit total requis par les réseaux de distributions du groupe.;m /h;;;
+qeff(h);Débit volumique dans le réseau de distribution intergroupes au pas de temps h.;m /h;;;
+qnom_fr;Débit nominal du réseau intergroupes.;m /h;;;
+qresid;Débit résiduel du réseau intergroupes.;m /h;;;
+Sorties
+Générateur électrique effet joule
+"{Qcef(fonct.;en.)}";"Consommation en énergie finale du générateur, présenté sous forme de matrice {fonction ; type d'énergie}.";Wh;0;+∞;-
+Qcons;Consommation horaire du générateur en énergie finale.;Wh;0;+∞;-
+Qfou;Energie totale effectivement fournie par le générateur au pas de temps h.;Wh;0;+∞;-
+τcharge;Taux de charge du générateur pour le poste considéré.;Réel;0;1;-
+Qrest;Energie restant à fournir à la fin du pas de temps, faisant l'objet d'un report de demande à un autre générateur en séquence ou au pas de temps suivant.;Wh;0;+∞;-
+Waux,pro;Consommations d'auxiliaire au pas de temps h.;Wh;0;+∞;0
+Φvc;Pertes thermiques et puissances des auxiliaires du générateur transmises vers l'ambiance chauffée.;Wh;0;+∞;-
+□eff;Ratio d'efficacité du générateur (rendement);Réel;0;10;1
+Rfonctecs;Temps de fonctionnement du générateur pour la production d'ECS à charge maximale au pas de temps h.;Réel;0;1;0
+Système d'émissions de chaud
+Rateff_ch^em;Part de l'énergie fournie au groupe effective assurée par l'émetteur en chauffage.;Ent;;;
+Qsys_ch^em(h);Demande en énergie de chauffage transmise par l'émission em à son réseau de distribution du groupe au pas de temps h.;Wh;;;
+Qm_recirc_eff^em(h);Débit massique de recirculation effectif sur la batterie froide de l'émetteur em.;kg/s;;;
+ωsat^em(h);Humidité spécifique à saturation pour la température de batterie θbatt.;kg/kgas;;;
+θsd,fin(h);Température vue par la sonde effective à la fin du pas de temps;°C;;;
+θi,fin(h);Température de l'air à la fin du pas de temps;°C;;;
+θm,fin(h);Température de masse à la fin du pas de temps;°C;;;
+θs,fin(h);Température opérative du groupe à la fin du pas de temps;°C;;;
+θop,fin(h);Température ressentie par l'occupant moyenne sur le pas de temps;°C;;;
+θsd,moy(h);Température vue par la sonde effective moyenne sur le pas de temps;°C;;;
+θi,moy(h);Température moyenne de l'air sur le pas de temps;°C;;;
+θm,moy(h);Température de masse moyenne sur le pas de temps;°C;;;
+θs,moy(h);Température opérative moyenne du groupe sur le pas de temps;°C;;;
+θop,moy(h);Température ressentie par l'occupant moyenne sur le pas de temps;°C;;;
+Φcrois_ch(h);Puissance de chauffage nécessaire issue du croisement.;W;;;
+idbch(h);Indicateur de besoins de chaud non-nuls au pas de temps h.;Bool;;;
+Qsys_ch(h);Energie requise pour le chauffage totale du groupe.;Wh;;;
+Wvent_loc_tot(h);Consommation électrique totale des ventilateurs locaux des émetteurs du groupe.;Wh;;;
+Φvent_loc_vc(h);Energie consommée par les ventilateurs locaux de l'ensemble des émetteurs du groupe et transmise à l'ambiance sous forme de chaleur.;Wh;;;
+Réseaux de distribution intergroupes de chaud
+θmax_ch;Température maximale de la distribution intergroupes;°C;;;
+Adess_ch^dp;Surface totale desservie en chaud par la distribution intergroupes.;m;;;
+Ratsurf_dess_ch^dp,gr;Ratio de la surface desservie dans le groupe gr sur la surface totale desservie par la distribution intergroupes, en chauffage;Réel;;;
+irelance(h);Indicateur de période de relance au pas de temps h, à transmettre au générateur.;Ent.;;;
+θi,aval,eq(h);Température d'air équivalente vu par la distribution intergroupes.;°C;;;
+Ratbes_prim_ch^dp,gr(h);Ratio des besoins de chauffage d'un groupe relié à un réseau intergroupes sur la somme de tous les besoins de chauffage du réseau intergroupes;Réel;;;
+Modpertes(h);Coefficient de modulation des pertes thermiques du réseau.;Réel;;;
+Modcirc(h);Coefficient de modulation des puissances de circulateur issu de la fiche gestion et régulation, pour le réseau intergroupes.;Réel;;;
+δfonct(h);Indicateur de débit dans le réseau intergroupes : 0 : Le réseau intergroupes ne débite pas, 1 : Le réseau intergroupes débite.;Entier;;;
+θdep(h);Température de départ du réseau intergroupes, pour le chauffage ou le refroidissement.;°C;;;
+θret(h);Température de retour du réseau intergroupes, pour le chauffage ou le refroidissement.;°C;;;
+Qsys_ds_req_ch(h);Energie de chauffage totale requise en entrée du réseau intergroupes.;Wh;;;
+Ratsurf^dp,gr;Ratio de la surface du groupe gr sur la surface totale desservie par le réseau de distribution intergroupes;Réel;;;
+Constantes
+Nom;Description;Unité;Conv.
+Réseaux de distribution intergroupe de chaud
+θamb_ch;Température d'ambiance intérieure conventionnelle pour le calcul des déperditions du réseau intergroupes lorsqu'il fonctionne en chauffage.;°C;20
+Constantes physiques
+Ca;Chaleur massique de l'air sec.;J/kgK;1006

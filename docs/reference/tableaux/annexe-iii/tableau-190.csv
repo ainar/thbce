@@ -1,0 +1,8 @@
+# tableau 190, pages 791-791, fiche 8.23, PAC sol/eau (ECS), coefficients Cnn pour le COP
+Températures aval;Températures amont
+Cnnav_COP(35,45) = 1.2;"Cnnam_COP(-1;5 ; 4) = 0,95"
+Cnnav_COP(25,45) = 1.4;"Cnnam_COP(-4 ; 4) = 0,8"
+Cnnav_COP(55,45) = 0.8;"Cnnam_COP(6,5 ; 4)= 1,07"
+Cnnav_COP(15,45) = 1.6;
+Cnnav_COP(65,45) = 0.6;
+Cnnav_COP(5,45) = 1.8;

@@ -1,0 +1,7 @@
+# tableau 140, page 735 (corps p. 734-735), fiche 8.21, titre Valeur par défaut des paramètres de caractérisation de la charge partielle ou nulle
+# remarque : grille en deux parties ; le corps commence en p.734 (lignes P_th,chp_min et φ_th,stab,30), la fin (φ_th,stab,30 pour id_app_inte=1 et Pw_aux,veille) est en p.735. En-tête de type de micro-cogénérateur répété en p.734 (non répété ici). Formules transcrites telles quelles.
+Grandeur;Valeur par défaut
+P_th,chp_min (kW);"60% . P_th;chp100+sup0"
+φ_th,stab,30 (W);"Si id_app_inte = 0 : 1000 . 4,25% . P_th;chp100+sup0 / (P_th;chp100+sup0)^0,4"
+φ_th,stab,30 (W);"Si id_app_inte = 1 : 1000 . 4,25% . P_th;chp100+sup100 / (P_th;chp100+sup100)^0,4"
+Pw_aux,veille (W);15 W

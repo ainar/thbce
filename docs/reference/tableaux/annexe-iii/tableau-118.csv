@@ -1,0 +1,9 @@
+# tableau 118, page 701, fiche 8.19, titre valeurs par défaut des chaudières gaz et fioul, coefficients c1 à c6
+# remarque : en-tête sur deux niveaux ; « Chaudière bois » fusionne Bûche et Granulés/plaquettes. Le tableau des c7 à c10 et n présent sur la même page n'a pas de légende propre sur cette page (voir tableau 119).
+Coefficient;Chaudière gaz ou fioul avec Pn_gen ≤ 400 kW;Chaudière gaz ou fioul avec Pn_gen > 400 kW;Chaudière bois Bûche;Chaudière bois Granulés/plaquettes
+c1;94,0;96,6;89;91
+c2;1,0;0;2,0;2,0
+c3;103,0;105,6;84;88
+c4;1,0;0;2,0;2,0
+c5;4,0;4,0;14,0;14,0
+c6;-0,4;0;-0,28;-0,28

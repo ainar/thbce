@@ -1,0 +1,9 @@
+# tableau 166, pages 775-775, fiche 8.23, PAC eau glycolée / air (chauffage), coefficients Cnn pour le COP
+Côté;Coefficient;Valeur
+Températures aval;Cnnav_COP(15, 20);1.10
+Températures aval;Cnnav_COP(25, 20);0.9
+Températures aval;Cnnav_COP(10, 20);1.20
+Températures aval;Cnnav_COP(5, 20);1.3
+Températures amont;Cnnam_COP(3.5, 8.5);0.9
+Températures amont;Cnnam_COP(13.5, 8.5);1.1
+Températures amont;Cnnam_COP(18.5, 8.5);1.2

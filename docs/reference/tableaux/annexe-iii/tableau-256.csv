@@ -1,0 +1,59 @@
+# tableau 256, pages 990-992, fiche 8.32, Nomenclature du modèle
+Nom;Description;Unité;Min;Max;Conv.
+Entrées du composant
+hlég;Heure légale au pas de temps h.;h;;;
+Aut_fr_pro^gr(h);Autorisation de refroidissement propre au groupe, délimitant la période été;Bool;;;
+θi(h);Température de l'air intérieur du groupe considéré, au pas de temps h.;°C;;;
+θrm(h);Température radiante moyenne du groupe considéré, au pas de temps h.;°C;;;
+θifr+(h);Température de consigne de refroidissement en période d'occupation;°C;;;
+Δθconf_adapt(h);Ecart entre la température d'inconfort chaud et la température de consigne de refroidissement en occupation (lié à la notion de confort adaptatif);°C;;;
+Type_Usage^z;Type d'usage de la zone;Entier;;;
+iocc_zone(h);"Indicateur d'occupation au temps h : vrai : zone en occupation ; faux : zone en inoccupation";Entier;;;
+θifr+(h);Température de consigne de refroidissement en période d'occupation;°C;;;
+Agr;Surface du groupe;m2;;;
+Vol;Volume du groupe.;m3;;;
+θop,fin(h-1);Température intérieure opérative du groupe considéré à la fin du pas de temps h-1.;°C;;;
+θop,fin(h-2);Température intérieure opérative du groupe considéré à la fin du pas de temps h-2.;°C;;;
+categorie_CE1_CE2^gr;Catégorie CE1 ou CE2 du groupe (1=CE1 / 2=CE2);-;1;2;
+Is_climatise^gr;Indicateur au niveau du groupe précisant si le groupe est climatisé ou non (0=non climatisé / 1=climatisé);-;0;1;
+Sorties du composant
+Δθop^BA_p(h);Impact sur la température opérative dû aux brasseurs d'air.;°C;;;
+Wabs-BA-p(h);Consommation électrique de l'ensemble de brasseurs d'air de type p au pas de temps h;Wh;;;
+Wabs-BA^gr(h);Consommation électrique de l'ensemble de brasseurs d'air du groupe au pas de temps h;Wh;;;
+Φth-BA-vc-p(h);Flux de chaleur vers l'ambiance associé à la consommation électrique des brasseurs d'air de type p au pas de temps h;Wh;;;
+Φth-BA-vc^gr(h);Flux de chaleur vers l'ambiance associé à la consommation électrique de l'ensemble des brasseurs d'air du groupe au pas de temps h;Wh;;;
+Paramètres d'intégration du composant
+p;Type de brasseur.;Entier;0;+∞;
+Nbr_p;Nombre de brasseurs de type p.;Entier;0;+∞;
+Ratbr_p;Ratio de surface utile des pièces cloisonnées couvertes par les brasseurs de type p.;Réel;0;1;
+RatUs_BA_p;Ratio de surface utile des pièces occupées pour un usage jour/nuit donné (identique quel que soit le type de brasseur d'un même type d'usage);Réel;0;1;
+Usp;Type d'usage pour les brasseurs de type p (Jour/Nuit/Jour et nuit).;Entier;0;1;
+mode_gestion_br_p;Paramètre de définition du mode de gestion des brasseurs de type p;Entier;1;3;
+"Gestion - régulation : Δθop_1_br_p_th_aut ; Δθop_2_br_p_th_aut ; Δθop_3_br_p_th_aut";Paramètres de base de l'hystérésis en gestion automatique avec thermostats pour les brasseurs de type p.;°C;0;+∞;
+"Gestion - régulation : Δθop_1_br_p_aut ; Δθop_2_br_p_aut ; Δθop_3_br_p_aut";Paramètres de base de l'hystérésis en gestion automatique pour les brasseurs de type p.;°C;0;+∞;
+Gestion - régulation : θop_dec_br_p_aut;Température de déclenchement des brasseurs d'air de type p en gestion automatique.;°C;0;+∞;
+Paramètres intrinsèques du composant
+type_Pelec_br_p_max;Caractère certifié/justifié/déclaré de la puissance maximale d'un brasseur d'air de type p;-;-;-;
+Pelec_br_p_max;Puissance électrique individuelle maximale certifiée,justifiée ou déclarée d'un brasseur d'air de type p.;W;0;+∞;
+Pelec_br_p_max_corr;Puissance électrique individuelle maximale corrigée d'un brasseur d'air de type p.;W;0;+∞;
+type_Qvair_br_p_max;Caractère certifié/justifié/déclaré du débit volumique maximal d'un brasseur d'air de type p;-;-;-;
+Qvair_br_p_max;Débit volumique individuel maximal certifié, justifié ou déclaré d'un brasseur d'air de type p.;m3/h;0;+∞;
+Qvair_br_p_max_corr;Débit volumique individuel maximal corrigé d'un brasseur d'air de type p.;m3/h;0;+∞;
+Variables internes
+Pelec_br_p(h);Puissance électrique d'un brasseur de type p, au pas de temps h.;W;;;
+Qvair_br_p(h);Débit volumique d'un brasseur de type p, au pas de temps h.;m3/h;;;
+Qvair_br_p_tot(h);Débit volumique d'un brasseur de type p équivalent, au pas de temps h.;m3/h;;;
+τbr_p(h);Taux de brassage rapporté au brasseur de type p équivalent, au pas de temps h.;vol/h;;;
+vbr_p(h);Vitesse moyenne dans la zone couverte par l'ensemble des brasseurs d'air de type p, au pas de temps h.;m/s;;;
+Δθop^BA_p(h);Impact sur la température opérative dû aux brasseurs d'air de type p, au pas de temps h.;°C;;;
+Δθop^BA_jour(h);Impact sur la température opérative dû aux brasseurs d'air en usage jour, au pas de temps h.;°C;;;
+Δθop^BA_nuit(h);Impact sur la température opérative dû aux brasseurs d'air en usage nuit, au pas de temps h.;°C;;;
+"Gestion manuelle : Δθop_1_br_man ; Δθop_2_br_man ; Δθop_3_br_man";Paramètres de base de l'hystérésis en gestion manuelle.;°C;0;+∞;Voir le tableau 2
+Gestion manuelle : θop_dec_br_man;Température de déclenchement des brasseurs d'air en gestion manuelle.;°C;0;+∞;Voir le tableau 2
+Gestion manuelle : θop_dec_br_man;Température de déclenchement des brasseurs d'air en gestion manuelle.;°C;0;+∞;
+Gestion : θop_dec_br_p_th_aut;Température de déclenchement des brasseurs d'air de type p en gestion automatique avec thermostats.;°C;0;+∞;
+Gestion : θV1_man, θV2_man, θarr_man;Températures de consigne de l'hystérésis de gestion en manuel.;°C;0;+∞;-
+Gestion : θV1_aut, θV2_aut, θarr_aut;Températures de consigne de l'hystérésis de gestion en manuel.;°C;0;+∞;-
+Constantes
+Nom;Description;Unité;Conv.
+"{Coefep(énergie ;1)}";Matrice des coefficients d'énergie primaire associés aux différents types d'énergie.;Réel;-

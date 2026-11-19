@@ -1,0 +1,6 @@
+# tableau 176, pages 781-781, fiche 8.23, PAC sol/sol (chauffage), coefficients Cnn pour Pabs
+Températures aval;Températures amont
+Sans objet;"Cnnam_Pabs(-1;5 ; 4) = 1"
+# fusion : « Sans objet » couvre les 3 lignes
+;"Cnnam_Pabs(-4 ; 4) = 1"
+;"Cnnam_Pabs(6,5 ; 4)= 1"
