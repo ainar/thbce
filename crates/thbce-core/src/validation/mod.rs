@@ -32,6 +32,7 @@ mod espaces_tampons;
 mod exigences;
 mod generation;
 mod photovoltaique;
+mod puits;
 mod solaire;
 mod systemes;
 mod usages_batiment;

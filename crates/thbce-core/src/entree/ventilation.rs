@@ -20,10 +20,17 @@ pub struct Ventilation {
     /// Réseau de conduits : étanchéité et parties hors volume chauffé (§6.2.3.4, §6.3.3.3.2,
     /// §6.5.3.4).
     pub reseau: ReseauAeraulique,
-    /// Raccordement à un puits climatique ou hydraulique (§6.8 à 6.11) : non pris en charge
-    /// dans cette version.
+    /// Raccordement à un puits climatique ou hydraulique (§6.8 à 6.11). Le puits climatique
+    /// (`climatique`) se décrit par `puits_climatique` ; le puits hydraulique n'est pas encore
+    /// pris en charge.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub puits: Option<Puits>,
+    /// Description du puits climatique (fiches 6.8, 6.10 et 6.11), requise si `puits` vaut
+    /// `climatique` et interdite sinon. Le système doit être un simple flux par insufflation,
+    /// un double flux ou une centrale de traitement d'air (§6.11.3). Le puits ne dessert que
+    /// ce système.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub puits_climatique: Option<PuitsClimatique>,
     /// Réseau de distribution de CTA hydraulique de chauffage (fiche 8.11, « idtype = 1 »,
     /// §8.11.3.6.2 et fiche 8.12) : relie la centrale à la génération qui fournit l'énergie de
     /// ses fonctions de chauffage (préchauffage, sécurité antigel, humidificateur à vapeur,
@@ -722,6 +729,65 @@ pub enum Puits {
     Climatique,
     /// Puits hydraulique (§6.9).
     Hydraulique,
+}
+
+/// Th-BCE 2020 §6.8.2, tableau 69 — puits climatique (ou canadien) : conduits enterrés dans
+/// lesquels circule l'air neuf, et gestion de son bypass (§6.10.2, tableau 73).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PuitsClimatique {
+    /// « nd » : nombre de conduits (au moins 1).
+    pub nd: u32,
+    /// « L » : longueur d'un conduit, en m (strictement positive).
+    pub l_m: f64,
+    /// « di » : diamètre intérieur du conduit, en m (strictement positif).
+    pub di_m: f64,
+    /// « ep » : épaisseur du conduit, en m (positive ou nulle).
+    pub ep_m: f64,
+    /// « λtube » : conductivité thermique du conduit, en W/(m.K) (strictement positive).
+    pub lambda_tube_w_m_k: f64,
+    /// « Z » : profondeur d'enfouissement des conduits, en m (positive ou nulle).
+    pub profondeur_m: f64,
+    /// « Type_solPC » : nature du sol (tableau 70).
+    pub type_sol: TypeSolPuits,
+    /// Gestion du bypass en fonction des températures (« typegest_PC » = 1, §6.10.2) ; absent :
+    /// pas de bypass (« typegest_PC » = 0), le puits est toujours traversé.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bypass: Option<BypassPuits>,
+}
+
+/// « Type_solPC » : nature du sol d'un puits climatique (§6.8.3.2.1, tableau 70).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TypeSolPuits {
+    /// 0 - sol humide (`gm` = 1,00).
+    SolHumide,
+    /// 1 - sable sec (`gm` = 0,90).
+    SableSec,
+    /// 2 - sable humide (`gm` = 0,98).
+    SableHumide,
+    /// 3 - argile humide (`gm` = 1,04).
+    ArgileHumide,
+    /// 4 - argile mouillée (`gm` = 1,05).
+    ArgileMouillee,
+}
+
+/// Consignes du bypass d'un puits climatique (§6.10.2, tableau 73, éq. 751 et 752) : le puits
+/// est contourné lorsque l'air extérieur est plus frais que l'air intérieur, plus chaud que la
+/// consigne extérieure et que l'air intérieur dépasse la consigne intérieure.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BypassPuits {
+    /// « θint,bypass_PC^hiver » : température intérieure de consigne au-dessus de laquelle le
+    /// puits peut être contourné en période de chauffage, en °C.
+    pub theta_int_hiver_c: f64,
+    /// « θext,bypass_PC^hiver » : température extérieure de consigne au-dessus de laquelle le
+    /// puits peut être contourné en période de chauffage, en °C.
+    pub theta_ext_hiver_c: f64,
+    /// « θint,bypass_PC^été » : la même hors période de chauffage, en °C.
+    pub theta_int_ete_c: f64,
+    /// « θext,bypass_PC^été » : la même hors période de chauffage, en °C.
+    pub theta_ext_ete_c: f64,
 }
 
 /// Th-BCE 2020 §5.6.2 et §5.6.3.2 — entrées d'air d'un groupe.

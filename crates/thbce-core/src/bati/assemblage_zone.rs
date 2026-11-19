@@ -107,6 +107,12 @@ pub struct CumulsVentilation {
     pub nbh_adiab: u32,
     /// Nombre de pas de temps où la surventilation mécanique est en service (éq. 766).
     pub nbh_rafnoc: u32,
+    /// Nombre de pas de temps où l'air neuf traverse le puits climatique (non contourné).
+    pub nbh_puits: u32,
+    /// Énergie échangée dans le puits climatique en préchauffage, en Wh (positive).
+    pub q_puits_chaud_wh: f64,
+    /// Énergie échangée dans le puits climatique en prérafraîchissement, en Wh (négative).
+    pub q_puits_froid_wh: f64,
 }
 
 impl ZoneHoraire {
@@ -362,8 +368,13 @@ impl ZoneHoraire {
                         theta_op_fin_c: g.etat.fin.theta_op_c,
                     }
                 }));
-            // §6.12 : surventilation mécanique, air neuf à la température extérieure.
-            v.reguler_surventilation(h, ext.te_c, &self.etats_ventilation);
+            // §6.8, 6.10 et 6.11 : puits climatique (sol, bypass, `θan` avec les débits du pas
+            // précédent).
+            v.preparer_puits(h, &climat.te_c, ext.te_c, &self.etats_ventilation);
+            // §6.12 : surventilation mécanique, avec l'air neuf à `θan(h)` (la température
+            // extérieure sans puits).
+            let theta_an_c = v.theta_an_c(ext.te_c);
+            v.reguler_surventilation(h, theta_an_c, &self.etats_ventilation);
             v.preparer_pas(i_vent, &self.etats_ventilation);
         }
         for (ig, g) in self.groupes.iter_mut().enumerate() {
@@ -394,6 +405,9 @@ impl ZoneHoraire {
             cv.w_aux_adiab_wh += sv.w_aux_adiab_wh;
             cv.nbh_adiab += u32::from(sv.adiab);
             cv.nbh_rafnoc += u32::from(sv.rafnoc);
+            cv.nbh_puits += u32::from(sv.puits_actif);
+            cv.q_puits_chaud_wh += sv.q_puits_wh.max(0.0);
+            cv.q_puits_froid_wh += sv.q_puits_wh.min(0.0);
         } else {
             for (a, g) in self.air_souffle.iter_mut().zip(&self.groupes) {
                 *a = AirSouffle {

@@ -1188,14 +1188,15 @@ impl SystemesBatiment {
                     q_sys_wh: w_ag,
                     theta_moy_c: 0.0,
                     theta_dep_c: 0.0,
-                    // Éq. (952) : air neuf (sans puits) ; variante de l'éq. (951) (Q93 point 3) :
-                    // après la boîte de mélange si le préchauffage passe par la même génération.
+                    // Éq. (952) : air neuf `θAN` (celui du puits climatique s'il y en a un, éq. 414 et
+                    // 488) ; variante de l'éq. (951) (Q93 point 3) : après la boîte de mélange si
+                    // le préchauffage passe par la même génération.
                     theta_i_aval_eq_c: if self.antigel_souf_mel
                         && self.batteries_cta[iz].prechauffage == Some(ig)
                     {
                         z.sorties_ventilation.theta_souf_mel_c
                     } else {
-                        theta_ext_c
+                        z.sorties_ventilation.theta_an_c.unwrap_or(theta_ext_c)
                     },
                     relance: relance_cta(z),
                     // Sans demande, la sécurité antigel ne pèse pas dans les répartitions.
