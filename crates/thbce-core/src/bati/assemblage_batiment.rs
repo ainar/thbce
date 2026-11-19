@@ -773,24 +773,31 @@ impl SystemesBatiment {
                 reseaux_cta.push(rc);
             }
         }
+        // Éq. (941) à (944) : les pertes d'un réseau de CTA sont attribuées aux groupes de la
+        // centrale au prorata de leurs débits soufflés maximaux (surface, à défaut de débit).
         let rat_dess_cta: Vec<Vec<f64>> = reseaux_cta
             .iter()
             .map(|r| {
-                let total: f64 = groupes
+                let debits: Vec<f64> = zones
                     .iter()
-                    .filter(|(z, _)| *z == r.zone)
-                    .map(|(_, a)| a)
-                    .sum();
-                groupes
-                    .iter()
-                    .map(|(z, a)| {
-                        if *z == r.zone && total > 0.0 {
-                            a / total
-                        } else {
-                            0.0
-                        }
+                    .enumerate()
+                    .flat_map(|(iz, z)| {
+                        z.groupes.iter().enumerate().map(move |(ig, _)| {
+                            if iz == r.zone {
+                                z.ventilation
+                                    .as_ref()
+                                    .map_or(0.0, |v| v.q_souffle_max_groupe_m3_h(ig))
+                            } else {
+                                0.0
+                            }
+                        })
                     })
-                    .collect()
+                    .collect();
+                let surfaces: Vec<f64> = groupes
+                    .iter()
+                    .map(|(z, a)| if *z == r.zone { *a } else { 0.0 })
+                    .collect();
+                rapports_cta(&debits, &surfaces)
             })
             .collect();
         let nb_reseaux_cta = reseaux_cta.len();
@@ -1597,5 +1604,36 @@ impl SystemesBatiment {
         if jour_bascule_saisons(h).is_some() {
             self.fixer_autorisations(zones);
         }
+    }
+}
+
+/// Éq. (941) à (944) : part de chaque groupe dans les pertes d'un réseau de CTA, au prorata
+/// des débits soufflés maximaux ; au prorata des surfaces si aucun débit n'est soufflé.
+fn rapports_cta(debits_m3_h: &[f64], surfaces_m2: &[f64]) -> Vec<f64> {
+    let (base, total) = {
+        let d: f64 = debits_m3_h.iter().sum();
+        if d > 0.0 {
+            (debits_m3_h, d)
+        } else {
+            (surfaces_m2, surfaces_m2.iter().sum())
+        }
+    };
+    base.iter()
+        .map(|x| if total > 0.0 { x / total } else { 0.0 })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests_rapports_cta {
+    use super::rapports_cta;
+
+    /// Deux groupes de 600 et 400 m² soufflés à 8 000 et 2 000 m³/h : 8 000 / 10 000 = 80 %
+    /// et 20 % (éq. 941), et non 60 / 40 (surfaces).
+    #[test]
+    fn deux_groupes_au_prorata_des_debits() {
+        let r = rapports_cta(&[8000.0, 2000.0], &[600.0, 400.0]);
+        assert!((r[0] - 0.8).abs() < 1e-12 && (r[1] - 0.2).abs() < 1e-12);
+        let s = rapports_cta(&[0.0, 0.0], &[600.0, 400.0]);
+        assert!((s[0] - 0.6).abs() < 1e-12 && (s[1] - 0.4).abs() < 1e-12);
     }
 }

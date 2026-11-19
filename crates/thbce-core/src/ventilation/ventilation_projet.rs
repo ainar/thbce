@@ -1088,6 +1088,31 @@ impl VentilationProjet {
         }
     }
 
+    /// Somme des débits soufflés maximaux d'un groupe, en m³/h : numérateur des éq. (941) et
+    /// (942) (Th-BCE 2020 §8.11.3.4). Bouche reliée à une centrale de traitement d'air : débit
+    /// de soufflage du mode actif en occupation (« qsoufflé,CH,max », éq. 942) ; autre bouche :
+    /// le plus grand de ses débits d'occupation et d'inoccupation (« qsoufflé,max », éq. 941).
+    pub fn q_souffle_max_groupe_m3_h(&self, g: usize) -> f64 {
+        self.bouches
+            .iter()
+            .filter(|b| b.groupe == g)
+            .filter_map(|b| {
+                let d = match b.debits_ch {
+                    Some((occ, _)) => occ,
+                    None => {
+                        let inocc = b.debits_inocc.unwrap_or(b.debits);
+                        if inocc.q_spec_m3_h() > b.debits.q_spec_m3_h() {
+                            inocc
+                        } else {
+                            b.debits
+                        }
+                    }
+                };
+                (d.isouf == Isouf::Soufflage).then(|| d.q_spec_m3_h())
+            })
+            .sum()
+    }
+
     /// Débits spécifiques d'un groupe au pas de temps en cours (régime fixé par
     /// [`VentilationProjet::preparer_pas`]).
     pub fn debits_groupe_pas(&self, g: usize) -> Debits {
