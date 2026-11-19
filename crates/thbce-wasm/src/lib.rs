@@ -36,6 +36,13 @@ const TYPES: &'static str = r#"
 export interface OptionsCalcul {
   /** Arrondit les résultats à une décimale (Th-BCE 2020 §1.3.1). Vrai par défaut. */
   arrondir?: boolean;
+  /**
+   * Restitue en plus, pour chaque bâtiment, les séries horaires principales du calcul Th-C
+   * (`batiments[].series_horaires` : température extérieure, besoins et températures des
+   * groupes, électricité par poste, consommations par poste et par énergie ; 8 760 valeurs par
+   * série). Faux par défaut : la restitution est alors inchangée.
+   */
+  series_horaires?: boolean;
 }
 /** Problème relevé dans l'entrée. */
 export interface Probleme {
@@ -74,6 +81,7 @@ export interface ErreurCalcul {
 #[serde(deny_unknown_fields)]
 struct OptionsJs {
     arrondir: Option<bool>,
+    series_horaires: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -179,10 +187,16 @@ pub fn calculer(
     };
     let zone = projet.localisation.zone_climatique_retenue();
     let donnees = meteo::lire(meteo, zone).map_err(|e| erreur("meteo", e.to_string(), None))?;
+    let series_horaires = options.series_horaires.unwrap_or(false);
     let options = Options {
         arrondir: options.arrondir.unwrap_or(true),
     };
-    match thbce_core::calculer(&projet, &donnees, &options) {
+    let calcul = if series_horaires {
+        thbce_core::calculer_avec_series
+    } else {
+        thbce_core::calculer
+    };
+    match calcul(&projet, &donnees, &options) {
         Ok(resultats) => vers_js(&resultats),
         Err(e) => Err(match &e {
             Erreur::Saisie(r) if r.seulement_hors_perimetre() => erreur(

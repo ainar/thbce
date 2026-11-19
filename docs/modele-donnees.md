@@ -26,7 +26,7 @@ Projet { $schema?, version_format?, nom, localisation, catalogue }
     ├── installations_pv[]                     ch. 12
     ├── ascenseurs[], parkings[]               ch. 10
     ├── exigences?                             annexe de l'article R. 172-4
-    └── zones[]       usage, nb_logements, aéraulique de zone, ventilation
+    └── zones[]       usage, nb_logements, types_logements? (pièces principales), nb_occupants?, aéraulique de zone, ventilation
         └── groupes[] surfaces, volume, inertie, parois opaques, baies, ponts thermiques,
                       bouches et entrées d'air, iclim, programmation, émetteurs, distributions,
                       émetteurs d'ECS, locaux d'éclairage (hors habitation)
@@ -135,6 +135,8 @@ Batiment
                      jours_fermes[] }
 ```
 
+Escalators et tapis roulants (fiche 10.2, lot 1-sor ; lectures `docs/questions/Q115.md`) : `Batiment.escalators[]` facultatif, `{ id, sens: montee | descente, v_nom_m_s?, h_m (0 : tapis roulant), p_noload_w, slowspeed?, p_slowspeed_w? (requis avec slowspeed), sc_veille?, etat_fermeture?: arret_complet | arret_sans_passager | vitesse_nominale_a_vide, p_standby_w?, p_autostart_w?, zones_desservies[] }`. Les puissances d'arrêt sont requises selon l'état de fermeture quand `sc_veille` est vrai (sinon 88 W par défaut, signalé dans `valeurs_par_defaut`). Résultats : `escalators` au niveau du bâtiment (`bvnb`, `m_kg`, `p_noload_m_w`, `p_noload_d_w`, `h_m_m`, `h_d_m`, `p_off_w`, `nb_h_occupation`, `e_tot_kwh`, `valeurs_par_defaut`) et `consommations_collectif.escalators` ; la consommation s'ajoute au poste « déplacements » (`electricite_consommee.deplacements_kwh`).
+
 Résultats : `consommations_collectif` (zone et bâtiment) : `eclairage_parties_communes`, `ascenseurs`, `ventilation_parkings`, `eclairage_parkings`, chacun `{ annuel_kwh, annuel_kwh_m2, mensuel_kwh[12] }` ; `ascenseurs[]` (`nb_demarrages`, `t_mob_h`, `pti_w`, `e_tm_kwh`, `e_ti_kwh`, `e_tot_kwh`, `valeurs_par_defaut`) et `parkings[]` (`e_vent_kwh`, `e_ecl_kwh`, `valeurs_par_defaut`) au niveau du bâtiment.
 
 ### Format d'entrée de la production photovoltaïque (lot 7a)
@@ -193,6 +195,15 @@ Resultats { version_moteur, version_methode, reglementaire, origine_meteo_th_bc,
 ```
 
 `reglementaire` est faux dès qu'un jeu météo n'est pas celui de la RE2020. Les valeurs sont arrondies à une décimale (§1.3.1, Q8) sauf `--sans-arrondi` (`arrondir: false`).
+
+### Séries horaires (lot 1-sor, Q118)
+
+Facultatives, absentes par défaut (la restitution est alors inchangée). En ligne de commande : `thbce calcul … --horaire <fichier>` écrit les séries dans ce fichier (JSON si le nom finit par `.json`, CSV sinon) et laisse la sortie des résultats telle quelle. Dans le module WebAssembly : option `series_horaires: true` de `calculer`, qui ajoute `batiments[].series_horaires` aux résultats. En Rust : `calculer_avec_series`.
+
+`series_horaires = { colonnes: [ { nom, unite, valeurs } ] }`, 8 760 valeurs par colonne (heure `h` de l'année, du 1er janvier 0 h), calcul Th-C sur le jeu météo « Th-BC », arrondies à une décimale comme le reste (sauf `--sans-arrondi`). Colonnes, dans l'ordre : `te` (température extérieure du site, °C) ; pour chaque groupe `<zone>.<groupe>.` suivi de `q_sys_ch` (Qsys chauffage, Wh, positif), `q_sys_fr` (Qsys refroidissement, Wh, négatif ou nul), `theta_air` et `theta_op` (températures d'air et opérative moyennes du pas de temps, °C) ; `elec.ch`, `elec.fr`, `elec.ecs`, `elec.ecl`, `elec.aux_vent`, `elec.aux_dist`, `elec.depl`, `elec.mob` (électricité consommée par poste du chapitre 13, Wh, usages mobiliers compris) et `elec.total` ; `cef.<poste>.<énergie>` (consommation d'énergie finale des générations, Wh ; postes `ch`, `fr`, `ecs` ; énergies `gaz`, `fioul`, `charbon`, `bois`, `electricite`, `reseau` ; colonnes nulles omises). La somme annuelle de `elec.<poste>` redonne `indicateurs.electricite_consommee`, au forfait de refroidissement près (annuel, §13.3.3.2, éq. 2494 à 2496 : compris dans l'indicateur, absent des séries).
+
+CSV : séparateur `,`, point décimal, en-tête `heure,<bâtiment>.<colonne> [<unité>],…`, puis 8 760 lignes dont la première colonne est le rang de l'heure (1 à 8 760). JSON du fichier : `{ "batiments": [ { "id", "colonnes": [ { "nom", "unite", "valeurs" } ] } ] }`. Poids : 0,6 Mo de CSV et 2,5 Mo de JSON indenté pour 16 colonnes (exemple `commerce-escalators-ademe`, un groupe) ; le module WebAssembly n'ajoute que le code du relevé (quelques ko), les séries ne sont construites que sur demande.
+
 
 ## Erreurs
 
@@ -299,7 +310,7 @@ Le raccordement à un réseau de chaleur urbain se déduit des générations (so
 
 ### Résultats
 
-`batiments[].cep_kwhep_m2`, `cep_nr_kwhep_m2` et `ic_energie_kgco2_m2` sont calculés dès que le bâtiment a des générations. Le détail est dans `batiments[].indicateurs` :
+`batiments[].cep_kwhep_m2`, `cep_nr_kwhep_m2` et `ic_energie_kgco2_m2` sont calculés dès que le bâtiment a des générations. Le nombre d'occupants d'une zone (fiche 13.6) se saisit par `zones[].types_logements` (habitation : `[{ pieces_principales: 1 à 7, nombre }]`, dont la somme vaut `nb_logements`, éq. 131) ou `zones[].nb_occupants` (élèves en enseignement ; programme du bâtiment ailleurs, à défaut scénarios conventionnels signalés) : sans lui, `indicateurs.occupants` est absent (Q117). Le détail est dans `batiments[].indicateurs` :
 
 ```
 indicateurs
@@ -314,6 +325,9 @@ indicateurs
 ├── lignes[]          { poste, energie, cef_kwh, coef_ep, coef_ep_nr, facteur_emission_kg_kwh,
 │                       cep_kwhep_m2, cep_nr_kwhep_m2, ic_energie_kgco2_m2 }
 ├── cef_kwhef_m2, cep_kwhep_m2, cep_nr_kwhep_m2, ic_energie_kgco2_m2, somme_f_co2
+├── ic_energie_annuel_kgco2_m2?   50 valeurs, a = 1 à 50 (annexe II éq. 75 ; Q117)
+├── occupants?        { nocc_batiment, origine, zones[] { zone, nocc, origine }, cep_par_occupant_kwhep,
+│                       ic_energie_par_occupant_kgco2?, valeurs_par_defaut[] }   (fiche 13.6, Q117)
 └── exigences?        { bbio_max_pts, cep_max_kwhep_m2, cep_nr_max_kwhep_m2, ic_energie_max_kgco2_m2,
                         zones[] (valeurs moyennes et coefficients de modulation de chaque zone),
                         verifications[] { indicateur, groupe?, valeur, maximum, marge, marge_pct, respectee },

@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Variante de immeuble-collectif-ademe (lot 1-sor) : le nombre de pièces principales des 12 logements est saisi (4 T2, 6 T3, 2 T5 : 36 occupants, éq. 131 et tableau 342), d'où les indicateurs par occupant (fiche 13.6, éq. 2552 et 2553) ; l'Ic énergie annuel (annexe II éq. 75) est restitué pour tout cas à Ic énergie. Météo ouverte ADEME (Tours, H2b). Ordres de grandeur seulement."
+source = "aucune : valeurs du moteur au lot 1-sor (19 novembre 2026), figées pour détecter les régressions ; ce n'est pas un cas de référence. Nombres de logements par typologie fictifs. Voir docs/questions/Q117.md"
+meteo = "ademe"
+
+[tolerances]
+defaut = 0.005
