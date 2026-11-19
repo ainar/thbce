@@ -229,9 +229,12 @@ mod tests {
 
     #[test]
     fn heure_au_debut_du_pas() {
-        // Pas de temps 0 : de 0 h à 1 h (heure d'hiver), début 0 h.
-        assert_eq!(hleg_debut_pas(0), 0);
-        assert_eq!(hleg_debut_pas(23), 23);
+        // Itération 0 : de 0 h à 1 h UTC, soit de 1 h à 2 h légales en hiver (§4.1.3).
+        assert_eq!(hleg_debut_pas(0), 1);
+        assert_eq!(hleg_debut_pas(22), 23);
+        assert_eq!(hleg_debut_pas(23), 0);
+        // Heure d'été (itération 1 896 et suivantes) : deux heures de décalage.
+        assert_eq!(hleg_debut_pas(1920), 2);
     }
 
     #[test]
@@ -251,13 +254,13 @@ mod tests {
             i_comm: false,
             actif: false,
         };
-        // Pas de temps 0 : 0 h, dans la période ; θop 27 et 24 °C, θan 18 °C ≤ 27 − 3.
+        // Pas de temps 0 : 1 h légale, dans la période ; θop 27 et 24 °C, θan 18 °C ≤ 27 − 3.
         s.reguler(0, 18.0, [27.0, 24.0].into_iter(), true);
         assert!(s.i_comm && s.actif);
         // Hors saison de refroidissement (type 1) : pas d'activation, besoin conservé.
         s.reguler(1, 18.0, [25.0, 24.0].into_iter(), false);
         assert!(s.i_comm && !s.actif);
-        // Midi : hors période nocturne.
+        // Pas de temps 12 : 13 h légales, hors période nocturne.
         s.reguler(12, 18.0, [27.0, 24.0].into_iter(), true);
         assert!(s.i_comm && !s.actif);
         // Freecooling toute l'année : consignes de mi-saison hors saison.
