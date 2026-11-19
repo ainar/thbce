@@ -194,32 +194,33 @@ fn les_facteurs_solaires_c_se_saisissent_ensemble_et_leur_defaut_doit_etre_posit
 }
 
 #[test]
-fn les_protections_mobiles_hors_perimetre_sont_refusees() {
+fn les_regles_de_saisie_des_protections_mobiles() {
     use thbce_core::entree::{GestionPm, TypePm};
-    // Décision Q30, point 7 : erreur explicite, sans calcul approché.
     let mut p = projet();
     assert!(valider(&p).est_valide());
+    // Store vénitien (lot 1-env) : les lames et la gestion propre aux stores se saisissent.
     p.catalogue.baies[0]
         .protection_mobile
         .as_mut()
         .unwrap()
         .type_pm = TypePm::StoreVenitien;
     let r = valider(&p);
-    assert_eq!(
-        chemins(&r.erreurs),
-        ["catalogue.baies[0].protection_mobile.type_pm"]
-    );
-    assert_eq!(
-        r.erreurs[0].message,
-        "store vénitien : non pris en charge par cette version (voir docs/couverture.md)"
-    );
-    assert!(r.seulement_hors_perimetre());
+    assert!(!r.est_valide());
+    assert!(!r.seulement_hors_perimetre());
+    // Gestion automatique d'un volet : l'automatisme et le détecteur de présence se saisissent.
+    let mut p = projet();
     let pm = p.catalogue.baies[0].protection_mobile.as_mut().unwrap();
     pm.type_pm = TypePm::Volet;
-    pm.gestion = GestionPm::AutomatiqueAvecDerogation;
-    assert_eq!(
-        chemins(&valider(&p).erreurs),
-        ["catalogue.baies[0].protection_mobile.gestion"]
+    pm.gestion = Some(GestionPm::AutomatiqueAvecDerogation);
+    let r = valider(&p);
+    assert!(!r.est_valide());
+    assert!(!r.seulement_hors_perimetre());
+    assert!(
+        chemins(&r.erreurs)
+            .iter()
+            .any(|c| c.ends_with("protection_mobile.automatisme")),
+        "{:?}",
+        r.erreurs
     );
     // Une protection mobile déclarée demande les facteurs et le U de la baie protégée.
     let mut p = projet();
@@ -298,23 +299,26 @@ fn un_projet_vide_est_refuse_sans_panique() {
 
 #[test]
 fn un_element_hors_perimetre_est_refuse_comme_hors_perimetre() {
-    use thbce_core::entree::TypePm;
+    use thbce_core::entree::NatureGenerateur;
     // Les 28 usages sont calculés (lot 0c4) : le refus « hors périmètre » se teste sur un
-    // élément non pris en charge, ici un store vénitien (décision Q30, point 7).
+    // élément non pris en charge, ici un système de cogénération (§8.21, décision Q30, point 7).
     let mut p = projet();
-    p.catalogue.baies[0]
-        .protection_mobile
-        .as_mut()
-        .unwrap()
-        .type_pm = TypePm::StoreVenitien;
+    let gens = &mut p.batiments[0].generations[0].generateurs;
+    let mut cogen = gens[0].clone();
+    cogen.id = "cogeneration".into();
+    cogen.nature = NatureGenerateur::Cogeneration;
+    gens.push(cogen);
     let r = valider(&p);
+    let k = p.batiments[0].generations[0].generateurs.len() - 1;
     // Élément reconnu mais hors du périmètre de cette version : erreur marquée `hors_perimetre`.
     assert_eq!(
         chemins(&r.erreurs),
-        ["catalogue.baies[0].protection_mobile.type_pm"]
+        [format!(
+            "batiments[0].generations[0].generateurs[{k}].nature"
+        )]
     );
     assert!(r.seulement_hors_perimetre());
-    assert_eq!(r.erreurs[0].valeur.as_deref(), Some("store_venitien"));
+    assert_eq!(r.erreurs[0].valeur.as_deref(), Some("cogeneration"));
     assert!(r.avertissements.is_empty(), "{:?}", r.avertissements);
     let e = calculer(
         &p,

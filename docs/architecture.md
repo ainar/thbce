@@ -48,7 +48,7 @@ Point d'entrée unique : `calcul/mod.rs::calculer` (projet, météo, options →
 1. Autorisations de chauffer et de refroidir (propres en Th-B et Th-D, effectives de la fiche 8.4 en Th-C) ; en Th-D, température d'inconfort et `Δθconf_adapt` (§13.5.3.3 et 13.5.3.4).
 2. Parois opaques et ponts thermiques (§5.15 à 5.20) : `bati/paroi_opaque.rs`, `bati/pont_thermique.rs` (`flux_reduit`, avec les coefficients des espaces tampons).
 3. Conditions d'ouverture des baies (§5.13.3.1) : `bati/surventilation.rs::r_ouv_theta_op_man_selon`.
-4. Baies (§5.8) : protections mobiles (`bati/protection_mobile.rs`, §5.9), flux solaires et lumineux (`bati/baie.rs`, §5.10), ouverture (`bati/surventilation.rs::r_ouv_manuelle`).
+4. Baies (§5.8) : protections mobiles (`bati/protection_mobile.rs`, §5.9 ; gestion automatique et stores vénitiens depuis le lot 1-env, état d'hystérésis `EtatGpm` par baie porté par `EtatGroupeHoraire`), flux solaires et lumineux (`bati/baie.rs`, §5.10), ouverture (`bati/surventilation.rs::r_ouv_manuelle`).
 5. Débit de surventilation (§5.13.3.2.4 et 5.13.3.3) : `bati/surventilation.rs::qv_surv_m3_h`.
 6. Éclairage (§7.1) : `eclairage/mod.rs::eclairage_habitation` en habitation, `eclairage/mod.rs::eclairage_locaux` dans les autres usages (locaux du groupe, conventionnels en Th-B, du projet sinon).
 7. Air entrant équivalent, sollicitations, inerties séquentielle et annuelle en Th-D (`bati/inerties_longues.rs`), puis matrice de comportement thermique (`bati/comportement_thermique.rs::GroupeThermique::matrice`, §5.21) ; les pertes récupérées du pas précédent y entrent (§11.1).

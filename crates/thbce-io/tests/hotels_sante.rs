@@ -160,7 +160,7 @@ fn sens_des_effets() {
         .protection_mobile
         .as_mut()
         .unwrap()
-        .gestion = GestionPm::ManuelleNonMotorisee;
+        .gestion = Some(GestionPm::ManuelleNonMotorisee);
     let dh2 = phares(&calcul(&p))[1];
     println!("volets manuels : DH {dh:.1} → {dh2:.1}");
     assert_ne!(dh2, dh);

@@ -438,11 +438,13 @@ fn saisie_des_grands_volumes() {
         assert!(u.est_pris_en_charge(), "{u:?}");
     }
 
-    // Un système hors périmètre reste refusé : puits climatique (le double flux et la centrale
-    // de traitement d'air en zone neutre sont calculés depuis le lot 1-ven).
+    // Un système hors périmètre reste refusé : cogénération (§8.21).
     let mut p = commerce();
-    p.batiments[0].zones[0].ventilation.as_mut().unwrap().puits =
-        Some(thbce_core::entree::Puits::Climatique);
+    let gens = &mut p.batiments[0].generations[0].generateurs;
+    let mut cogen = gens[0].clone();
+    cogen.id = "cogeneration".into();
+    cogen.nature = thbce_core::entree::NatureGenerateur::Cogeneration;
+    gens.push(cogen);
     assert!(valider(&p).seulement_hors_perimetre());
 }
 

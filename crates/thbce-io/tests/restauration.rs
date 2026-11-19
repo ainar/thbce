@@ -184,7 +184,7 @@ fn sens_des_effets() {
         .protection_mobile
         .as_mut()
         .unwrap()
-        .gestion = GestionPm::ManuelleNonMotorisee;
+        .gestion = Some(GestionPm::ManuelleNonMotorisee);
     let dh_manuel = phares(&calcul(&p))[1];
     println!("volets non motorisés : DH {dh:.1} → {dh_manuel:.1}");
     assert_ne!(dh_manuel, dh);
@@ -238,7 +238,7 @@ fn sens_des_effets() {
         .protection_mobile
         .as_mut()
         .unwrap()
-        .gestion = GestionPm::ManuelleNonMotorisee;
+        .gestion = Some(GestionPm::ManuelleNonMotorisee);
     let dh_s2 = phares(&calcul(&p))[1];
     println!("stores non motorisés : DH {dh_s:.2} → {dh_s2:.2}");
     assert_ne!(dh_s2, dh_s);
@@ -366,17 +366,16 @@ fn refus() {
         "{:?}",
         v.erreurs
     );
-    // Puits climatique dans un restaurant : hors périmètre (code 3), non une erreur de saisie
-    // (le double flux et la centrale de traitement d'air sont calculés depuis le lot 1-ven).
+    // Cogénération dans un restaurant : hors périmètre (code 3), non une erreur de saisie.
     let mut p = restaurant();
-    p.batiments[0].zones[0].ventilation.as_mut().unwrap().puits =
-        Some(thbce_core::entree::Puits::Climatique);
+    let gens = &mut p.batiments[0].generations[0].generateurs;
+    let mut cogen = gens[0].clone();
+    cogen.id = "cogeneration".into();
+    cogen.nature = thbce_core::entree::NatureGenerateur::Cogeneration;
+    gens.push(cogen);
     let v = valider(&p);
     assert!(v.seulement_hors_perimetre(), "{:?}", v.erreurs);
-    assert!(v
-        .erreurs
-        .iter()
-        .all(|e| e.chemin.ends_with("ventilation.puits")));
+    assert!(v.erreurs.iter().all(|e| e.chemin.ends_with(".nature")));
     // Permis de 2025 : usage non soumis à la RE2020 avant le 1er mai 2026 (Q68).
     let mut p = restaurant();
     let x = p.batiments[0].exigences.as_mut().unwrap();

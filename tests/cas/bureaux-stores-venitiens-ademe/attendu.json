@@ -1,0 +1,63 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b"
+  },
+  "batiments": [
+    {
+      "id": "bureaux",
+      "sref_m2": 1000.0,
+      "bbio_pts": 111.8,
+      "dh_c_h": 1750.2,
+      "cep_kwhep_m2": 63.1,
+      "cep_nr_kwhep_m2": 63.1,
+      "ic_energie_kgco2_m2": 288.5,
+      "bbio": {
+        "annuel": {
+          "b_ch_kwh_m2": 11.4,
+          "b_fr_kwh_m2": 16.5,
+          "b_ecl_kwh_m2": 11.2,
+          "bbio_pts": 111.8
+        }
+      },
+      "indicateurs": {
+        "cef_kwhef_m2": 43.1,
+        "exigences": {
+          "bbio_max_pts": 87.9,
+          "cep_max_kwhep_m2": 82.7,
+          "cep_nr_max_kwhep_m2": 73.0,
+          "ic_energie_max_kgco2_m2": 194.7,
+          "conforme": false
+        },
+        "electricite_consommee": {
+          "chauffage_kwh": 150.7,
+          "ecs_kwh": 3187.1,
+          "eclairage_kwh": 5847.9,
+          "auxiliaires_ventilation_kwh": 2902.5,
+          "auxiliaires_distribution_kwh": 137.3
+        }
+      },
+      "zones": [
+        {
+          "id": "bureaux",
+          "ventilation": {
+            "p_vent_w": 900.0,
+            "c_aux_vent_kwh": 2902.5
+          },
+          "groupes": [
+            {
+              "id": "plateaux",
+              "debits_bbio": {
+                "q_spec_repris_m3_h": -4000.0,
+                "q_spec_souffle_m3_h": 4000.0
+              },
+              "ventilation": {
+                "q_spec_repris_m3_h": -4191.9
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

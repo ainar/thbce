@@ -3,19 +3,22 @@
 //! (§5.14).
 //!
 //! La position des protections mobiles ([`Protections`]) est une entrée de ces fiches : elle
-//! est calculée par la fiche `C_BAT_Gestion_protections_mobiles` (§5.9). Les stores vénitiens
-//! (§5.10.3.6.2) ne sont pas encore pris en charge ; les facteurs de la partie protégée sont
-//! déjà distingués par composante incidente ([`FacteursProteges`]) pour les recevoir.
+//! est calculée par la fiche `C_BAT_Gestion_protections_mobiles` (§5.9). Les facteurs de la
+//! partie protégée sont distingués par composante incidente ([`FacteursProteges`]) : égaux pour
+//! un volet ou un store enroulable (éq. 214), lus dans les matrices du store vénitien selon la
+//! hauteur du soleil pour un store à lames orientables (§5.10.3.6.2, [`LamesResolues`]).
 //!
 //! En l'absence d'espace tampon, `btherm`, `bsolaire` et `becl` valent 1 et `IdET = 0` ; avec un
 //! espace tampon (§5.2 à 5.4), voir [`BaieResolue::flux_reduit`].
 
 use crate::climat::environnement_proche::{
-    flux_atteignant_la_paroi, qer_w_m2, FluxParoi, MasqueResolu, SurfaceExposee,
+    flux_atteignant_la_paroi, hauteur_soleil_corrigee_composant_deg, qer_w_m2, FluxParoi,
+    MasqueResolu, SurfaceExposee,
 };
 use crate::conventions::ModeCalcul;
 use crate::entree::{
-    AffectationEclairage, Baie, BaieType, Catalogue, ExpoBr, FacteursBaie, TypoPm,
+    AffectationEclairage, Baie, BaieType, Catalogue, ExpoBr, FacteursBaie, FacteursLames,
+    LamesStoreVenitien, TypePm, TypoPm,
 };
 use crate::resultats::ValeurParDefaut;
 
@@ -314,6 +317,157 @@ impl FacteursProteges {
     }
 }
 
+/// Facteurs d'un store vénitien pour un flux incident et une position des lames.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct EtatLames {
+    /// Composantes du facteur solaire.
+    pub sw: FacteursSolaires,
+    /// Transmission lumineuse globale.
+    pub tl_global: f64,
+    /// Part transmise sous forme diffuse (`Tlid`).
+    pub tlid: f64,
+}
+
+/// Hauteurs de soleil corrigées γ' des matrices du store vénitien, en degrés (éq. 212).
+pub const HAUTEURS_LAMES_DEG: [f64; 6] = [0.0, 15.0, 30.0, 45.0, 60.0, 75.0];
+
+/// Facteurs d'un store vénitien résolus : Th-BC par hauteur de soleil, Th-D constants.
+///
+/// Th-BCE 2020 §5.10.3.6.2 : en Th-BC, en suivi du soleil `αSV = 90° − γ'` et en position fixe
+/// `αSV = 45°` ; en Th-D, `αSV = 90°` (éq. 212 et 213).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LamesResolues {
+    /// Th-BC : `[direct, diffus, réfléchi]` pour chaque hauteur de [`HAUTEURS_LAMES_DEG`]. En
+    /// position fixe, le diffus et le réfléchi sont constants.
+    bc: [[EtatLames; 6]; 3],
+    /// Th-D : `[direct, diffus, réfléchi]`.
+    d: [EtatLames; 3],
+}
+
+fn etat_lames(
+    f: &FacteursLames,
+    defaut_tlid: Option<&mut Vec<ValeurParDefaut>>,
+    champ: &str,
+) -> EtatLames {
+    let tlid = match (f.tlid, defaut_tlid) {
+        (Some(v), _) => v,
+        (None, d) => {
+            if let Some(d) = d {
+                d.push(ValeurParDefaut {
+                    champ: format!("store_venitien.{champ}.tlid"),
+                    valeur: TLID_DEFAUT,
+                    regle: "Th-BCE 2020 §5.10.3.6.3, éq. (218) : Tlid = 0".to_owned(),
+                });
+            }
+            TLID_DEFAUT
+        }
+    };
+    EtatLames {
+        sw: FacteursSolaires {
+            sw1: f.sw1,
+            sw2: f.sw2,
+            sw3: f.sw3,
+        },
+        tl_global: f.tl_global,
+        tlid,
+    }
+}
+
+/// Valeur d'une table par hauteur de soleil : interpolation linéaire entre les hauteurs
+/// tabulées, hauteur ramenée entre 0 et 75° (`docs/questions/Q102.md`).
+fn interpoler(t: &[EtatLames; 6], gamma_deg: f64) -> EtatLames {
+    let g = gamma_deg.clamp(0.0, 75.0);
+    let i = ((g / 15.0).floor() as usize).min(4);
+    let f = (g - HAUTEURS_LAMES_DEG[i]) / 15.0;
+    let (a, b) = (&t[i], &t[i + 1]);
+    let m = |x: f64, y: f64| x + (y - x) * f;
+    EtatLames {
+        sw: FacteursSolaires {
+            sw1: m(a.sw.sw1, b.sw.sw1),
+            sw2: m(a.sw.sw2, b.sw.sw2),
+            sw3: m(a.sw.sw3, b.sw.sw3),
+        },
+        tl_global: m(a.tl_global, b.tl_global),
+        tlid: m(a.tlid, b.tlid),
+    }
+}
+
+impl LamesResolues {
+    /// Résout les facteurs saisis. `suivi` : gestion « sun tracking » (diffus et réfléchi en six
+    /// hauteurs) ; sinon position fixe (un élément). Renvoie `None` si les longueurs des
+    /// tableaux ne conviennent pas (cas écarté par la validation).
+    pub fn nouvelle(
+        l: &LamesStoreVenitien,
+        suivi: bool,
+        defauts: &mut Vec<ValeurParDefaut>,
+    ) -> Option<Self> {
+        let n = if suivi { 6 } else { 1 };
+        if l.th_bc.direct.len() != 6 || l.th_bc.diffus.len() != n || l.th_bc.reflechi.len() != n {
+            return None;
+        }
+        let table = |v: &[FacteursLames], champ: &str, defauts: &mut Vec<ValeurParDefaut>| {
+            let mut t = [EtatLames {
+                sw: FacteursSolaires {
+                    sw1: 0.0,
+                    sw2: 0.0,
+                    sw3: 0.0,
+                },
+                tl_global: 0.0,
+                tlid: 0.0,
+            }; 6];
+            for (k, e) in t.iter_mut().enumerate() {
+                let (f, c) = if v.len() == 6 {
+                    (&v[k], format!("{champ}[{k}]"))
+                } else {
+                    (&v[0], champ.to_owned())
+                };
+                // Une valeur par défaut n'est signalée qu'une fois par élément saisi.
+                *e = etat_lames(
+                    f,
+                    (v.len() != 6 && k == 0 || v.len() == 6).then_some(&mut *defauts),
+                    &c,
+                );
+            }
+            t
+        };
+        let bc = [
+            table(&l.th_bc.direct, "th_bc.direct", defauts),
+            table(&l.th_bc.diffus, "th_bc.diffus", defauts),
+            table(&l.th_bc.reflechi, "th_bc.reflechi", defauts),
+        ];
+        let d = [
+            etat_lames(&l.th_d.direct, Some(defauts), "th_d.direct"),
+            etat_lames(&l.th_d.diffus, Some(defauts), "th_d.diffus"),
+            etat_lames(&l.th_d.reflechi, Some(defauts), "th_d.reflechi"),
+        ];
+        Some(Self { bc, d })
+    }
+
+    /// Facteurs de la partie protégée au pas de temps. Th-BCE 2020 §5.10.3.6.2.3, éq. (212) et
+    /// (213), avec les éq. (225) à (230) : `Tliap_dir`, `Tldap_dif` et `Tldap_ref` sont les
+    /// transmissions globales, `Tlidap_dir` et `Tlidap_ref` leurs parts diffuses.
+    pub fn proteges(&self, mode: ModeCalcul, gamma_deg: f64) -> FacteursProteges {
+        let [dir, dif, refl] = match mode {
+            ModeCalcul::ThD => self.d,
+            ModeCalcul::ThB | ModeCalcul::ThC => [
+                interpoler(&self.bc[0], gamma_deg),
+                interpoler(&self.bc[1], gamma_deg),
+                interpoler(&self.bc[2], gamma_deg),
+            ],
+        };
+        FacteursProteges {
+            dir: dir.sw,
+            dif: dif.sw,
+            refl: refl.sw,
+            tli_dir: dir.tl_global,
+            tlid_dir: dir.tlid,
+            tld_dif: dif.tl_global,
+            tld_ref: refl.tl_global,
+            tlid_ref: refl.tlid,
+        }
+    }
+}
+
 /// Type d'une baie pour l'éclairement naturel (§5.10.3.2, tableau des types).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TypeBaieEclairage {
@@ -341,8 +495,12 @@ pub struct BaieResolue {
     pub u_ap_w_m2k: f64,
     /// Facteurs sans protection mobile.
     pub sans_protection: FacteursResolus,
-    /// Facteurs avec la première protection mobile ; ceux de la baie nue s'il n'y en a pas.
+    /// Facteurs avec la première protection mobile ; ceux de la baie nue s'il n'y en a pas
+    /// (et, pour un store vénitien, ceux de `lames`).
     pub avec_protection: FacteursResolus,
+    /// Facteurs du store vénitien, qui remplacent `avec_protection` ; `None` pour les autres
+    /// protections.
+    pub lames: Option<LamesResolues>,
     /// Valeurs par défaut du texte appliquées aux paramètres non saisis.
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,
     /// « Aouvmax,b » : surface d'ouverture maximale, en m² (§5.10.3.9, éq. 238 :
@@ -412,6 +570,14 @@ impl BaieResolue {
             Some(f) => FacteursResolus::de(f, EtatBaie::AvecProtection, &mut valeurs_par_defaut)?,
             None => sans_protection,
         };
+        let lames = match (&type_baie.protection_mobile, &type_baie.store_venitien) {
+            (Some(pm), Some(l)) if pm.type_pm == TypePm::StoreVenitien => {
+                let suivi = pm.gestion_sv?.suit_le_soleil();
+                Some(LamesResolues::nouvelle(l, suivi, &mut valeurs_par_defaut)?)
+            }
+            (Some(pm), _) if pm.type_pm == TypePm::StoreVenitien => return None,
+            _ => None,
+        };
         // Th-BCE 2020 §5.12.3.1, tableau 40 : typologie 0 par défaut ; 100 % sans protection.
         let taux_passage_air = match &type_baie.protection_mobile {
             None => 1.0,
@@ -453,6 +619,7 @@ impl BaieResolue {
             u_ap_w_m2k: u_ap.unwrap_or(u_sp),
             sans_protection,
             avec_protection,
+            lames,
             valeurs_par_defaut,
             a_ouv_max_m2: baie.a_b_m2 * r_ouv_max,
             expo_br: baie.expo_br,
@@ -578,7 +745,14 @@ impl BaieResolue {
         p: &Protections,
     ) -> FluxBaies {
         let qer = qer_w_m2(&self.surface, c.teciel_c, c.te_c);
-        let ap = FacteursProteges::uniformes(&self.avec_protection, c.mode);
+        let ap = match &self.lames {
+            // Store vénitien : facteurs selon la hauteur du soleil corrigée γ' (éq. 212).
+            Some(l) => l.proteges(
+                c.mode,
+                hauteur_soleil_corrigee_composant_deg(&self.surface, &c.soleil),
+            ),
+            None => FacteursProteges::uniformes(&self.avec_protection, c.mode),
+        };
         self.flux_transmis(incident, qer, p, c.mode, &ap)
     }
 
