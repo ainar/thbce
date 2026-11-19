@@ -343,3 +343,42 @@ fn sorties_detaillees_sur_meteo_reglementaire() {
         assert!((obtenu - attendu).abs() < 0.06, "{obtenu} ≠ {attendu}");
     }
 }
+
+#[test]
+fn zone_egale_somme_des_groupes_poste_par_poste() {
+    // Q116 point 3 : les ventilateurs des centrales sont attribués aux groupes desservis ;
+    // la zone est la somme de ses groupes (note p. 1373), parkings exclus (aucun ici).
+    let (p, m) = cas("hotel-pv-sorties-ademe");
+    let r = calculer_avec(&p, &m, &SANS_ARRONDI, &DEMANDE).unwrap();
+    let s = sorties(&r.batiments[0].sorties_detaillees);
+    for z in &s.zones {
+        assert!(!z.groupes.is_empty());
+        let vent = annuel(
+            &z.electricite_consommee,
+            "auxiliaires_ventilation",
+            "electricite",
+        );
+        assert!(vent > 0.0, "zone {} sans ventilation", z.id);
+        for poste in [
+            "chauffage",
+            "refroidissement",
+            "ecs",
+            "eclairage",
+            "auxiliaires_ventilation",
+            "auxiliaires_distribution",
+        ] {
+            let groupes: f64 = z
+                .groupes
+                .iter()
+                .map(|g| annuel(&g.consommations, poste, "electricite"))
+                .sum();
+            let zone = annuel(&z.electricite_consommee, poste, "electricite");
+            if poste == "eclairage" || poste == "refroidissement" {
+                // Éclairage des parties communes et forfait : propres à la zone.
+                assert!(zone >= groupes - 1e-6, "{} {poste}", z.id);
+            } else {
+                proche(zone, groupes);
+            }
+        }
+    }
+}

@@ -95,6 +95,9 @@ pub struct ReleveZones {
     pub zones_horaire: Vec<Vec<[f64; NB_POSTES]>>,
     groupes_mensuel: Vec<[[f64; NB_POSTES]; 12]>,
     qw_brut_mensuel: Vec<[f64; 12]>,
+    /// Ventilateurs des centrales de chaque zone, mensuel en Wh : part de la zone qui revient aux
+    /// groupes desservis (Q116, point 3).
+    centrales_mensuel: Vec<[f64; 12]>,
     precedent: Vec<[f64; NB_POSTES + 1]>,
 }
 
@@ -106,6 +109,7 @@ impl ReleveZones {
             zones_horaire: vec![vec![[0.0; NB_POSTES]; NB_HEURES_AN]; b.zones.len()],
             groupes_mensuel: vec![[[0.0; NB_POSTES]; 12]; nb_groupes],
             qw_brut_mensuel: vec![[0.0; 12]; nb_groupes],
+            centrales_mensuel: vec![[0.0; 12]; b.zones.len()],
             precedent: vec![[0.0; NB_POSTES + 1]; nb_groupes],
         }
     }
@@ -136,6 +140,22 @@ impl ReleveZones {
                 x[p] += w;
             }
         }
+    }
+
+    /// Ajoute la série horaire (en Wh) des ventilateurs des centrales de la zone `z` : elle compte
+    /// dans les auxiliaires de ventilation de la zone et sera répartie entre ses groupes.
+    pub fn ajouter_serie_centrales(&mut self, z: usize, serie_wh: &[f64]) {
+        self.ajouter_serie(z, poste::AUX_VENT, serie_wh);
+        if let Some(c) = self.centrales_mensuel.get_mut(z) {
+            for (h, w) in serie_wh.iter().enumerate().take(NB_HEURES_AN) {
+                c[usize::from(date_scenario(h).mois) - 1] += w;
+            }
+        }
+    }
+
+    /// Comme [`Self::ajouter_serie_centrales`], pour une consommation constante (Wh par pas).
+    pub fn ajouter_constante_centrales(&mut self, z: usize, w_wh: f64) {
+        self.ajouter_serie_centrales(z, &[w_wh; NB_HEURES_AN]);
     }
 
     /// Ajoute une consommation constante (en Wh par pas de temps) au poste `p` de la zone `z`.
@@ -224,6 +244,47 @@ struct Totaux {
     cep_nr: f64,
 }
 
+/// Part de chaque groupe d'une zone dans les ventilateurs de ses centrales, par mois (somme 1).
+///
+/// Th-BCE 2020 §6.5.3.2.2, éq. (642) et (644) : la puissance des ventilateurs est attribuée aux
+/// groupes au prorata de leurs débits spécifiques repris ou soufflés (selon le système) ; la
+/// consommation mensuelle de ventilation de chaque groupe (`ResultatsVentilationGroupe`) en
+/// découle et sert de poids. À défaut (groupes sans ventilation, poids nuls), prorata des
+/// surfaces de référence. Hors habitation, hors du texte : la consommation de chaque groupe est
+/// relevée à chaque pas de temps (éq. 570), les poids suivent donc les mois.
+fn parts_ventilation_groupes(rz: &ResultatsZone) -> Vec<[f64; 12]> {
+    let n = rz.groupes.len();
+    let mut poids: Vec<[f64; 12]> = rz
+        .groupes
+        .iter()
+        .map(|g| {
+            let mut w = [0.0; 12];
+            if let Some(v) = &g.ventilation {
+                for (m, x) in v.c_aux_vent_mensuel_kwh.iter().take(12).enumerate() {
+                    w[m] = x.max(0.0);
+                }
+            }
+            w
+        })
+        .collect();
+    let sref_total: f64 = rz.groupes.iter().map(|g| g.sref_m2).sum();
+    for m in 0..12 {
+        let somme: f64 = poids.iter().map(|w| w[m]).sum();
+        for (i, g) in rz.groupes.iter().enumerate() {
+            poids[i][m] = if somme > 0.0 {
+                poids[i][m] / somme
+            } else if sref_total > 0.0 {
+                g.sref_m2 / sref_total
+            } else if n > 0 {
+                1.0 / n as f64
+            } else {
+                0.0
+            };
+        }
+    }
+    poids
+}
+
 /// Sorties détaillées par zone et par groupe d'un bâtiment (Th-BCE 2020 §13.2.3.3 et §13.2.3.4,
 /// éq. 2416 à 2461 ; lectures Q116).
 pub fn calculer(e: &EntreesSorties<'_>, mut releve: ReleveZones) -> SortiesDetaillees {
@@ -309,6 +370,10 @@ pub fn calculer(e: &EntreesSorties<'_>, mut releve: ReleveZones) -> SortiesDetai
             .map(|f| f.cef_kwh)
             .sum();
 
+        // Ventilateurs des centrales de la zone : répartis entre ses groupes (Q116, point 3).
+        let parts_vent = parts_ventilation_groupes(rz);
+        let centrales = releve.centrales_mensuel[iz];
+
         // Groupes de la zone.
         let mut groupes = Vec::with_capacity(rz.groupes.len());
         let mut besoins_z = [[[0.0; 12]; 3]; 2];
@@ -324,7 +389,12 @@ pub fn calculer(e: &EntreesSorties<'_>, mut releve: ReleveZones) -> SortiesDetai
             let mut t = Totaux::default();
             for p in POSTES_GROUPE {
                 let mensuel: [f64; 12] = std::array::from_fn(|m| {
-                    (gm[m][p] + reste_mensuel[m][p] * part_sref(sref_g)) / 1000.0
+                    let centrale = if p == poste::AUX_VENT {
+                        centrales[m] * parts_vent[ig][m]
+                    } else {
+                        0.0
+                    };
+                    (gm[m][p] + centrale + reste_mensuel[m][p] * part_sref(sref_g)) / 1000.0
                 });
                 let supp = if p == poste::FR { forfait_g } else { 0.0 };
                 let q = SerieMensuelle::nouvelle(mensuel, supp, sref_g);

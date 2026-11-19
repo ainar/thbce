@@ -98,6 +98,73 @@
                 "energie": "electricite",
                 "annuel_kwh": 7435.6
               }
+            ],
+            "electricite_consommee": [
+              {
+                "poste": "chauffage",
+                "energie": "electricite",
+                "annuel_kwh": 17729.0
+              },
+              {
+                "poste": "ecs",
+                "energie": "electricite",
+                "annuel_kwh": 39043.8
+              },
+              {
+                "poste": "eclairage",
+                "energie": "electricite",
+                "annuel_kwh": 6449.6
+              },
+              {
+                "poste": "auxiliaires_ventilation",
+                "energie": "electricite",
+                "annuel_kwh": 7884.0
+              },
+              {
+                "poste": "auxiliaires_distribution",
+                "energie": "electricite",
+                "annuel_kwh": 214.9
+              },
+              {
+                "poste": "usages_mobiliers",
+                "energie": "electricite",
+                "annuel_kwh": 7700.6
+              }
+            ],
+            "groupes": [
+              {
+                "id": "nuit",
+                "cef_kwh_m2": 79.2,
+                "cep_kwhep_m2": 182.3,
+                "cep_nr_kwhep_m2": 182.3,
+                "consommations": [
+                  {
+                    "poste": "chauffage",
+                    "energie": "electricite",
+                    "annuel_kwh": 17729.0
+                  },
+                  {
+                    "poste": "ecs",
+                    "energie": "electricite",
+                    "annuel_kwh": 39043.8
+                  },
+                  {
+                    "poste": "eclairage",
+                    "energie": "electricite",
+                    "annuel_kwh": 6449.6
+                  },
+                  {
+                    "poste": "auxiliaires_ventilation",
+                    "energie": "electricite",
+                    "annuel_kwh": 7884.0
+                  },
+                  {
+                    "poste": "auxiliaires_distribution",
+                    "energie": "electricite",
+                    "annuel_kwh": 214.9
+                  }
+                ]
+              }
             ]
           },
           {
@@ -184,6 +251,83 @@
                 "poste": "usages_mobiliers",
                 "energie": "electricite",
                 "annuel_kwh": 19312.2
+              }
+            ],
+            "electricite_consommee": [
+              {
+                "poste": "chauffage",
+                "energie": "electricite",
+                "annuel_kwh": 8290.1
+              },
+              {
+                "poste": "refroidissement",
+                "energie": "electricite",
+                "annuel_kwh": 1115.2
+              },
+              {
+                "poste": "ecs",
+                "energie": "electricite",
+                "annuel_kwh": 5660.4
+              },
+              {
+                "poste": "eclairage",
+                "energie": "electricite",
+                "annuel_kwh": 5633.9
+              },
+              {
+                "poste": "auxiliaires_ventilation",
+                "energie": "electricite",
+                "annuel_kwh": 3796.0
+              },
+              {
+                "poste": "auxiliaires_distribution",
+                "energie": "electricite",
+                "annuel_kwh": 186.5
+              },
+              {
+                "poste": "usages_mobiliers",
+                "energie": "electricite",
+                "annuel_kwh": 22613.3
+              }
+            ],
+            "groupes": [
+              {
+                "id": "jour",
+                "cef_kwh_m2": 82.3,
+                "cep_kwhep_m2": 189.2,
+                "cep_nr_kwhep_m2": 189.2,
+                "consommations": [
+                  {
+                    "poste": "chauffage",
+                    "energie": "electricite",
+                    "annuel_kwh": 8290.1
+                  },
+                  {
+                    "poste": "refroidissement",
+                    "energie": "electricite",
+                    "annuel_kwh": 1115.2
+                  },
+                  {
+                    "poste": "ecs",
+                    "energie": "electricite",
+                    "annuel_kwh": 5660.4
+                  },
+                  {
+                    "poste": "eclairage",
+                    "energie": "electricite",
+                    "annuel_kwh": 5633.9
+                  },
+                  {
+                    "poste": "auxiliaires_ventilation",
+                    "energie": "electricite",
+                    "annuel_kwh": 3796.0
+                  },
+                  {
+                    "poste": "auxiliaires_distribution",
+                    "energie": "electricite",
+                    "annuel_kwh": 186.5
+                  }
+                ]
               }
             ]
           }

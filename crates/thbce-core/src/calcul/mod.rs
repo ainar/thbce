@@ -306,13 +306,13 @@ fn calculer_selon(
                     Some(serie) => {
                         releve.ajouter_serie(poste::AUX_VENT, &serie);
                         if let Some(rz) = &mut releve_zones {
-                            rz.ajouter_serie(iz, poste::AUX_VENT, &serie);
+                            rz.ajouter_serie_centrales(iz, &serie);
                         }
                     }
                     None => {
                         releve.ajouter_constante(poste::AUX_VENT, v.p_vent_w);
                         if let Some(rz) = &mut releve_zones {
-                            rz.ajouter_constante(iz, poste::AUX_VENT, v.p_vent_w);
+                            rz.ajouter_constante_centrales(iz, v.p_vent_w);
                         }
                     }
                 }
@@ -429,6 +429,17 @@ fn calculer_selon(
                 None
             }
         };
+        if sorties_detaillees.as_ref().is_some_and(|s| {
+            s.zones
+                .iter()
+                .any(|z| z.importees.iter().any(|l| l.energie == "bois"))
+        }) {
+            avertissements.push(format!(
+                "bâtiment {} : sorties détaillées, la ligne par générateur au bois de la zone \
+                 (éq. 2444) n'est pas restituée ; le bois est cumulé par poste (docs/questions/Q116.md)",
+                bat.id
+            ));
+        }
         let ic_energie_kgco2_m2 = indicateurs.as_ref().and_then(|i| i.ic_energie_kgco2_m2);
         let mut indicateurs = indicateurs;
         let acv = bat.acv.as_ref().map(|d| {
