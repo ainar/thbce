@@ -4408,6 +4408,11 @@ export interface ResultatsBatiment {
    */
   recuperateurs_eaux_grises?: ResultatsRecuperateurCollectif[];
   /**
+   * Réseaux de distribution de CTA hydrauliques, calcul Th-C (§8.11 et §8.12) ; absent sans
+   * réseau saisi (réseaux fictifs).
+   */
+  reseaux_cta?: ResultatsReseauCta[];
+  /**
    * Séries horaires principales du calcul Th-C (8 760 pas de temps) ; présentes seulement à
    * la demande (`calculer_avec_series`, option `--horaire` de la ligne de commande, option
    * `series_horaires` du module WebAssembly ; Q118).
@@ -5178,6 +5183,26 @@ export interface ResultatsRecuperateurEauxGrises {
    * comptée avec les auxiliaires de distribution.
    */
   w_relevage_kwh: number;
+}
+
+/** Réseau de distribution de CTA hydraulique, calcul Th-C (§8.11 et §8.12). */
+export interface ResultatsReseauCta {
+  /** Fonction du réseau : « chauffage » ou « refroidissement ». */
+  fonction: string;
+  /** Identifiant de la génération qui l'alimente. */
+  generation: string;
+  /** Nombre d'heures où le réseau débite. */
+  nbh_fonct: number;
+  /** Pertes du réseau hors volume chauffé, en kWh. */
+  pertes_hvc_kwh: number;
+  /** Pertes du réseau vers le volume chauffé, en kWh. */
+  pertes_vc_kwh: number;
+  /** Demande transmise à la génération (valeur absolue), pertes du réseau comprises, en kWh. */
+  q_kwh: number;
+  /** Consommation du circulateur, en kWh d'énergie finale électrique (éq. 2505). */
+  w_aux_kwh: number;
+  /** Identifiant de la zone dont la centrale est desservie. */
+  zone: string;
 }
 
 /**
@@ -6009,6 +6034,23 @@ export interface Ventilation {
    * §6.5.3.4).
    */
   reseau: ReseauAeraulique;
+  /**
+   * Réseau de distribution de CTA hydraulique de chauffage (fiche 8.11, « idtype = 1 »,
+   * §8.11.3.6.2 et fiche 8.12) : relie la centrale à la génération qui fournit l'énergie de
+   * ses fonctions de chauffage (préchauffage, sécurité antigel, humidificateur à vapeur,
+   * batterie chaude du mode actif), qui désignent toutes cette génération. Une centrale
+   * n'accepte qu'un seul réseau par fonction (§8.11.3.1). Absent : réseau fictif, sans
+   * pertes ni circulateur (`idtype = 0`). Les paramètres sont ceux d'un réseau hydraulique
+   * du groupe (§8.7.2 et §8.8.2) ; la température d'ambiance des pertes est celle,
+   * conventionnelle, de 20 °C (`docs/questions/Q121.md`).
+   */
+  reseau_cta_chaud?: ReseauHydrauliqueGroupe | null;
+  /**
+   * Réseau de distribution de CTA hydraulique de refroidissement (§8.11.3.6.3) : même
+   * règle pour le prérefroidissement et la batterie froide du mode actif ; température
+   * d'ambiance conventionnelle de 26 °C.
+   */
+  reseau_cta_froid?: ReseauHydrauliqueGroupe | null;
   /** Nature du système et paramètres propres. */
   systeme: SystemeVentilation;
 }

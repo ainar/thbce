@@ -5,8 +5,10 @@ use super::batiment::resultats_saisons;
 use super::ecs::resultats_ecs;
 use crate::bati::assemblage_batiment::BatimentHoraire;
 use crate::bati::assemblage_groupe::GroupeHoraire;
+use crate::entree::FonctionReseau;
 use crate::resultats::{
-    ResultatsDistributionGroupe, ResultatsEmetteur, ResultatsIntergroupes, ResultatsSystemesGroupe,
+    ResultatsDistributionGroupe, ResultatsEmetteur, ResultatsIntergroupes, ResultatsReseauCta,
+    ResultatsSystemesGroupe,
 };
 
 /// Systèmes d'émission d'un groupe à l'issue du calcul Th-C (§8.1).
@@ -67,6 +69,34 @@ pub(super) fn resultats_intergroupes(b: &BatimentHoraire) -> Vec<ResultatsInterg
             pertes_hvc_kwh: c.phi_pertes_hvc_wh / 1000.0,
             nbh_fonct: c.nbh_fonct,
             theta_dep_extreme_c: c.theta_dep_extreme_c,
+        })
+        .collect()
+}
+
+/// Réseaux de distribution de CTA hydrauliques d'un bâtiment à l'issue du calcul Th-C (§8.11
+/// et §8.12).
+pub(super) fn resultats_reseaux_cta(b: &BatimentHoraire) -> Vec<ResultatsReseauCta> {
+    let s = &b.systemes;
+    s.reseaux_cta
+        .iter()
+        .zip(&s.cumuls_cta)
+        .map(|(r, c)| ResultatsReseauCta {
+            zone: b
+                .zones
+                .get(r.zone)
+                .map(|z| z.id.clone())
+                .unwrap_or_default(),
+            fonction: match r.fonction {
+                FonctionReseau::Chauffage => "chauffage",
+                FonctionReseau::Refroidissement => "refroidissement",
+            }
+            .to_owned(),
+            generation: s.generations.get(r.generation).cloned().unwrap_or_default(),
+            q_kwh: c.q_wh / 1000.0,
+            w_aux_kwh: c.w_aux_wh / 1000.0,
+            pertes_vc_kwh: c.phi_pertes_vc_wh / 1000.0,
+            pertes_hvc_kwh: c.phi_pertes_hvc_wh / 1000.0,
+            nbh_fonct: c.nbh_fonct,
         })
         .collect()
 }

@@ -32,7 +32,7 @@ use crate::validation::valider;
 use crate::{VERSION_METHODE, VERSION_MOTEUR};
 use batiment::restituer_zone;
 use ecs::{resultats_ecs_intergroupes, resultats_recuperateurs_collectifs};
-use emission_distribution::resultats_intergroupes;
+use emission_distribution::{resultats_intergroupes, resultats_reseaux_cta};
 use enveloppe::synthese_espace_tampon;
 use generation::{avertissements_generations, resultats_generations};
 
@@ -385,6 +385,7 @@ fn calculer_selon(
             c_aux_vent_kwh: (!c_aux_vent.is_empty()).then(|| c_aux_vent.iter().sum()),
             zones,
             distributions_intergroupes: resultats_intergroupes(&th_c),
+            reseaux_cta: resultats_reseaux_cta(&th_c),
             distributions_ecs_intergroupes: resultats_ecs_intergroupes(&th_c),
             recuperateurs_eaux_grises: resultats_recuperateurs_collectifs(&th_c),
             generations,

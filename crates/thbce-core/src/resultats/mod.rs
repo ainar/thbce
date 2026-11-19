@@ -124,6 +124,10 @@ pub struct ResultatsBatiment {
     /// transmises aux générations (§8.9 et §8.10) ; absent sans réseau.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub distributions_intergroupes: Vec<ResultatsIntergroupes>,
+    /// Réseaux de distribution de CTA hydrauliques, calcul Th-C (§8.11 et §8.12) ; absent sans
+    /// réseau saisi (réseaux fictifs).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reseaux_cta: Vec<ResultatsReseauCta>,
     /// Distributions d'ECS intergroupes, calcul Th-C (§9.8) ; absent sans réseau.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub distributions_ecs_intergroupes: Vec<ResultatsEcsIntergroupe>,
@@ -255,6 +259,9 @@ impl Resultats {
                 x.e_ecl_kwh = a(x.e_ecl_kwh);
             }
             for d in &mut b.distributions_intergroupes {
+                d.arrondir();
+            }
+            for d in &mut b.reseaux_cta {
                 d.arrondir();
             }
             for g in &mut b.generations {

@@ -89,6 +89,13 @@ fn cumuls(b: &BatimentHoraire) -> [f64; NB_POSTES] {
         }
     }
     c[poste::AUX_DIST] += b.systemes.cumuls.iter().map(|k| k.w_aux_wh).sum::<f64>();
+    // Fiche 8.12 : circulateurs des réseaux de CTA hydrauliques.
+    c[poste::AUX_DIST] += b
+        .systemes
+        .cumuls_cta
+        .iter()
+        .map(|k| k.w_aux_wh)
+        .sum::<f64>();
     c[poste::AUX_DIST] += b
         .systemes
         .cumuls_ecs

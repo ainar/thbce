@@ -33,6 +33,7 @@ pub mod generation;
 pub mod poeles_et_inserts;
 pub mod relances;
 pub mod reseau_de_chaleur_et_de_froid;
+pub mod reseaux_cta;
 pub mod saisons_fonctionnement;
 pub mod sources_amont;
 pub mod systemes_groupe;
