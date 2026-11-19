@@ -320,7 +320,9 @@ impl BoucheProjet {
             }
             Some((occ, inocc)) if regime.hysteresis && self.x_adiab > 0.0 => {
                 // Éq. (427) et (449) : entre le débit de zone neutre et celui du mode actif.
-                let zn = self.debits_selon(regime.i_vent);
+                // Borne basse : débit de zone neutre en occupation « ZN,occ », y compris en
+                // relance (éq. 426 à 428, figure 73 ; Q96 point 4, lot 1-ven4).
+                let zn = self.debits;
                 let ch = if regime.i_vent { occ } else { inocc };
                 let x = self.x_adiab;
                 let l = |a: f64, b: f64| a + x * (b - a);
@@ -1048,7 +1050,8 @@ impl VentilationProjet {
                 let r = |isouf: Isouf| {
                     let (mut ecart, mut plage) = (0.0, 0.0);
                     for b in self.bouches.iter() {
-                        let zn = b.debits_selon(regime.i_vent);
+                        // Éq. (467) : écarts aux débits de zone neutre en occupation.
+                        let zn = b.debits;
                         let Some((occ, inocc)) = b.debits_ch else {
                             continue;
                         };
@@ -1942,5 +1945,52 @@ impl VentilationProjet {
             self.repartir_releve(w, regime);
         }
         resultat
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn debits(q: f64) -> DebitsBoucheProjet {
+        DebitsBoucheProjet {
+            isouf: Isouf::Soufflage,
+            q_max_m3_h: q,
+            q_base_m3_h: q,
+            q_dep_m3_h: q,
+            q_fuites_m3_h: 0.0,
+            ratfuitevc: 1.0,
+            a_cond_m2: 0.0,
+        }
+    }
+
+    /// Éq. (427) en relance (inoccupation) : la borne basse du profil à hystérésis est le débit
+    /// de zone neutre en occupation `Qv_sou_ZN,occ` (éq. 466, figure 73), non celui de
+    /// l'inoccupation ; calcul à la main : 100 + 0,5 × (400 − 100) = 250 m³/h.
+    #[test]
+    fn hysteresis_bornee_a_la_zone_neutre_en_occupation() {
+        let b = BoucheProjet {
+            groupe: 0,
+            debits: debits(100.0),
+            debits_inocc: Some(debits(20.0)),
+            dugd_h: 14.0,
+            h_cond_ext_w_k: 0.0,
+            debits_ch: Some((debits(500.0), debits(400.0))),
+            taux_an_min: (1.0, 1.0),
+            x_adiab: 0.5,
+        };
+        let regime = Regime {
+            i_vent: false,
+            hysteresis: true,
+            ..Regime::default()
+        };
+        let d = b.debits_regime(regime);
+        assert!((d.q_dep_m3_h - 250.0).abs() < 1e-12, "{}", d.q_dep_m3_h);
+        // En occupation : 100 + 0,5 × (500 − 100) = 300 m³/h.
+        let d = b.debits_regime(Regime {
+            i_vent: true,
+            ..regime
+        });
+        assert!((d.q_dep_m3_h - 300.0).abs() < 1e-12);
     }
 }
