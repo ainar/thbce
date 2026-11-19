@@ -1,0 +1,82 @@
+{
+  "reglementaire": false,
+  "batiments": [
+    {
+      "id": "immeuble",
+      "sref_m2": 720.0,
+      "bbio_pts": 40.8,
+      "dh_c_h": 1641.9,
+      "cep_kwhep_m2": 174.8,
+      "cep_nr_kwhep_m2": 174.8,
+      "ic_energie_kgco2_m2": 215.0,
+      "indicateurs": {
+        "cef_kwhef_m2": 76.0,
+        "ic_energie_annuel_kgco2_m2": [
+          5.4,
+          5.3,
+          5.3,
+          5.3,
+          5.2,
+          5.2,
+          5.1,
+          5.1,
+          5.1,
+          5.0,
+          5.0,
+          4.9,
+          4.9,
+          4.8,
+          4.8,
+          4.7,
+          4.7,
+          4.7,
+          4.6,
+          4.6,
+          4.5,
+          4.5,
+          4.4,
+          4.4,
+          4.3,
+          4.3,
+          4.2,
+          4.2,
+          4.2,
+          4.1,
+          4.1,
+          4.0,
+          4.0,
+          3.9,
+          3.9,
+          3.8,
+          3.8,
+          3.7,
+          3.7,
+          3.6,
+          3.6,
+          3.5,
+          3.5,
+          3.4,
+          3.4,
+          3.3,
+          3.3,
+          3.2,
+          3.2,
+          3.1
+        ],
+        "occupants": {
+          "nocc_batiment": 36.0,
+          "origine": "zones",
+          "zones": [
+            {
+              "zone": "logements",
+              "nocc": 36.0,
+              "origine": "logements"
+            }
+          ],
+          "cep_par_occupant_kwhep": 3496.3,
+          "ic_energie_par_occupant_kgco2": 4299.6
+        }
+      }
+    }
+  ]
+}

@@ -274,7 +274,7 @@ pub fn calculer(
         });
         let indicateurs = avec_generations.then(|| {
             let bilan = bilan(&releve.horaire, &prod_pv_wh);
-            let (i, a) = calculer_indicateurs(&EntreesIndicateurs {
+            let (mut i, a) = calculer_indicateurs(&EntreesIndicateurs {
                 batiment: bat,
                 zone_climatique: zone,
                 alt_m: loc.alt_m,
@@ -287,6 +287,17 @@ pub fn calculer(
                 c_ecl_zones_kwh: &c_ecl_zones_kwh,
                 c_ecl_collectif_kwh,
             });
+            avertissements.extend(a);
+            // Fiche 13.6 : indicateurs par occupant.
+            let (occupants, a) = crate::indicateurs::occupants::calculer(
+                bat,
+                sref_m2,
+                i.cep_kwhep_m2,
+                i.ic_energie_kgco2_m2,
+                bat.acv.as_ref().map(|d| crate::acv::nocc(&d.occupants)),
+                |z| crate::deplacements::nb_max_occupants(z).ok(),
+            );
+            i.occupants = occupants;
             avertissements.extend(a);
             i
         });

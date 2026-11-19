@@ -110,6 +110,7 @@
 | Q106 | ECS : accumulateur en eau technique et échangeur de ballon (fiches 9.11 et 9.12) | tranchée, à confirmer par un cas de référence |
 | Q107 | ECS : IdCET sur eau (fiche 9.22) reste refusé ; fiche 9.21 levée par Q108 | refus 9.22 maintenu ; point 1 (9.21) remplacé par Q108 le 18 novembre 2026 |
 | Q108 | ECS : récupérateur de chaleur sur les eaux grises (fiche 9.21, éq. 2156 à 2224) | tranchée (point 6 révisé le 18 novembre 2026 sur décision de l'orchestrateur : préchauffage déduit de la demande de la génération, variante Texte conservée) ; à confirmer par un cas de référence |
+| Q117 | Indicateurs par occupant (fiche 13.6, éq. 2552 et 2553, annexe II §5.2.3 et §5.3.1) et Ic énergie annuel (annexe II éq. 75) : origine du nombre d'occupants, enseignement, tertiaire, Ic par occupant, année a de l'éq. 75 (lot 1-sor) | lecture du lot 1-sor, à confirmer par un cas de référence ; variantes chiffrées |
 | Q200 | Classement au bruit d'une baie : saisie facultative baie par baie (fiche 5.11, chapitre V partie I) — champs, libellés, données à saisir | tranchée, à confirmer par un cas de référence |
 | Q201 | Classement au bruit : tranche de distance d'une valeur égale à une borne (65 m dans « 0-65 m » et « 65-125 m ») | tranchée, à confirmer par un cas de référence |
 | Q202 | Classement au bruit : la classe déduite des baies tient lieu de saisie absente ; cohérence avec la saisie directe | tranchée, à confirmer par un cas de référence |

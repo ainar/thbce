@@ -26,7 +26,7 @@ Projet { $schema?, version_format?, nom, localisation, catalogue }
     ├── installations_pv[]                     ch. 12
     ├── ascenseurs[], parkings[]               ch. 10
     ├── exigences?                             annexe de l'article R. 172-4
-    └── zones[]       usage, nb_logements, aéraulique de zone, ventilation
+    └── zones[]       usage, nb_logements, types_logements? (pièces principales), nb_occupants?, aéraulique de zone, ventilation
         └── groupes[] surfaces, volume, inertie, parois opaques, baies, ponts thermiques,
                       bouches et entrées d'air, iclim, programmation, émetteurs, distributions,
                       émetteurs d'ECS, locaux d'éclairage (hors habitation)
@@ -299,7 +299,7 @@ Le raccordement à un réseau de chaleur urbain se déduit des générations (so
 
 ### Résultats
 
-`batiments[].cep_kwhep_m2`, `cep_nr_kwhep_m2` et `ic_energie_kgco2_m2` sont calculés dès que le bâtiment a des générations. Le détail est dans `batiments[].indicateurs` :
+`batiments[].cep_kwhep_m2`, `cep_nr_kwhep_m2` et `ic_energie_kgco2_m2` sont calculés dès que le bâtiment a des générations. Le nombre d'occupants d'une zone (fiche 13.6) se saisit par `zones[].types_logements` (habitation : `[{ pieces_principales: 1 à 7, nombre }]`, dont la somme vaut `nb_logements`, éq. 131) ou `zones[].nb_occupants` (élèves en enseignement ; programme du bâtiment ailleurs, à défaut scénarios conventionnels signalés) : sans lui, `indicateurs.occupants` est absent (Q117). Le détail est dans `batiments[].indicateurs` :
 
 ```
 indicateurs
@@ -314,6 +314,9 @@ indicateurs
 ├── lignes[]          { poste, energie, cef_kwh, coef_ep, coef_ep_nr, facteur_emission_kg_kwh,
 │                       cep_kwhep_m2, cep_nr_kwhep_m2, ic_energie_kgco2_m2 }
 ├── cef_kwhef_m2, cep_kwhep_m2, cep_nr_kwhep_m2, ic_energie_kgco2_m2, somme_f_co2
+├── ic_energie_annuel_kgco2_m2?   50 valeurs, a = 1 à 50 (annexe II éq. 75 ; Q117)
+├── occupants?        { nocc_batiment, origine, zones[] { zone, nocc, origine }, cep_par_occupant_kwhep,
+│                       ic_energie_par_occupant_kgco2?, valeurs_par_defaut[] }   (fiche 13.6, Q117)
 └── exigences?        { bbio_max_pts, cep_max_kwhep_m2, cep_nr_max_kwhep_m2, ic_energie_max_kgco2_m2,
                         zones[] (valeurs moyennes et coefficients de modulation de chaque zone),
                         verifications[] { indicateur, groupe?, valeur, maximum, marge, marge_pct, respectee },

@@ -68,6 +68,19 @@ pub struct Zone {
     /// accolées. Requis en logement collectif ; 1 par défaut en maison individuelle.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nb_logements: Option<u32>,
+    /// « Nocc_zn » : nombre d'occupants de la zone (fiche 13.6, balise de zone), pour les
+    /// indicateurs par occupant. Usages d'enseignement : nombre d'élèves prévu lors de la
+    /// programmation (requis pour restituer l'indicateur) ; autres usages tertiaires : donnée du
+    /// programme du bâtiment, à défaut le nombre maximal d'occupants des scénarios
+    /// conventionnels (signalé dans les résultats). Habitation : de préférence `types_logements`.
+    /// Ne se saisit pas avec `types_logements`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nb_occupants: Option<f64>,
+    /// Logements de la zone par nombre de pièces principales (fiche 13.6.3.1, tableau 342 et
+    /// éq. 131 de l'annexe II : `Nocc = Σ i·ni`), usages d'habitation seulement. La somme des
+    /// `nombre` vaut `nb_logements` (1 en maison individuelle sans `nb_logements`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub types_logements: Vec<TypeLogement>,
     /// « hzone » : hauteur entre le point le plus bas et le point le plus haut de la zone, en m
     /// (§5.6.2). Requise : elle fixe l'altitude des défauts d'étanchéité et des entrées d'air.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -100,6 +113,18 @@ pub struct Zone {
     pub ventilation: Option<Ventilation>,
     /// Groupes de la zone.
     pub groupes: Vec<Groupe>,
+}
+
+/// Th-BCE 2020 §13.6.3.1, tableau 342 : logements d'un même nombre de pièces principales
+/// (séjour et chambres).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TypeLogement {
+    /// « i » : nombre de pièces principales du logement, de 1 à 7 (tableau 342 : un occupant
+    /// par pièce principale).
+    pub pieces_principales: u8,
+    /// « ni » : nombre de logements de ce type dans la zone.
+    pub nombre: u32,
 }
 
 /// Niveau « groupe » (Th-BCE 2020 §5.7) : local ou ensemble de locaux dont l'air est supposé

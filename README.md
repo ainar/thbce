@@ -178,7 +178,7 @@ Voir [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - **Pas de lecteur RSEE XML** : le schéma XSD n'est pas public.
 - **Systèmes refusés** : ventilation naturelle, hybride, aération, réseaux de CTA hydrauliques, puits climatiques ou hydrauliques, humidification, rafraîchissement évaporatif, surventilation mécanique ; brasseurs d'air ; gestion des générateurs en alternance, boucles d'eau, DRV, cogénération, PAC au gaz ou hybrides, PAC sur eau ou sur sol, triple service, second ballon, récupération de chaleur sur les eaux grises ; Titres V.
 - **Calage horaire** : un décalage d'une heure est possible entre le fichier météo et le calendrier de la méthode (Q25).
-- **Sorties non restituées** : indicateurs par occupant (fiche 13.6), sorties Th-C par zone et par groupe (§13.2), valeur annuelle de l'éq. (75) de l'Ic énergie, séries horaires (seulement par l'API Rust).
+- **Sorties non restituées** : sorties Th-C par zone et par groupe (§13.2), séries horaires (seulement par l'API Rust).
 
 ## Licence
 

@@ -17,6 +17,52 @@ use crate::bati::surventilation::traversant_conventionnel;
 use crate::entree::{Catalogue, Groupe, Zone};
 use crate::ventilation::bouche_conduit::debits_specifiques_bbio_groupe;
 
+/// Th-BCE 2020 §13.6.3.1 : nombre d'occupants de la zone (tableau 342) ; Q117.
+fn valider_occupants(r: &mut RapportValidation, c: &str, zone: &Zone) {
+    if let Some(n) = zone.nb_occupants {
+        r.plage(format!("{c}.nb_occupants"), n, 0.0, f64::INFINITY);
+    }
+    if zone.types_logements.is_empty() {
+        return;
+    }
+    if !zone.usage.est_habitation() {
+        r.erreur(
+            format!("{c}.types_logements"),
+            None,
+            "le nombre de pièces principales ne se saisit qu'en habitation (fiche 13.6.3.1) ;              ailleurs, saisir `nb_occupants`",
+        );
+        return;
+    }
+    if zone.nb_occupants.is_some() {
+        r.erreur(
+            format!("{c}.nb_occupants"),
+            zone.nb_occupants.map(|n| n.to_string()),
+            "ne se saisit pas avec `types_logements`, qui le détermine (éq. 131)",
+        );
+    }
+    let mut total: u32 = 0;
+    for (i, t) in zone.types_logements.iter().enumerate() {
+        if !(1..=7).contains(&t.pieces_principales) {
+            r.erreur(
+                format!("{c}.types_logements[{i}].pieces_principales"),
+                Some(t.pieces_principales.to_string()),
+                "de 1 à 7 pièces principales (tableau 342) ; au-delà, saisir `nb_occupants`",
+            );
+        }
+        total = total.saturating_add(t.nombre);
+    }
+    let attendu = zone.nb_logements.unwrap_or(1);
+    if total != attendu {
+        r.erreur(
+            format!("{c}.types_logements"),
+            Some(total.to_string()),
+            format!(
+                "la somme des logements ({total}) doit valoir `nb_logements` ({attendu}),                  éq. 131 : ni est le nombre de logements de type Ti du bâtiment"
+            ),
+        );
+    }
+}
+
 pub(super) fn valider_zone(r: &mut RapportValidation, c: &str, zone: &Zone, refs: &References<'_>) {
     if !zone.usage.est_pris_en_charge() {
         r.hors_perimetre(
@@ -43,6 +89,7 @@ pub(super) fn valider_zone(r: &mut RapportValidation, c: &str, zone: &Zone, refs
         ),
         _ => {}
     }
+    valider_occupants(r, c, zone);
     valider_aeraulique_zone(r, c, zone);
     if zone.usage.est_pris_en_charge() {
         match &zone.ventilation {

@@ -57,6 +57,20 @@ fn poste(serie_wh: &[f64], sref_m2: f64) -> PosteElectrique {
     }
 }
 
+/// « NBz » : nombre maximal d'occupants conventionnels de la zone sur l'année (éq. 2280 et
+/// 2315), maximum sur les 8 760 pas de temps du nombre d'occupants des scénarios.
+///
+/// # Errors
+///
+/// Erreur de scénarios de la zone (usage non pris en charge).
+pub fn nb_max_occupants(z: &crate::entree::Zone) -> Result<f64, Erreur> {
+    let a_gr: Vec<f64> = z.groupes.iter().map(|g| g.su_m2.unwrap_or(0.0)).collect();
+    let sc = ScenariosZone::nouveau(z.usage, &a_gr, z.nb_logements.unwrap_or(1))?;
+    Ok((0..NB_HEURES_AN)
+        .map(|h| sc.evaluer(h).n_occ)
+        .fold(0.0, f64::max))
+}
+
 /// Calcule les postes du lot 6e d'un bâtiment. `sref_zones_m2` : « SREF_zn » de chaque zone.
 ///
 /// Renvoie `None` si le bâtiment n'a ni zone de logement collectif ni parking.

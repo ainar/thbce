@@ -2406,6 +2406,35 @@ export interface HorairesJour {
   fin_h: number;
 }
 
+/** Indicateurs par occupant d'un bâtiment (fiche 13.6, annexe II §5.2.3 et §5.3.1). */
+export interface IndicateursOccupants {
+  /**
+   * « Cep_annuel_par_occ » : `Cep × SREF / Nocc`, en kWhep/(occupant.an) (éq. 2553 et 130) ;
+   * 0 si `Nocc` est nul.
+   */
+  cep_par_occupant_kwhep: number;
+  /**
+   * `Icénergie × SREF / Nocc`, en kg éq. CO2/occupant (annexe II §5.3.1 : les indicateurs
+   * d'impact « peuvent aussi être exprimés au nombre d'occupants ») ; absent si l'Ic énergie
+   * ne l'est pas, 0 si `Nocc` est nul.
+   */
+  ic_energie_par_occupant_kgco2?: number | null;
+  /** « Nocc_bat » : nombre d'occupants du bâtiment, somme de ceux des zones (éq. 2552). */
+  nocc_batiment: number;
+  /**
+   * Origine : `zones` (somme de celles des zones) ou `acv` (`acv.occupants` du bâtiment,
+   * quand le nombre d'occupants d'une zone n'est pas déterminé ; `zones` est alors vide).
+   */
+  origine: string;
+  /**
+   * Nombres d'occupants déduits des scénarios conventionnels faute de saisie (fiche
+   * 13.6.3.1 : « peuvent être utilisées »).
+   */
+  valeurs_par_defaut?: ValeurParDefaut[];
+  /** Nombre d'occupants de chaque zone. */
+  zones: OccupantsZone[];
+}
+
 /**
  * Th-BCE 2020 §5.21.2 et §5.21.3 — inertie du groupe sur trois horizons.
  *
@@ -2894,6 +2923,20 @@ export type OccupantsAcv = {
 } | {
   nombre: number;
 };
+
+/** Nombre d'occupants d'une zone et son origine (fiche 13.6.3.1). */
+export interface OccupantsZone {
+  /** « Nocc_zn » : nombre d'occupants de la zone. */
+  nocc: number;
+  /**
+   * Origine : `logements` (éq. 131 et tableau 342, `Σ i·ni`), `saisie` (`nb_occupants` de
+   * la zone) ou `scenarios` (nombre maximal d'occupants conventionnel, usages tertiaires
+   * hors enseignement sans saisie, signalé dans `valeurs_par_defaut`).
+   */
+  origine: string;
+  /** Identifiant de la zone. */
+  zone: string;
+}
 
 /** Th-BCE 2020 §12.4.2 — onduleur. */
 export interface OnduleurPv {
@@ -4685,12 +4728,24 @@ export interface ResultatsIndicateurs {
    */
   forfaits_refroidissement?: ForfaitRefroidissementGroupe[];
   /**
+   * « Icénergie_annuel(a) » (annexe II §4.3.2, éq. 75), en kg éq. CO2/(m².an), pour les
+   * années `a` de 1 à 50 de la période d'étude (50 valeurs, `fCO2(a)` de l'article 11) : la
+   * somme des 50 valeurs redonne l'Ic énergie. Absent si l'Ic énergie n'est pas calculé
+   * (`docs/questions/Q117.md`).
+   */
+  ic_energie_annuel_kgco2_m2?: number[];
+  /**
    * « Icénergie », en kg éq. CO2/m² (annexe II §4.3.2, éq. 74) ; absent si un facteur
    * d'émission manque.
    */
   ic_energie_kgco2_m2: number | null;
   /** Consommations importées par poste et par énergie, et leur conversion. */
   lignes: LigneBilanEnergie[];
+  /**
+   * Indicateurs par occupant (fiche 13.6, éq. 2552 et 2553 ; annexe II §5.2.3, éq. 130) ;
+   * absents si le nombre d'occupants d'une zone n'est ni saisi ni déductible.
+   */
+  occupants?: IndicateursOccupants | null;
   /** Bilan de la production photovoltaïque ; absent sans installation. */
   production_pv?: BilanProductionPv | null;
   /**
@@ -5366,6 +5421,20 @@ export type TypeHorloge = "aucune" | "crepusculaire" | "personnalisable";
 /** Type de local au sens de l'éclairage (§7.1.2, « type_local » ; tableau 78). */
 export type TypeLocal = "bureau_standard" | "salle_reunion" | "circulation_accueil" | "sanitaires_collectifs" | "salle_classe" | "salle_repos" | "sanitaires_vestiaires" | "salle_enseignement_informatique" | "salle_conference" | "centre_documentation" | "salle_professeurs" | "salle_multi_fonctions" | "local_service" | "chambre_sans_cuisine" | "salle_petits_dejeuners" | "bar" | "salle_seminaires_reunion" | "salle_jeux" | "salle_restaurant" | "cuisine" | "aire_vente_inferieure300" | "aire_vente_superieure300" | "douches_collectives" | "salle_commune" | "locaux_soins_offices" | "salle_attente_consultation" | "aire_production" | "espace_voyageurs" | "commerces" | "inspection_filtrage" | "salle_sport";
 
+/**
+ * Th-BCE 2020 §13.6.3.1, tableau 342 : logements d'un même nombre de pièces principales
+ * (séjour et chambres).
+ */
+export interface TypeLogement {
+  /** « ni » : nombre de logements de ce type dans la zone. */
+  nombre: number;
+  /**
+   * « i » : nombre de pièces principales du logement, de 1 à 7 (tableau 342 : un occupant
+   * par pièce principale).
+   */
+  pieces_principales: number;
+}
+
 /** Type d'ouvrant (§5.13.3.2.3, tableau 44). */
 export type TypeOuvrant = "francaise_ou_anglaise" | "italienne_ou_soufflet" | "soufflet_oscillo_battant" | "coulissant";
 
@@ -5665,6 +5734,15 @@ export interface Zone {
    */
   nb_logements?: number | null;
   /**
+   * « Nocc_zn » : nombre d'occupants de la zone (fiche 13.6, balise de zone), pour les
+   * indicateurs par occupant. Usages d'enseignement : nombre d'élèves prévu lors de la
+   * programmation (requis pour restituer l'indicateur) ; autres usages tertiaires : donnée du
+   * programme du bâtiment, à défaut le nombre maximal d'occupants des scénarios
+   * conventionnels (signalé dans les résultats). Habitation : de préférence `types_logements`.
+   * Ne se saisit pas avec `types_logements`.
+   */
+  nb_occupants?: number | null;
+  /**
    * « Q4Pa_surf » : perméabilité à l'air de l'enveloppe sous 4 Pa, en m³/(h.m²) de parois
    * déperditives hors plancher bas (§5.6.2), la même pour tous les groupes de la zone.
    * Requise. Une valeur mesurée par échantillonnage se saisit multipliée par 1,2 ; si des
@@ -5680,6 +5758,12 @@ export interface Zone {
    * d'une façade à l'autre sont détalonnées.
    */
   trav_zone?: boolean | null;
+  /**
+   * Logements de la zone par nombre de pièces principales (fiche 13.6.3.1, tableau 342 et
+   * éq. 131 de l'annexe II : `Nocc = Σ i·ni`), usages d'habitation seulement. La somme des
+   * `nombre` vaut `nb_logements` (1 en maison individuelle sans `nb_logements`).
+   */
+  types_logements?: TypeLogement[];
   /** « Usage zone » (§4.1.2). */
   usage: UsageZone;
   /**
