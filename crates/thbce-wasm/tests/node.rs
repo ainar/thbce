@@ -49,6 +49,49 @@ fn calcule_le_cas_de_demonstration() {
 }
 
 #[wasm_bindgen_test]
+fn series_horaires_sur_demande() {
+    // Q118 : sans l'option, aucune série ; avec `series_horaires: true`, les colonnes du bâtiment
+    // (8 760 valeurs chacune, `te` en tête), le reste de la restitution étant inchangé.
+    let sans =
+        thbce_wasm::calculer(JsValue::from_str(ENTREE), &meteo(), JsValue::UNDEFINED).unwrap();
+    let bat_sans = js_sys::Array::from(&champ(&sans, "batiments")).get(0);
+    let absentes = champ(&bat_sans, "series_horaires");
+    assert!(absentes.is_undefined() || absentes.is_null());
+
+    let options = js_sys::Object::new();
+    js_sys::Reflect::set(
+        &options,
+        &JsValue::from_str("series_horaires"),
+        &JsValue::TRUE,
+    )
+    .unwrap();
+    let avec = thbce_wasm::calculer(JsValue::from_str(ENTREE), &meteo(), options.into()).unwrap();
+    let bat_avec = js_sys::Array::from(&champ(&avec, "batiments")).get(0);
+    let colonnes = js_sys::Array::from(&champ(&champ(&bat_avec, "series_horaires"), "colonnes"));
+    assert!(colonnes.length() > 1);
+    let premiere = colonnes.get(0);
+    assert_eq!(champ(&premiere, "nom").as_string().as_deref(), Some("te"));
+    assert_eq!(champ(&premiere, "unite").as_string().as_deref(), Some("C"));
+    for i in 0..colonnes.length() {
+        let valeurs = js_sys::Array::from(&champ(&colonnes.get(i), "valeurs"));
+        assert_eq!(valeurs.length(), 8760);
+    }
+    // Jeu synthétique autour de 10 °C.
+    let te = js_sys::Array::from(&champ(&premiere, "valeurs"));
+    let te0 = te.get(0).as_f64().unwrap();
+    assert!((5.0..15.0).contains(&te0), "{te0}");
+    // Le reste de la restitution ne change pas.
+    assert_eq!(
+        champ(&bat_avec, "bbio_pts").as_f64(),
+        champ(&bat_sans, "bbio_pts").as_f64()
+    );
+    assert_eq!(
+        champ(&bat_avec, "cep_kwhep_m2").as_f64(),
+        champ(&bat_sans, "cep_kwhep_m2").as_f64()
+    );
+}
+
+#[wasm_bindgen_test]
 fn valide_et_signale_les_erreurs() {
     let r = thbce_wasm::valider(JsValue::from_str(ENTREE)).unwrap();
     assert_eq!(champ(&r, "valide"), JsValue::TRUE);
