@@ -295,7 +295,7 @@ fn refus() {
     p.batiments[0].zones[0].usage = thbce_core::entree::UsageZone::MaisonIndividuelle;
     let (c, hors) = chemins(&p);
     assert!(c.contains(&"batiments[0].ascenseurs[0].zones_desservies[0]".to_owned()));
-    assert!(!hors || c.len() > 1);
+    assert!(!hors);
 
     // Erreurs de saisie : locaux d'éclairage absents ; type de local d'un autre usage ; ratios
     // qui ne somment pas à 1 ; champs de l'habitation sur une bouche ; puissances de base et
