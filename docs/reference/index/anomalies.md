@@ -171,13 +171,6 @@ Aucune.
 
 Aucune.
 
-## Incohérences du texte (relevées à la lecture)
-
-Annexe III, vérifiées sur l'image de la page ; la lecture retenue est dans le fichier de question cité.
-
-- éq. (726) (p. 437) : le facteur ×3 600 donne un débit en m³/h alors que la nomenclature du tableau 69 donne `qvair` en m³/s et `v0` en m/s ; facteur écarté (Q231 point 2).
-- éq. (730) (p. 439) : « hiver » écrit pour « été » (puits réglé hors période de chauffage) ; lue « été » (Q231 point 1).
-
 ## Constatées sur l'image (annexe III, tableaux 107 à 266)
 
 Relevé à la main, lors de la transcription des tableaux de la génération (`../tableaux/annexe-iii/`). Contrairement aux rubriques ci-dessus, ce relevé a été vérifié sur l'image des pages et la couche texte vectorielle.
