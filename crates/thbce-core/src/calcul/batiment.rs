@@ -67,7 +67,7 @@ pub(super) fn restituer_zone(
     let ventilation = th_c
         .ventilation
         .clone()
-        .filter(|v| v.releve.is_some())
+        .filter(|v| v.releve.is_some() || v.naturelle.is_some())
         .or_else(|| VentilationProjet::nouvelle(zone, THETA_INITIALE_C));
     let groupes: Vec<ResultatsGroupe> = zone
         .groupes

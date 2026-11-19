@@ -119,6 +119,38 @@ export interface Ascenseur {
 /** Assainissement des eaux usées du bâtiment (§4.4.1.1.3). */
 export type Assainissement = "collectif" | "non_collectif";
 
+/** Assistance mécanique d'une ventilation hybride (tableau 65, figure 78, éq. 706 et 708). */
+export interface AssistanceMecanique {
+  /** « Pvent,pointe » : puissance du ventilateur pendant les créneaux de grand débit, en W. */
+  p_vent_pointe_w: number;
+  /**
+   * « Pvent,k,l » : puissance du ventilateur, en W, pour le couple de la ligne `k` (vent) et de
+   * la colonne `l` (température), figure 78 ; `v_vent_reg_m_s.len()` lignes de
+   * `theta_ext_reg_c.len()` valeurs.
+   */
+  p_vent_w: number[][];
+  /**
+   * « θext,lim,hyb » : seuil de température extérieure pour le basculement en mode mécanique,
+   * en °C ; l'assistance fonctionne quand `θext` lui est supérieure.
+   */
+  theta_ext_lim_c: number;
+  /**
+   * « θext,reg,l » : températures extérieures de régulation, en °C, de 1 à 10 valeurs
+   * croissantes toutes supérieures à `theta_ext_lim_c`.
+   */
+  theta_ext_reg_c: number[];
+  /**
+   * « vvent,c,lim,hyb » : seuil de vitesse de vent, en m/s ; l'assistance fonctionne quand le
+   * vent lui est inférieur.
+   */
+  v_vent_lim_m_s: number;
+  /**
+   * « vvent,reg,k » : vitesses de vent de régulation, en m/s, de 1 à 10 valeurs décroissantes
+   * toutes inférieures à `v_vent_lim_m_s`.
+   */
+  v_vent_reg_m_s: number[];
+}
+
 /**
  * Paramètres de l'automatisme d'une protection mobile en gestion automatique (§5.9.2,
  * tableau 33 ; fiche d'application FA01). Seuils sans valeur conventionnelle dans le texte :
@@ -538,6 +570,21 @@ export interface BoucheConduit {
    */
   qvarep_spec_m3_h?: number | null;
 }
+
+/** Bouche d'extraction équivalente d'un conduit de ventilation naturelle (`idtype_bouche`). */
+export type BoucheNaturelle = {
+  /** « Asect_base » : section de base, en cm². */
+  a_sect_base_cm2: number;
+  /** « Asect_pointe » : section de pointe, en cm². */
+  a_sect_pointe_cm2: number;
+  type: "fixe";
+} | {
+  /** « dP1 » à « dP6 » : différences de pression de mesure, en Pa, strictement croissantes. */
+  d_p_pa: number[];
+  /** « qv1 » à « qv6 » : débits moyens mesurés, en m³/h, croissants. */
+  q_v_m3_h: number[];
+  type: "autoreglable";
+};
 
 /** Réseau d'ECS intergroupe bouclé (§9.8.2). */
 export interface BoucleEcs {
@@ -2222,6 +2269,23 @@ export interface ExtensionSaisie {
 }
 
 /**
+ * Extracteur statique d'un conduit (§6.6.3.1.4.1) : coefficients de dépression `Cextr,j` pour
+ * un vent de référence aux vitesses d'air dans le conduit de 0 ; 0,5 ; 1 ; 1,5 ; 2 ; 3 ; 4 et
+ * 8 m/s, et coefficient de perte de charge singulière sans vent.
+ */
+export interface ExtracteurStatique {
+  /** « Cextr,j », j de 1 à 8 : coefficients de dépression (norme EN 13141-5). */
+  c_extr: number[];
+  /**
+   * « Vvent,réf » : vitesse de vent de référence de la caractéristique, en m/s (strictement
+   * positive). Absente : 8 (tableau 65), signalé dans les résultats.
+   */
+  v_vent_ref_m_s?: number | null;
+  /** « ξextr » : coefficient de perte de charge singulière de l'extracteur (positif ou nul). */
+  xi_extr: number;
+}
+
+/**
  * Facteurs solaires et lumineux d'une baie dans un état de protection (§5.10.2).
  *
  * Trois grandeurs ont une valeur par défaut donnée par la méthode (§5.10.3.6.3) et sont
@@ -2680,6 +2744,14 @@ export interface HumidificateurHiver {
   omega_cons_kg_kg: number;
   /** « TypeHumidification ». */
   type_humidification: TypeHumidificationHiver;
+}
+
+/** Th-BCE 2020 §6.6.3.2.2 — ventilation hybride : conduit naturel et assistance mécanique. */
+export interface Hybride {
+  /** Assistance mécanique. */
+  assistance: AssistanceMecanique;
+  /** Conduit, bouche et extracteur du fonctionnement naturel. */
+  naturelle: NaturelleParConduits;
 }
 
 /** Indicateurs par occupant d'un bâtiment (fiche 13.6, annexe II §5.2.3 et §5.3.1). */
@@ -3215,6 +3287,58 @@ export type NatureGenerateur = {
 
 /** Nature des travaux pour le choix du régime d'exigences (fiche 4.4 ; FA03 v2). */
 export type NatureTravaux = "construction" | "extension" | "surelevation";
+
+/**
+ * Th-BCE 2020 §6.6.2, tableau 65 — conduit équivalent, bouche d'extraction et extracteur
+ * statique d'un système de ventilation naturelle par conduits ou hybride. Un conduit shunt se
+ * décrit par son conduit équivalent (périmètre et section réels, hauteur équivalente, §6.6.3.1.3).
+ */
+export interface NaturelleParConduits {
+  /**
+   * « Acond » : surface de l'enveloppe du conduit pour le calcul des fuites, en m²
+   * (strictement positive).
+   */
+  a_cond_m2: number;
+  /** Bouche d'extraction équivalente (§6.6.3.1.1 et 6.6.3.1.2). */
+  bouche: BoucheNaturelle;
+  /**
+   * « χcoude » : coefficient de pertes de charge du coude équivalent aux confluences du
+   * réseau. Absent : 1,15 (tableau 65), signalé dans les résultats.
+   */
+  chi_coude?: number | null;
+  /**
+   * « dPref » : pression de référence dans le conduit pour le calcul des fuites, en Pa.
+   * Absente : 20 (tableau 65), signalé dans les résultats.
+   */
+  d_pref_pa?: number | null;
+  /** Extracteur statique du conduit (§6.6.3.1.4). */
+  extracteur: ExtracteurStatique;
+  /**
+   * « hcond » : hauteur équivalente du conduit, en m (strictement positive ; pour un shunt, la
+   * différence d'altitude entre le débouché et la moyenne des hauteurs de la bouche la plus
+   * haute et de la plus basse, plus la hauteur conventionnelle de la bouche par rapport au
+   * sol, §6.6.3.1.3).
+   */
+  h_cond_m: number;
+  /**
+   * « hmot » : hauteur de tirage thermique, en m. Absente : `hcond + 2` si la zone n'a pas de
+   * transferts d'air verticaux (éq. 699), `hzone + 2` sinon (éq. 700), signalé dans les
+   * résultats.
+   */
+  h_mot_m?: number | null;
+  /**
+   * « λcond » : coefficient de pertes de charge de la partie droite du conduit. Absent :
+   * 0,05 (tableau 65), signalé dans les résultats.
+   */
+  lambda_cond?: number | null;
+  /**
+   * « Nid » : nombre d'ensembles bouche équivalente / conduit / extracteur identiques (au
+   * moins 1).
+   */
+  nb_conduits_identiques: number;
+  /** « Percond » : périmètre du conduit, en m (strictement positif). */
+  per_cond_m: number;
+}
 
 /** Nombre d'occupants « Nocc » (§5.2.3, éq. 131). */
 export type OccupantsAcv = {
@@ -5358,6 +5482,38 @@ export interface ResultatsLotAcv {
   udd_pct?: number | null;
 }
 
+/**
+ * Fonctionnement annuel d'une ventilation naturelle par conduits ou hybride dans un calcul. Les
+ * débits spécifiques moyens du groupe desservi sont ceux de `groupes[].ventilation`.
+ */
+export interface ResultatsNaturelle {
+  /**
+   * Nombre d'heures de fonctionnement de l'assistance mécanique, grand débit compris
+   * (éq. 706) ; absent en ventilation naturelle seule.
+   */
+  nbh_assistance?: number | null;
+  /**
+   * Nombre d'heures d'extraction par le conduit (« qv,cond > 0 », éq. 701 et 702), hors
+   * assistance mécanique.
+   */
+  nbh_extraction: number;
+  /**
+   * Nombre d'heures de grand débit de la cuisine (tableau 67) ; absent en ventilation
+   * naturelle seule.
+   */
+  nbh_grand_debit?: number | null;
+  /**
+   * Nombre d'heures de refoulement dans le conduit (« qv,cond < 0 », éq. 704), hors
+   * assistance mécanique.
+   */
+  nbh_refoulement: number;
+  /**
+   * Consommation du ventilateur d'assistance, en kWh (« Cvent », éq. 708), comprise dans
+   * `c_aux_vent_kwh` ; absente en ventilation naturelle seule.
+   */
+  w_assistance_kwh?: number | null;
+}
+
 /** Un parking (§10.3 et §10.4). */
 export interface ResultatsParking {
   /** « Eec » : consommation annuelle de l'éclairage, en kWh (éq. 2354). */
@@ -5682,6 +5838,11 @@ export interface ResultatsVentilationGroupe {
 
 /** Fonctionnement annuel du système de ventilation du projet dans un calcul. */
 export interface ResultatsVentilationMode {
+  /**
+   * Fonctionnement d'une ventilation naturelle par conduits ou hybride (fiche 6.6) ; absent
+   * pour les autres systèmes.
+   */
+  naturelle?: ResultatsNaturelle | null;
   /**
    * Nombre d'heures où le rafraîchissement évaporatif est autorisé (« Aut_adiab = 1 »,
    * §6.3.3.4.2) ; absent sans rafraîchissement évaporatif.
@@ -6046,7 +6207,11 @@ export type SystemeVentilation = {
   mecanique_basse_pression: VentilateurSimpleFlux;
 } | {
   double_flux: DoubleFlux;
-} | "naturelle_par_conduits" | "hybride" | "aeration" | "centrale_traitement_air" | {
+} | {
+  naturelle_par_conduits: NaturelleParConduits;
+} | {
+  hybride: Hybride;
+} | "aeration" | "centrale_traitement_air" | {
   cta: Cta;
 };
 

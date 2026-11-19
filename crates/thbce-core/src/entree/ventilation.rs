@@ -75,10 +75,16 @@ pub enum SystemeVentilation {
     /// Ventilation mécanique double flux (§6.3, `Type_ventilation_mecaniq = 1`) : seul système
     /// double flux compatible avec l'usage résidentiel (§6.3.3.1.3).
     DoubleFlux(DoubleFlux),
-    /// Ventilation naturelle par conduits (§6.6) : non prise en charge dans cette version.
-    NaturelleParConduits,
-    /// Ventilation hybride (§6.6) : non prise en charge dans cette version.
-    Hybride,
+    /// Ventilation naturelle par conduits (§6.6, `idtype_vent = 1`) : tirage thermique et effet
+    /// du vent dans un conduit individuel ou collectif (shunt), sans ventilateur. Réservée à la
+    /// maison individuelle ou accolée et au logement collectif ; un seul groupe desservi
+    /// (`docs/questions/Q234.md`). Le réseau (`reseau`) donne `Kres`, `Ratfuitevc`, `Rrep` et
+    /// `b` ; les bouches de reprise du groupe donnent `Dugd` et `Cdep`.
+    NaturelleParConduits(NaturelleParConduits),
+    /// Ventilation hybride (§6.6, `idtype_vent = 2`) : ventilation naturelle assistée par un
+    /// ventilateur selon des créneaux horaires et les conditions météorologiques. Mêmes
+    /// restrictions que la ventilation naturelle.
+    Hybride(Hybride),
     /// Aération par ouverture des fenêtres (§6.7) : ventilation naturelle sans ventilateur ni
     /// conduit. Les bouches de soufflage de chaque groupe donnent les débits d'air neuf fournis
     /// par une fenêtre équivalente (éq. 162) ; les débits repris sont ceux qui en sortent
@@ -95,7 +101,137 @@ pub enum SystemeVentilation {
     Cta(Cta),
 }
 
+/// Th-BCE 2020 §6.6.2, tableau 65 — conduit équivalent, bouche d'extraction et extracteur
+/// statique d'un système de ventilation naturelle par conduits ou hybride. Un conduit shunt se
+/// décrit par son conduit équivalent (périmètre et section réels, hauteur équivalente, §6.6.3.1.3).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct NaturelleParConduits {
+    /// « Nid » : nombre d'ensembles bouche équivalente / conduit / extracteur identiques (au
+    /// moins 1).
+    pub nb_conduits_identiques: u32,
+    /// « Percond » : périmètre du conduit, en m (strictement positif).
+    pub per_cond_m: f64,
+    /// « hcond » : hauteur équivalente du conduit, en m (strictement positive ; pour un shunt, la
+    /// différence d'altitude entre le débouché et la moyenne des hauteurs de la bouche la plus
+    /// haute et de la plus basse, plus la hauteur conventionnelle de la bouche par rapport au
+    /// sol, §6.6.3.1.3).
+    pub h_cond_m: f64,
+    /// « hmot » : hauteur de tirage thermique, en m. Absente : `hcond + 2` si la zone n'a pas de
+    /// transferts d'air verticaux (éq. 699), `hzone + 2` sinon (éq. 700), signalé dans les
+    /// résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub h_mot_m: Option<f64>,
+    /// « Acond » : surface de l'enveloppe du conduit pour le calcul des fuites, en m²
+    /// (strictement positive).
+    pub a_cond_m2: f64,
+    /// « λcond » : coefficient de pertes de charge de la partie droite du conduit. Absent :
+    /// 0,05 (tableau 65), signalé dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lambda_cond: Option<f64>,
+    /// « χcoude » : coefficient de pertes de charge du coude équivalent aux confluences du
+    /// réseau. Absent : 1,15 (tableau 65), signalé dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chi_coude: Option<f64>,
+    /// « dPref » : pression de référence dans le conduit pour le calcul des fuites, en Pa.
+    /// Absente : 20 (tableau 65), signalé dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub d_pref_pa: Option<f64>,
+    /// Bouche d'extraction équivalente (§6.6.3.1.1 et 6.6.3.1.2).
+    pub bouche: BoucheNaturelle,
+    /// Extracteur statique du conduit (§6.6.3.1.4).
+    pub extracteur: ExtracteurStatique,
+}
+
+/// Bouche d'extraction équivalente d'un conduit de ventilation naturelle (`idtype_bouche`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum BoucheNaturelle {
+    /// Bouche fixe (`idtype_bouche = 1`) : sections en base et en pointe, en cm² (éq. 674).
+    Fixe {
+        /// « Asect_base » : section de base, en cm².
+        a_sect_base_cm2: f64,
+        /// « Asect_pointe » : section de pointe, en cm².
+        a_sect_pointe_cm2: f64,
+    },
+    /// Bouche autoréglable (`idtype_bouche = 2`) : courbe caractéristique du tableau 66 aux six
+    /// points de mesure (le point 0 est `dP0 = 0`, `qv0 = 0`).
+    Autoreglable {
+        /// « dP1 » à « dP6 » : différences de pression de mesure, en Pa, strictement croissantes.
+        d_p_pa: [f64; 6],
+        /// « qv1 » à « qv6 » : débits moyens mesurés, en m³/h, croissants.
+        q_v_m3_h: [f64; 6],
+    },
+}
+
+/// Extracteur statique d'un conduit (§6.6.3.1.4.1) : coefficients de dépression `Cextr,j` pour
+/// un vent de référence aux vitesses d'air dans le conduit de 0 ; 0,5 ; 1 ; 1,5 ; 2 ; 3 ; 4 et
+/// 8 m/s, et coefficient de perte de charge singulière sans vent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ExtracteurStatique {
+    /// « Cextr,j », j de 1 à 8 : coefficients de dépression (norme EN 13141-5).
+    pub c_extr: [f64; 8],
+    /// « ξextr » : coefficient de perte de charge singulière de l'extracteur (positif ou nul).
+    pub xi_extr: f64,
+    /// « Vvent,réf » : vitesse de vent de référence de la caractéristique, en m/s (strictement
+    /// positive). Absente : 8 (tableau 65), signalé dans les résultats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub v_vent_ref_m_s: Option<f64>,
+}
+
+/// Th-BCE 2020 §6.6.3.2.2 — ventilation hybride : conduit naturel et assistance mécanique.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Hybride {
+    /// Conduit, bouche et extracteur du fonctionnement naturel.
+    pub naturelle: NaturelleParConduits,
+    /// Assistance mécanique.
+    pub assistance: AssistanceMecanique,
+}
+
+/// Assistance mécanique d'une ventilation hybride (tableau 65, figure 78, éq. 706 et 708).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AssistanceMecanique {
+    /// « θext,lim,hyb » : seuil de température extérieure pour le basculement en mode mécanique,
+    /// en °C ; l'assistance fonctionne quand `θext` lui est supérieure.
+    pub theta_ext_lim_c: f64,
+    /// « vvent,c,lim,hyb » : seuil de vitesse de vent, en m/s ; l'assistance fonctionne quand le
+    /// vent lui est inférieur.
+    pub v_vent_lim_m_s: f64,
+    /// « vvent,reg,k » : vitesses de vent de régulation, en m/s, de 1 à 10 valeurs décroissantes
+    /// toutes inférieures à `v_vent_lim_m_s`.
+    pub v_vent_reg_m_s: Vec<f64>,
+    /// « θext,reg,l » : températures extérieures de régulation, en °C, de 1 à 10 valeurs
+    /// croissantes toutes supérieures à `theta_ext_lim_c`.
+    pub theta_ext_reg_c: Vec<f64>,
+    /// « Pvent,k,l » : puissance du ventilateur, en W, pour le couple de la ligne `k` (vent) et de
+    /// la colonne `l` (température), figure 78 ; `v_vent_reg_m_s.len()` lignes de
+    /// `theta_ext_reg_c.len()` valeurs.
+    pub p_vent_w: Vec<Vec<f64>>,
+    /// « Pvent,pointe » : puissance du ventilateur pendant les créneaux de grand débit, en W.
+    pub p_vent_pointe_w: f64,
+}
+
 impl SystemeVentilation {
+    /// Conduit naturel d'une ventilation naturelle par conduits ou hybride.
+    pub fn conduit_naturel(&self) -> Option<&NaturelleParConduits> {
+        match self {
+            Self::NaturelleParConduits(n) => Some(n),
+            Self::Hybride(h) => Some(&h.naturelle),
+            _ => None,
+        }
+    }
+
+    /// Assistance mécanique d'une ventilation hybride.
+    pub fn assistance(&self) -> Option<&AssistanceMecanique> {
+        match self {
+            Self::Hybride(h) => Some(&h.assistance),
+            _ => None,
+        }
+    }
+
     /// Nom JSON de la variante d'une centrale double flux (`double_flux` ou `cta`), `None` pour
     /// les autres systèmes.
     pub fn nom_centrale(&self) -> Option<&'static str> {

@@ -95,6 +95,34 @@ pub struct ResultatsVentilationMode {
     /// Fonctionnement du puits hydraulique de l'air neuf (fiche 6.9) ; absent sans puits.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub puits_hydraulique: Option<ResultatsPuitsHydraulique>,
+    /// Fonctionnement d'une ventilation naturelle par conduits ou hybride (fiche 6.6) ; absent
+    /// pour les autres systèmes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub naturelle: Option<ResultatsNaturelle>,
+}
+
+/// Fonctionnement annuel d'une ventilation naturelle par conduits ou hybride dans un calcul. Les
+/// débits spécifiques moyens du groupe desservi sont ceux de `groupes[].ventilation`.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsNaturelle {
+    /// Nombre d'heures d'extraction par le conduit (« qv,cond > 0 », éq. 701 et 702), hors
+    /// assistance mécanique.
+    pub nbh_extraction: u32,
+    /// Nombre d'heures de refoulement dans le conduit (« qv,cond < 0 », éq. 704), hors
+    /// assistance mécanique.
+    pub nbh_refoulement: u32,
+    /// Nombre d'heures de fonctionnement de l'assistance mécanique, grand débit compris
+    /// (éq. 706) ; absent en ventilation naturelle seule.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nbh_assistance: Option<u32>,
+    /// Nombre d'heures de grand débit de la cuisine (tableau 67) ; absent en ventilation
+    /// naturelle seule.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nbh_grand_debit: Option<u32>,
+    /// Consommation du ventilateur d'assistance, en kWh (« Cvent », éq. 708), comprise dans
+    /// `c_aux_vent_kwh` ; absente en ventilation naturelle seule.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub w_assistance_kwh: Option<f64>,
 }
 
 /// Fonctionnement annuel d'un puits hydraulique dans un calcul.

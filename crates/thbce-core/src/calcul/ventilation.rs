@@ -6,7 +6,7 @@ use crate::climat::calendrier::date_scenario;
 use crate::conventions::NB_HEURES_AN;
 use crate::entree::{Groupe, UsageZone};
 use crate::resultats::{
-    ResultatsDebitsBbio, ResultatsPuitsClimatique, ResultatsPuitsHydraulique,
+    ResultatsDebitsBbio, ResultatsNaturelle, ResultatsPuitsClimatique, ResultatsPuitsHydraulique,
     ResultatsVentilationGroupe, ResultatsVentilationMode,
 };
 use crate::scenarios::ScenariosZone;
@@ -58,6 +58,16 @@ pub(super) fn resultats_mode(
             nbh_actif: c.nbh_puits,
             q_prechauffage_kwh: c.q_puits_chaud_wh / 1000.0,
             q_prerefroidissement_kwh: c.q_puits_froid_wh / 1000.0,
+        }),
+        naturelle: v.naturelle.as_ref().map(|n| ResultatsNaturelle {
+            nbh_extraction: c.naturelle.nbh_extraction,
+            nbh_refoulement: c.naturelle.nbh_refoulement,
+            nbh_assistance: n.assistance.as_ref().map(|_| c.naturelle.nbh_assistance),
+            nbh_grand_debit: n.assistance.as_ref().map(|_| c.naturelle.nbh_grand_debit),
+            w_assistance_kwh: n
+                .assistance
+                .as_ref()
+                .map(|_| c.naturelle.w_vent_wh / 1000.0),
         }),
         puits_hydraulique: v.puits_h.as_ref().map(|_| ResultatsPuitsHydraulique {
             nbh_actif: c.nbh_puits,

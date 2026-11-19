@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Variante de tests/cas/maison-ventilation-naturelle-ademe en ventilation hybride : même conduit, même bouche et même extracteur, avec une assistance mécanique commandée par les tranches horaires du tableau 67 (seuils de température et de vent, matrice Pvent selon vent et température de régulation, puissance de pointe). Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : valeurs du moteur au lot 1-ven10 (19 novembre 2026), figées pour détecter les régressions ; ce n'est pas un cas de référence. Recoupement à la main par le test hybride_assistance_a_la_main (débit spécifique d'assistance −130,18 m³/h, éq. 706 et 708) ; énergie d'assistance = Σ Pvent × durée, restituée dans naturelle.w_assistance_kwh."
+meteo = "ademe"
