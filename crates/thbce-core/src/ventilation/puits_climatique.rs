@@ -287,6 +287,7 @@ impl EtatPuits {
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
 
@@ -335,7 +336,7 @@ mod tests {
         // 0,65396 × 10 × sin(arg)).
         let s = Sol::nouveau(&puits(), &te);
         let arg = 2.0 * PI / 8760.0 * (4001.0 - 458.5968 + 600.0);
-        let attendu = 0.98 * (10.0 - 0.65396 * 10.0 * arg.sin());
+        let attendu = 0.98 * (10.0 - 0.65396 * 10.0 * libm::sin(arg));
         assert!((s.theta_c(4000) - attendu).abs() < 1e-9);
     }
 
