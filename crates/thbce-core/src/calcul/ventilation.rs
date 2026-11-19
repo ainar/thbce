@@ -5,7 +5,10 @@ use crate::bati::assemblage_zone::CumulsVentilation;
 use crate::climat::calendrier::date_scenario;
 use crate::conventions::NB_HEURES_AN;
 use crate::entree::{Groupe, UsageZone};
-use crate::resultats::{ResultatsDebitsBbio, ResultatsVentilationGroupe, ResultatsVentilationMode};
+use crate::resultats::{
+    ResultatsDebitsBbio, ResultatsPuitsClimatique, ResultatsVentilationGroupe,
+    ResultatsVentilationMode,
+};
 use crate::scenarios::ScenariosZone;
 use crate::ventilation::bouche_conduit::{
     debits_bbio_non_residentiel, debits_specifiques_bbio_groupe,
@@ -51,6 +54,11 @@ pub(super) fn resultats_mode(
         nbh_adiab: v.adiabatique.map(|_| c.nbh_adiab),
         w_aux_adiab_kwh: v.adiabatique.map(|_| c.w_aux_adiab_wh / 1000.0),
         nbh_rafnoc: v.surventilation.map(|_| c.nbh_rafnoc),
+        puits_climatique: v.puits.as_ref().map(|_| ResultatsPuitsClimatique {
+            nbh_actif: c.nbh_puits,
+            q_prechauffage_kwh: c.q_puits_chaud_wh / 1000.0,
+            q_prerefroidissement_kwh: c.q_puits_froid_wh / 1000.0,
+        }),
     }
 }
 

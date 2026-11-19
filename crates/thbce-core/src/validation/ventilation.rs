@@ -667,13 +667,7 @@ pub(super) fn valider_ventilation(
             }
         }
     }
-    if let Some(p) = v.puits {
-        r.hors_perimetre(
-            format!("{c}.puits"),
-            Some(nom_json(&p)),
-            "puits climatique ou hydraulique",
-        );
-    }
+    super::puits::valider_puits(r, c, v);
 
     // Réseau ; sans conduit en aération (§6.7).
     let aeration = matches!(v.systeme, SystemeVentilation::Aeration);

@@ -88,6 +88,23 @@ pub struct ResultatsVentilationMode {
     /// (« irafnoc_activé(h) = 1 », §6.12.3.3, éq. 766) ; absent sans surventilation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nbh_rafnoc: Option<u32>,
+    /// Fonctionnement du puits climatique de l'air neuf (fiches 6.8, 6.10 et 6.11) ; absent
+    /// sans puits.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub puits_climatique: Option<ResultatsPuitsClimatique>,
+}
+
+/// Fonctionnement annuel d'un puits climatique dans un calcul.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsPuitsClimatique {
+    /// Nombre d'heures où l'air neuf traverse le puits : non contourné (éq. 750 à 752) et
+    /// débit d'air neuf non nul.
+    pub nbh_actif: u32,
+    /// Énergie apportée à l'air neuf en préchauffage, en kWh : somme positive de
+    /// `Cpa × qm,air_neuf × (θan − θext)` (éq. 731, 728).
+    pub q_prechauffage_kwh: f64,
+    /// Énergie retirée à l'air neuf en prérafraîchissement, en kWh, négative.
+    pub q_prerefroidissement_kwh: f64,
 }
 
 /// Ventilation du projet vue d'un groupe (Th-BCE 2020 §6.2 à 6.5).

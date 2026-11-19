@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Variante de tests/cas/bureaux-cta-ademe (centrale de prétraitement d'air à débit constant, régulation optimisée du taux d'air neuf, échangeur à bypass, préchauffage) dont l'air neuf traverse un puits climatique : 8 conduits de 50 m, diamètre intérieur 0,3 m, épaisseur 10 mm, conductivité 0,4 W/(m.K), enterrés à 2,5 m dans une argile humide ; bypass du puits selon les températures (consignes d'hiver 14 °C extérieur et 22 °C intérieur, d'été 13 °C et 24 °C). Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : valeurs du moteur au lot 1-ven8 (19 novembre 2026), figées pour détecter les régressions ; ce n'est pas un cas de référence. Recoupements à la main : Bbio identique à l'exemple sans puits (§6.11.3) ; débit de zone neutre en occupation 3 000 m³/h à 1,2 kg/m³ = 1,0 kg/s ; efficacité du puits avec les éq. (723) à (727) à θext = 5 °C : par conduit v0 = 1,4495 m/s, hi = 7,392 W/(m².K), Ug = 5,910 W/(m.K), ε = 0,9042. La régulation de l'air neuf (éq. 433 et 434) et l'échangeur voient `θan` du puits (éq. 414 et 488 : débits de la fin du pas précédent en zone neutre, débits recalculés en mode actif) ; la demande du préchauffage tombe de 3 291,6 à 1 784,0 kWh en Th-C."
+meteo = "ademe"
+
+[tolerances]
+defaut = 0.005

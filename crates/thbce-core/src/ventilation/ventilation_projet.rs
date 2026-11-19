@@ -58,6 +58,7 @@ use super::mecanique_sf::{
     dugd_equ_h, h_cond_ext_w_k, p_vent_groupe_w, p_vent_residentiel_w, qm_kg_s, rho_kg_m3,
     t_apres_conduit_c, t_apres_ventilateur_c, t_lnc_c, theta_i_cond_c, C_PA_J_KG_K,
 };
+use super::puits_climatique::EtatPuits;
 use super::surventilation_mecanique::{a_cond_rafnoc_m2, SurventilationResolue};
 
 /// Nature du système, résolue pour le calcul.
@@ -224,6 +225,8 @@ struct Centrale {
     w_ech_wh: f64,
     /// « qm,eau_été^pompe(h) » du rafraîchissement indirect, en kg/s (éq. 486).
     qm_eau_ete_kg_s: f64,
+    /// « qm,air_neuf(h) », en kg/s.
+    qm_an_kg_s: f64,
 }
 
 /// Régime d'une centrale au pas de temps, fixé avant le calcul des groupes.
@@ -245,6 +248,9 @@ pub struct Regime {
     /// « irafnoc_activé(h) » : rafraîchissement par surventilation mécanique en service
     /// (§6.12.3.3, éq. 766) ; ses débits et ses puissances remplacent ceux du régime.
     pub rafnoc: bool,
+    /// Mode actif : `θan` du puits climatique recalculé avec les nouveaux débits d'air neuf
+    /// (éq. 487 et 488).
+    pub recalcul_puits: bool,
 }
 
 /// Relevé de la consommation des auxiliaires d'une centrale double flux hors habitation
@@ -423,6 +429,14 @@ pub struct PasVentilation {
     pub adiab: bool,
     /// « irafnoc_activé(h) » du pas de temps (§6.12.3.3, éq. 766).
     pub rafnoc: bool,
+    /// « θan(h) » : température de l'air neuf, en °C, avec un puits climatique ; `None` sans
+    /// puits (`θext`).
+    pub theta_an_c: Option<f64>,
+    /// Le puits climatique est traversé (non contourné) et l'air neuf circule.
+    pub puits_actif: bool,
+    /// Énergie échangée dans le puits climatique, en Wh : `Cpa × qm,air_neuf × (θan − θext)`,
+    /// positive en préchauffage, négative en prérafraîchissement.
+    pub q_puits_wh: f64,
 }
 
 /// Système de ventilation du projet d'une zone d'habitation, prêt pour le calcul.
@@ -472,6 +486,8 @@ pub struct VentilationProjet {
     /// Rafraîchissement par surventilation mécanique (§6.12) et état de sa régulation ;
     /// `None` sans.
     pub surventilation: Option<SurventilationResolue>,
+    /// Puits climatique de l'air neuf (§6.8, 6.10 et 6.11) et son état ; `None` sans.
+    pub puits: Option<EtatPuits>,
     /// « θi,fin(h−2) » de chaque groupe, pour le sens de variation du profil à hystérésis.
     theta_prec: Vec<f64>,
     /// Régime du pas de temps en cours.
@@ -612,6 +628,12 @@ impl VentilationProjet {
             .surventilation()
             .map(SurventilationResolue::nouvelle);
         let surv = surventilation.is_some();
+        // §6.11.3 : puits climatique sur l'air neuf (le système est un simple flux par
+        // insufflation, un double flux ou une CTA, contrôlé par la validation).
+        let puits = v
+            .puits_climatique
+            .filter(|_| v.puits == Some(crate::entree::Puits::Climatique))
+            .map(EtatPuits::nouveau);
 
         // §6.2.3.4, tableau 59 : coefficient de fuite.
         let k_res = if aeration {
@@ -995,8 +1017,10 @@ impl VentilationProjet {
                 adiab: false,
                 hysteresis: false,
                 rafnoc: false,
+                recalcul_puits: false,
             },
             surventilation,
+            puits,
         })
     }
 
@@ -1058,6 +1082,7 @@ impl VentilationProjet {
             adiab,
             hysteresis,
             rafnoc,
+            recalcul_puits: false,
         };
     }
 
@@ -1089,6 +1114,35 @@ impl VentilationProjet {
             .filter(|(_, d)| **d)
             .all(|(g, _)| g.aut_fr_propre);
         s.reguler(h, theta_an_c, theta_op, aut_fr_pro);
+    }
+
+    /// Prépare le puits climatique du pas de temps `h` (fiches 6.8, 6.10 et 6.11) : température
+    /// du sol, bypass selon la saison de chauffage de l'un des groupes desservis (éq. 755) et
+    /// leur température moyenne à la fin du pas précédent (éq. 754, lecture Q231 point 4), puis
+    /// `θan(h)` avec les débits d'air neuf de la fin du pas précédent. `te_c` : température
+    /// extérieure horaire de l'année, pour la température du sol. Sans effet sans puits.
+    pub fn preparer_puits(
+        &mut self,
+        h: usize,
+        te_c: &[f64],
+        theta_ext_c: f64,
+        groupes: &[EtatGroupeVentilation],
+    ) {
+        let desservis: Vec<bool> = (0..groupes.len()).map(|g| self.dessert(g)).collect();
+        let theta_i = self.theta_moy_desservis_c(groupes);
+        let chauffage = groupes
+            .iter()
+            .zip(&desservis)
+            .any(|(g, d)| *d && g.saison_de_chauffage);
+        if let Some(p) = &mut self.puits {
+            p.preparer(h, te_c, theta_ext_c, chauffage, theta_i);
+        }
+    }
+
+    /// « θan(h) » : température de l'air neuf du pas, avec le puits climatique (éq. 414), ou
+    /// `theta_ext_c` sans puits.
+    pub fn theta_an_c(&self, theta_ext_c: f64) -> f64 {
+        self.puits.as_ref().map_or(theta_ext_c, |p| p.theta_an_c())
     }
 
     /// « θi,moy » des groupes desservis par la centrale au pas précédent, pour l'autorisation
@@ -1143,6 +1197,7 @@ impl VentilationProjet {
             adiab: false,
             hysteresis: false,
             rafnoc: false,
+            recalcul_puits: false,
         }
     }
 
@@ -1495,8 +1550,9 @@ impl VentilationProjet {
                 qm
             };
         }
-        // Air neuf : air extérieur (éq. 413 et 657, sans puits).
-        let theta_an = theta_ext_c;
+        // Air neuf : air extérieur sans puits (éq. 413 et 657) ; avec un puits climatique, sortie
+        // du puits avec les débits d'air neuf de la fin du pas précédent (éq. 414 et 658).
+        let theta_an_prec = self.puits.as_ref().map_or(theta_ext_c, |p| p.theta_an_c());
         // §6.3.3.4.5.3 : rafraîchissement évaporatif indirect autorisé (« Aut_adiab = 1 » et
         // « Type_Humidification_Ete = 2 ») ; pas de recyclage (éq. 440), pas de bypass (éq. 493).
         let indirect = regime.adiab && self.adiabatique.is_some_and(|a| a.indirect);
@@ -1507,13 +1563,21 @@ impl VentilationProjet {
             Some(c) => qm_air_neuf_kg_s(
                 qm_an_min,
                 qm_sou,
-                theta_an,
+                theta_an_prec,
                 c.theta_enc_enf_c.0,
                 c.theta_enc_enf_c.1,
                 c.regulation_air_neuf,
                 theta_i_moy,
             ),
             None => qm_sou,
+        };
+        // Éq. (488) : en mode actif, `θan` est recalculée avec les nouveaux débits d'air neuf ;
+        // au tout premier pas, aucun débit n'est connu : le débit du pas sert (Q231 point 3).
+        let theta_an = match &self.puits {
+            Some(p) if regime.recalcul_puits || p.sans_historique() => {
+                p.sortie_c(theta_ext_c, qm_an)
+            }
+            _ => theta_an_prec,
         };
         // Éq. (454) à (456) : débit recyclé, débit repris et débit rejeté rééquilibrés. Le texte
         // (p. 372) écrit les débits repris en valeurs signées, négatives : `qm,rep,cond =
@@ -1552,9 +1616,17 @@ impl VentilationProjet {
                 qm_air_extrait_kg_s: qm_extrait,
                 theta_souf_mel_c: theta_an,
                 taux_an: if qm_sou > 0.0 { qm_an / qm_sou } else { 1.0 },
+                theta_an_c: self.puits.as_ref().map(|_| theta_an),
+                puits_actif: self.puits.as_ref().is_some_and(|p| !p.contourne()) && qm_an > 0.0,
+                q_puits_wh: if self.puits.is_some() {
+                    C_PA_J_KG_K * qm_an * (theta_an - theta_ext_c)
+                } else {
+                    0.0
+                },
                 ..PasVentilation::default()
             },
             qm_sou_kg_s: qm_sou,
+            qm_an_kg_s: qm_an,
             theta_souf2_c: theta_an,
             omega_souf2_kg_kg: omega_ext_kg_kg,
             w_ech_wh: 0.0,
@@ -1696,6 +1768,10 @@ impl VentilationProjet {
             (p_vent_rep_w, p_vent_sou_w),
             &self.rho_souffle,
         );
+        if let Some(p) = &mut self.puits {
+            // Débit d'air neuf de la fin du pas, pour `θan` du pas suivant (éq. 414 et 658).
+            p.retenir_debit(centrale.qm_an_kg_s);
+        }
         let mut sorties = centrale.sorties;
         sorties.adiab = regime.adiab;
         sorties.rafnoc = regime.rafnoc;
@@ -1996,6 +2072,7 @@ impl VentilationProjet {
         // 6.3.3.5.7 : circuit recalculé avec les températures des groupes au pas en cours.
         let regime = Regime {
             nominal: true,
+            recalcul_puits: true,
             ..self.regime
         };
         let centrale = self.centrale(
@@ -2007,6 +2084,10 @@ impl VentilationProjet {
             cta.p_vent_ch_w,
             &self.rho_souffle,
         );
+        if let Some(p) = &mut self.puits {
+            // Débits d'air neuf recalculés : ce sont ceux de la fin du pas (éq. 487 et 488).
+            p.retenir_debit(centrale.qm_an_kg_s);
+        }
         let qm_cond = centrale.qm_sou_kg_s;
         if qm_cond <= 0.0 {
             return ModeActif::default();

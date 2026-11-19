@@ -1,0 +1,122 @@
+{
+  "reglementaire": false,
+  "origine_meteo_th_bc": {
+    "type": "ademe_prospectif",
+    "scenario": "TRACC France +2,7 °C avec vague de chaleur (ADEME / Météo-France)"
+  },
+  "origine_meteo_th_d": {
+    "type": "ademe_prospectif",
+    "scenario": "TRACC France +2,7 °C avec vague de chaleur (ADEME / Météo-France)"
+  },
+  "climat": {
+    "zone_climatique": "H2b"
+  },
+  "batiments": [
+    {
+      "id": "maison",
+      "sref_m2": 96.4,
+      "bbio_pts": 56.8,
+      "dh_c_h": 1034.6,
+      "cep_kwhep_m2": 114.8,
+      "cep_nr_kwhep_m2": 114.8,
+      "ic_energie_kgco2_m2": 139.1,
+      "indicateurs": {
+        "cef_kwhef_m2": 49.9,
+        "exigences": {
+          "bbio_max_pts": 64.7,
+          "cep_max_kwhep_m2": 70.2,
+          "cep_nr_max_kwhep_m2": 51.5,
+          "ic_energie_max_kgco2_m2": 149.7
+        },
+        "electricite_consommee": {
+          "chauffage_kwh": 1880.2,
+          "ecs_kwh": 2120.7,
+          "eclairage_kwh": 189.3,
+          "auxiliaires_ventilation_kwh": 306.6
+        }
+      },
+      "zones": [
+        {
+          "id": "logement",
+          "ventilation": {
+            "id": "vmc-double-flux",
+            "p_vent_w": 35.0,
+            "c_aux_vent_kwh": 306.6,
+            "th_d": {
+              "nbh_bypass": 3297,
+              "q_ag_kwh": 0.0,
+              "puits_climatique": {
+                "nbh_actif": 6144,
+                "q_prechauffage_kwh": 1090.1,
+                "q_prerefroidissement_kwh": -679.4
+              }
+            },
+            "th_c": {
+              "nbh_bypass": 3003,
+              "q_ag_kwh": 0.0,
+              "puits_climatique": {
+                "nbh_actif": 6435,
+                "q_prechauffage_kwh": 1107.4,
+                "q_prerefroidissement_kwh": -734.2
+              }
+            },
+            "valeurs_par_defaut": [
+              {
+                "champ": "ventilation.systeme.double_flux.echangeur.theta_s_ech_rep_lim_c",
+                "valeur": 5.0,
+                "regle": "Th-BCE 2020 §6.3.3.4.6.4, tableau 62 : « autres cas »"
+              },
+              {
+                "champ": "ventilation.reseau.ratfuitevc",
+                "valeur": 0.25,
+                "regle": "Th-BCE 2020 §6.2.3.4, tableau 60 : valeur par défaut"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[0].dugd_h",
+                "valeur": 14.0,
+                "regle": "Th-BCE 2020 §6.2.3.2.2.2, tableau 57 : dispositif à gestion manuelle (par défaut)"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[0].cdep",
+                "valeur": 1.3,
+                "regle": "Th-BCE 2020 §6.2.3.3.1, tableau 58 : valeur par défaut"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[1].dugd_h",
+                "valeur": 14.0,
+                "regle": "Th-BCE 2020 §6.2.3.2.2.2, tableau 57 : dispositif à gestion manuelle (par défaut)"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[1].cdep",
+                "valeur": 1.3,
+                "regle": "Th-BCE 2020 §6.2.3.3.1, tableau 58 : valeur par défaut"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[0].a_cond_m2",
+                "valeur": 4.822,
+                "regle": "Th-BCE 2020 §6.2.3.4, éq. (421) à (427), tableau 60 : surface de conduit par défaut"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[1].a_cond_m2",
+                "valeur": 4.822,
+                "regle": "Th-BCE 2020 §6.2.3.4, éq. (421) à (427), tableau 60 : surface de conduit par défaut"
+              }
+            ]
+          },
+          "groupes": [
+            {
+              "id": "volume-chauffe",
+              "ventilation": {
+                "q_spec_repris_m3_h": -128.9,
+                "q_spec_souffle_m3_h": 128.9,
+                "q_repris_cond_m3_h": -135.5,
+                "q_souffle_cond_m3_h": 135.5,
+                "c_aux_vent_kwh": 306.6
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

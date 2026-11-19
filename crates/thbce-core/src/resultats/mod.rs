@@ -344,6 +344,10 @@ impl Resultats {
                         m.q_hr_kwh = m.q_hr_kwh.map(a);
                         m.w_aux_chaudhr_kwh = m.w_aux_chaudhr_kwh.map(a);
                         m.w_aux_adiab_kwh = m.w_aux_adiab_kwh.map(a);
+                        if let Some(p) = &mut m.puits_climatique {
+                            p.q_prechauffage_kwh = a(p.q_prechauffage_kwh);
+                            p.q_prerefroidissement_kwh = a(p.q_prerefroidissement_kwh);
+                        }
                     }
                 }
                 if let Some(c) = &mut z.consommations_collectif {

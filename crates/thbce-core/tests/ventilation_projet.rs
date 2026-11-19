@@ -10,9 +10,9 @@
 )]
 
 use thbce_core::entree::{
-    BoucheConduit, Bypass, ClasseEtancheite, DoubleFlux, Echangeur, EchangeurSimplifie, Isouf,
-    Projet, RepresentationEchangeur, StatutEchangeur, SystemeVentilation, UsageZone,
-    VentilateurSimpleFlux, Zone,
+    BoucheConduit, Bypass, BypassPuits, ClasseEtancheite, DoubleFlux, Echangeur,
+    EchangeurSimplifie, Isouf, Projet, Puits, PuitsClimatique, RepresentationEchangeur,
+    StatutEchangeur, SystemeVentilation, TypeSolPuits, UsageZone, VentilateurSimpleFlux, Zone,
 };
 use thbce_core::valider;
 use thbce_core::ventilation::mecanique_sf::{rho_kg_m3, C_PA_J_KG_K, P_EL};
@@ -359,10 +359,11 @@ fn validation_du_systeme_de_ventilation() {
             e[0].message.contains("non pris en charge") || e[0].message.contains("non résidentiel")
         );
     }
+    // Puits hydraulique (fiche 6.9), pas encore pris en charge : refusé.
     let mut p = projet();
-    zone_mut(&mut p).ventilation.as_mut().unwrap().puits =
-        Some(thbce_core::entree::Puits::Climatique);
+    zone_mut(&mut p).ventilation.as_mut().unwrap().puits = Some(Puits::Hydraulique);
     assert_eq!(chemins(&p), ["batiments[0].zones[0].ventilation.puits"]);
+    assert!(valider(&p).erreurs[0].hors_perimetre);
     // Sens des bouches : un double flux souffle et extrait.
     let mut p = double_flux(None, false);
     zone_mut(&mut p).groupes[0].bouches_conduits.pop();
@@ -713,4 +714,170 @@ fn aeration_validation() {
         chemins(&p),
         ["batiments[0].zones[0].groupes[0].aeration_espace_tampon"]
     );
+}
+
+/// Puits climatique de 1 conduit de 30 m (di 0,2 m, ep 5 mm, λ 0,4 W/(m.K)) à 2 m, en sable
+/// humide.
+fn puits_climatique(bypass: Option<BypassPuits>) -> PuitsClimatique {
+    PuitsClimatique {
+        nd: 1,
+        l_m: 30.0,
+        di_m: 0.2,
+        ep_m: 0.005,
+        lambda_tube_w_m_k: 0.4,
+        profondeur_m: 2.0,
+        type_sol: TypeSolPuits::SableHumide,
+        bypass,
+    }
+}
+
+fn double_flux_avec_puits(bypass: Option<BypassPuits>) -> Projet {
+    let mut p = double_flux(None, false);
+    let v = zone_mut(&mut p).ventilation.as_mut().unwrap();
+    v.puits = Some(Puits::Climatique);
+    v.puits_climatique = Some(puits_climatique(bypass));
+    p
+}
+
+#[test]
+fn validation_du_puits_climatique() {
+    let c = "batiments[0].zones[0].ventilation";
+    // Double flux avec puits décrit : valide.
+    let p = double_flux_avec_puits(None);
+    assert!(valider(&p).est_valide(), "{:?}", valider(&p).erreurs);
+    // Déclaré sans description, ou décrit sans déclaration.
+    let mut p = double_flux_avec_puits(None);
+    zone_mut(&mut p)
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .puits_climatique = None;
+    assert_eq!(chemins(&p), [format!("{c}.puits_climatique")]);
+    let mut p = double_flux_avec_puits(None);
+    zone_mut(&mut p).ventilation.as_mut().unwrap().puits = None;
+    assert_eq!(chemins(&p), [format!("{c}.puits")]);
+    // Plages du tableau 69.
+    let mut p = double_flux_avec_puits(None);
+    let d = zone_mut(&mut p)
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .puits_climatique
+        .as_mut()
+        .unwrap();
+    d.nd = 0;
+    d.l_m = 0.0;
+    d.profondeur_m = -1.0;
+    assert_eq!(
+        chemins(&p),
+        [
+            format!("{c}.puits_climatique.nd"),
+            format!("{c}.puits_climatique.l_m"),
+            format!("{c}.puits_climatique.profondeur_m"),
+        ]
+    );
+    // Un simple flux par extraction n'a pas d'air neuf soufflé : refusé (§6.11.3) ; le simple
+    // flux par insufflation est accepté.
+    let mut p = projet();
+    let v = zone_mut(&mut p).ventilation.as_mut().unwrap();
+    v.puits = Some(Puits::Climatique);
+    v.puits_climatique = Some(puits_climatique(None));
+    assert_eq!(chemins(&p), [format!("{c}.puits")]);
+    // Puits hydraulique avec un puits climatique décrit : exception de l'éq. (386).
+    let mut p = double_flux_avec_puits(None);
+    zone_mut(&mut p).ventilation.as_mut().unwrap().puits = Some(Puits::Hydraulique);
+    let r = valider(&p);
+    assert_eq!(r.erreurs.len(), 2, "{r:?}");
+    assert!(r.erreurs[0].hors_perimetre);
+    assert!(r.erreurs[1].message.contains("386"));
+}
+
+/// État d'un groupe à 20 °C en saison de chauffage.
+fn groupe_en_chauffage(theta_i: f64) -> [EtatGroupeVentilation; 1] {
+    [EtatGroupeVentilation {
+        theta_i_fin_c: theta_i,
+        omega_i_fin_kg_kg: 0.008,
+        saison_de_chauffage: true,
+        ..EtatGroupeVentilation::default()
+    }]
+}
+
+#[test]
+fn double_flux_avec_puits_a_la_main() {
+    let p = double_flux_avec_puits(None);
+    let mut v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
+    // Température extérieure de 10 °C toute l'année : ΔθA = 0, θsol = gm × θAM = 0,98 × 10 =
+    // 9,8 °C (éq. 721, sable humide).
+    let te = vec![10.0; 8760];
+    let etat = groupe_en_chauffage(20.0);
+    let mut air = [AirSouffle::default()];
+    // Premier pas, air neuf à 0 °C : aucun débit connu, le débit du pas (100 m³/h à 18 °C,
+    // 0,033562 kg/s) sert à l'efficacité : ε = 0,94585 (éq. 723 à 727, calculé à la main :
+    // v0 = 1,0654 m/s, hi = 6,6475 W/(m².K), Ug = 3,6124 W/(m.K), NTU = 2,9166).
+    v.preparer_puits(0, &te, 0.0, &etat);
+    let s = v.pas(0.0, 0.004, &etat, &mut air, true);
+    let qm0 = rho_kg_m3(18.0) * 100.0 / 3600.0;
+    let theta_an0 = 0.945_850_645 * 9.8;
+    assert!(
+        (s.theta_an_c.unwrap() - theta_an0).abs() < 1e-4,
+        "{:?}",
+        s.theta_an_c
+    );
+    assert!(s.puits_actif);
+    // Énergie échangée (éq. 728) : Cpa × qm × (θan − θext).
+    proche(s.q_puits_wh, C_PA_J_KG_K * qm0 * s.theta_an_c.unwrap());
+    // Échangeur à 0,8 (éq. 512, 519) avec l'air neuf sorti du puits (éq. 414).
+    let qm_rep = 1.2 * 100.0 / 3600.0;
+    let t_extr2 = 20.0 + P_EL * 20.0 / (C_PA_J_KG_K * qm_rep);
+    let t_souf1 = s.theta_an_c.unwrap() + 0.8 * (t_extr2 - s.theta_an_c.unwrap());
+    proche(
+        air[0].t_air_souffle_c,
+        t_souf1 + P_EL * 20.0 / (C_PA_J_KG_K * qm0),
+    );
+    // Pas suivant : θan avec le débit d'air neuf de la fin du pas précédent (éq. 414), pas
+    // celui du pas en cours (0,033481 kg/s, qui donnerait 9,27046).
+    v.preparer_puits(1, &te, 0.0, &etat);
+    let s = v.pas(0.0, 0.004, &etat, &mut air, true);
+    assert!((s.theta_an_c.unwrap() - theta_an0).abs() < 1e-4);
+    assert!((s.theta_an_c.unwrap() - 9.270_457_8).abs() > 5e-4);
+}
+
+#[test]
+fn puits_contourne_par_le_bypass() {
+    // Hiver : θext 10 < θi 23, θext > 8 et θi > 22 : puits contourné (éq. 751), l'air neuf est
+    // à la température extérieure (éq. 731).
+    let by = BypassPuits {
+        theta_int_hiver_c: 22.0,
+        theta_ext_hiver_c: 8.0,
+        theta_int_ete_c: 24.0,
+        theta_ext_ete_c: 12.0,
+    };
+    let p = double_flux_avec_puits(Some(by));
+    let mut v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
+    let te = vec![10.0; 8760];
+    let etat = groupe_en_chauffage(23.0);
+    let mut air = [AirSouffle::default()];
+    v.preparer_puits(0, &te, 10.0, &etat);
+    let s = v.pas(10.0, 0.004, &etat, &mut air, true);
+    assert_eq!(s.theta_an_c, Some(10.0));
+    assert!(!s.puits_actif);
+    assert_eq!(s.q_puits_wh, 0.0);
+    // Intérieur à 21 °C, sous la consigne de 22 °C : le puits est traversé.
+    let etat = groupe_en_chauffage(21.0);
+    v.preparer_puits(1, &te, 10.0, &etat);
+    let s = v.pas(10.0, 0.004, &etat, &mut air, true);
+    assert!(s.puits_actif);
+}
+
+#[test]
+fn sans_puits_l_air_neuf_est_a_la_temperature_exterieure() {
+    let p = double_flux(None, false);
+    let mut v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
+    let te = vec![10.0; 8760];
+    let etat = groupe_en_chauffage(20.0);
+    let mut air = [AirSouffle::default()];
+    v.preparer_puits(0, &te, 3.0, &etat);
+    let s = v.pas(3.0, 0.004, &etat, &mut air, true);
+    assert_eq!(s.theta_an_c, None);
+    assert!(!s.puits_actif);
 }
