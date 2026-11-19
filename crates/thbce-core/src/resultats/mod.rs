@@ -16,6 +16,7 @@ use crate::entree::Id;
 pub mod acv;
 mod batiment;
 mod besoins_confort;
+mod brasseurs_air;
 mod consommations;
 mod deplacements;
 mod ecs;
@@ -27,6 +28,7 @@ mod ventilation;
 
 pub use batiment::*;
 pub use besoins_confort::*;
+pub use brasseurs_air::*;
 pub use consommations::*;
 pub use deplacements::*;
 pub use ecs::*;
@@ -122,6 +124,10 @@ pub struct ResultatsBatiment {
     /// transmises aux générations (§8.9 et §8.10) ; absent sans réseau.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub distributions_intergroupes: Vec<ResultatsIntergroupes>,
+    /// Réseaux de distribution de CTA hydrauliques, calcul Th-C (§8.11 et §8.12) ; absent sans
+    /// réseau saisi (réseaux fictifs).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reseaux_cta: Vec<ResultatsReseauCta>,
     /// Distributions d'ECS intergroupes, calcul Th-C (§9.8) ; absent sans réseau.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub distributions_ecs_intergroupes: Vec<ResultatsEcsIntergroupe>,
@@ -255,6 +261,9 @@ impl Resultats {
             for d in &mut b.distributions_intergroupes {
                 d.arrondir();
             }
+            for d in &mut b.reseaux_cta {
+                d.arrondir();
+            }
             for g in &mut b.generations {
                 for x in [
                     &mut g.q_ch_kwh,
@@ -360,6 +369,9 @@ impl Resultats {
                         for v in &mut c.dh_inc_c_fr_k_h {
                             *v = a(*v);
                         }
+                    }
+                    if let Some(b) = &mut g.brasseurs {
+                        b.arrondir();
                     }
                     if let Some(c) = &mut g.confort_ete {
                         c.dh_c_h = a(c.dh_c_h);

@@ -105,6 +105,8 @@ pub struct CumulsVentilation {
     pub w_aux_adiab_wh: f64,
     /// Nombre de pas de temps où le rafraîchissement évaporatif est autorisé (§6.3.3.4.2).
     pub nbh_adiab: u32,
+    /// Nombre de pas de temps où la surventilation mécanique est en service (éq. 766).
+    pub nbh_rafnoc: u32,
 }
 
 impl ZoneHoraire {
@@ -357,13 +359,16 @@ impl ZoneHoraire {
                         besoin_fr: s.is_some_and(|x| x.q_sys_fr_wh < 0.0),
                         clim: g.i_clim,
                         aut_fr_propre: g.etat.saisons.aut_fr_passif,
+                        theta_op_fin_c: g.etat.fin.theta_op_c,
                     }
                 }));
+            // §6.12 : surventilation mécanique, air neuf à la température extérieure.
+            v.reguler_surventilation(h, ext.te_c, &self.etats_ventilation);
             v.preparer_pas(i_vent, &self.etats_ventilation);
         }
         for (ig, g) in self.groupes.iter_mut().enumerate() {
             match (&self.ventilation, g.debits_bbio_non_residentiel) {
-                (Some(v), _) if v.selon_occupation() => {
+                (Some(v), _) if v.selon_occupation() || v.surventilation.is_some() => {
                     g.debits = v.debits_groupe_pas(ig);
                 }
                 (None, Some((occ, inocc))) => g.debits = if i_vent { occ } else { inocc },
@@ -388,6 +393,7 @@ impl ZoneHoraire {
             cv.w_aux_chaudhr_wh += sv.w_aux_chaudhr_wh;
             cv.w_aux_adiab_wh += sv.w_aux_adiab_wh;
             cv.nbh_adiab += u32::from(sv.adiab);
+            cv.nbh_rafnoc += u32::from(sv.rafnoc);
         } else {
             for (a, g) in self.air_souffle.iter_mut().zip(&self.groupes) {
                 *a = AirSouffle {

@@ -168,6 +168,7 @@ pub(super) fn valider_generations(r: &mut RapportValidation, cb: &str, bat: &Bat
                 }
             }
         }
+        valider_reseaux_cta(r, bat, &format!("{cb}.zones[{iz}].ventilation"), v);
         let Some(e) = v.systeme.echangeur() else {
             continue;
         };
@@ -550,4 +551,95 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
 /// Chemin du bâtiment à partir de celui d'une de ses générations.
 fn c_batiment(c: &str) -> &str {
     c.rfind(".generations[").map_or(c, |i| &c[..i])
+}
+
+/// Réseaux de distribution de CTA hydrauliques d'une zone (fiches 8.11 et 8.12) : « une CTA
+/// n'accepte qu'un seul réseau pour chacune de ces fonctions, un réseau pouvant en regrouper
+/// plusieurs » (§8.11.3.1) ; un réseau est relié à une seule génération, que désignent donc
+/// toutes les fonctions qu'il regroupe.
+fn valider_reseaux_cta(
+    r: &mut RapportValidation,
+    bat: &Batiment,
+    c: &str,
+    v: &crate::entree::Ventilation,
+) {
+    let b = |id: Option<&String>| id.cloned();
+    let s = &v.systeme;
+    let cta = match s {
+        SystemeVentilation::Cta(cta) => Some(cta),
+        _ => None,
+    };
+    let chaud: Vec<(&str, Option<String>)> = vec![
+        (
+            "batterie_prechauffage",
+            b(s.batterie_prechauffage().map(|x| &x.generation)),
+        ),
+        (
+            "humidificateur",
+            b(s.humidificateur().and_then(|h| h.generation.as_ref())),
+        ),
+        (
+            "echangeur.generation_antigel",
+            b(s.echangeur()
+                .filter(|e| e.antigel == Some(true))
+                .and_then(|e| e.generation_antigel.as_ref())),
+        ),
+        (
+            "generation_batterie_chaude",
+            b(cta
+                .filter(|x| x.batterie_chaude == Some(true))
+                .and_then(|x| x.generation_batterie_chaude.as_ref())),
+        ),
+    ];
+    let froid: Vec<(&str, Option<String>)> = vec![
+        (
+            "batterie_prerefroidissement",
+            b(s.batterie_prerefroidissement().map(|x| &x.generation)),
+        ),
+        (
+            "generation_batterie_froide",
+            b(cta
+                .filter(|x| x.batterie_froide == Some(true))
+                .and_then(|x| x.generation_batterie_froide.as_ref())),
+        ),
+    ];
+    for (nom, reseau, fonction, fonctions) in [
+        (
+            "reseau_cta_chaud",
+            &v.reseau_cta_chaud,
+            FonctionReseau::Chauffage,
+            &chaud,
+        ),
+        (
+            "reseau_cta_froid",
+            &v.reseau_cta_froid,
+            FonctionReseau::Refroidissement,
+            &froid,
+        ),
+    ] {
+        let Some(h) = reseau else { continue };
+        let cr = format!("{c}.{nom}");
+        let generations: Vec<&String> = fonctions.iter().filter_map(|(_, g)| g.as_ref()).collect();
+        match generations.first() {
+            None => r.erreur(
+                cr.clone(),
+                None,
+                "réseau de CTA sans objet : aucune fonction de la centrale (préchauffage, \
+                 sécurité antigel, humidificateur à vapeur, batterie chaude ; \
+                 prérefroidissement, batterie froide) n'est reliée à une génération (Th-BCE \
+                 2020 §8.11.3.1)",
+            ),
+            Some(premiere) => {
+                if generations.iter().any(|g| g != premiere) {
+                    r.erreur(
+                        cr.clone(),
+                        None,
+                        "un réseau de CTA est relié à une seule génération : toutes les fonctions \
+                         qu'il regroupe désignent la même (Th-BCE 2020 §8.11.3.1)",
+                    );
+                }
+            }
+        }
+        super::systemes::valider_hydraulique_groupe(r, &cr, h, fonction, bat);
+    }
 }

@@ -117,6 +117,12 @@ pub(super) fn valider_systemes_batiment(r: &mut RapportValidation, cb: &str, bat
         }
         for (ig, g) in zone.groupes.iter().enumerate() {
             valider_systemes_groupe(r, &format!("{cb}.zones[{iz}].groupes[{ig}]"), g, bat);
+            super::brasseurs_air::valider_brasseurs_groupe(
+                r,
+                &format!("{cb}.zones[{iz}].groupes[{ig}]"),
+                g,
+                zone.usage,
+            );
         }
     }
 }
@@ -471,7 +477,7 @@ fn espace_tampon_connu(r: &mut RapportValidation, c: &str, et: Option<&str>, bat
 }
 
 /// Paramètres d'un réseau hydraulique du groupe (§8.7.2 et §8.8.2).
-fn valider_hydraulique_groupe(
+pub(super) fn valider_hydraulique_groupe(
     r: &mut RapportValidation,
     c: &str,
     h: &ReseauHydrauliqueGroupe,

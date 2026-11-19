@@ -222,6 +222,11 @@ pub struct Groupe {
     /// `ratio_local` vaut 1.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub locaux: Vec<LocalEclairage>,
+    /// Types de brasseurs d'air fixés au plafond du groupe (§8.32), un élément par type. Réservés
+    /// aux groupes non climatisés (`iclim` faux ou absent) ; modélisés en Th-D (effet sur la
+    /// zone de confort, éq. 2547) et en Th-C (consommation, pertes récupérables).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub brasseurs_air: Vec<BrasseurAir>,
 }
 
 /// Catégorie de contrainte extérieure du groupe (§13.1.2 : « 1 = CE1 / 2 = CE2 »).

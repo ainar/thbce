@@ -501,6 +501,13 @@ export interface BoucheConduit {
    */
   q_spec_occ_m3_h?: number | null;
   /**
+   * « qspec,rep,rafnoc » ou « qspec,souf,rafnoc » (selon `isouf`) : débit volumique
+   * spécifique de la bouche en rafraîchissement par surventilation mécanique, en m³/h,
+   * positif (§6.12.2, éq. 758 et 759). Requis pour chaque bouche d'un système qui porte
+   * `rafraichissement_surventilation`, sans objet sinon.
+   */
+  q_spec_rafnoc_m3_h?: number | null;
+  /**
    * « Qvarepspec » : débit de l'avis technique d'un système hygroréglable, en m³/h
    * (§6.2.3.1.1.2). Le débit de base en est déduit ; ne pas saisir alors
    * `q_spec_conv_base_m3_h`.
@@ -561,6 +568,41 @@ export interface BoucleSolaireSaisie {
   ua_te_w_k: number;
   /** « (UA)ti » : pertes des tuyauteries vers l'intérieur du bâtiment, en W/K. */
   ua_ti_w_k: number;
+}
+
+/**
+ * Th-BCE 2020 §8.32 — type de brasseur d'air et ensemble des brasseurs de ce type installés
+ * dans un groupe.
+ */
+export interface BrasseurAir {
+  /** « mode_gestion_br_p » : gestion de la vitesse. */
+  gestion: GestionBrasseur;
+  /** Identifiant du type de brasseur, unique dans le groupe. */
+  id: string;
+  /** « Nbr_p » : nombre de brasseurs de ce type dans le groupe. */
+  nombre: number;
+  /** « type_Pelec_br_p_max » : caractère de la puissance maximale. */
+  p_elec_max_caractere: CaractereValeurBrasseur;
+  /** « Pelec_br_p_max » : puissance électrique individuelle maximale, en W. */
+  p_elec_max_w: number;
+  /** « type_Qvair_br_p_max » : caractère du débit maximal. */
+  q_v_max_caractere: CaractereValeurBrasseur;
+  /** « Qvair_br_p_max » : débit volumique individuel maximal, en m³/h. */
+  q_v_max_m3_h: number;
+  /**
+   * « Ratbr_p » : part de la surface utile du groupe, au titre des pièces cloisonnées
+   * couvertes par les brasseurs de ce type (0 à 1) ; ramenée à `15·Nbr_p/Agr` au plus
+   * (une surface de 15 m² par brasseur, éq. de §8.32.3.2.3).
+   */
+  ratio_surface_brassee: number;
+  /**
+   * « RatUs_BA_p » : part de la surface utile occupée pendant l'usage jour ou nuit du type.
+   * Absent : valeur par défaut du tableau 257 selon l'usage de la zone (1 pour un usage
+   * « jour et nuit »), signalée.
+   */
+  ratio_surface_occupee?: number | null;
+  /** « Usp » : usage jour, nuit, ou jour et nuit. */
+  usage: UsageBrasseur;
 }
 
 /**
@@ -626,6 +668,12 @@ export interface CapteursSolaires {
   /** « A » : superficie d'entrée des capteurs d'un chauffe-eau, en m². */
   surface_m2: number;
 }
+
+/**
+ * Caractère de la valeur d'un paramètre de brasseur (§8.32.3.2.1) : le texte corrige la valeur
+ * saisie selon qu'elle est certifiée, justifiée ou déclarée.
+ */
+export type CaractereValeurBrasseur = "certifiee" | "justifiee" | "declaree";
 
 /** Composants décrits une fois par leurs paramètres intrinsèques. */
 export interface Catalogue {
@@ -866,6 +914,43 @@ export type ConfigurationRecuperateur = "individuelle" | "collective";
 export type ConfinementPv = "libre" | "autre" | "confine";
 
 /**
+ * Consignes du rafraîchissement par surventilation mécanique pour une saison (§6.12.2,
+ * tableau 75 : indices « été » et « mis »).
+ */
+export interface ConsignesSurventilation {
+  /**
+   * « Δθlim_rafnoc » : écart limite entre les températures intérieure et extérieure pour
+   * autoriser le rafraîchissement, en K (−20 à 50).
+   */
+  delta_theta_lim_k: number;
+  /**
+   * « hleg,deb_rafnoc » : heure légale (début de pas de temps) de début de la période de
+   * rafraîchissement nocturne, de 21 à 23 ou de 0 à 8 (éq. 767). Requise pour un
+   * rafraîchissement nocturne, sans objet en freecooling (note de l'éq. 770).
+   */
+  h_leg_deb_h?: number | null;
+  /**
+   * « hleg,fin_rafnoc » : heure légale (début de pas de temps) de fin de la période de
+   * rafraîchissement nocturne, de 21 à 23 ou de 0 à 8, ultérieure à l'heure de début sur la
+   * période nuit (éq. 767).
+   */
+  h_leg_fin_h?: number | null;
+  /**
+   * « θext_rafnoc » : température extérieure limite (basse) pour autoriser le
+   * rafraîchissement, en °C (−20 à 50) ; −20 °C modélise l'absence de sécurité sur la
+   * température extérieure.
+   */
+  theta_ext_c: number;
+  /** « θsd_arr_rafnoc » : température intérieure (sonde) d'arrêt, en °C (−20 à 50). */
+  theta_sd_arr_c: number;
+  /**
+   * « θsd_dec_rafnoc » : température intérieure (sonde) de déclenchement, en °C (−20 à
+   * 50) ; −20 °C modélise l'absence de mesure de température intérieure (§6.12.3.3, notes).
+   */
+  theta_sd_dec_c: number;
+}
+
+/**
  * Consommations en énergie finale, annuelles et mensuelles (mois des scénarios), des
  * générations d'un bâtiment attribuées à un groupe, à une zone ou au bâtiment, ou d'une
  * génération (§8.29, éq. 1497 à 1514).
@@ -1025,13 +1110,18 @@ export interface Cta {
    */
   rafraichissement_evaporatif?: boolean | null;
   /**
+   * Description du rafraîchissement par surventilation mécanique (§6.12, lot 1-ven6) ;
+   * absent : pas de surventilation mécanique (« israfnoc = 0 »).
+   */
+  rafraichissement_surventilation?: SurventilationMecanique | null;
+  /**
    * « Type_régul_AN ». Absent : régulation standard, « par défaut » selon le texte, signalé
    * dans les résultats.
    */
   regulation_air_neuf?: RegulationAirNeuf | null;
   /**
-   * Rafraîchissement par surventilation mécanique (§6.12) : non pris en charge dans cette
-   * version.
+   * Rafraîchissement par surventilation mécanique (§6.12) : `true` exige sa description
+   * `rafraichissement_surventilation` ; forme conservée pour la compatibilité.
    */
   surventilation_mecanique?: boolean | null;
   /**
@@ -1345,8 +1435,13 @@ export interface DoubleFlux {
    */
   rafraichissement_evaporatif?: boolean | null;
   /**
-   * Rafraîchissement par surventilation mécanique (§6.12) : non pris en charge dans cette
-   * version.
+   * Description du rafraîchissement par surventilation mécanique (§6.12, lot 1-ven6) ;
+   * absent : pas de surventilation mécanique (« israfnoc = 0 »).
+   */
+  rafraichissement_surventilation?: SurventilationMecanique | null;
+  /**
+   * Rafraîchissement par surventilation mécanique (§6.12) : `true` exige sa description
+   * `rafraichissement_surventilation` ; forme conservée pour la compatibilité.
    */
   surventilation_mecanique?: boolean | null;
 }
@@ -2361,6 +2456,13 @@ export interface Generation {
  */
 export type GestEcl = "permanent" | "interrupteur_manuel" | "interrupteur_et_horloge" | "marche_et_arret_automatiques" | "marche_manuelle_arret_automatique";
 
+/** « mode_gestion_br_p » (§8.32.3.2.4). */
+export type GestionBrasseur = "manuelle" | {
+  automatique_thermostat: ParametresHysteresisBrasseur;
+} | {
+  automatique: ParametresHysteresisBrasseurAutomatique;
+};
+
 /** Gestion des eaux pluviales (§4.4.1.1.4). */
 export type GestionEauxPluviales = "infiltration" | "separatif" | "unitaire";
 
@@ -2410,6 +2512,12 @@ export interface Groupe {
    * de ventilation conventionnel (§6.1 et §6.2.3.1.3).
    */
   bouches_conduits?: BoucheConduit[];
+  /**
+   * Types de brasseurs d'air fixés au plafond du groupe (§8.32), un élément par type. Réservés
+   * aux groupes non climatisés (`iclim` faux ou absent) ; modélisés en Th-D (effet sur la
+   * zone de confort, éq. 2547) et en Th-C (consommation, pertes récupérables).
+   */
+  brasseurs_air?: BrasseurAir[];
   /** « Categorie_CE1_CE2 » (§13.1.2). */
   categorie_ce1_ce2: CategorieCe;
   /**
@@ -3240,6 +3348,37 @@ export interface ParametresExigencesAcv {
    * (`Miagrément_ext` des logements collectifs) ; 0 si absente.
    */
   s_agrement_ext_m2?: number;
+}
+
+/**
+ * Écarts de l'hystérésis d'une gestion automatique avec thermostats (« Δθop_1_br_p_th_aut »,
+ * « Δθop_2_br_p_th_aut », « Δθop_3_br_p_th_aut »), en K.
+ */
+export interface ParametresHysteresisBrasseur {
+  /** « Δθop_1 » : écart entre la température d'arrêt et la température de déclenchement, en K. */
+  delta_theta_op_1_k: number;
+  /**
+   * « Δθop_2 » : écart entre le passage à la vitesse intermédiaire et le passage à la vitesse
+   * maximale, en K.
+   */
+  delta_theta_op_2_k: number;
+  /**
+   * « Δθop_3 » : écart de la température de déclenchement à la consigne de refroidissement
+   * corrigée, en K.
+   */
+  delta_theta_op_3_k: number;
+}
+
+/** Paramètres d'une gestion toute automatique (éq. 1650). */
+export interface ParametresHysteresisBrasseurAutomatique {
+  /** « Δθop_1_br_p_aut », en K. */
+  delta_theta_op_1_k: number;
+  /** « Δθop_2_br_p_aut », en K. */
+  delta_theta_op_2_k: number;
+  /** « Δθop_3_br_p_aut », en K ; 0 par défaut (§8.32.3.2.4.3), valeur signalée. */
+  delta_theta_op_3_k?: number | null;
+  /** « θop_dec_br_p_aut » : température opérative de déclenchement, en °C. */
+  theta_op_dec_c: number;
 }
 
 /** Parcelle (§4.6, eau en calcul simplifié §4.6.2). */
@@ -4323,6 +4462,11 @@ export interface ResultatsBatiment {
    */
   recuperateurs_eaux_grises?: ResultatsRecuperateurCollectif[];
   /**
+   * Réseaux de distribution de CTA hydrauliques, calcul Th-C (§8.11 et §8.12) ; absent sans
+   * réseau saisi (réseaux fictifs).
+   */
+  reseaux_cta?: ResultatsReseauCta[];
+  /**
    * Séries horaires principales du calcul Th-C (8 760 pas de temps) ; présentes seulement à
    * la demande (`calculer_avec_series`, option `--horaire` de la ligne de commande, option
    * `series_horaires` du module WebAssembly ; Q118).
@@ -4380,6 +4524,28 @@ export interface ResultatsBoucleSolaire {
    * consommations d'ECS de la génération, éq. 1972).
    */
   w_pompe_kwh: number;
+}
+
+/** Brasseurs d'air d'un groupe : consommation du calcul Th-C et effet du calcul Th-D. */
+export interface ResultatsBrasseurs {
+  /**
+   * « Δθop^BA » maximal du calcul Th-D : plus fort déplacement de la limite d'inconfort chaud
+   * dû aux brasseurs (éq. 2547), en K.
+   */
+  delta_theta_op_max_k: number;
+  /** Nombre d'heures de fonctionnement d'au moins un brasseur dans le calcul des consommations. */
+  nbh_fonctionnement: number;
+  /**
+   * Nombre d'heures de fonctionnement d'au moins un brasseur dans le calcul du confort d'été
+   * (Th-D, période de confort adaptatif).
+   */
+  nbh_fonctionnement_th_d: number;
+  /**
+   * « Wabs_BA » : consommation électrique annuelle des brasseurs du groupe (calcul des
+   * consommations, saison de refroidissement propre), en kWh d'énergie finale (éq. 1665).
+   * Comptée dans les auxiliaires de ventilation (§13.4).
+   */
+  w_abs_kwh: number;
 }
 
 /** Grandeurs du climat extérieur propres au projet (Th-BCE 2020 §3.1.3). */
@@ -4812,6 +4978,8 @@ export interface ResultatsGroupe {
   baies: ResultatsBaie[];
   /** Besoins mensuels et annuels et Bbio du groupe (§13.1, « Sortie_Groupe_B »). */
   bbio: ResultatsBbio | null;
+  /** Brasseurs d'air du groupe (§8.32) ; absent sans brasseur. */
+  brasseurs?: ResultatsBrasseurs | null;
   /** Indicateurs de confort du groupe en calcul du Bbio (§4.5), en évolution libre. */
   confort_bbio: ResultatsConfort | null;
   /** Confort d'été du groupe, issu du calcul Th-D (§13.5). */
@@ -5071,6 +5239,26 @@ export interface ResultatsRecuperateurEauxGrises {
   w_relevage_kwh: number;
 }
 
+/** Réseau de distribution de CTA hydraulique, calcul Th-C (§8.11 et §8.12). */
+export interface ResultatsReseauCta {
+  /** Fonction du réseau : « chauffage » ou « refroidissement ». */
+  fonction: string;
+  /** Identifiant de la génération qui l'alimente. */
+  generation: string;
+  /** Nombre d'heures où le réseau débite. */
+  nbh_fonct: number;
+  /** Pertes du réseau hors volume chauffé, en kWh. */
+  pertes_hvc_kwh: number;
+  /** Pertes du réseau vers le volume chauffé, en kWh. */
+  pertes_vc_kwh: number;
+  /** Demande transmise à la génération (valeur absolue), pertes du réseau comprises, en kWh. */
+  q_kwh: number;
+  /** Consommation du circulateur, en kWh d'énergie finale électrique (éq. 2505). */
+  w_aux_kwh: number;
+  /** Identifiant de la zone dont la centrale est desservie. */
+  zone: string;
+}
+
 /**
  * Saisons propres d'un groupe (Th-BCE 2020 §4.6.3.6, éq. 92) : jours de l'année conventionnelle
  * de 1 à 365, au sens des scénarios (le jour 57 est le premier jour de mars). `null` si
@@ -5293,6 +5481,11 @@ export interface ResultatsVentilationMode {
    */
   nbh_mode_actif?: number | null;
   /**
+   * Nombre d'heures où le rafraîchissement par surventilation mécanique est en service
+   * (« irafnoc_activé(h) = 1 », §6.12.3.3, éq. 766) ; absent sans surventilation.
+   */
+  nbh_rafnoc?: number | null;
+  /**
    * Nombre d'heures de sous-dimensionnement de ces batteries (soufflage requis au-delà de
    * 60 °C ou en deçà de la surface de la batterie froide, éq. 597 et 605) ; absent sans elles.
    */
@@ -5492,6 +5685,33 @@ export interface StockageSaisi {
 }
 
 /**
+ * Th-BCE 2020 §6.12 — rafraîchissement par surventilation mécanique d'un système de
+ * ventilation (calculs Th-C et Th-D seulement). Les débits se saisissent par bouche
+ * (`q_spec_rafnoc_m3_h` de chaque bouche du système).
+ */
+export interface SurventilationMecanique {
+  /** Consignes en saison de refroidissement (indice « été »). */
+  ete: ConsignesSurventilation;
+  /**
+   * Consignes hors saison de refroidissement (indice « mis ») : requises pour un
+   * fonctionnement toute l'année (types 2 et 4, éq. 765), sans objet sinon.
+   */
+  mi_saison?: ConsignesSurventilation | null;
+  /**
+   * « Pvent_rafnoc_rep » : puissance électrique du ventilateur de reprise en
+   * rafraîchissement, en W (éq. 779).
+   */
+  p_vent_rafnoc_rep_w: number;
+  /**
+   * « Pvent_rafnoc_souf » : puissance électrique du ventilateur de soufflage en
+   * rafraîchissement, en W (éq. 779).
+   */
+  p_vent_rafnoc_souf_w: number;
+  /** « israfnoc » de 1 à 4. */
+  type_surventilation: TypeSurventilation;
+}
+
+/**
  * Système solaire combiné (fiches 9.19 et 9.20), un assemblage par objet (« nbassembl = 1 »,
  * éq. 2133 et 2147).
  */
@@ -5681,6 +5901,12 @@ export type TypeRafraichissementEvaporatif = "direct" | "indirect";
 export type TypeReseauChaleurSaisi = "eau_chaude_basse_temperature" | "eau_chaude_haute_temperature" | "vapeur_basse_pression" | "vapeur_haute_pression";
 
 /**
+ * « israfnoc » (§6.12.2, tableau 75) : nature du rafraîchissement par surventilation
+ * mécanique d'un système de ventilation.
+ */
+export type TypeSurventilation = "nocturne_ete" | "nocturne_annee" | "freecooling_ete" | "freecooling_annee";
+
+/**
  * « Typo_emetteur » (§8.23.3.6, tableau 216) : inertie du système d'émission, qui fixe la
  * durée de fonctionnement à charge tendant vers zéro « Dfou0 ».
  */
@@ -5723,6 +5949,9 @@ export interface UniteRecuperateur {
    */
   p_relevage_nominale_w?: number | null;
 }
+
+/** « Usp » : usage « jour » ou « nuit » d'un type de brasseur (§8.32.3.2.2). */
+export type UsageBrasseur = "nuit" | "jour" | "jour_et_nuit";
 
 /**
  * Th-BCE 2020 §4.1.3, tableau 4 — usages d'une zone.
@@ -5847,6 +6076,11 @@ export interface VentilateurSimpleFlux {
    * en maison individuelle ou accolée et en logement collectif.
    */
   p_vent_pointe_w?: number | null;
+  /**
+   * Rafraîchissement par surventilation mécanique (§6.12, lot 1-ven6) ; absent : pas de
+   * surventilation mécanique.
+   */
+  rafraichissement_surventilation?: SurventilationMecanique | null;
 }
 
 /** Th-BCE 2020 §8.1.3.8 — ventilateurs locaux d'un émetteur. */
@@ -5897,6 +6131,23 @@ export interface Ventilation {
    * §6.5.3.4).
    */
   reseau: ReseauAeraulique;
+  /**
+   * Réseau de distribution de CTA hydraulique de chauffage (fiche 8.11, « idtype = 1 »,
+   * §8.11.3.6.2 et fiche 8.12) : relie la centrale à la génération qui fournit l'énergie de
+   * ses fonctions de chauffage (préchauffage, sécurité antigel, humidificateur à vapeur,
+   * batterie chaude du mode actif), qui désignent toutes cette génération. Une centrale
+   * n'accepte qu'un seul réseau par fonction (§8.11.3.1). Absent : réseau fictif, sans
+   * pertes ni circulateur (`idtype = 0`). Les paramètres sont ceux d'un réseau hydraulique
+   * du groupe (§8.7.2 et §8.8.2) ; la température d'ambiance des pertes est celle,
+   * conventionnelle, de 20 °C (`docs/questions/Q121.md`).
+   */
+  reseau_cta_chaud?: ReseauHydrauliqueGroupe | null;
+  /**
+   * Réseau de distribution de CTA hydraulique de refroidissement (§8.11.3.6.3) : même
+   * règle pour le prérefroidissement et la batterie froide du mode actif ; température
+   * d'ambiance conventionnelle de 26 °C.
+   */
+  reseau_cta_froid?: ReseauHydrauliqueGroupe | null;
   /** Nature du système et paramètres propres. */
   systeme: SystemeVentilation;
 }

@@ -118,6 +118,8 @@
 | Q117 | Indicateurs par occupant (fiche 13.6, éq. 2552 et 2553, annexe II §5.2.3 et §5.3.1) et Ic énergie annuel (annexe II éq. 75) : origine du nombre d'occupants, enseignement, tertiaire, Ic par occupant, année a de l'éq. 75 (lot 1-sor) | lecture du lot 1-sor, à confirmer par un cas de référence ; variantes chiffrées |
 | Q118 | Séries horaires restituées sur demande (CLI --horaire, option series_horaires du module WebAssembly) : contenu, format, poids (lot 1-sor) | choix de présentation du lot 1-sor ; le texte ne définit aucune sortie horaire |
 | Q119 | Ascenseurs des zones non résidentielles (fiche 10.1, tableau 310, éq. 2294 à 2297) : levée du refus, usages couverts, durée d'immobilité de nuit, cabine à zones mixtes, fiche d'application FA08 (lot 1-sor2) | lecture du lot 1-sor2, à confirmer par un cas de référence ; aucune variante nouvelle |
+| Q120 | Brasseurs d'air (fiche 8.32, éq. 1646 à 1666) : périodes d'emploi en Th-D et en Th-C, nuit en hébergement, consommation de l'ensemble, δθconsfr_BA sans objet, chaleur récupérée | lecture du lot 1-emi, à confirmer par un cas de référence |
+| Q121 | Réseaux de CTA hydrauliques (fiches 8.11 et 8.12, éq. 937 à 956) : température ambiante, génération unique, demande fusionnée, répartition et pertes récupérables | lecture du lot 1-emi, à confirmer par un cas de référence |
 | Q200 | Classement au bruit d'une baie : saisie facultative baie par baie (fiche 5.11, chapitre V partie I) — champs, libellés, données à saisir | tranchée, à confirmer par un cas de référence |
 | Q201 | Classement au bruit : tranche de distance d'une valeur égale à une borne (65 m dans « 0-65 m » et « 65-125 m ») | tranchée, à confirmer par un cas de référence |
 | Q202 | Classement au bruit : la classe déduite des baies tient lieu de saisie absente ; cohérence avec la saisie directe | tranchée, à confirmer par un cas de référence |
@@ -137,3 +139,4 @@
 | Q216 | ACV : exigence Icconstruction_max pour les 28 usages (lot ACV-2) | tranchée, à confirmer par un cas de référence |
 | Q217 | ACV : renouvellements des composants et fluides dont la DVE atteint ou dépasse la PER | tranchée, à confirmer par un cas de référence |
 | Q218 | ACV : eau des usages « N/C » du tableau 7 et des zones de consommations différentes | tranchée, à confirmer par un cas de référence |
+| Q230 | Rafraîchissement par surventilation mécanique (fiche 6.12, éq. 758 à 780) : saisie par système, heure légale, saison propre, surface de conduit, bypass, puissances des centrales à débit variable, mode actif | lecture du lot 1-ven6, à confirmer par un cas de référence |

@@ -24,6 +24,21 @@ pub struct Ventilation {
     /// dans cette version.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub puits: Option<Puits>,
+    /// Réseau de distribution de CTA hydraulique de chauffage (fiche 8.11, « idtype = 1 »,
+    /// §8.11.3.6.2 et fiche 8.12) : relie la centrale à la génération qui fournit l'énergie de
+    /// ses fonctions de chauffage (préchauffage, sécurité antigel, humidificateur à vapeur,
+    /// batterie chaude du mode actif), qui désignent toutes cette génération. Une centrale
+    /// n'accepte qu'un seul réseau par fonction (§8.11.3.1). Absent : réseau fictif, sans
+    /// pertes ni circulateur (`idtype = 0`). Les paramètres sont ceux d'un réseau hydraulique
+    /// du groupe (§8.7.2 et §8.8.2) ; la température d'ambiance des pertes est celle,
+    /// conventionnelle, de 20 °C (`docs/questions/Q121.md`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reseau_cta_chaud: Option<ReseauHydrauliqueGroupe>,
+    /// Réseau de distribution de CTA hydraulique de refroidissement (§8.11.3.6.3) : même
+    /// règle pour le prérefroidissement et la batterie froide du mode actif ; température
+    /// d'ambiance conventionnelle de 26 °C.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reseau_cta_froid: Option<ReseauHydrauliqueGroupe>,
 }
 
 /// Nature d'un système de ventilation.
@@ -104,6 +119,19 @@ impl SystemeVentilation {
         match self {
             Self::DoubleFlux(d) => d.humidificateur.as_ref(),
             Self::Cta(c) => c.humidificateur.as_ref(),
+            _ => None,
+        }
+    }
+
+    /// Rafraîchissement par surventilation mécanique du système (§6.12) : simple flux,
+    /// basse pression, double flux ou centrale de traitement d'air.
+    pub fn surventilation(&self) -> Option<&SurventilationMecanique> {
+        match self {
+            Self::SimpleFluxExtraction(v)
+            | Self::SimpleFluxInsufflation(v)
+            | Self::MecaniqueBassePression(v) => v.rafraichissement_surventilation.as_ref(),
+            Self::DoubleFlux(d) => d.rafraichissement_surventilation.as_ref(),
+            Self::Cta(c) => c.rafraichissement_surventilation.as_ref(),
             _ => None,
         }
     }
@@ -237,10 +265,14 @@ pub struct Cta {
     /// rafraîchissement évaporatif.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rafraichissement_adiabatique: Option<RafraichissementEvaporatif>,
-    /// Rafraîchissement par surventilation mécanique (§6.12) : non pris en charge dans cette
-    /// version.
+    /// Rafraîchissement par surventilation mécanique (§6.12) : `true` exige sa description
+    /// `rafraichissement_surventilation` ; forme conservée pour la compatibilité.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub surventilation_mecanique: Option<bool>,
+    /// Description du rafraîchissement par surventilation mécanique (§6.12, lot 1-ven6) ;
+    /// absent : pas de surventilation mécanique (« israfnoc = 0 »).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rafraichissement_surventilation: Option<SurventilationMecanique>,
 }
 
 /// Th-BCE 2020 §6.3.3.4.9.1 — batterie de préchauffage régulée sur la température extérieure.
@@ -347,6 +379,87 @@ pub struct RafraichissementEvaporatif {
     pub delta_theta_i2_k: Option<f64>,
 }
 
+/// « israfnoc » (§6.12.2, tableau 75) : nature du rafraîchissement par surventilation
+/// mécanique d'un système de ventilation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TypeSurventilation {
+    /// 1 : rafraîchissement nocturne en période d'été seulement.
+    NocturneEte,
+    /// 2 : rafraîchissement nocturne toute l'année.
+    NocturneAnnee,
+    /// 3 : rafraîchissement par surventilation mécanique (freecooling) en période d'été
+    /// seulement.
+    FreecoolingEte,
+    /// 4 : rafraîchissement par surventilation mécanique (freecooling) toute l'année.
+    FreecoolingAnnee,
+}
+
+impl TypeSurventilation {
+    /// Rafraîchissement nocturne (types 1 et 2) : activé seulement dans la période nocturne
+    /// saisie (éq. 768 et 769).
+    pub fn est_nocturne(self) -> bool {
+        matches!(self, Self::NocturneEte | Self::NocturneAnnee)
+    }
+
+    /// Fonctionnement toute l'année (types 2 et 4), avec un jeu de consignes de mi-saison
+    /// (éq. 764 et 765).
+    pub fn toute_l_annee(self) -> bool {
+        matches!(self, Self::NocturneAnnee | Self::FreecoolingAnnee)
+    }
+}
+
+/// Consignes du rafraîchissement par surventilation mécanique pour une saison (§6.12.2,
+/// tableau 75 : indices « été » et « mis »).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ConsignesSurventilation {
+    /// « hleg,deb_rafnoc » : heure légale (début de pas de temps) de début de la période de
+    /// rafraîchissement nocturne, de 21 à 23 ou de 0 à 8 (éq. 767). Requise pour un
+    /// rafraîchissement nocturne, sans objet en freecooling (note de l'éq. 770).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub h_leg_deb_h: Option<u8>,
+    /// « hleg,fin_rafnoc » : heure légale (début de pas de temps) de fin de la période de
+    /// rafraîchissement nocturne, de 21 à 23 ou de 0 à 8, ultérieure à l'heure de début sur la
+    /// période nuit (éq. 767).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub h_leg_fin_h: Option<u8>,
+    /// « θsd_dec_rafnoc » : température intérieure (sonde) de déclenchement, en °C (−20 à
+    /// 50) ; −20 °C modélise l'absence de mesure de température intérieure (§6.12.3.3, notes).
+    pub theta_sd_dec_c: f64,
+    /// « θsd_arr_rafnoc » : température intérieure (sonde) d'arrêt, en °C (−20 à 50).
+    pub theta_sd_arr_c: f64,
+    /// « Δθlim_rafnoc » : écart limite entre les températures intérieure et extérieure pour
+    /// autoriser le rafraîchissement, en K (−20 à 50).
+    pub delta_theta_lim_k: f64,
+    /// « θext_rafnoc » : température extérieure limite (basse) pour autoriser le
+    /// rafraîchissement, en °C (−20 à 50) ; −20 °C modélise l'absence de sécurité sur la
+    /// température extérieure.
+    pub theta_ext_c: f64,
+}
+
+/// Th-BCE 2020 §6.12 — rafraîchissement par surventilation mécanique d'un système de
+/// ventilation (calculs Th-C et Th-D seulement). Les débits se saisissent par bouche
+/// (`q_spec_rafnoc_m3_h` de chaque bouche du système).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SurventilationMecanique {
+    /// « israfnoc » de 1 à 4.
+    pub type_surventilation: TypeSurventilation,
+    /// Consignes en saison de refroidissement (indice « été »).
+    pub ete: ConsignesSurventilation,
+    /// Consignes hors saison de refroidissement (indice « mis ») : requises pour un
+    /// fonctionnement toute l'année (types 2 et 4, éq. 765), sans objet sinon.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mi_saison: Option<ConsignesSurventilation>,
+    /// « Pvent_rafnoc_rep » : puissance électrique du ventilateur de reprise en
+    /// rafraîchissement, en W (éq. 779).
+    pub p_vent_rafnoc_rep_w: f64,
+    /// « Pvent_rafnoc_souf » : puissance électrique du ventilateur de soufflage en
+    /// rafraîchissement, en W (éq. 779).
+    pub p_vent_rafnoc_souf_w: f64,
+}
+
 /// Th-BCE 2020 §6.4.3 et §6.5.2 — ventilateur d'un système simple flux : puissances en débit
 /// de base et de pointe en résidentiel, en occupation et en inoccupation en non résidentiel.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -371,6 +484,10 @@ pub struct VentilateurSimpleFlux {
     /// est arrêté en inoccupation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub p_vent_inocc_w: Option<f64>,
+    /// Rafraîchissement par surventilation mécanique (§6.12, lot 1-ven6) ; absent : pas de
+    /// surventilation mécanique.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rafraichissement_surventilation: Option<SurventilationMecanique>,
 }
 
 /// Th-BCE 2020 §6.3.2, tableau 61 — groupe de ventilation double flux
@@ -440,10 +557,14 @@ pub struct DoubleFlux {
     /// rafraîchissement évaporatif.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rafraichissement_adiabatique: Option<RafraichissementEvaporatif>,
-    /// Rafraîchissement par surventilation mécanique (§6.12) : non pris en charge dans cette
-    /// version.
+    /// Rafraîchissement par surventilation mécanique (§6.12) : `true` exige sa description
+    /// `rafraichissement_surventilation` ; forme conservée pour la compatibilité.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub surventilation_mecanique: Option<bool>,
+    /// Description du rafraîchissement par surventilation mécanique (§6.12, lot 1-ven6) ;
+    /// absent : pas de surventilation mécanique (« israfnoc = 0 »).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rafraichissement_surventilation: Option<SurventilationMecanique>,
 }
 
 /// Th-BCE 2020 §6.3.2, tableau 61, et §6.3.3.4.6 — échangeur d'un double flux.
@@ -717,6 +838,12 @@ pub struct BoucheConduit {
     /// (éq. 421 à 427). Toutes les bouches d'un système la portent, ou aucune.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub a_cond_m2: Option<f64>,
+    /// « qspec,rep,rafnoc » ou « qspec,souf,rafnoc » (selon `isouf`) : débit volumique
+    /// spécifique de la bouche en rafraîchissement par surventilation mécanique, en m³/h,
+    /// positif (§6.12.2, éq. 758 et 759). Requis pour chaque bouche d'un système qui porte
+    /// `rafraichissement_surventilation`, sans objet sinon.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub q_spec_rafnoc_m3_h: Option<f64>,
 }
 
 /// « Isouf » (§6.2.2) : sens d'un circuit de ventilation.

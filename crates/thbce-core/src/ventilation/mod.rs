@@ -13,6 +13,8 @@
 //! - [`cta_et_double_flux`] : fiche `C_VEN_CTA et Double_flux` (§6.3), double flux en
 //!   habitation.
 //! - [`humidification`] : fiche 6.3, humidificateur d'hiver et rafraîchissement évaporatif.
+//! - [`surventilation_mecanique`] : fiche `C_VEN_Fonctions de rafraichissement par
+//!   surventilation mécanique` (§6.12), régulation et surfaces de conduit.
 //! - [`ventilation_projet`] : système de ventilation du projet d'une zone, pour les calculs
 //!   Th-C et Th-D.
 
@@ -22,5 +24,6 @@ pub mod debits_air_cep;
 pub mod humidification;
 pub mod mecanique_basse_pression;
 pub mod mecanique_sf;
+pub mod surventilation_mecanique;
 pub mod ven_bbio;
 pub mod ventilation_projet;

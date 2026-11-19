@@ -5,9 +5,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    Consommations, ConsommationsCollectif, ResultatsBaie, ResultatsBbio, ResultatsConfort,
-    ResultatsConfortEte, ResultatsDebitsBbio, ResultatsEnveloppe, ResultatsSaisons,
-    ResultatsSystemesGroupe, ResultatsVentilationGroupe, ResultatsVentilationZone, ValeurParDefaut,
+    Consommations, ConsommationsCollectif, ResultatsBaie, ResultatsBbio, ResultatsBrasseurs,
+    ResultatsConfort, ResultatsConfortEte, ResultatsDebitsBbio, ResultatsEnveloppe,
+    ResultatsSaisons, ResultatsSystemesGroupe, ResultatsVentilationGroupe,
+    ResultatsVentilationZone, ValeurParDefaut,
 };
 use crate::entree::Id;
 
@@ -69,6 +70,9 @@ pub struct ResultatsGroupe {
     /// émetteur.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub systemes: Option<ResultatsSystemesGroupe>,
+    /// Brasseurs d'air du groupe (§8.32) ; absent sans brasseur.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brasseurs: Option<ResultatsBrasseurs>,
     /// Consommations en énergie finale des générations attribuées au groupe, par poste et par
     /// type d'énergie, au prorata de ses demandes (§8.29, éq. 1484 à 1486, 1499, 1506 et 1513) ;
     /// matrice « Qcef[poste ; énergie] » des sorties du mode Th-C (§13.2, éq. 2421). Absent sans
