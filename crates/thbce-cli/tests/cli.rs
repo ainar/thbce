@@ -16,6 +16,12 @@ fn thbce(args: &[&str]) -> Output {
         .expect("lancement de thbce")
 }
 
+/// Début de la liste des générateurs du cas de démonstration, auquel on ajoute une cogénération
+/// (élément hors périmètre).
+const GENERATEURS: &str =
+    "\"generateurs\": [\n            {\n              \"id\": \"panneaux-rayonnants\",";
+const AVEC_COGENERATION: &str = "\"generateurs\": [\n            {\n              \"id\": \"cogeneration\",\n              \"rdim\": 1,\n              \"nature\": \"cogeneration\"\n            },\n            {\n              \"id\": \"panneaux-rayonnants\",";
+
 fn entree() -> String {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/cas/squelette-maison/entree.json")
@@ -119,7 +125,10 @@ fn codes_de_retour() {
             .code(),
         Some(2)
     );
-    let texte = std::fs::read_to_string(entree()).unwrap();
+    // Fins de ligne normalisées : sous Windows, git peut livrer le fichier en CRLF.
+    let texte = std::fs::read_to_string(entree())
+        .unwrap()
+        .replace("\r\n", "\n");
     let invalide = fichier(
         "invalide.json",
         &texte.replace("\"shab_m2\": 96.44", "\"shab_m2\": -1"),
@@ -133,8 +142,8 @@ fn codes_de_retour() {
         Some(2)
     );
     // 3 : élément hors périmètre de cette version (les 28 usages sont calculés depuis le lot
-    // 0c4) : store vénitien.
-    let ecole = texte.replace("\"type_pm\": \"volet\"", "\"type_pm\": \"store_venitien\"");
+    // 0c4) : système de cogénération (§8.21).
+    let ecole = texte.replace(GENERATEURS, AVEC_COGENERATION);
     let ecole = fichier("ecole.json", &ecole);
     let h2b = meteo("h2b-bis.csv", ZoneClimatique::H2b);
     let s = thbce(&["calcul", ecole.to_str().unwrap(), "--meteo", &h2b]);
@@ -152,12 +161,12 @@ fn codes_de_retour() {
         erreur.contains("non pris en charge par cette version (voir docs/couverture.md)"),
         "{erreur}"
     );
-    assert!(erreur.contains("store_venitien"), "{erreur}");
+    assert!(erreur.contains("cogeneration"), "{erreur}");
     // Une erreur de saisie l'emporte sur un élément hors périmètre : code 2.
     let mixte = fichier(
         "mixte.json",
         &texte
-            .replace("\"type_pm\": \"volet\"", "\"type_pm\": \"store_venitien\"")
+            .replace(GENERATEURS, AVEC_COGENERATION)
             .replace("\"shab_m2\": 96.44", "\"shab_m2\": -1"),
     );
     assert_eq!(

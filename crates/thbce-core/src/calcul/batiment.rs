@@ -101,7 +101,7 @@ pub(super) fn restituer_zone(
                     .map(|v| ventilation_groupe(v, ig, sref_m2, &th_c.scenarios)),
                 systemes: resultats_systemes(gc),
                 consommations: None,
-                baies: resultats_baies(g, &projet.catalogue),
+                baies: resultats_baies(g, &projet.catalogue, zone.usage),
                 valeurs_par_defaut: defauts_groupe(g, &projet.catalogue),
             }
         })

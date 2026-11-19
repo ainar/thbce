@@ -12,6 +12,7 @@ pub mod eclairage;
 pub mod energies;
 pub mod ponderation_dynamique;
 pub mod protections_mobiles;
+pub mod protections_mobiles_auto;
 pub mod reseaux_chaleur;
 pub mod scenarios;
 pub mod temperature_base;

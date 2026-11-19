@@ -119,6 +119,54 @@ export interface Ascenseur {
 /** Assainissement des eaux usées du bâtiment (§4.4.1.1.3). */
 export type Assainissement = "collectif" | "non_collectif";
 
+/**
+ * Paramètres de l'automatisme d'une protection mobile en gestion automatique (§5.9.2,
+ * tableau 33 ; fiche d'application FA01). Seuils sans valeur conventionnelle dans le texte :
+ * à saisir. Les matrices de ratios ont des valeurs conventionnelles (figures 44 à 47), prises
+ * par défaut et signalées dans les résultats.
+ */
+export interface Automatisme {
+  /**
+   * « Eclim_auto » (volet, store enroulable) ou « Eclim_auto_sv » (store vénitien) : seuil
+   * d'éclairement incident, en lux.
+   */
+  eclairement_limite_lux: number;
+  /**
+   * « M_horl_jour » ou « M_horl_jour_sv » : horaires du jour par saison (hiver, mi-saison,
+   * été), requis pour l'horloge personnalisable.
+   */
+  horaires_jour?: HorairesJour[] | null;
+  /** Distinction jour/nuit (« Type_horl » ou « Type_horl_sv »). Absente : aucune (niveau 0). */
+  horloge?: TypeHorloge;
+  /**
+   * « M_Rprot1_auto » (volet, store enroulable). Absente : matrice conventionnelle de
+   * l'usage (figures 44 et 45), signalée dans les résultats.
+   */
+  matrice?: MatriceAutoVolet | null;
+  /**
+   * « M_Rprot1_auto_sv » (store vénitien). Absente : matrice conventionnelle de l'usage
+   * (figures 46 et 47), signalée dans les résultats.
+   */
+  matrice_sv?: MatriceAutoSv | null;
+  /**
+   * « Toph-1limb_auto » : limite basse de la température opérative de l'heure précédente, en
+   * °C (volet, store enroulable ; requise pour ces types, au plus égale à la limite haute).
+   */
+  temperature_limite_basse_c?: number | null;
+  /**
+   * « Toph-1limh_auto » : limite haute de la température opérative de l'heure précédente, en
+   * °C (volet, store enroulable ; requise pour ces types).
+   */
+  temperature_limite_haute_c?: number | null;
+  /**
+   * « Vventlim_auto » ou « Vventlim_auto_sv » : vitesse du vent corrigée, en m/s, à partir de
+   * laquelle une protection extérieure est remontée. Requise pour un store enroulable ou
+   * vénitien extérieur ; sans objet pour un volet (§5.9.3.4.1.1, éq. 186 : aucune limite de
+   * vent).
+   */
+  vent_limite_m_s?: number | null;
+}
+
 /** Th-BCE 2020 §5.6.3.2.1, figure 21 — comportement autoréglable d'une entrée d'air. */
 export interface AutoreglageEntreesAir {
   /** « ΔP1 » : pression du premier changement de comportement, en Pa. */
@@ -181,8 +229,8 @@ export interface Baie {
 /**
  * Th-BCE 2020 §5.10.2 — paramètres intrinsèques d'une baie vitrée.
  *
- * Les matrices de facteurs des stores vénitiens (`M_Sw_BC`, `M_Sw_E`…) seront ajoutées avec la
- * fiche 5.10 (lot 4).
+ * Les facteurs d'un store vénitien (matrices `M_suntracking_*` et `M_fixe_*` du §5.10.3.6.2) se
+ * saisissent dans `store_venitien` (lot 1-env, `docs/questions/Q101.md`).
  */
 export interface BaieType {
   /**
@@ -205,6 +253,13 @@ export interface BaieType {
   protection_mobile?: ProtectionMobile | null;
   /** Facteurs de la baie sans protection mobile en place (indice « sp »). */
   sans_protection: FacteursBaie;
+  /**
+   * Facteurs solaires et lumineux de la partie de la baie protégée par un store vénitien
+   * (`type_pm = store_venitien`), selon la hauteur du soleil et l'inclinaison des lames
+   * (§5.10.3.6.2). Requis dans ce cas, et seulement dans ce cas ; `avec_protection` n'est
+   * alors pas utilisé.
+   */
+  store_venitien?: LamesStoreVenitien | null;
   /** « Uap,horiz,b » : U de la baie horizontale avec protection mobile en place. */
   u_ap_horiz_w_m2k?: number | null;
   /** « Uap,vert,b » : U de la baie verticale avec protection mobile en place. */
@@ -1979,6 +2034,28 @@ export interface FacteursBaie {
 }
 
 /**
+ * Facteurs d'un store vénitien pour un flux incident (direct, diffus ou réfléchi) et une
+ * position des lames : trois composantes du facteur solaire et transmission lumineuse (cases
+ * colorées des matrices des p. 235 et 236).
+ */
+export interface FacteursLames {
+  /** « Sw1 » : composante courte longueur d'onde. */
+  sw1: number;
+  /** « Sw2 » : composante grande longueur d'onde et convective. */
+  sw2: number;
+  /** « Sw3 » : composante liée à la lame d'air intérieure ventilée. */
+  sw3: number;
+  /** « Tl_global » : transmission lumineuse globale (`Tliap_dir`, `Tldap_dif` ou `Tldap_ref`). */
+  tl_global: number;
+  /**
+   * « Tlid » : part du flux incident transmise sous forme diffuse (`Tlidap_dir` ou
+   * `Tlidap_ref`) ; sans objet pour le flux diffus. Absente : 0, valeur par défaut du texte
+   * (éq. 218), signalée dans les résultats.
+   */
+  tlid?: number | null;
+}
+
+/**
  * Famille d'usage des tableaux de la FA03 v2 (article R. 172-1 du CCH, I et III ; article
  * 50-3, I) : usage principal de la partie calculée (Q86).
  */
@@ -2202,6 +2279,9 @@ export type GestionEauxPluviales = "infiltration" | "separatif" | "unitaire";
 /** « Type-GPM » (§5.9.2) : gestion d'un volet ou d'un store enroulable. */
 export type GestionPm = "automatique_avec_derogation" | "manuelle_non_motorisee" | "manuelle_motorisee";
 
+/** « Type-GPM-sv » (§5.9.2) : gestion d'un store vénitien. */
+export type GestionSv = "suivi_soleil_avec_derogation" | "manuelle_position_fixe" | "automatique45_avec_derogation";
+
 /**
  * « idgestion » et « θwm » (§8.17.3.5.10.1) : température de fonctionnement d'une génération
  * reliée à des réseaux hydrauliques.
@@ -2313,6 +2393,17 @@ export interface Groupe {
    * lui donne pas de valeur par défaut.
    */
   v_m3?: number | null;
+}
+
+/**
+ * Heures de début et de fin du jour pour une saison (`Hj_debut` et `Hj_fin`, matrices
+ * `M_horl_jour` et `M_horl_jour_sv`) : il fait jour quand `Hj_debut < Hleg ≤ Hj_fin`.
+ */
+export interface HorairesJour {
+  /** Heure légale de début de jour (1 à 24, exclue). */
+  debut_h: number;
+  /** Heure légale de fin de jour (1 à 24, incluse). */
+  fin_h: number;
 }
 
 /**
@@ -2437,6 +2528,75 @@ export interface KitCesi {
   us_w_k: number;
   /** « Vtot » : volume du ballon, en L. */
   v_tot_l: number;
+}
+
+/**
+ * Th-BCE 2020 §5.10.3.6.2 — facteurs solaires et lumineux de la partie de la baie protégée
+ * par un store vénitien.
+ */
+export interface LamesStoreVenitien {
+  /** Calculs Th-B et Th-C. */
+  th_bc: LamesThBc;
+  /** Calcul Th-D. */
+  th_d: LamesThD;
+}
+
+/**
+ * Facteurs d'un store vénitien en Th-BC (« -c », Th-B et Th-C), matrices `M_suntracking_Sw_BC`
+ * et `M_suntracking_Tl_BCE` (suivi du soleil) ou `M_fixe_Sw_BC` et `M_fixe_Tl_BCE` (position
+ * fixe).
+ */
+export interface LamesThBc {
+  /**
+   * Flux diffus. Suivi du soleil : 6 éléments, pour `αSV = 90° − γ'` avec γ' de 0 à 75°.
+   * Position fixe : 1 élément (`αSV = 45°`).
+   */
+  diffus: FacteursLames[];
+  /**
+   * Flux direct, pour les hauteurs de soleil corrigées γ' de 0, 15, 30, 45, 60 et 75°
+   * (6 éléments, dans cet ordre). En suivi du soleil, les lames sont à `αSV = 90° − γ'` ;
+   * en position fixe, à 45°.
+   */
+  direct: FacteursLames[];
+  /** Flux réfléchi par le sol : mêmes éléments que `diffus`. */
+  reflechi: FacteursLames[];
+}
+
+/**
+ * Facteurs d'un store vénitien en Th-D (« -e »), lames conventionnellement verticales
+ * (`αSV = 90°`), indépendants de la hauteur du soleil (éq. 213) : matrices `M_*_Sw_E` et
+ * `M_*_Tl_BCE`, ligne 90°.
+ */
+export interface LamesThD {
+  /** Flux diffus. */
+  diffus: FacteursLames;
+  /** Flux direct. */
+  direct: FacteursLames;
+  /** Flux réfléchi par le sol. */
+  reflechi: FacteursLames;
+}
+
+/** Ligne de la matrice `M_Rprot1_auto_sv` d'un store vénitien (§5.9.3.4.3.1, figure 54). */
+export interface LigneAutoSv {
+  /** Jour, `Etp** ≥ Eclim_auto_sv`. */
+  jour_au_dessus: number;
+  /** Jour, `Etp** < Eclim_auto_sv`. */
+  jour_sous_seuil: number;
+  /** Nuit. */
+  nuit: number;
+}
+
+/**
+ * Ligne (saison et occupation) de la matrice `M_Rprot1_auto` d'un volet ou d'un store
+ * enroulable (figure 48).
+ */
+export interface LigneAutoVolet {
+  /** Jour, `Etp** ≥ Eclim_auto`. */
+  jour_au_dessus: RatiosHysteresis;
+  /** Jour, `Etp** < Eclim_auto`. */
+  jour_sous_seuil: RatiosHysteresis;
+  /** Nuit. */
+  nuit: RatiosHysteresis;
 }
 
 /** Une ligne du bilan : consommation importée d'un poste en une énergie, et sa conversion. */
@@ -2601,6 +2761,25 @@ export interface MasqueDefinition {
   id: string;
   /** Géométrie du masque. */
   masque: Masque;
+}
+
+/** Matrice `M_Rprot1_auto_sv` : hiver, mi-saison, été, en occupation puis en inoccupation. */
+export interface MatriceAutoSv {
+  /** Groupe en inoccupation : hiver, mi-saison, été. */
+  inoccupation: LigneAutoSv[];
+  /** Groupe en occupation : hiver, mi-saison, été. */
+  occupation: LigneAutoSv[];
+}
+
+/**
+ * Matrice `M_Rprot1_auto` d'un volet ou d'un store enroulable : trois lignes (hiver,
+ * mi-saison, été) en occupation, trois en inoccupation.
+ */
+export interface MatriceAutoVolet {
+  /** Groupe en inoccupation : hiver, mi-saison, été. */
+  inoccupation: LigneAutoVolet[];
+  /** Groupe en occupation : hiver, mi-saison, été. */
+  occupation: LigneAutoVolet[];
 }
 
 /** Mode chauffage d'un générateur thermodynamique (§8.23.3.3). */
@@ -3325,22 +3504,36 @@ export interface Projet {
 
 /** Th-BCE 2020 §5.9.2 et §5.12.2 — protection mobile d'une baie et sa gestion. */
 export interface ProtectionMobile {
+  /**
+   * Paramètres de l'automatisme (gestion automatique d'un volet, d'un store enroulable ou
+   * d'un store vénitien) : seuils, horloge jour/nuit, matrice des ratios de fermeture. Requis
+   * en gestion automatique, absent sinon.
+   */
+  automatisme?: Automatisme | null;
+  /**
+   * « Detec_pres » : présence d'un détecteur de présence pour la dérogation manuelle d'un
+   * volet ou d'un store enroulable en gestion automatique. Requis dans ce cas, sans objet
+   * sinon.
+   */
+  detecteur_presence?: boolean | null;
   /** « Protext » : vrai si la protection est extérieure, faux si elle est intérieure. */
   exterieure: boolean;
   /**
-   * « Type-GPM » : gestion de la première protection mobile. La gestion automatique n'est pas
-   * prise en charge dans cette version : la validation la refuse.
+   * « Type-GPM » : gestion d'un volet ou d'un store enroulable. Requise pour ces deux types,
+   * absente pour un store vénitien (voir `gestion_sv`).
    */
-  gestion: GestionPm;
+  gestion?: GestionPm | null;
+  /**
+   * « Type-GPM-sv » : gestion d'un store vénitien. Requise pour un store vénitien, absente
+   * sinon.
+   */
+  gestion_sv?: GestionSv | null;
   /**
    * « PM2 » : présence d'une seconde protection mobile, intérieure, gérée manuellement, dont
    * la seule fonction est d'éviter l'éblouissement.
    */
   seconde_protection: boolean;
-  /**
-   * « Type-PM » : type de la première protection mobile. Le store vénitien n'est pas pris en
-   * charge dans cette version : la validation le refuse.
-   */
+  /** « Type-PM » : type de la première protection mobile. */
   type_pm: TypePm;
   /**
    * « Typo_PM » : typologie de la protection pour le passage de l'air quand elle est fermée
@@ -3390,6 +3583,14 @@ export type RaccordementSsc = {
     delta_theta_reg_boucle_chauffage_k: number;
   };
 } | "raccorde";
+
+/** Les deux valeurs d'une cellule de la matrice `M_Rprot1_auto` (figure 31, hystérésis). */
+export interface RatiosHysteresis {
+  /** Ratio de fermeture pour `θop,fin(h−1) < Toph-1limb`. */
+  basse: number;
+  /** Ratio de fermeture pour `Toph-1limh < θop,fin(h−1)`. */
+  haute: number;
+}
 
 /**
  * Récupérateur de chaleur collectif sur les eaux grises du bâtiment (§9.21.5 et §9.21.6) :
@@ -5155,6 +5356,12 @@ export type TypeEmetteurChaud = "soufflage_air_chaud" | "muraux_rayonnants" | "p
 
 /** Typologie d'émetteur de froid (§8.1.3.1.3, tableau 86). */
 export type TypeEmetteurFroid = "soufflage_air_froid" | "poutre_froide" | "plafond_rafraichissant" | "mur_rafraichissant" | "plancher_rafraichissant";
+
+/**
+ * Distinction du jour et de la nuit en gestion automatique (« Type_horl » et « Type_horl_sv »,
+ * §5.9.3.2.7 ; fiche d'application FA01, niveaux 0 à 2).
+ */
+export type TypeHorloge = "aucune" | "crepusculaire" | "personnalisable";
 
 /** Type de local au sens de l'éclairage (§7.1.2, « type_local » ; tableau 78). */
 export type TypeLocal = "bureau_standard" | "salle_reunion" | "circulation_accueil" | "sanitaires_collectifs" | "salle_classe" | "salle_repos" | "sanitaires_vestiaires" | "salle_enseignement_informatique" | "salle_conference" | "centre_documentation" | "salle_professeurs" | "salle_multi_fonctions" | "local_service" | "chambre_sans_cuisine" | "salle_petits_dejeuners" | "bar" | "salle_seminaires_reunion" | "salle_jeux" | "salle_restaurant" | "cuisine" | "aire_vente_inferieure300" | "aire_vente_superieure300" | "douches_collectives" | "salle_commune" | "locaux_soins_offices" | "salle_attente_consultation" | "aire_production" | "espace_voyageurs" | "commerces" | "inspection_filtrage" | "salle_sport";

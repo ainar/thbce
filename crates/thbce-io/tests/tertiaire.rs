@@ -237,13 +237,17 @@ fn refus() {
     let z = "batiments[0].zones[0]";
 
     // Les 28 usages sont calculés (lot 0c4), le double flux et la centrale de traitement d'air
-    // en zone neutre aussi (lot 1-ven) : le refus d'un élément hors périmètre se teste sur un
-    // puits climatique.
+    // en zone neutre aussi (lot 1-ven) : le refus d'un élément hors périmètre se teste sur une
+    // cogénération (§8.21).
     let mut p = bureaux();
-    p.batiments[0].zones[0].ventilation.as_mut().unwrap().puits =
-        Some(thbce_core::entree::Puits::Climatique);
+    let gens = &mut p.batiments[0].generations[0].generateurs;
+    let mut cogen = gens[0].clone();
+    cogen.id = "cogeneration".into();
+    cogen.nature = thbce_core::entree::NatureGenerateur::Cogeneration;
+    gens.push(cogen);
     let (c, hors) = chemins(&p);
-    assert_eq!(c, [format!("{z}.ventilation.puits")]);
+    assert_eq!(c.len(), 1);
+    assert!(c[0].ends_with(".nature"), "{c:?}");
     assert!(hors);
     assert!(matches!(
         calculer(&p, &meteo_ademe(&p), &Options::default()),

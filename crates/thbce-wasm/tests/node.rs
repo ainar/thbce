@@ -63,8 +63,10 @@ fn valide_et_signale_les_erreurs() {
 
 #[wasm_bindgen_test]
 fn un_element_hors_perimetre_est_non_pris_en_charge() {
-    // Les 28 usages sont calculés (lot 0c4) : élément hors périmètre, store vénitien.
-    let bureaux = ENTREE.replace("\"type_pm\": \"volet\"", "\"type_pm\": \"store_venitien\"");
+    // Les 28 usages sont calculés (lot 0c4) : élément hors périmètre, cogénération (§8.21).
+    let debut = "\"generateurs\": [\n            {\n              \"id\": \"panneaux-rayonnants\",";
+    let avec = "\"generateurs\": [\n            {\n              \"id\": \"cogeneration\",\n              \"rdim\": 1,\n              \"nature\": \"cogeneration\"\n            },\n            {\n              \"id\": \"panneaux-rayonnants\",";
+    let bureaux = ENTREE.replace("\r\n", "\n").replace(debut, avec);
     let r = thbce_wasm::valider(JsValue::from_str(&bureaux)).unwrap();
     assert_eq!(champ(&r, "valide"), JsValue::FALSE);
     assert_eq!(champ(&r, "hors_perimetre"), JsValue::TRUE);

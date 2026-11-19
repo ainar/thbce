@@ -262,7 +262,7 @@ fn sens_des_effets() {
     //    famille « enseignement ») : le DH change.
     let mut p = base.clone();
     if let Some(pm) = p.catalogue.baies[0].protection_mobile.as_mut() {
-        pm.gestion = thbce_core::entree::GestionPm::ManuelleMotorisee;
+        pm.gestion = Some(thbce_core::entree::GestionPm::ManuelleMotorisee);
     }
     let r = calcul(&p);
     println!("stores motorisés : DH {dh:.1} → {:.1}", phares(&r)[1]);

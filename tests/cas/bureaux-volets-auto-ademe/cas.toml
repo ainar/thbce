@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Variante du cas bureaux-simple-flux-ademe (lot 1-env) : volets à gestion automatique (hystérésis de la figure 31, dérogation avec détecteur, horloge personnalisable 8-19 h, matrices conventionnelles des figures 44 et 45), sur la météo ouverte ADEME (Tours, H2b)."
+source = "aucune : valeurs du moteur au lot 1-env (18 novembre 2026), figées pour détecter les régressions ; ce n'est pas un cas de référence. Les caractéristiques des lames sont fictives. Écart au cas de base : voir docs/questions/Q100.md à Q104.md"
+meteo = "ademe"
+
+[tolerances]
+defaut = 0.005
