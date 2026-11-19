@@ -102,6 +102,7 @@ impl CumulsReseauCta {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::float_cmp)]
     use super::*;
     use crate::entree::{Circulateur, RegulationDebit};
 
