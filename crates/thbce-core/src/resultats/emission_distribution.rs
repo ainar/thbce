@@ -37,6 +37,38 @@ pub struct ResultatsIntergroupes {
     pub theta_dep_extreme_c: Option<f64>,
 }
 
+/// Réseau de distribution de CTA hydraulique, calcul Th-C (§8.11 et §8.12).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsReseauCta {
+    /// Identifiant de la zone dont la centrale est desservie.
+    pub zone: Id,
+    /// Fonction du réseau : « chauffage » ou « refroidissement ».
+    pub fonction: String,
+    /// Identifiant de la génération qui l'alimente.
+    pub generation: Id,
+    /// Demande transmise à la génération (valeur absolue), pertes du réseau comprises, en kWh.
+    pub q_kwh: f64,
+    /// Consommation du circulateur, en kWh d'énergie finale électrique (éq. 2505).
+    pub w_aux_kwh: f64,
+    /// Pertes du réseau vers le volume chauffé, en kWh.
+    pub pertes_vc_kwh: f64,
+    /// Pertes du réseau hors volume chauffé, en kWh.
+    pub pertes_hvc_kwh: f64,
+    /// Nombre d'heures où le réseau débite.
+    pub nbh_fonct: u32,
+}
+
+impl ResultatsReseauCta {
+    /// Arrondi de restitution.
+    pub fn arrondir(&mut self) {
+        let a = arrondir_restitution;
+        self.q_kwh = a(self.q_kwh);
+        self.w_aux_kwh = a(self.w_aux_kwh);
+        self.pertes_vc_kwh = a(self.pertes_vc_kwh);
+        self.pertes_hvc_kwh = a(self.pertes_hvc_kwh);
+    }
+}
+
 /// Systèmes d'émission d'un groupe, calcul Th-C (§8.1).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct ResultatsSystemesGroupe {
