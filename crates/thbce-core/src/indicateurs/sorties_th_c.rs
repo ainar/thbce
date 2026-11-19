@@ -700,6 +700,17 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
             cep_nr_kwhep_m2: cep_nr_m2,
             ic_energie_kgco2_m2: ic,
             somme_f_co2: somme,
+            // Annexe II §4.3.2, éq. (75) : Icénergie_annuel(a) = Σ Cef·DE·fCO2(a) / Sref, soit
+            // Icénergie × fCO2(a) / Σ fCO2(a) (Q117).
+            ic_energie_annuel_kgco2_m2: ic
+                .map(|ic| {
+                    (1..=ANNEE_MAX)
+                        .filter_map(f_co2)
+                        .map(|f| ic * f / somme)
+                        .collect()
+                })
+                .unwrap_or_default(),
+            occupants: None,
             exigences,
         },
         avertissements,

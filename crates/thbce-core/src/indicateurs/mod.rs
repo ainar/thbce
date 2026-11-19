@@ -18,6 +18,7 @@ pub mod exigences;
 pub(crate) mod exigences_usages;
 pub mod extensions;
 pub mod forfait_refroidissement;
+pub mod occupants;
 pub mod resultats;
 pub mod sorties_th_b;
 pub mod sorties_th_c;

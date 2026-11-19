@@ -9,6 +9,7 @@
 //! Aucune n'entraîne d'apport interne : voir `docs/questions/Q050.md`.
 
 pub mod ascenseurs;
+pub mod escalators;
 pub mod parkings;
 
 use std::collections::BTreeMap;
@@ -19,12 +20,19 @@ use crate::eclairage::parties_communes;
 use crate::entree::{Batiment, UsageZone};
 use crate::erreur::Erreur;
 use crate::resultats::{
-    ConsommationsCollectif, PosteElectrique, ResultatsAscenseur, ResultatsParking,
+    ConsommationsCollectif, PosteElectrique, ResultatsAscenseur, ResultatsEscalators,
+    ResultatsParking,
 };
 use crate::scenarios::scenarios_conventionnels::ScenariosZone;
 
 use ascenseurs::{Lectures, ZoneDesservie};
 use parkings::TypeUsageParking;
+
+static VIDE: PosteElectrique = PosteElectrique {
+    annuel_kwh: 0.0,
+    annuel_kwh_m2: 0.0,
+    mensuel_kwh: Vec::new(),
+};
 
 /// Résultats du lot 6e pour un bâtiment.
 #[derive(Debug, Clone, PartialEq)]
@@ -37,6 +45,10 @@ pub struct ResultatCollectif {
     pub ascenseurs: Vec<ResultatsAscenseur>,
     /// Parkings.
     pub parkings: Vec<ResultatsParking>,
+    /// Escalators et tapis roulants ; `None` sans machine.
+    pub escalators: Option<ResultatsEscalators>,
+    /// Consommation horaire des escalators du bâtiment, en Wh (éq. 2513) ; vide sans machine.
+    pub serie_escalators_wh: Vec<f64>,
     /// Séries horaires du bâtiment, en Wh, pour les bilans du calcul des indicateurs (§13.4) :
     /// éclairage des parties communes, ascenseurs, ventilation des parkings, éclairage des
     /// parkings.
@@ -57,6 +69,20 @@ fn poste(serie_wh: &[f64], sref_m2: f64) -> PosteElectrique {
     }
 }
 
+/// « NBz » : nombre maximal d'occupants conventionnels de la zone sur l'année (éq. 2280 et
+/// 2315), maximum sur les 8 760 pas de temps du nombre d'occupants des scénarios.
+///
+/// # Errors
+///
+/// Erreur de scénarios de la zone (usage non pris en charge).
+pub fn nb_max_occupants(z: &crate::entree::Zone) -> Result<f64, Erreur> {
+    let a_gr: Vec<f64> = z.groupes.iter().map(|g| g.su_m2.unwrap_or(0.0)).collect();
+    let sc = ScenariosZone::nouveau(z.usage, &a_gr, z.nb_logements.unwrap_or(1))?;
+    Ok((0..NB_HEURES_AN)
+        .map(|h| sc.evaluer(h).n_occ)
+        .fold(0.0, f64::max))
+}
+
 /// Calcule les postes du lot 6e d'un bâtiment. `sref_zones_m2` : « SREF_zn » de chaque zone.
 ///
 /// Renvoie `None` si le bâtiment n'a ni zone de logement collectif ni parking.
@@ -73,7 +99,7 @@ pub fn calculer(
         .zones
         .iter()
         .any(|z| z.usage == UsageZone::LogementCollectif);
-    if !a_communs && bat.parkings.is_empty() {
+    if !a_communs && bat.parkings.is_empty() && bat.escalators.is_empty() {
         return Ok(None);
     }
     let sref_bat: f64 = sref_zones_m2.iter().sum();
@@ -156,6 +182,52 @@ pub fn calculer(
         });
     }
 
+    // §10.2 : escalators et tapis roulants, ensemble du bâtiment (éq. 2315 à 2325).
+    let mut resultat_escalators = None;
+    let mut serie_escalators_wh = Vec::new();
+    let mut series_esc_zone: Vec<Option<Vec<f64>>> = vec![None; n_zones];
+    if !bat.escalators.is_empty() {
+        let mut desservies: Vec<usize> = Vec::new();
+        for e in &bat.escalators {
+            for id in &e.zones_desservies {
+                if let Some(&iz) = indice_zone.get(id.as_str()) {
+                    if !desservies.contains(&iz) {
+                        desservies.push(iz);
+                    }
+                }
+            }
+        }
+        let zones_esc: Vec<escalators::ZoneEscalators<'_>> = desservies
+            .iter()
+            .map(|&iz| escalators::ZoneEscalators {
+                nb_z: nb_max[iz],
+                bv_z: escalators::bv(bat.zones[iz].usage.numero()).unwrap_or(0.0),
+                u_z: &uk[iz],
+            })
+            .collect();
+        let r = escalators::calculer(
+            &bat.escalators,
+            &zones_esc,
+            &escalators::Lectures::default(),
+        );
+        for (&iz, serie) in desservies.iter().zip(&r.pesc_zone_wh) {
+            series_esc_zone[iz] = Some(serie.clone());
+        }
+        resultat_escalators = Some(ResultatsEscalators {
+            bvnb: r.bvnb,
+            m_kg: r.m_kg,
+            p_noload_m_w: r.p_noload_m_w,
+            p_noload_d_w: r.p_noload_d_w,
+            h_m_m: r.h_m_m,
+            h_d_m: r.h_d_m,
+            p_off_w: r.p_off_w,
+            nb_h_occupation: r.nb_h_occupation,
+            e_tot_kwh: r.pesc_wh.iter().sum::<f64>() / 1000.0,
+            valeurs_par_defaut: r.valeurs_par_defaut,
+        });
+        serie_escalators_wh = r.pesc_wh;
+    }
+
     // §10.3 et §10.4 : parkings, répartis au prorata des surfaces de référence des zones.
     // Les zones calculées sont d'habitation : « Typeusage » = habitat (tableau de §10.3.2).
     let mut resultats_parkings = Vec::new();
@@ -185,11 +257,14 @@ pub fn calculer(
     let zones: Vec<ConsommationsCollectif> = series_zone
         .iter()
         .zip(sref_zones_m2)
-        .map(|(s, &sref)| ConsommationsCollectif {
+        .zip(&series_esc_zone)
+        .map(|((s, &sref), esc)| ConsommationsCollectif {
             eclairage_parties_communes: poste(&s[0], sref),
             ascenseurs: poste(&s[1], sref),
             ventilation_parkings: poste(&s[2], sref),
             eclairage_parkings: poste(&s[3], sref),
+            escalators: (!bat.escalators.is_empty())
+                .then(|| poste(esc.as_deref().unwrap_or(&[]), sref)),
         })
         .collect();
     // Éq. (2517) : somme des zones, ramenée à la surface du bâtiment.
@@ -216,6 +291,8 @@ pub fn calculer(
         ascenseurs: somme(|c| &c.ascenseurs),
         ventilation_parkings: somme(|c| &c.ventilation_parkings),
         eclairage_parkings: somme(|c| &c.eclairage_parkings),
+        escalators: (!bat.escalators.is_empty())
+            .then(|| somme(|c| c.escalators.as_ref().unwrap_or(&VIDE))),
     };
     let series_batiment_wh: [Vec<f64>; 4] = std::array::from_fn(|k| {
         (0..NB_HEURES_AN)
@@ -227,6 +304,8 @@ pub fn calculer(
         batiment,
         ascenseurs: resultats_ascenseurs,
         parkings: resultats_parkings,
+        escalators: resultat_escalators,
+        serie_escalators_wh,
         series_batiment_wh,
     }))
 }

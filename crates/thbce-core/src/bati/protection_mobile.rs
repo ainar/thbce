@@ -645,7 +645,11 @@ impl GestionResolue {
         let s = c.saison.indice();
         let (_, chaud) = Self::ligne(c);
         let th_d_conf = c.confort_adaptatif_th_d;
-        let pm2_active = self.pm2 && !(th_d_conf && chaud);
+        // Q103 (complément du 19 novembre 2026) : les ratios du tableau 34 ne valent qu'avec
+        // `Topj-1max ≥ Topj-1lim_manu` (préambule du §5.9.3.6, titre du tableau 34), comme la
+        // désactivation de PM2 (éq. 201) ; sinon, valeurs de la matrice Th-BC.
+        let th_d_chaud = th_d_conf && chaud;
+        let pm2_active = self.pm2 && !th_d_chaud;
         // « Jour » : horloge en gestion automatique (éq. 184), éclairement et occupation en
         // gestion manuelle (éq. 185).
         let jour = match &sv.auto {
@@ -660,7 +664,7 @@ impl GestionResolue {
             if !jour {
                 l.r_prot_nuit
             } else if au_dessus {
-                if th_d_conf {
+                if th_d_chaud {
                     TH_D_R_PROT_OCC_SV
                 } else {
                     l.r_prot_au_dessus
@@ -674,7 +678,7 @@ impl GestionResolue {
             let l = &m.inoccupation[s];
             if !jour {
                 l.r_prot_nuit
-            } else if th_d_conf && au_dessus {
+            } else if th_d_chaud && au_dessus {
                 TH_D_R_PROT_INOCC_SV
             } else {
                 l.r_prot_jour
