@@ -1,0 +1,111 @@
+{
+  "reglementaire": false,
+  "origine_meteo_th_bc": {
+    "type": "ademe_prospectif",
+    "scenario": "TRACC France +2,7 °C avec vague de chaleur (ADEME / Météo-France)"
+  },
+  "origine_meteo_th_d": {
+    "type": "ademe_prospectif",
+    "scenario": "TRACC France +2,7 °C avec vague de chaleur (ADEME / Météo-France)"
+  },
+  "climat": {
+    "zone_climatique": "H2b"
+  },
+  "batiments": [
+    {
+      "id": "bureaux",
+      "sref_m2": 1000.0,
+      "bbio_pts": 94.3,
+      "dh_c_h": 463.8,
+      "cep_kwhep_m2": 85.7,
+      "cep_nr_kwhep_m2": 85.7,
+      "ic_energie_kgco2_m2": 353.5,
+      "indicateurs": {
+        "cef_kwhef_m2": 55.8,
+        "exigences": {
+          "bbio_max_pts": 87.9,
+          "cep_max_kwhep_m2": 82.7,
+          "cep_nr_max_kwhep_m2": 73.0,
+          "ic_energie_max_kgco2_m2": 194.7
+        },
+        "electricite_consommee": {
+          "chauffage_kwh": 170.4,
+          "ecs_kwh": 3195.7,
+          "eclairage_kwh": 6035.8,
+          "auxiliaires_ventilation_kwh": 12968.6
+        }
+      },
+      "zones": [
+        {
+          "id": "bureaux",
+          "ventilation": {
+            "id": "cta",
+            "p_vent_w": 3000.0,
+            "c_aux_vent_kwh": 12968.6,
+            "th_d": {
+              "nbh_bypass": 2714,
+              "q_ag_kwh": 18.7,
+              "q_prechaud_kwh": 8239.2,
+              "nbh_rafnoc": 1000
+            },
+            "th_c": {
+              "nbh_bypass": 2530,
+              "q_ag_kwh": 17.4,
+              "q_prechaud_kwh": 7027.2,
+              "nbh_rafnoc": 705
+            },
+            "valeurs_par_defaut": [
+              {
+                "champ": "ventilation.systeme.cta.echangeur.theta_s_ech_rep_lim_c",
+                "valeur": 0.0,
+                "regle": "Th-BCE 2020 §6.3.3.4.6.4, tableau 62 : échangeur à plaques en bâtiment non résidentiel"
+              },
+              {
+                "champ": "ventilation.reseau.classe_etancheite",
+                "valeur": 0.0000675,
+                "regle": "Th-BCE 2020 §6.2.3.4, tableau 59 : Kres de la valeur par défaut « DEF », en m³/(s.m²) sous 1 Pa"
+              },
+              {
+                "champ": "ventilation.reseau.ratfuitevc",
+                "valeur": 0.75,
+                "regle": "Th-BCE 2020 §6.2.3.4, tableau 60 : valeur par défaut"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[0].dugd_h",
+                "valeur": 14.0,
+                "regle": "Th-BCE 2020 §6.2.3.2.2.2, tableau 57 : dispositif à gestion manuelle (par défaut)"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[1].dugd_h",
+                "valeur": 14.0,
+                "regle": "Th-BCE 2020 §6.2.3.2.2.2, tableau 57 : dispositif à gestion manuelle (par défaut)"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[0].a_cond_m2",
+                "valeur": 300.0,
+                "regle": "Th-BCE 2020 §6.2.3.4, éq. (421) à (427), tableau 60 : surface de conduit par défaut"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[1].a_cond_m2",
+                "valeur": 300.0,
+                "regle": "Th-BCE 2020 §6.2.3.4, éq. (421) à (427), tableau 60 : surface de conduit par défaut"
+              }
+            ]
+          },
+          "groupes": [
+            {
+              "id": "plateaux",
+              "ventilation": {
+                "q_spec_repris_m3_h": -7923.8,
+                "q_spec_souffle_m3_h": 7923.8,
+                "q_repris_cond_m3_h": -8648.4,
+                "q_souffle_cond_m3_h": 8648.4,
+                "c_aux_vent_kwh": 12968.6
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

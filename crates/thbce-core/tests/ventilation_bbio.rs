@@ -40,6 +40,7 @@ fn bouche(isouf: Isouf, pointe: f64, base: Option<f64>, qvarep: Option<f64>) -> 
         q_spec_inocc_m3_h: None,
         q_spec_ch_m3_h: None,
         crdbnr: None,
+        q_spec_rafnoc_m3_h: None,
     }
 }
 

@@ -149,6 +149,7 @@ fn logement_collectif_surface_par_debit_maximal() {
             p_vent_pointe_w: Some(30.0),
             p_vent_occ_w: None,
             p_vent_inocc_w: None,
+            rafraichissement_surventilation: None,
         });
     let v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
     let fuites = 3600.0 * 0.0675e-3 * 9.0 * libm::pow(20.0, 0.667);
@@ -176,6 +177,7 @@ fn double_flux(bypass: Option<Bypass>, antigel: bool) -> Projet {
         q_spec_inocc_m3_h: None,
         q_spec_ch_m3_h: None,
         crdbnr: None,
+        q_spec_rafnoc_m3_h: None,
     };
     z.groupes[0].bouches_conduits = vec![
         reprise.clone(),
@@ -216,6 +218,7 @@ fn double_flux(bypass: Option<Bypass>, antigel: bool) -> Projet {
         rafraichissement_evaporatif: None,
         rafraichissement_adiabatique: None,
         surventilation_mecanique: None,
+        rafraichissement_surventilation: None,
     });
     v.reseau.ratfuitevc = Some(1.0);
     v.reseau.r_souf_m2k_w = Some(0.6);
@@ -364,7 +367,8 @@ fn validation_du_systeme_de_ventilation() {
     let mut p = double_flux(None, false);
     zone_mut(&mut p).groupes[0].bouches_conduits.pop();
     assert_eq!(chemins(&p), ["batiments[0].zones[0].ventilation.systeme"]);
-    // Fonctions hors périmètre du double flux.
+    // Surventilation mécanique annoncée sans sa description (§6.12, lot 1-ven6) : erreur de
+    // saisie.
     let mut p = double_flux(None, false);
     if let SystemeVentilation::DoubleFlux(d) =
         &mut zone_mut(&mut p).ventilation.as_mut().unwrap().systeme
@@ -396,6 +400,7 @@ fn validation_du_systeme_de_ventilation() {
             p_vent_pointe_w: Some(30.0),
             p_vent_occ_w: None,
             p_vent_inocc_w: None,
+            rafraichissement_surventilation: None,
         });
     assert_eq!(
         chemins(&p),
@@ -429,6 +434,7 @@ fn simple_flux_par_insufflation() {
         p_vent_pointe_w: Some(20.0),
         p_vent_occ_w: None,
         p_vent_inocc_w: None,
+        rafraichissement_surventilation: None,
     });
     v.reseau.r_souf_m2k_w = Some(0.6);
     v.reseau.ratfuitevc = Some(1.0);
@@ -459,6 +465,7 @@ fn zone_de_bureaux(crdbnr: Option<f64>, q_inocc: f64) -> Projet {
         q_spec_inocc_m3_h: Some(q_inocc),
         q_spec_ch_m3_h: None,
         crdbnr,
+        q_spec_rafnoc_m3_h: None,
     }];
     let v = z.ventilation.as_mut().unwrap();
     v.systeme = SystemeVentilation::SimpleFluxExtraction(VentilateurSimpleFlux {
@@ -466,6 +473,7 @@ fn zone_de_bureaux(crdbnr: Option<f64>, q_inocc: f64) -> Projet {
         p_vent_pointe_w: None,
         p_vent_occ_w: Some(900.0),
         p_vent_inocc_w: Some(90.0),
+        rafraichissement_surventilation: None,
     });
     v.reseau.classe_etancheite = Some(ClasseEtancheite::B);
     v.reseau.ratfuitevc = None;
@@ -597,6 +605,7 @@ fn aeration() -> Projet {
         q_spec_inocc_m3_h: None,
         q_spec_ch_m3_h: None,
         crdbnr: None,
+        q_spec_rafnoc_m3_h: None,
     }];
     z.groupes[0].entrees_air = None;
     let v = z.ventilation.as_mut().unwrap();

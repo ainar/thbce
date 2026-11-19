@@ -54,6 +54,7 @@ use super::humidification::{
     ETA_HUM_CONV,
 };
 use super::mecanique_basse_pression;
+use super::surventilation_mecanique::{a_cond_rafnoc_m2, SurventilationResolue};
 use super::mecanique_sf::{
     dugd_equ_h, h_cond_ext_w_k, p_vent_groupe_w, p_vent_residentiel_w, qm_kg_s, rho_kg_m3,
     t_apres_conduit_c, t_apres_ventilateur_c, t_lnc_c, theta_i_cond_c, C_PA_J_KG_K,
@@ -605,6 +606,9 @@ impl VentilationProjet {
             _ => return None,
         };
         let aeration = nature == NatureSysteme::Aeration;
+        // §6.12 : rafraîchissement par surventilation mécanique.
+        let surventilation = v.systeme.surventilation().map(SurventilationResolue::nouvelle);
+        let surv = surventilation.is_some();
 
         // §6.2.3.4, tableau 59 : coefficient de fuite.
         let k_res = if aeration {
@@ -730,9 +734,13 @@ impl VentilationProjet {
                             };
                             a_cond_defaut_maison_m2(g.shab_m2.unwrap_or(0.0)) * part
                         }
-                        // Éq. (424) à (427).
+                        // Éq. (424) à (427) ; éq. (760) et (761) en surventilation mécanique
+                        // (lecture Q230 point 3).
                         TypologieReseau::BatimentCollectif | TypologieReseau::NonResidentiel => {
-                            a_cond_defaut_collectif_m2(q_max)
+                            match b.q_spec_rafnoc_m3_h.filter(|_| surv) {
+                                Some(q) => a_cond_rafnoc_m2(q_max, q),
+                                None => a_cond_defaut_collectif_m2(q_max),
+                            }
                         }
                     };
                     valeurs_par_defaut.push(defaut(
@@ -791,7 +799,17 @@ impl VentilationProjet {
                     }
                     _ => (None, (1.0, 1.0)),
                 };
+                // Éq. (758), (759) et (775) : débit de surventilation sans Cdep ni Crdbnr,
+                // fuites du conduit comprises.
+                let debits_rafnoc = b.q_spec_rafnoc_m3_h.filter(|_| surv).map(|q| {
+                    let signe = match b.isouf {
+                        Isouf::Reprise => -1.0,
+                        Isouf::Soufflage => 1.0,
+                    };
+                    avec_q(signe * q)
+                });
                 bouches.push(BoucheProjet {
+                    debits_rafnoc,
                     x_adiab: 0.0,
                     groupe: ig,
                     debits,
@@ -873,13 +891,16 @@ impl VentilationProjet {
             _ => None,
         };
         let nb_groupes = zone.groupes.len();
-        let releve =
-            (non_residentiel && v.systeme.nom_centrale().is_some()).then(|| ReleveVentilation {
+        // Relevé horaire : centrales double flux hors habitation, et tout système à
+        // surventilation mécanique (puissance variable d'heure en heure, éq. 779 et 780).
+        let releve = (non_residentiel && v.systeme.nom_centrale().is_some() || surv).then(|| {
+            ReleveVentilation {
                 serie_wh: vec![0.0; NB_HEURES_AN],
                 mensuel_groupes_kwh: vec![[0.0; 12]; nb_groupes],
                 dernier_groupes_wh: vec![0.0; nb_groupes],
                 dernier_wh: 0.0,
-            });
+            }
+        });
         let rho_initiale = rho_kg_m3(theta_initiale_c);
         // §6.3.3.4.9.2 : humidificateur d'hiver ; ηhum conventionnel de 0,8 (éq. 530).
         let humidificateur = v
@@ -2121,6 +2142,7 @@ mod tests {
             debits_ch: Some((debits(500.0), debits(400.0))),
             taux_an_min: (1.0, 1.0),
             x_adiab: 0.5,
+            debits_rafnoc: None,
         };
         let regime = Regime {
             i_vent: false,
