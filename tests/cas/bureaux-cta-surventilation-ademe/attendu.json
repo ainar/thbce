@@ -83,12 +83,12 @@
               {
                 "champ": "groupes[0].bouches_conduits[0].a_cond_m2",
                 "valeur": 300.0,
-                "regle": "Th-BCE 2020 §6.2.3.4, éq. (421) à (427), tableau 60 : surface de conduit par défaut"
+                "regle": "Th-BCE 2020 §6.2.3.4, éq. (421) à (427), tableau 60, et §6.12.3.1, éq. (760), (761) : surface de conduit par défaut, recalculée pour le débit de surventilation"
               },
               {
                 "champ": "groupes[0].bouches_conduits[1].a_cond_m2",
                 "valeur": 300.0,
-                "regle": "Th-BCE 2020 §6.2.3.4, éq. (421) à (427), tableau 60 : surface de conduit par défaut"
+                "regle": "Th-BCE 2020 §6.2.3.4, éq. (421) à (427), tableau 60, et §6.12.3.1, éq. (760), (761) : surface de conduit par défaut, recalculée pour le débit de surventilation"
               }
             ]
           },
