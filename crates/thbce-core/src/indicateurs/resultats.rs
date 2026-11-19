@@ -335,6 +335,55 @@ pub struct RegimeAlternatif {
     pub indicateurs_manquants: Vec<String>,
 }
 
+/// Nombre d'occupants d'une zone et son origine (fiche 13.6.3.1).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct OccupantsZone {
+    /// Identifiant de la zone.
+    pub zone: String,
+    /// « Nocc_zn » : nombre d'occupants de la zone.
+    pub nocc: f64,
+    /// Origine : `logements` (éq. 131 et tableau 342, `Σ i·ni`), `saisie` (`nb_occupants` de
+    /// la zone) ou `scenarios` (nombre maximal d'occupants conventionnel, usages tertiaires
+    /// hors enseignement sans saisie, signalé dans `valeurs_par_defaut`).
+    pub origine: String,
+}
+
+/// Indicateurs par occupant d'un bâtiment (fiche 13.6, annexe II §5.2.3 et §5.3.1).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct IndicateursOccupants {
+    /// « Nocc_bat » : nombre d'occupants du bâtiment, somme de ceux des zones (éq. 2552).
+    pub nocc_batiment: f64,
+    /// Origine : `zones` (somme de celles des zones) ou `acv` (`acv.occupants` du bâtiment,
+    /// quand le nombre d'occupants d'une zone n'est pas déterminé ; `zones` est alors vide).
+    pub origine: String,
+    /// Nombre d'occupants de chaque zone.
+    pub zones: Vec<OccupantsZone>,
+    /// « Cep_annuel_par_occ » : `Cep × SREF / Nocc`, en kWhep/(occupant.an) (éq. 2553 et 130) ;
+    /// 0 si `Nocc` est nul.
+    pub cep_par_occupant_kwhep: f64,
+    /// `Icénergie × SREF / Nocc`, en kg éq. CO2/occupant (annexe II §5.3.1 : les indicateurs
+    /// d'impact « peuvent aussi être exprimés au nombre d'occupants ») ; absent si l'Ic énergie
+    /// ne l'est pas, 0 si `Nocc` est nul.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ic_energie_par_occupant_kgco2: Option<f64>,
+    /// Nombres d'occupants déduits des scénarios conventionnels faute de saisie (fiche
+    /// 13.6.3.1 : « peuvent être utilisées »).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub valeurs_par_defaut: Vec<crate::resultats::ValeurParDefaut>,
+}
+
+impl IndicateursOccupants {
+    pub(crate) fn arrondir(&mut self) {
+        let a = crate::conventions::arrondir_restitution;
+        self.nocc_batiment = a(self.nocc_batiment);
+        for z in &mut self.zones {
+            z.nocc = a(z.nocc);
+        }
+        self.cep_par_occupant_kwhep = a(self.cep_par_occupant_kwhep);
+        self.ic_energie_par_occupant_kgco2 = self.ic_energie_par_occupant_kgco2.map(a);
+    }
+}
+
 /// Indicateurs réglementaires d'un bâtiment.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct ResultatsIndicateurs {
@@ -374,6 +423,16 @@ pub struct ResultatsIndicateurs {
     /// `Σ fCO2(a)` pour `a` de 1 à 50 (article 11) : poids de la consommation annuelle dans
     /// l'Ic énergie.
     pub somme_f_co2: f64,
+    /// « Icénergie_annuel(a) » (annexe II §4.3.2, éq. 75), en kg éq. CO2/(m².an), pour les
+    /// années `a` de 1 à 50 de la période d'étude (50 valeurs, `fCO2(a)` de l'article 11) : la
+    /// somme des 50 valeurs redonne l'Ic énergie. Absent si l'Ic énergie n'est pas calculé
+    /// (`docs/questions/Q117.md`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ic_energie_annuel_kgco2_m2: Vec<f64>,
+    /// Indicateurs par occupant (fiche 13.6, éq. 2552 et 2553 ; annexe II §5.2.3, éq. 130) ;
+    /// absents si le nombre d'occupants d'une zone n'est ni saisi ni déductible.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub occupants: Option<IndicateursOccupants>,
     /// Exigences et conformité ; absentes sans `exigences` dans l'entrée du bâtiment.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exigences: Option<ResultatsExigences>,
@@ -423,6 +482,12 @@ impl ResultatsIndicateurs {
         self.cep_kwhep_m2 = a(self.cep_kwhep_m2);
         self.cep_nr_kwhep_m2 = a(self.cep_nr_kwhep_m2);
         self.ic_energie_kgco2_m2 = self.ic_energie_kgco2_m2.map(a);
+        for x in &mut self.ic_energie_annuel_kgco2_m2 {
+            *x = a(*x);
+        }
+        if let Some(o) = &mut self.occupants {
+            o.arrondir();
+        }
         if let Some(e) = &mut self.exigences {
             // Valeurs maximales : produits de coefficients décimaux du texte, arrondies à 1e-9
             // près avant l'arrondi de restitution pour qu'une erreur de représentation ne fasse

@@ -95,7 +95,7 @@ thbce schema                 # JSON Schema du format d'entrée (--resultats pour
 thbce version                # version du moteur et de la méthode (aussi thbce --version, -V)
 ```
 
-`--meteo` est obligatoire. `--sans-arrondi` restitue les valeurs en pleine précision au lieu de l'arrondi à une décimale prévu par la méthode (§1.3.1). Une entrée peut déclarer `"$schema"` (adresse du JSON Schema, pour l'aide à la saisie des éditeurs) et `"version_format": 1`.
+`--meteo` est obligatoire. `--sans-arrondi` restitue les valeurs en pleine précision au lieu de l'arrondi à une décimale prévu par la méthode (§1.3.1). `--horaire <fichier>` écrit en plus les séries horaires principales (CSV, ou JSON si le nom finit par `.json` ; format dans `docs/modele-donnees.md`). Une entrée peut déclarer `"$schema"` (adresse du JSON Schema, pour l'aide à la saisie des éditeurs) et `"version_format": 1`.
 
 | Code de retour | Signification |
 |---|---|
@@ -178,7 +178,7 @@ Voir [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - **Pas de lecteur RSEE XML** : le schéma XSD n'est pas public.
 - **Systèmes refusés** : ventilation naturelle, hybride, aération, réseaux de CTA hydrauliques, puits climatiques ou hydrauliques, humidification, rafraîchissement évaporatif, surventilation mécanique ; gestion des générateurs en alternance, boucles d'eau, DRV, cogénération, PAC au gaz ou hybrides, PAC sur eau ou sur sol, triple service, second ballon, récupération de chaleur sur les eaux grises ; Titres V.
 - **Calage horaire** : un décalage d'une heure est possible entre le fichier météo et le calendrier de la méthode (Q25).
-- **Sorties non restituées** : indicateurs par occupant (fiche 13.6), sorties Th-C par zone et par groupe (§13.2), valeur annuelle de l'éq. (75) de l'Ic énergie, séries horaires (seulement par l'API Rust).
+- **Sorties non restituées** : sorties Th-C par zone et par groupe (§13.2), séries horaires (seulement par l'API Rust).
 
 ## Licence
 

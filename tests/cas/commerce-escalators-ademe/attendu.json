@@ -1,0 +1,38 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b"
+  },
+  "batiments": [
+    {
+      "id": "commerce",
+      "sref_m2": 800.0,
+      "bbio_pts": 164.7,
+      "dh_c_h": 2935.7,
+      "cep_kwhep_m2": 193.0,
+      "cep_nr_kwhep_m2": 193.0,
+      "ic_energie_kgco2_m2": 220.5,
+      "indicateurs": {
+        "electricite_consommee": {
+          "deplacements_kwh": 23787.9
+        }
+      },
+      "consommations_collectif": {
+        "escalators": {
+          "annuel_kwh": 23787.9
+        }
+      },
+      "escalators": {
+        "bvnb": 643658.4,
+        "m_kg": 48274380.0,
+        "p_noload_m_w": 4200.0,
+        "p_noload_d_w": 900.0,
+        "h_m_m": 4.5,
+        "h_d_m": 4.5,
+        "p_off_w": 268.0,
+        "nb_h_occupation": 4382,
+        "e_tot_kwh": 23787.9
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Variante de commerce-pac-ademe (lot 1-sor) : un escalator montant de 4,5 m (3 000 W à vide), un escalator descendant à régulation basse vitesse (900 W réduits, veille connue à 60 W) et un tapis roulant (1 200 W, 120 W à l'arrêt sans passager) desservant la zone de commerce (usage 17, Bv = 4 158 voyages/personne/an, tableau 310), sur la météo ouverte ADEME (Tours, H2b). Caractéristiques des machines FICTIVES, saisies pour l'exemple ; le commerce est de plain-pied, la hauteur des escalators est illustrative."
+source = "aucune : valeurs du moteur au lot 1-sor (19 novembre 2026), figées pour détecter les régressions ; ce n'est pas un cas de référence. Recoupements à la main : crates/thbce-core/src/deplacements/escalators.rs et crates/thbce-io/tests/escalators.rs. Voir docs/questions/Q115.md"
+meteo = "ademe"
+
+[tolerances]
+defaut = 0.005
