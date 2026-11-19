@@ -298,6 +298,11 @@ export interface Batiment {
   /** Réseaux de distribution intergroupes de chaud et de froid (§8.9 et §8.10). */
   distributions_intergroupes?: DistributionIntergroupes[];
   /**
+   * Escalators et tapis roulants du bâtiment (§10.2), une entrée par machine ; toute zone
+   * d'usage 2 à 28.
+   */
+  escalators?: Escalator[];
+  /**
    * Espaces tampons du bâtiment (§5.2 à 5.4) : locaux non chauffés en contact avec
    * l'enveloppe d'un ou de plusieurs groupes. Les parois opaques, ponts thermiques, baies et
    * entrées d'air qui donnent sur un espace tampon le désignent par son identifiant
@@ -875,6 +880,11 @@ export interface ConsommationsCollectif {
   eclairage_parkings: PosteElectrique;
   /** Éclairage des circulations, hall et escalier (§7.2, éq. 792 à 794). */
   eclairage_parties_communes: PosteElectrique;
+  /**
+   * Escalators et tapis roulants (§10.2, éq. 2324) ; absent sans escalator. Compté avec les
+   * ascenseurs dans le poste « déplacement » des indicateurs (éq. 2513).
+   */
+  escalators?: PosteElectrique | null;
   /** Ventilation des parkings fermés (§10.3, éq. 2346 et §10.3.3.8). */
   ventilation_parkings: PosteElectrique;
 }
@@ -1725,6 +1735,48 @@ export interface EntreesAir {
 }
 
 /**
+ * Th-BCE 2020 §10.2.2, tableau 318 — un escalator ou un tapis roulant (hauteur nulle, éq.
+ * 2325). Le modèle traite l'ensemble des machines du bâtiment (§10.2.3.4.3) : puissances et
+ * hauteurs des machines de même sens se cumulent (`docs/questions/Q115.md`).
+ */
+export interface Escalator {
+  /** État pendant la fermeture si `sc_veille` ; `arret_complet` par défaut. */
+  etat_fermeture?: EtatFermeture | null;
+  /**
+   * « H » : hauteur de déplacement de la machine, en m ; 0 pour un tapis roulant (éq.
+   * 2325). Les hauteurs des machines de même sens se cumulent : pour deux machines en
+   * parallèle desservant les mêmes niveaux, saisir 0 pour la seconde.
+   */
+  h_m: number;
+  /** Identifiant de la machine. */
+  id: string;
+  /** « Pautostart » : puissance en arrêt sans passager, en W. */
+  p_autostart_w?: number | null;
+  /** « Pnoload » : puissance à vitesse nominale à vide, en W. Pas de valeur par défaut. */
+  p_noload_w: number;
+  /** « Pslowspeed » : puissance à vitesse réduite, en W ; requise si `slowspeed`. */
+  p_slowspeed_w?: number | null;
+  /** « Pstandby » : puissance en arrêt complet, en W. */
+  p_standby_w?: number | null;
+  /**
+   * « ScVeille » : le scénario de mise en veille est connu. Faux par défaut : 88 W à l'arrêt
+   * (éq. 2323, signalé). Vrai : `etat_fermeture` et la puissance de cet état sont requis.
+   */
+  sc_veille?: boolean;
+  /** Sens de transport. */
+  sens: SensEscalator;
+  /** « Slowspeed » : régulation basse vitesse. Faux par défaut. */
+  slowspeed?: boolean;
+  /**
+   * « Vnom » : vitesse nominale, en m/s (0 exclu, au plus 2,5). Facultative : sans effet sur
+   * le calcul, l'éq. (2321) remplaçant `M·g·sin θ·Vnom` par `M·g·H`.
+   */
+  v_nom_m_s?: number | null;
+  /** « C » : identifiants des zones desservies (au moins une, hors maison individuelle). */
+  zones_desservies: string[];
+}
+
+/**
  * Th-BCE 2020 §5.4 — espace tampon.
  *
  * « Un espace tampon est défini au niveau du bâtiment, et doit nécessairement être associé à au
@@ -1792,6 +1844,12 @@ export interface EssaiEn16147 {
   /** « θ'WH » : température d'eau chaude de référence, en °C. */
   theta_wh_c: number;
 }
+
+/**
+ * Th-BCE 2020 §10.2.2 et §10.2.3.4.3 : état de la machine pendant les heures de fermeture
+ * quand le scénario de mise en veille est connu (`Poff`).
+ */
+export type EtatFermeture = "arret_complet" | "arret_sans_passager" | "vitesse_nominale_a_vide";
 
 /**
  * Catégorie de contraintes extérieures propre à un groupe (annexe de l'article R. 172-4,
@@ -4145,6 +4203,8 @@ export interface ResultatsBatiment {
    * transmises aux générations (§8.9 et §8.10) ; absent sans réseau.
    */
   distributions_intergroupes?: ResultatsIntergroupes[];
+  /** Escalators et tapis roulants (§10.2) ; absent sans escalator. */
+  escalators?: ResultatsEscalators | null;
   /** Espaces tampons du bâtiment (§5.2 à 5.4) ; absent sans espace tampon. */
   espaces_tampons?: ResultatsEspaceTampon[];
   /**
@@ -4461,6 +4521,30 @@ export interface ResultatsEnveloppe {
   h_th_pt_w_k: number;
   /** « Ll » : longueur des ponts thermiques, en m (éq. 310). */
   l_pt_m: number;
+}
+
+/** L'ensemble des escalators et tapis roulants d'un bâtiment (§10.2.3.4.3). */
+export interface ResultatsEscalators {
+  /** « BVNB » : besoin de voyages annuel affecté à l'ensemble (éq. 2317). */
+  bvnb: number;
+  /** Consommation annuelle de l'ensemble (somme de « Pesc(h) »), en kWh. */
+  e_tot_kwh: number;
+  /** Voir `h_m_m`. */
+  h_d_m: number;
+  /** « H_m » et « H_d » : hauteurs cumulées de montée et de descente, en m. */
+  h_m_m: number;
+  /** « M » : masse totale transportée sur l'année, en kg (éq. 2318). */
+  m_kg: number;
+  /** Nombre d'heures d'occupation de l'année (`T(h) > 0`). */
+  nb_h_occupation: number;
+  /** Voir `p_noload_m_w`. */
+  p_noload_d_w: number;
+  /** « Pnoload_m » et « Pnoload_d » : puissances à vide cumulées de montée et de descente, en W. */
+  p_noload_m_w: number;
+  /** « Poff » : puissance cumulée à l'arrêt, en W (éq. 2322 et 2323). */
+  p_off_w: number;
+  /** Valeurs par défaut du texte appliquées. */
+  valeurs_par_defaut: ValeurParDefaut[];
 }
 
 /**
@@ -5196,6 +5280,9 @@ export interface ResultatsZone {
   /** Système de ventilation du projet (§6.2 à 6.5) ; absent hors habitation. */
   ventilation?: ResultatsVentilationZone | null;
 }
+
+/** Th-BCE 2020 §10.2.2, tableau 318 : sens de transport d'une machine. */
+export type SensEscalator = "montee" | "descente";
 
 /** « idamont-air-type » (§8.26.3.3.1) : source amont sur air. */
 export type SourceAmontSaisie = {

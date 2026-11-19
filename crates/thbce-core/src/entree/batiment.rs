@@ -42,6 +42,10 @@ pub struct Batiment {
     /// s'applique à toute zone de logement collectif.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ascenseurs: Vec<Ascenseur>,
+    /// Escalators et tapis roulants du bâtiment (§10.2), une entrée par machine ; toute zone
+    /// d'usage 2 à 28.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub escalators: Vec<Escalator>,
     /// Parcs de stationnement associés au bâtiment (§10.3 et §10.4).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parkings: Vec<Parking>,

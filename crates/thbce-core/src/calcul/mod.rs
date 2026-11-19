@@ -194,7 +194,7 @@ pub fn calculer(
             &sref_zones,
             &crate::deplacements::ascenseurs::Lectures::default(),
         )?;
-        let (conso_collectif, ascenseurs, parkings) = match collectif {
+        let (conso_collectif, ascenseurs, parkings, escalators) = match collectif {
             Some(c) => {
                 for (z, cz) in zones.iter_mut().zip(c.zones) {
                     z.consommations_collectif = Some(cz);
@@ -206,9 +206,11 @@ pub fn calculer(
                 releve.ajouter_serie(poste::DEPL, asc);
                 releve.ajouter_serie(poste::AUX_VENT, vent_park);
                 releve.ajouter_serie(poste::ECL, ecl_park);
-                (Some(c.batiment), c.ascenseurs, c.parkings)
+                // Éq. (2513) : les escalators sont comptés avec les ascenseurs.
+                releve.ajouter_serie(poste::DEPL, &c.serie_escalators_wh);
+                (Some(c.batiment), c.ascenseurs, c.parkings, c.escalators)
             }
-            None => (None, Vec::new(), Vec::new()),
+            None => (None, Vec::new(), Vec::new(), None),
         };
         // Éq. (2504) : ventilateurs des centrales, de puissance constante en habitation ; hors
         // habitation, puissance d'occupation ou d'inoccupation à chaque pas (éq. 636 à 639).
@@ -360,6 +362,7 @@ pub fn calculer(
             acv,
             consommations_collectif: conso_collectif,
             ascenseurs,
+            escalators,
             parkings,
             espaces_tampons: th_b
                 .espaces_tampons

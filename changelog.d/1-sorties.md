@@ -3,6 +3,7 @@
 - Fiche 13.6 : indicateurs par occupant (`indicateurs.occupants` : `Nocc` des zones et du bâtiment, éq. 2552, Cep par occupant, éq. 2553, Ic énergie par occupant). Saisie facultative `zones[].types_logements` (pièces principales, tableau 342 et éq. 131) et `zones[].nb_occupants` ; en tertiaire hors enseignement, nombre maximal d'occupants des scénarios signalé dans `valeurs_par_defaut` (Q117).
 - Ic énergie annuel (annexe II, éq. 75) : `indicateurs.ic_energie_annuel_kgco2_m2`, 50 valeurs de `a = 1` à `50` (Q117).
 - Exemple `tests/cas/immeuble-collectif-occupants-ademe`.
+- Fiche 10.2 : escalators et tapis roulants (`batiments[].escalators[]`, résultats `escalators` et `consommations_collectif.escalators`, poste « déplacements », éq. 2311 à 2325) ; le refus est levé. Lectures et variantes chiffrées : Q115. Exemple `tests/cas/commerce-escalators-ademe`.
 
 ### Modifié
 

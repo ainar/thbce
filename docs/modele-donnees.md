@@ -135,6 +135,8 @@ Batiment
                      jours_fermes[] }
 ```
 
+Escalators et tapis roulants (fiche 10.2, lot 1-sor ; lectures `docs/questions/Q115.md`) : `Batiment.escalators[]` facultatif, `{ id, sens: montee | descente, v_nom_m_s?, h_m (0 : tapis roulant), p_noload_w, slowspeed?, p_slowspeed_w? (requis avec slowspeed), sc_veille?, etat_fermeture?: arret_complet | arret_sans_passager | vitesse_nominale_a_vide, p_standby_w?, p_autostart_w?, zones_desservies[] }`. Les puissances d'arrêt sont requises selon l'état de fermeture quand `sc_veille` est vrai (sinon 88 W par défaut, signalé dans `valeurs_par_defaut`). Résultats : `escalators` au niveau du bâtiment (`bvnb`, `m_kg`, `p_noload_m_w`, `p_noload_d_w`, `h_m_m`, `h_d_m`, `p_off_w`, `nb_h_occupation`, `e_tot_kwh`, `valeurs_par_defaut`) et `consommations_collectif.escalators` ; la consommation s'ajoute au poste « déplacements » (`electricite_consommee.deplacements_kwh`).
+
 Résultats : `consommations_collectif` (zone et bâtiment) : `eclairage_parties_communes`, `ascenseurs`, `ventilation_parkings`, `eclairage_parkings`, chacun `{ annuel_kwh, annuel_kwh_m2, mensuel_kwh[12] }` ; `ascenseurs[]` (`nb_demarrages`, `t_mob_h`, `pti_w`, `e_tm_kwh`, `e_ti_kwh`, `e_tot_kwh`, `valeurs_par_defaut`) et `parkings[]` (`e_vent_kwh`, `e_ecl_kwh`, `valeurs_par_defaut`) au niveau du bâtiment.
 
 ### Format d'entrée de la production photovoltaïque (lot 7a)

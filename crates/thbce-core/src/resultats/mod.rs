@@ -150,6 +150,9 @@ pub struct ResultatsBatiment {
     /// Ascenseurs, une entrée par cabine (§10.1) ; absent sans ascenseur.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ascenseurs: Vec<ResultatsAscenseur>,
+    /// Escalators et tapis roulants (§10.2) ; absent sans escalator.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub escalators: Option<ResultatsEscalators>,
     /// Parkings (§10.3 et §10.4) ; absent sans parking.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parkings: Vec<ResultatsParking>,
@@ -210,6 +213,20 @@ impl Resultats {
             }
             if let Some(x) = &mut b.acv {
                 x.arrondir();
+            }
+            if let Some(x) = &mut b.escalators {
+                for v in [
+                    &mut x.bvnb,
+                    &mut x.m_kg,
+                    &mut x.p_noload_m_w,
+                    &mut x.p_noload_d_w,
+                    &mut x.h_m_m,
+                    &mut x.h_d_m,
+                    &mut x.p_off_w,
+                    &mut x.e_tot_kwh,
+                ] {
+                    *v = a(*v);
+                }
             }
             for x in &mut b.ascenseurs {
                 for v in [
