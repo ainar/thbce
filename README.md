@@ -176,7 +176,7 @@ Voir [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - **ACV** (annexe II, chapitre 4) : indicateur de changement climatique seulement (Icconstruction, Icbâtiment, StockC, Icded) ; aucune donnée environnementale embarquée, les valeurs d'impact (FDES, PEP, DED, données de service) sont saisies ; eau en calcul simplifié seulement (consommation d'eau saisie pour les usages « N/C » du tableau 7) ; cogénération (sous-lot 8.2), entités programmatiques et export d'énergie (§4.7) non pris en charge.
 
 - **Pas de lecteur RSEE XML** : le schéma XSD n'est pas public.
-- **Systèmes refusés** : ventilation naturelle, hybride, aération, réseaux de CTA hydrauliques, puits climatiques ou hydrauliques, humidification, rafraîchissement évaporatif, surventilation mécanique ; brasseurs d'air ; gestion des générateurs en alternance, boucles d'eau, DRV, cogénération, PAC au gaz ou hybrides, PAC sur eau ou sur sol, triple service, second ballon, récupération de chaleur sur les eaux grises ; Titres V.
+- **Systèmes refusés** : ventilation naturelle par conduits, hybride, réseaux de CTA hydrauliques, puits climatiques ou hydrauliques, humidification, rafraîchissement évaporatif, surventilation mécanique ; brasseurs d'air ; gestion des générateurs en alternance, boucles d'eau, DRV, cogénération, PAC au gaz ou hybrides, PAC sur eau ou sur sol, triple service, second ballon, récupération de chaleur sur les eaux grises ; Titres V.
 - **Calage horaire** : un décalage d'une heure est possible entre le fichier météo et le calendrier de la méthode (Q25).
 - **Sorties non restituées** : sorties Th-C par zone et par groupe (§13.2), séries horaires (seulement par l'API Rust).
 

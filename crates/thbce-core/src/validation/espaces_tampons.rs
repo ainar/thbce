@@ -54,6 +54,10 @@ pub(super) fn valider_espaces_tampons(
                     references.push((format!("{cg}.baies[{i}].espace_tampon"), id, true, true));
                 }
             }
+            // L'air des fenêtres d'aération non plus (§6.7.3.1).
+            if let Some(id) = &g.aeration_espace_tampon {
+                references.push((format!("{cg}.aeration_espace_tampon"), id, false, false));
+            }
             // Les entrées d'air ne suffisent pas à associer l'espace tampon à l'enveloppe.
             if let Some(id) = g
                 .entrees_air

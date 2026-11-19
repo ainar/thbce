@@ -345,7 +345,6 @@ fn validation_du_systeme_de_ventilation() {
     for s in [
         SystemeVentilation::NaturelleParConduits,
         SystemeVentilation::Hybride,
-        SystemeVentilation::Aeration,
         SystemeVentilation::CentraleTraitementAir,
     ] {
         let mut p = projet();
@@ -578,4 +577,131 @@ fn simple_flux_non_residentiel_pas_de_temps() {
     // fort qu'en inoccupation (90 W) — même ordre de grandeur, mais pas la même valeur.
     assert!(occ.theta_air_extrait_c > 5.0 && inocc.theta_air_extrait_c > 5.0);
     assert!((occ.theta_air_extrait_c - inocc.theta_air_extrait_c).abs() > 1e-6);
+}
+
+/// Maison en aération : une bouche de soufflage de 180 m³/h en pointe et 105 m³/h en base (le
+/// débit d'hygiène à fournir par la fenêtre), sans ventilateur ni conduit.
+fn aeration() -> Projet {
+    let mut p = projet();
+    let z = zone_mut(&mut p);
+    z.groupes[0].bouches_conduits = vec![BoucheConduit {
+        id: "fenetre".into(),
+        isouf: Isouf::Soufflage,
+        q_spec_conv_pointe_m3_h: 180.0,
+        q_spec_conv_base_m3_h: Some(105.0),
+        qvarep_spec_m3_h: None,
+        dugd_h: None,
+        cdep: None,
+        a_cond_m2: None,
+        q_spec_occ_m3_h: None,
+        q_spec_inocc_m3_h: None,
+        q_spec_ch_m3_h: None,
+        crdbnr: None,
+    }];
+    z.groupes[0].entrees_air = None;
+    let v = z.ventilation.as_mut().unwrap();
+    v.systeme = SystemeVentilation::Aeration;
+    v.reseau.r_rep_m2k_w = None;
+    assert!(valider(&p).est_valide(), "{:?}", valider(&p).erreurs);
+    p
+}
+
+#[test]
+fn aeration_debits_a_la_main() {
+    let p = aeration();
+    let v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
+    assert!(v.est_aeration());
+    // Éq. (387) à (390) et (403) : (180 × 14 + 105 × 154)/168 = 111,25 m³/h ; §6.2.3.3.1,
+    // note 1 : Cdep = Cfenb = 1,7, soit 189,125 m³/h ; tableau 59, aération : Kres = 0, aucune
+    // fuite.
+    let d = v.debits_groupe(0);
+    proche(d.q_souffle_m3_h, 1.7 * 111.25);
+    // Éq. (163) : le débit repris est l'opposé du débit soufflé, sans bouche de reprise.
+    proche(d.q_rep_m3_h, -1.7 * 111.25);
+    proche(v.debits_cond_groupe(0).q_souffle_m3_h, 1.7 * 111.25);
+    // Aucun ventilateur.
+    assert_eq!((v.p_vent_w(), v.p_vent_groupe_w(0)), (0.0, 0.0));
+    // Seule la durée du grand débit est une valeur par défaut : ni Kres, ni Ratfuitevc, ni
+    // surface de conduit.
+    let champs: Vec<_> = v
+        .valeurs_par_defaut
+        .iter()
+        .map(|d| d.champ.as_str())
+        .collect();
+    assert_eq!(champs, ["groupes[0].bouches_conduits[0].dugd_h"]);
+}
+
+#[test]
+fn aeration_air_neuf_a_la_temperature_et_a_l_humidite_exterieures() {
+    // §6.7.3, éq. (716) à (718) : Tair_soufflé = θext et ωair_soufflé = ωext.
+    let p = aeration();
+    let (air, eps, w_ag) = un_pas(&p, -3.0, 20.0, true);
+    assert_eq!((air.t_air_souffle_c, eps, w_ag), (-3.0, 0.0, 0.0));
+}
+
+#[test]
+fn aeration_validation() {
+    // Cdep et la surface de conduit sont fixés par le texte (Crdbnr ne se saisit pas en
+    // habitation).
+    let mut p = aeration();
+    zone_mut(&mut p).groupes[0].bouches_conduits[0].cdep = Some(1.0);
+    assert_eq!(
+        chemins(&p),
+        ["batiments[0].zones[0].groupes[0].bouches_conduits[0].cdep"]
+    );
+    let mut p = aeration();
+    zone_mut(&mut p).groupes[0].bouches_conduits[0].a_cond_m2 = Some(1.0);
+    zone_mut(&mut p)
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .reseau
+        .ratfuitevc = Some(0.5);
+    assert_eq!(
+        chemins(&p),
+        ["batiments[0].zones[0].groupes[0].bouches_conduits[0].a_cond_m2"]
+    );
+    // Sans bouche de soufflage : aucun débit d'air neuf.
+    let mut p = aeration();
+    zone_mut(&mut p).groupes[0].bouches_conduits[0].isouf = Isouf::Reprise;
+    assert_eq!(chemins(&p), ["batiments[0].zones[0].ventilation.systeme"]);
+    // Une bouche de reprise de plus n'est pas comptée : avertissement, pas d'erreur.
+    let mut p = aeration();
+    let mut reprise = zone(&p).groupes[0].bouches_conduits[0].clone();
+    reprise.id = "reprise".into();
+    reprise.isouf = Isouf::Reprise;
+    zone_mut(&mut p).groupes[0].bouches_conduits.push(reprise);
+    let r = valider(&p);
+    assert!(r.est_valide(), "{:?}", r.erreurs);
+    assert_eq!(
+        r.avertissements
+            .iter()
+            .map(|a| a.chemin.as_str())
+            .collect::<Vec<_>>(),
+        ["batiments[0].zones[0].groupes[0].bouches_conduits[1].isouf"]
+    );
+    // Paramètres de réseau sans objet : avertissement.
+    let mut p = aeration();
+    zone_mut(&mut p)
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .reseau
+        .ratfuitevc = Some(0.5);
+    let r = valider(&p);
+    assert!(r.est_valide());
+    assert_eq!(
+        r.avertissements[0].chemin,
+        "batiments[0].zones[0].ventilation.reseau"
+    );
+    // L'espace tampon de l'aération ne se saisit qu'avec ce système, et doit exister.
+    let mut p = projet();
+    zone_mut(&mut p).groupes[0].aeration_espace_tampon = Some("serre".into());
+    assert!(chemins(&p).contains(&"batiments[0].zones[0].groupes[0].aeration_espace_tampon".into()));
+    let mut p = aeration();
+    zone_mut(&mut p).groupes[0].aeration_espace_tampon = Some("inconnu".into());
+    assert_eq!(
+        chemins(&p),
+        ["batiments[0].zones[0].groupes[0].aeration_espace_tampon"]
+    );
 }

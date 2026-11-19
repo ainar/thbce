@@ -1,0 +1,211 @@
+{
+  "reglementaire": false,
+  "origine_meteo_th_bc": {
+    "type": "ademe_prospectif"
+  },
+  "origine_meteo_th_d": {
+    "type": "ademe_prospectif"
+  },
+  "climat": {
+    "zone_climatique": "H2b",
+    "altcorr_m": 100.0,
+    "base_ext_c": -6.5
+  },
+  "batiments": [
+    {
+      "id": "maison",
+      "sref_m2": 96.4,
+      "bbio_pts": 56.8,
+      "dh_c_h": 1688.6,
+      "zones": [
+        {
+          "id": "logement",
+          "nadeq": 1.9,
+          "ventilation": {
+            "id": "aeration-fenetres",
+            "p_vent_w": 0.0,
+            "c_aux_vent_kwh": 0.0,
+            "valeurs_par_defaut": [
+              {
+                "champ": "groupes[0].bouches_conduits[0].dugd_h",
+                "valeur": 14.0,
+                "regle": "Th-BCE 2020 §6.2.3.2.2.2, tableau 57 : dispositif à gestion manuelle (par défaut)"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[1].dugd_h",
+                "valeur": 14.0,
+                "regle": "Th-BCE 2020 §6.2.3.2.2.2, tableau 57 : dispositif à gestion manuelle (par défaut)"
+              }
+            ]
+          },
+          "groupes": [
+            {
+              "id": "volume-chauffe",
+              "debits_bbio": {
+                "q_spec_repris_m3_h": -97.5,
+                "q_spec_souffle_m3_h": 97.5
+              },
+              "enveloppe": {
+                "a_op_m2": 290.0,
+                "a_opv_m2": 90.0,
+                "a_ophh_m2": 100.0,
+                "a_ophb_m2": 100.0,
+                "h_th_op_w_k": 45.0,
+                "a_f_perm_m2": 100.0,
+                "a_toit_perm_m2": 100.0,
+                "l_pt_m": 40.0,
+                "h_th_pt_w_k": 4.0,
+                "a_baies_m2": 10.0,
+                "a_baies_v_m2": 10.0,
+                "a_baies_h_m2": 0.0,
+                "h_ges_sp_w_k": 13.0
+              },
+              "baies": [
+                {
+                  "id": "baie-sud",
+                  "valeurs_par_defaut": [
+                    {
+                      "champ": "sans_protection.sw1_c",
+                      "valeur": 0.3111111111111111,
+                      "regle": "Th-BCE 2020 §5.10.3.6.3, éq. (215) : Swsp-c = Swsp-e − 0,1 ; composantes dans les proportions de Swsp-e (question Q30)"
+                    },
+                    {
+                      "champ": "sans_protection.sw2_c",
+                      "valeur": 0.03888888888888889,
+                      "regle": "Th-BCE 2020 §5.10.3.6.3, éq. (215) : Swsp-c = Swsp-e − 0,1 ; composantes dans les proportions de Swsp-e (question Q30)"
+                    },
+                    {
+                      "champ": "sans_protection.sw3_c",
+                      "valeur": 0.0,
+                      "regle": "Th-BCE 2020 §5.10.3.6.3, éq. (215) : Swsp-c = Swsp-e − 0,1 ; composantes dans les proportions de Swsp-e (question Q30)"
+                    },
+                    {
+                      "champ": "sans_protection.tlid",
+                      "valeur": 0.0,
+                      "regle": "Th-BCE 2020 §5.10.3.6.3, éq. (218) : Tlid = 0"
+                    },
+                    {
+                      "champ": "avec_protection.sw1_c",
+                      "valeur": 0.02,
+                      "regle": "Th-BCE 2020 §5.10.3.6.3, éq. (216) : Swap-c = Swap-e ; composantes égales à celles de Swap-e (question Q30)"
+                    },
+                    {
+                      "champ": "avec_protection.sw2_c",
+                      "valeur": 0.03,
+                      "regle": "Th-BCE 2020 §5.10.3.6.3, éq. (216) : Swap-c = Swap-e ; composantes égales à celles de Swap-e (question Q30)"
+                    },
+                    {
+                      "champ": "avec_protection.sw3_c",
+                      "valeur": 0.0,
+                      "regle": "Th-BCE 2020 §5.10.3.6.3, éq. (216) : Swap-c = Swap-e ; composantes égales à celles de Swap-e (question Q30)"
+                    },
+                    {
+                      "champ": "avec_protection.tlid",
+                      "valeur": 0.0,
+                      "regle": "Th-BCE 2020 §5.10.3.6.3, éq. (218) : Tlid = 0"
+                    },
+                    {
+                      "champ": "protection_mobile.typo_pm",
+                      "valeur": 0.0,
+                      "regle": "Th-BCE 2020 §5.12.3.1, tableau 40 : typologie 0, « valeur par défaut », taux de passage de l'air de 0 %"
+                    },
+                    {
+                      "champ": "ouvrant.r_ouv_max",
+                      "valeur": 0.8,
+                      "regle": "Th-BCE 2020 §5.13.3.2.3, tableau 44 : ratio d'ouverture maximal par défaut du type d'ouvrant"
+                    }
+                  ]
+                },
+                {
+                  "id": "baie-nord",
+                  "valeurs_par_defaut": [
+                    {
+                      "champ": "sans_protection.sw1_c",
+                      "valeur": 0.3111111111111111,
+                      "regle": "Th-BCE 2020 §5.10.3.6.3, éq. (215) : Swsp-c = Swsp-e − 0,1 ; composantes dans les proportions de Swsp-e (question Q30)"
+                    },
+                    {
+                      "champ": "sans_protection.sw2_c",
+                      "valeur": 0.03888888888888889,
+                      "regle": "Th-BCE 2020 §5.10.3.6.3, éq. (215) : Swsp-c = Swsp-e − 0,1 ; composantes dans les proportions de Swsp-e (question Q30)"
+                    },
+                    {
+                      "champ": "sans_protection.sw3_c",
+                      "valeur": 0.0,
+                      "regle": "Th-BCE 2020 §5.10.3.6.3, éq. (215) : Swsp-c = Swsp-e − 0,1 ; composantes dans les proportions de Swsp-e (question Q30)"
+                    },
+                    {
+                      "champ": "sans_protection.tlid",
+                      "valeur": 0.0,
+                      "regle": "Th-BCE 2020 §5.10.3.6.3, éq. (218) : Tlid = 0"
+                    },
+                    {
+                      "champ": "avec_protection.sw1_c",
+                      "valeur": 0.02,
+                      "regle": "Th-BCE 2020 §5.10.3.6.3, éq. (216) : Swap-c = Swap-e ; composantes égales à celles de Swap-e (question Q30)"
+                    },
+                    {
+                      "champ": "avec_protection.sw2_c",
+                      "valeur": 0.03,
+                      "regle": "Th-BCE 2020 §5.10.3.6.3, éq. (216) : Swap-c = Swap-e ; composantes égales à celles de Swap-e (question Q30)"
+                    },
+                    {
+                      "champ": "avec_protection.sw3_c",
+                      "valeur": 0.0,
+                      "regle": "Th-BCE 2020 §5.10.3.6.3, éq. (216) : Swap-c = Swap-e ; composantes égales à celles de Swap-e (question Q30)"
+                    },
+                    {
+                      "champ": "avec_protection.tlid",
+                      "valeur": 0.0,
+                      "regle": "Th-BCE 2020 §5.10.3.6.3, éq. (218) : Tlid = 0"
+                    },
+                    {
+                      "champ": "protection_mobile.typo_pm",
+                      "valeur": 0.0,
+                      "regle": "Th-BCE 2020 §5.12.3.1, tableau 40 : typologie 0, « valeur par défaut », taux de passage de l'air de 0 %"
+                    },
+                    {
+                      "champ": "ouvrant.r_ouv_max",
+                      "valeur": 0.8,
+                      "regle": "Th-BCE 2020 §5.13.3.2.3, tableau 44 : ratio d'ouverture maximal par défaut du type d'ouvrant"
+                    }
+                  ]
+                }
+              ],
+              "valeurs_par_defaut": [
+                {
+                  "champ": "h_ttf_m",
+                  "valeur": 1.5,
+                  "regle": "Th-BCE 2020 §5.13.3.2.2 : dans le cas général, Httf est pris égal à 1,5 m"
+                }
+              ],
+              "ventilation": {
+                "q_spec_repris_m3_h": -165.8,
+                "q_spec_souffle_m3_h": 165.8,
+                "q_repris_cond_m3_h": -165.8,
+                "q_souffle_cond_m3_h": 165.8,
+                "p_vent_w": 0.0,
+                "c_aux_vent_kwh": 0.0,
+                "c_aux_vent_kwh_m2": 0.0
+              }
+            }
+          ]
+        }
+      ],
+      "c_aux_vent_kwh": 0.0,
+      "cep_kwhep_m2": 169.2,
+      "cep_nr_kwhep_m2": 169.2,
+      "ic_energie_kgco2_m2": 214.3,
+      "indicateurs": {
+        "cef_kwhef_m2": 73.6,
+        "exigences": {
+          "bbio_max_pts": 64.7,
+          "cep_max_kwhep_m2": 70.2,
+          "cep_nr_max_kwhep_m2": 51.5,
+          "ic_energie_max_kgco2_m2": 149.7,
+          "conforme": false
+        }
+      }
+    }
+  ]
+}

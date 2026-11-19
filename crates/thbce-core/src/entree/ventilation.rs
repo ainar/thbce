@@ -45,7 +45,12 @@ pub enum SystemeVentilation {
     NaturelleParConduits,
     /// Ventilation hybride (§6.6) : non prise en charge dans cette version.
     Hybride,
-    /// Aération par ouverture des fenêtres (§6.7) : non prise en charge dans cette version.
+    /// Aération par ouverture des fenêtres (§6.7) : ventilation naturelle sans ventilateur ni
+    /// conduit. Les bouches de soufflage de chaque groupe donnent les débits d'air neuf fournis
+    /// par une fenêtre équivalente (éq. 162) ; les débits repris sont ceux qui en sortent
+    /// (éq. 163), les bouches de reprise ne servent pas. Le coefficient de dépassement vaut
+    /// `Cfenb = 1,7` (§6.2.3.3.1, tableau 58, note 1), `Crdbnr = 1` et les fuites du réseau sont
+    /// nulles (tableau 59) : `cdep`, `crdbnr`, `a_cond_m2` et le réseau ne se saisissent pas.
     Aeration,
     /// Centrale de traitement d'air sans description : forme de la version 0.1, refusée ;
     /// décrire la centrale par la variante `cta`.
