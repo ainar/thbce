@@ -48,6 +48,7 @@ use super::cta_et_double_flux::{
     charge_debit_variable, cp_air_humide_j_kg_k, exp_h, froid_rec, q_chaud_rec_wh,
     theta_sou_bouches_charge_c, w_vent_rec_wh, ChargeCentrale, THETA_SOUF_MAX_C,
 };
+use super::debits_air_cep::{permea_verticale, rho_kg_m3 as rho_humide_kg_m3};
 use super::humidification::{
     aut_adiab, consignes_hysteresis_c, groupe_assez_sec, humidificateur_adiabatique,
     humidification_hiver, p_vent_adiab_w, position_hysteresis, w_aux_pompe_wh, TypeHumidificateur,
@@ -57,6 +58,10 @@ use super::mecanique_basse_pression;
 use super::mecanique_sf::{
     dugd_equ_h, h_cond_ext_w_k, p_vent_groupe_w, p_vent_residentiel_w, qm_kg_s, rho_kg_m3,
     t_apres_conduit_c, t_apres_ventilateur_c, t_lnc_c, theta_i_cond_c, C_PA_J_KG_K, RHO_REF_KG_M3,
+};
+use super::naturelle_hybride::{
+    a_bouche_eq_m2, h_mot_defaut_m, ConditionsConduit, ConditionsPas, ConduitResolu, EtatNaturelle,
+    CHI_COUDE_DEFAUT, D_PREF_DEFAUT_PA, LAMBDA_COND_DEFAUT, V_VENT_REF_DEFAUT_M_S,
 };
 use super::puits_climatique::EtatPuits;
 use super::puits_hydraulique::{
@@ -78,6 +83,9 @@ pub enum NatureSysteme {
     DoubleFlux(Option<EchangeurResolu>),
     /// Aération par ouverture des fenêtres (§6.7) : aucun ventilateur ni conduit.
     Aeration,
+    /// Ventilation naturelle par conduits ou hybride (§6.6) ; l'état est
+    /// [`VentilationProjet::naturelle`].
+    Naturelle,
 }
 
 /// Efficacité d'un échangeur.
@@ -289,6 +297,8 @@ pub struct BoucheProjet {
     pub debits_inocc: Option<DebitsBoucheProjet>,
     /// « Dugd » de la bouche, en h par semaine.
     pub dugd_h: f64,
+    /// « Cdep » de la bouche.
+    pub cdep: f64,
     /// « Hcond,rep,ext » ou « Hcond,souf,ext », en W/K.
     pub h_cond_ext_w_k: f64,
     /// Débits du mode actif d'une bouche reliée à une centrale de traitement d'air, en
@@ -509,6 +519,8 @@ pub struct VentilationProjet {
     /// supérieur à celui de l'eau de la boucle, l'énergie cédée à l'air (éq. 415) pouvant alors
     /// dépasser ce que l'eau transporte (Q233 point 2). Contrôlé par la validation.
     pub avertissement_puits_h: Option<String>,
+    /// Ventilation naturelle par conduits ou hybride (§6.6) et son état ; `None` sinon.
+    pub naturelle: Option<EtatNaturelle>,
     /// « θi,fin(h−2) » de chaque groupe, pour le sens de variation du profil à hystérésis.
     theta_prec: Vec<f64>,
     /// Régime du pas de temps en cours.
@@ -640,6 +652,10 @@ impl VentilationProjet {
             }
             // Éq. (162) à (164) ; Kres = 0 (tableau 59, « cas de l'aération et du BBio »).
             SystemeVentilation::Aeration => (NatureSysteme::Aeration, PressionReseau::Haute),
+            // §6.6 : Kres du tableau 59 ; les fuites sont celles du conduit équivalent.
+            SystemeVentilation::NaturelleParConduits(_) | SystemeVentilation::Hybride(_) => {
+                (NatureSysteme::Naturelle, PressionReseau::Haute)
+            }
             _ => return None,
         };
         let aeration = nature == NatureSysteme::Aeration;
@@ -871,6 +887,7 @@ impl VentilationProjet {
                     debits,
                     debits_inocc,
                     dugd_h,
+                    cdep,
                     // Éq. (395), (650), (651), (666) et (667).
                     h_cond_ext_w_k: h_cond_ext_w_k(debits.a_cond_ext_m2(), r),
                     debits_ch,
@@ -913,6 +930,13 @@ impl VentilationProjet {
             // Aération : aucun ventilateur.
             SystemeVentilation::Aeration if non_residentiel => (0.0, 0.0, Some((0.0, 0.0))),
             SystemeVentilation::Aeration => (0.0, 0.0, None),
+            // Ventilation naturelle ou hybride, habitation seulement : la consommation de
+            // l'assistance se relève pas à pas (éq. 708).
+            SystemeVentilation::NaturelleParConduits(_) | SystemeVentilation::Hybride(_)
+                if !non_residentiel =>
+            {
+                (0.0, 0.0, None)
+            }
             // Basse pression : habitation seulement ; CTA : hors habitation seulement.
             _ if non_residentiel => return None,
             SystemeVentilation::Cta(_) => return None,
@@ -947,6 +971,101 @@ impl VentilationProjet {
             _ => None,
         };
         let nb_groupes = zone.groupes.len();
+        // §6.6 : ventilation naturelle par conduits ou hybride.
+        let naturelle = match v.systeme.conduit_naturel() {
+            Some(n) if nature == NatureSysteme::Naturelle => {
+                let reprise = |b: &&BoucheProjet| b.debits.isouf == Isouf::Reprise;
+                let premiere = bouches.iter().find(reprise);
+                let (dugd_h, cdep) =
+                    premiere.map_or((DUGD_DEFAUT_H, CDEP_DEFAUT), |b| (b.dugd_h, b.cdep));
+                let groupe = premiere.map_or(0, |b| b.groupe);
+                let mut d_ou = |champ: &str, valeur: Option<f64>, defaut_v: f64, regle: &str| {
+                    valeur.unwrap_or_else(|| {
+                        valeurs_par_defaut.push(defaut(
+                            format!("ventilation.systeme.{champ}"),
+                            defaut_v,
+                            regle,
+                        ));
+                        defaut_v
+                    })
+                };
+                let h_zone_m = zone.h_zone_m.unwrap_or(0.0);
+                let permea = permea_verticale(zone.usage.i_hebergement(), h_zone_m);
+                let h_mot_m = d_ou(
+                    "h_mot_m",
+                    n.h_mot_m,
+                    h_mot_defaut_m(permea, n.h_cond_m, h_zone_m),
+                    "Th-BCE 2020 §6.6.3.1.5, éq. (699) et (700) : hauteur de tirage thermique par \
+                     défaut",
+                );
+                let lambda_cond = d_ou(
+                    "lambda_cond",
+                    n.lambda_cond,
+                    LAMBDA_COND_DEFAUT,
+                    "Th-BCE 2020 §6.6.2, tableau 65 : « λcond », valeur conventionnelle",
+                );
+                let chi_coude = d_ou(
+                    "chi_coude",
+                    n.chi_coude,
+                    CHI_COUDE_DEFAUT,
+                    "Th-BCE 2020 §6.6.2, tableau 65 : « χcoude », valeur conventionnelle",
+                );
+                let d_pref_pa = d_ou(
+                    "d_pref_pa",
+                    n.d_pref_pa,
+                    D_PREF_DEFAUT_PA,
+                    "Th-BCE 2020 §6.6.2, tableau 65 : « dPref », valeur conventionnelle",
+                );
+                let v_vent_ref_m_s = d_ou(
+                    "extracteur.v_vent_ref_m_s",
+                    n.extracteur.v_vent_ref_m_s,
+                    V_VENT_REF_DEFAUT_M_S,
+                    "Th-BCE 2020 §6.6.2, tableau 65 : « Vvent,réf », valeur conventionnelle",
+                );
+                let a_bouche_eq = match &n.bouche {
+                    crate::entree::BoucheNaturelle::Fixe {
+                        a_sect_base_cm2,
+                        a_sect_pointe_cm2,
+                    } => a_bouche_eq_m2(dugd_h, *a_sect_pointe_cm2, *a_sect_base_cm2),
+                    crate::entree::BoucheNaturelle::Autoreglable { .. } => 0.0,
+                };
+                let conduit = ConduitResolu {
+                    nid: f64::from(n.nb_conduits_identiques),
+                    per_cond_m: n.per_cond_m,
+                    h_cond_m: n.h_cond_m,
+                    h_mot_m,
+                    a_cond_m2: n.a_cond_m2,
+                    lambda_cond,
+                    chi_coude,
+                    d_pref_pa,
+                    bouche: n.bouche.clone(),
+                    a_bouche_eq_m2: a_bouche_eq,
+                    c_extr: n.extracteur.c_extr,
+                    xi_extr: n.extracteur.xi_extr,
+                    v_vent_ref_m_s,
+                    k_res,
+                    ratfuitevc,
+                    r_rep_m2k_w: v.reseau.r_rep_m2k_w.unwrap_or(0.0),
+                    b: v.reseau.b,
+                    cdep,
+                    dugd_h,
+                };
+                // Éq. (706) : débit repris des bouches comme d'un simple flux standard.
+                let q_rep_dep_standard_m3_h = bouches
+                    .iter()
+                    .filter(reprise)
+                    .map(|b| b.debits.q_dep_m3_h)
+                    .sum();
+                Some(EtatNaturelle::nouveau(
+                    conduit,
+                    v.systeme.assistance().cloned(),
+                    groupe,
+                    typologie == TypologieReseau::BatimentCollectif,
+                    q_rep_dep_standard_m3_h,
+                ))
+            }
+            _ => None,
+        };
         // §6.9 et §6.3.3.3.4 : puits hydraulique ; efficacité de la batterie déduite des
         // puissances déclarées aux débits d'air neuf de référence (éq. 399 à 407, `ρref` de la
         // fiche 6.3) ou valeur par défaut (éq. 408).
@@ -1006,14 +1125,16 @@ impl VentilationProjet {
         // Relevé horaire : centrales double flux hors habitation, tout système à
         // surventilation mécanique (puissance variable d'heure en heure, éq. 779 et 780) et tout
         // système à puits hydraulique (pompe, éq. 748 et 749).
-        let releve =
-            (non_residentiel && v.systeme.nom_centrale().is_some() || surv || puits_h.is_some())
-                .then(|| ReleveVentilation {
-                    serie_wh: vec![0.0; NB_HEURES_AN],
-                    mensuel_groupes_kwh: vec![[0.0; 12]; nb_groupes],
-                    dernier_groupes_wh: vec![0.0; nb_groupes],
-                    dernier_wh: 0.0,
-                });
+        let releve = (non_residentiel && v.systeme.nom_centrale().is_some()
+            || surv
+            || puits_h.is_some()
+            || naturelle.as_ref().is_some_and(|n| n.assistance.is_some()))
+        .then(|| ReleveVentilation {
+            serie_wh: vec![0.0; NB_HEURES_AN],
+            mensuel_groupes_kwh: vec![[0.0; 12]; nb_groupes],
+            dernier_groupes_wh: vec![0.0; nb_groupes],
+            dernier_wh: 0.0,
+        });
         let rho_initiale = rho_kg_m3(theta_initiale_c);
         // §6.3.3.4.9.2 : humidificateur d'hiver ; ηhum conventionnel de 0,8 (éq. 530).
         let humidificateur = v
@@ -1102,7 +1223,54 @@ impl VentilationProjet {
             puits_h,
             erreur_puits_h,
             avertissement_puits_h,
+            naturelle,
         })
+    }
+
+    /// Système de ventilation naturelle par conduits ou hybride (§6.6).
+    pub fn est_naturelle(&self) -> bool {
+        self.naturelle.is_some()
+    }
+
+    /// §6.6 : débits du conduit, assistance mécanique et température de l'air repris au pas de
+    /// temps `h`, avec la température et l'humidité de l'extérieur, la vitesse du vent corrigée
+    /// et l'état du groupe desservi et la pression `Pib` du pas précédent (éq. 673 à 714). À
+    /// appeler avant [`VentilationProjet::debits_groupe_pas`] ; sans effet hors ventilation
+    /// naturelle ou hybride.
+    pub fn pas_naturelle(
+        &mut self,
+        h: usize,
+        theta_ext_c: f64,
+        omega_ext_kg_kg: f64,
+        v_vent_c_m_s: f64,
+        p_ib_prec_pa: f64,
+        groupes: &[EtatGroupeVentilation],
+    ) {
+        let Some(n) = &mut self.naturelle else { return };
+        let Some(g) = groupes.get(n.groupe) else {
+            return;
+        };
+        n.pas(&ConditionsPas {
+            conduit: ConditionsConduit {
+                theta_ext_c,
+                rho_ext_kg_m3: rho_humide_kg_m3(theta_ext_c, omega_ext_kg_kg),
+                v_vent_c_m_s,
+                theta_int_prec_c: g.theta_i_fin_c,
+                rho_int_prec_kg_m3: rho_humide_kg_m3(g.theta_i_fin_c, g.omega_i_fin_kg_kg),
+                p_ib_prec_pa,
+            },
+            // Case de scénario de 1 à 24 : le pas de la case `k` commence à l'heure légale `k − 1`.
+            h_leg: date_scenario(h).heure.saturating_sub(1),
+        });
+        // Consommation de l'assistance mécanique, relevée pour le groupe desservi.
+        let (w, groupe) = (n.c_vent_wh, n.groupe);
+        if let Some(r) = &mut self.releve {
+            r.dernier_wh = w;
+            r.dernier_groupes_wh.fill(0.0);
+            if let Some(x) = r.dernier_groupes_wh.get_mut(groupe) {
+                *x = w;
+            }
+        }
     }
 
     /// Fixe le régime du pas de temps avant le calcul des débits des groupes : indicateur de
@@ -1430,6 +1598,14 @@ impl VentilationProjet {
     /// Débits spécifiques d'un groupe au pas de temps en cours (régime fixé par
     /// [`VentilationProjet::preparer_pas`]).
     pub fn debits_groupe_pas(&self, g: usize) -> Debits {
+        // §6.6 : débits du conduit résolus pour le pas (éq. 707).
+        if let Some(n) = &self.naturelle {
+            return if g == n.groupe {
+                n.debits
+            } else {
+                Debits::default()
+            };
+        }
         let d =
             self.bouches
                 .iter()
@@ -1502,6 +1678,10 @@ impl VentilationProjet {
     /// Débits spécifiques d'un groupe selon l'indicateur de ventilation `Ivent` de la zone
     /// (sans effet en habitation).
     pub fn debits_groupe_selon(&self, g: usize, i_vent: bool) -> Debits {
+        // §6.6 : débits moyens des pas calculés (restitution).
+        if let Some(n) = &self.naturelle {
+            return n.debits_moyens(g);
+        }
         let d =
             self.bouches
                 .iter()
@@ -1525,6 +1705,9 @@ impl VentilationProjet {
 
     /// Débits vus par les ventilateurs pour un groupe selon `Ivent`.
     pub fn debits_cond_groupe_selon(&self, g: usize, i_vent: bool) -> Debits {
+        if let Some(n) = &self.naturelle {
+            return n.debits_cond_moyens(g);
+        }
         let d =
             self.bouches
                 .iter()
@@ -1543,6 +1726,9 @@ impl VentilationProjet {
     /// Puissance moyenne totale des ventilateurs du système, en W. Hors habitation, puissance
     /// en occupation.
     pub fn p_vent_w(&self) -> f64 {
+        if let Some(n) = &self.naturelle {
+            return n.puissance_moyenne_w();
+        }
         self.p_vent_rep_w + self.p_vent_sou_w
     }
 
@@ -1614,6 +1800,12 @@ impl VentilationProjet {
                 p_vent_groupe_w(p_vent_w, q, total)
             }
             NatureSysteme::Aeration => 0.0,
+            // §6.6 : puissance moyenne de l'assistance mécanique, pour le seul groupe desservi.
+            NatureSysteme::Naturelle => self
+                .naturelle
+                .as_ref()
+                .filter(|n| n.groupe == g)
+                .map_or(0.0, |n| n.puissance_moyenne_w()),
         }
     }
 
@@ -1905,7 +2097,12 @@ impl VentilationProjet {
         // §6.7.3 : en aération, l'air neuf fourni par la fenêtre est à la température et à
         // l'humidité extérieures (éq. 716 et 718) ; la température de sortie d'un espace tampon
         // (éq. 715) est substituée par la zone, qui la connaît. Ni centrale ni ventilateur.
-        if self.nature == NatureSysteme::Aeration {
+        // §6.6 : en refoulement l'air soufflé est à la température et à l'humidité extérieures
+        // (éq. 713 et 714), déjà posées ; ni centrale ni échangeur.
+        if matches!(
+            self.nature,
+            NatureSysteme::Aeration | NatureSysteme::Naturelle
+        ) {
             return PasVentilation::default();
         }
         let b = self.b;
@@ -2411,6 +2608,7 @@ mod tests {
             debits: debits(100.0),
             debits_inocc: Some(debits(20.0)),
             dugd_h: 14.0,
+            cdep: 1.3,
             h_cond_ext_w_k: 0.0,
             debits_ch: Some((debits(500.0), debits(400.0))),
             taux_an_min: (1.0, 1.0),

@@ -9,9 +9,11 @@
     clippy::float_cmp
 )]
 
+use thbce_core::climat::calendrier::date_scenario;
 use thbce_core::entree::{
-    BatteriePuitsHydraulique, BoucheConduit, Bypass, BypassPuits, ClasseEtancheite, DoubleFlux,
-    Echangeur, EchangeurSimplifie, GestionPuitsHydraulique, Isouf, Projet, Puits, PuitsClimatique,
+    AssistanceMecanique, BatteriePuitsHydraulique, BoucheConduit, BoucheNaturelle, Bypass,
+    BypassPuits, ClasseEtancheite, DoubleFlux, Echangeur, EchangeurSimplifie, ExtracteurStatique,
+    GestionPuitsHydraulique, Hybride, Isouf, NaturelleParConduits, Projet, Puits, PuitsClimatique,
     PuitsHydraulique, RepresentationEchangeur, StatutEchangeur, SystemeVentilation, TypeSolPuits,
     UsageZone, VentilateurSimpleFlux, Zone,
 };
@@ -346,11 +348,7 @@ fn validation_du_systeme_de_ventilation() {
     zone_mut(&mut p).ventilation = None;
     assert_eq!(chemins(&p), ["batiments[0].zones[0].ventilation"]);
     // Systèmes hors de la première version : refusés avec un message explicite.
-    for s in [
-        SystemeVentilation::NaturelleParConduits,
-        SystemeVentilation::Hybride,
-        SystemeVentilation::CentraleTraitementAir,
-    ] {
+    for s in [SystemeVentilation::CentraleTraitementAir] {
         let mut p = projet();
         zone_mut(&mut p).ventilation.as_mut().unwrap().systeme = s;
         let e = valider(&p).erreurs;
@@ -1130,4 +1128,249 @@ fn double_flux_avec_puits_hydraulique_a_la_main() {
 
 fn proche_a(a: f64, b: f64, tol: f64) {
     assert!((a - b).abs() < tol, "{a} au lieu de {b}");
+}
+
+// ---------------------------------------------------------------------------------------------
+// Ventilation naturelle par conduits et ventilation hybride (§6.6)
+// ---------------------------------------------------------------------------------------------
+
+/// Conduit de 0,4 m de périmètre et de 4 m de hauteur équivalente (`hmot` = 6 m par défaut,
+/// éq. 699), bouche fixe de 60 cm² en base et 120 cm² en pointe (`Aboucheeq` = 65 cm² à
+/// `Dugd` = 14 h par semaine, éq. 674), extracteur statique de `ξextr` = 2.
+fn conduit_naturel() -> NaturelleParConduits {
+    NaturelleParConduits {
+        nb_conduits_identiques: 1,
+        per_cond_m: 0.4,
+        h_cond_m: 4.0,
+        h_mot_m: None,
+        a_cond_m2: 5.0,
+        lambda_cond: None,
+        chi_coude: None,
+        d_pref_pa: None,
+        bouche: BoucheNaturelle::Fixe {
+            a_sect_base_cm2: 60.0,
+            a_sect_pointe_cm2: 120.0,
+        },
+        extracteur: ExtracteurStatique {
+            c_extr: [-0.2, -0.1, 0.0, 0.1, 0.2, 0.4, 0.6, 1.0],
+            xi_extr: 2.0,
+            v_vent_ref_m_s: None,
+        },
+    }
+}
+
+fn assistance() -> AssistanceMecanique {
+    AssistanceMecanique {
+        theta_ext_lim_c: 12.0,
+        v_vent_lim_m_s: 4.0,
+        v_vent_reg_m_s: vec![3.0, 2.0, 1.0],
+        theta_ext_reg_c: vec![16.0, 20.0],
+        p_vent_w: vec![vec![10.0, 11.0], vec![20.0, 21.0], vec![30.0, 31.0]],
+        p_vent_pointe_w: 80.0,
+    }
+}
+
+fn naturelle(hybride: bool) -> Projet {
+    let mut p = projet();
+    let v = zone_mut(&mut p).ventilation.as_mut().unwrap();
+    v.systeme = if hybride {
+        SystemeVentilation::Hybride(Hybride {
+            naturelle: conduit_naturel(),
+            assistance: assistance(),
+        })
+    } else {
+        SystemeVentilation::NaturelleParConduits(conduit_naturel())
+    };
+    assert!(valider(&p).est_valide(), "{:?}", valider(&p).erreurs);
+    p
+}
+
+/// Groupe à 20 °C et 0,008 kg/kg à la fin du pas précédent.
+fn groupe_a_20() -> [EtatGroupeVentilation; 1] {
+    [EtatGroupeVentilation {
+        theta_i_fin_c: 20.0,
+        omega_i_fin_kg_kg: 0.008,
+        ..EtatGroupeVentilation::default()
+    }]
+}
+
+#[test]
+fn naturelle_un_pas_a_la_main() {
+    // Résultats d'un calcul indépendant (bissection de l'éq. 673 avec les éq. 674 à 700, 701 et
+    // 707) : ρext(0 °C ; 0,004) = 1,280406, ρint(20 °C ; 0,008) = 1,190145 kg/m³ ; Kres = 0,0675e-3
+    // et Ratfuitevc = 0,25 par défaut, Cdep = 1,15 saisi, Aboucheeq = 0,0065 m².
+    let p = naturelle(false);
+    let mut v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
+    assert!(v.est_naturelle());
+    let etat = groupe_a_20();
+    // Sans vent, 0 °C : qv,cond = 39,967939 m³/h, dPbouche = 3,142546 Pa, fuites −2,670842,
+    // débit repris −42,891662, spécifique −43,559372 m³/h.
+    v.pas_naturelle(11, 0.0, 0.004, 0.0, 0.0, &etat);
+    let d = v.debits_groupe_pas(0);
+    proche_a(d.q_rep_m3_h, -43.559_372, 1e-5);
+    assert_eq!(d.q_souffle_m3_h, 0.0);
+    // Débit vu par le conduit : dep + fuites = −45,562504.
+    let n = v.naturelle.as_ref().unwrap();
+    proche_a(n.q_v_cond_m3_h, 39.967_939, 1e-5);
+    proche_a(n.debits_cond.q_rep_m3_h, -42.891_662 - 2.670_842, 1e-5);
+    // Pression intérieure du pas précédent de 2 Pa : débit 46,891291, spécifique −50,961133.
+    v.pas_naturelle(12, 0.0, 0.004, 0.0, 2.0, &etat);
+    proche_a(v.debits_groupe_pas(0).q_rep_m3_h, -50.961_133, 1e-5);
+    // Vent de 3 m/s, 10 °C : 27,090626 m³/h, spécifique −29,711648 (extracteur : courbe, puis
+    // transition).
+    v.pas_naturelle(13, 10.0, 0.004, 3.0, 0.0, &etat);
+    proche_a(v.debits_groupe_pas(0).q_rep_m3_h, -29.711_648, 1e-5);
+    // Air extérieur plus chaud que l'intérieur (25 °C) : refoulement −19,204600 m³/h, débit
+    // soufflé spécifique 21,167766 m³/h, rien de repris (éq. 704 et 705).
+    v.pas_naturelle(14, 25.0, 0.004, 0.0, 0.0, &etat);
+    let d = v.debits_groupe_pas(0);
+    proche_a(d.q_souffle_m3_h, 21.167_766, 1e-5);
+    assert_eq!(d.q_rep_m3_h, 0.0);
+    // Aucun ventilateur, aucune consommation.
+    assert_eq!(v.p_vent_w(), 0.0);
+    assert!(v.releve.is_none());
+}
+
+#[test]
+fn naturelle_valeurs_par_defaut_signalees() {
+    let p = naturelle(false);
+    let v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
+    let champs: Vec<_> = v
+        .valeurs_par_defaut
+        .iter()
+        .map(|d| d.champ.as_str())
+        .collect();
+    // hmot : maison sans transferts verticaux, hcond + 2 = 6 m.
+    for attendu in [
+        "ventilation.systeme.h_mot_m",
+        "ventilation.systeme.lambda_cond",
+        "ventilation.systeme.chi_coude",
+        "ventilation.systeme.d_pref_pa",
+        "ventilation.systeme.extracteur.v_vent_ref_m_s",
+    ] {
+        assert!(champs.contains(&attendu), "{attendu} absent de {champs:?}");
+    }
+    let h_mot = v
+        .valeurs_par_defaut
+        .iter()
+        .find(|d| d.champ == "ventilation.systeme.h_mot_m")
+        .unwrap();
+    proche(h_mot.valeur, 6.0);
+}
+
+#[test]
+fn hybride_assistance_a_la_main() {
+    let p = naturelle(true);
+    let mut v = VentilationProjet::nouvelle(zone(&p), 18.0).unwrap();
+    assert!(v.releve.is_some());
+    let etat = groupe_a_20();
+    // Case de scénario 12 (11 h à 12 h ; l'itération 0 est la case 2) : grand débit de la cuisine en maison, assistance
+    // mécanique à Pvent,pointe = 80 W. Débit repris d'un simple flux standard : −1,15 × 111,25 =
+    // −127,9375 ; fuites sous dPref = −3600 × 0,0675e-3 × 5 × 20^0,667 = −8,961140 ; éq. 707 :
+    // −127,9375 − 0,25 × 8,961140 = −130,177785 m³/h.
+    assert_eq!(date_scenario(10).heure, 12);
+    v.pas_naturelle(10, 0.0, 0.004, 0.0, 0.0, &etat);
+    proche_a(v.debits_groupe_pas(0).q_rep_m3_h, -130.177_785, 1e-5);
+    assert_eq!(v.naturelle.as_ref().unwrap().c_vent_wh, 80.0);
+    // Hors créneau, vent de 5 m/s : naturel, aucune consommation.
+    v.pas_naturelle(3, 20.0, 0.004, 5.0, 0.0, &etat);
+    assert!(v.debits_groupe_pas(0).q_rep_m3_h > -130.0);
+    assert_eq!(v.naturelle.as_ref().unwrap().c_vent_wh, 0.0);
+    // Hors créneau, vent de 1,5 m/s et 21 °C : assistance, Pvent,2,2 = 21 W, débit de base du
+    // simple flux (éq. 706).
+    v.pas_naturelle(3, 21.0, 0.004, 1.5, 0.0, &etat);
+    proche_a(v.debits_groupe_pas(0).q_rep_m3_h, -130.177_785, 1e-5);
+    assert_eq!(v.naturelle.as_ref().unwrap().c_vent_wh, 21.0);
+    // Cumuls : deux heures d'assistance dont une de grand débit, 101 Wh.
+    let k = v.naturelle.as_ref().unwrap().cumuls;
+    assert_eq!((k.nbh_assistance, k.nbh_grand_debit), (2, 1));
+    proche(k.w_vent_wh, 101.0);
+}
+
+#[test]
+fn naturelle_validation() {
+    let c = "batiments[0].zones[0].ventilation.systeme";
+    // Conduit : plages du tableau 65.
+    let mut p = naturelle(false);
+    let SystemeVentilation::NaturelleParConduits(n) =
+        &mut zone_mut(&mut p).ventilation.as_mut().unwrap().systeme
+    else {
+        panic!("système naturel attendu")
+    };
+    n.nb_conduits_identiques = 0;
+    n.per_cond_m = 0.0;
+    n.bouche = BoucheNaturelle::Autoreglable {
+        d_p_pa: [10.0, 20.0, 15.0, 40.0, 50.0, 60.0],
+        q_v_m3_h: [20.0, 30.0, 25.0, 50.0, 60.0, 70.0],
+    };
+    assert_eq!(
+        chemins(&p),
+        [
+            format!("{c}.naturelle_par_conduits.nb_conduits_identiques"),
+            format!("{c}.naturelle_par_conduits.per_cond_m"),
+            format!("{c}.naturelle_par_conduits.bouche.d_p_pa"),
+            format!("{c}.naturelle_par_conduits.bouche.q_v_m3_h"),
+        ]
+    );
+    // Assistance : matrice incohérente, seuils dans le mauvais ordre.
+    let mut p = naturelle(true);
+    let SystemeVentilation::Hybride(h) =
+        &mut zone_mut(&mut p).ventilation.as_mut().unwrap().systeme
+    else {
+        panic!("système hybride attendu")
+    };
+    h.assistance.p_vent_w.pop();
+    h.assistance.v_vent_reg_m_s = vec![3.0, 5.0, 1.0];
+    h.assistance.theta_ext_reg_c = vec![10.0, 20.0];
+    assert_eq!(
+        chemins(&p),
+        [
+            format!("{c}.hybride.assistance.v_vent_reg_m_s"),
+            format!("{c}.hybride.assistance.theta_ext_reg_c"),
+            format!("{c}.hybride.assistance.p_vent_w"),
+        ]
+    );
+    // Une bouche de soufflage n'a pas sa place.
+    let mut p = naturelle(false);
+    zone_mut(&mut p).groupes[0]
+        .bouches_conduits
+        .push(BoucheConduit {
+            id: "souf".into(),
+            isouf: Isouf::Soufflage,
+            q_spec_conv_pointe_m3_h: 100.0,
+            q_spec_conv_base_m3_h: Some(50.0),
+            qvarep_spec_m3_h: None,
+            dugd_h: None,
+            cdep: None,
+            a_cond_m2: None,
+            q_spec_occ_m3_h: None,
+            q_spec_inocc_m3_h: None,
+            q_spec_ch_m3_h: None,
+            crdbnr: None,
+            q_spec_rafnoc_m3_h: None,
+        });
+    assert_eq!(
+        chemins(&p),
+        [
+            c.to_owned(),
+            "batiments[0].zones[0].ventilation.reseau.r_souf_m2k_w".to_owned()
+        ]
+    );
+    // Un puits ne se raccorde pas à un système naturel.
+    let mut p = naturelle(false);
+    zone_mut(&mut p).ventilation.as_mut().unwrap().puits = Some(Puits::Climatique);
+    assert!(!valider(&p).est_valide());
+}
+
+#[test]
+fn naturelle_hors_habitation_refusee() {
+    let mut p = zone_de_bureaux(None, 100.0);
+    zone_mut(&mut p).ventilation.as_mut().unwrap().systeme =
+        SystemeVentilation::NaturelleParConduits(conduit_naturel());
+    let r = valider(&p);
+    assert!(r
+        .erreurs
+        .iter()
+        .any(|e| e.chemin == "batiments[0].zones[0].ventilation.systeme"
+            && e.message.contains("maison individuelle")));
 }

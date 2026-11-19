@@ -28,6 +28,7 @@ pub mod debits_air_cep;
 pub mod humidification;
 pub mod mecanique_basse_pression;
 pub mod mecanique_sf;
+pub mod naturelle_hybride;
 pub mod puits_climatique;
 pub mod puits_hydraulique;
 pub mod surventilation_mecanique;

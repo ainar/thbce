@@ -68,6 +68,9 @@ pub struct ZoneHoraire {
     etats_mode_actif: Vec<EtatGroupeVentilation>,
     air_souffle: Vec<AirSouffle>,
     etats_ventilation: Vec<EtatGroupeVentilation>,
+    /// « Pib(h−1) » : pression au niveau du plancher de la zone au pas précédent, en Pa (§6.6.3.1.5,
+    /// éq. 698) ; 0 au premier pas.
+    p_ib_prec_pa: f64,
 }
 
 /// Cumuls annuels du système de ventilation du projet d'une zone.
@@ -240,6 +243,7 @@ impl ZoneHoraire {
             etats: Vec::with_capacity(nb),
             air_souffle: vec![AirSouffle::default(); nb],
             etats_ventilation: Vec::with_capacity(nb),
+            p_ib_prec_pa: 0.0,
         })
     }
 
@@ -378,10 +382,21 @@ impl ZoneHoraire {
             let theta_an_c = v.theta_an_c(ext.te_c);
             v.reguler_surventilation(h, theta_an_c, &self.etats_ventilation);
             v.preparer_pas(i_vent, &self.etats_ventilation);
+            // §6.6 : ventilation naturelle ou hybride, avec la pression `Pib` du pas précédent.
+            v.pas_naturelle(
+                h,
+                ext.te_c,
+                c.omega_e_kg_kg,
+                c.v_vent_c_m_s,
+                self.p_ib_prec_pa,
+                &self.etats_ventilation,
+            );
         }
         for (ig, g) in self.groupes.iter_mut().enumerate() {
             match (&self.ventilation, g.debits_bbio_non_residentiel) {
-                (Some(v), _) if v.selon_occupation() || v.surventilation.is_some() => {
+                (Some(v), _)
+                    if v.selon_occupation() || v.surventilation.is_some() || v.est_naturelle() =>
+                {
                     g.debits = v.debits_groupe_pas(ig);
                 }
                 (None, Some((occ, inocc))) => g.debits = if i_vent { occ } else { inocc },
@@ -460,6 +475,8 @@ impl ZoneHoraire {
                     self.id
                 ))
             })?;
+        // Retenue pour la ventilation naturelle ou hybride du pas suivant (éq. 698).
+        self.p_ib_prec_pa = bilan.p_ib_pa;
 
         // §5.5.3, étape 2, figure 20 : d'abord les groupes qui cèdent de l'air au hall (ou qui
         // n'échangent rien avec lui), puis le hall fictif, enfin les groupes qui en reçoivent.

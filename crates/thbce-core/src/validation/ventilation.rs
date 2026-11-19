@@ -636,11 +636,9 @@ pub(super) fn valider_ventilation(
                 valider_echangeur(r, &format!("{cc}.echangeur"), e);
             }
         }
-        SystemeVentilation::NaturelleParConduits | SystemeVentilation::Hybride => r.hors_perimetre(
-            cs.clone(),
-            Some(nom_json(&v.systeme)),
-            "ventilation naturelle par conduits ou hybride (Th-BCE 2020 §6.6)",
-        ),
+        SystemeVentilation::NaturelleParConduits(_) | SystemeVentilation::Hybride(_) => {
+            super::naturelle::valider_naturelle(r, c, v, zone)
+        }
         SystemeVentilation::Aeration => valider_aeration(r, c, v, zone),
         SystemeVentilation::CentraleTraitementAir if !habitation => r.erreur(
             cs.clone(),

@@ -31,6 +31,7 @@ mod enveloppe;
 mod espaces_tampons;
 mod exigences;
 mod generation;
+mod naturelle;
 mod photovoltaique;
 mod puits;
 mod solaire;
