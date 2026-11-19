@@ -279,6 +279,17 @@ fn erreurs_de_saisie_et_refus() {
         e,
         ["batiments[0].zones[0].ventilation.systeme.double_flux.humidificateur"]
     );
+    // Le booléen seul reste un refus (code 3) en habitation, sans erreur de saisie préalable.
+    let mut v = serde_json::to_value(cas("maison-double-flux-ademe")).unwrap();
+    v["batiments"][0]["zones"][0]["ventilation"]["systeme"]["double_flux"]["humidification"] =
+        serde_json::json!(true);
+    let m: Projet = serde_json::from_value(v).unwrap();
+    let (e, hp) = chemins(&m);
+    assert!(hp, "{e:?}");
+    assert_eq!(
+        e,
+        ["batiments[0].zones[0].ventilation.systeme.double_flux.humidification"]
+    );
 }
 
 fn meteo_reglementaire(p: &Projet) -> MeteoProjet {

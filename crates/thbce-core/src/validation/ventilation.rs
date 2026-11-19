@@ -909,6 +909,14 @@ fn valider_humidification(
         ),
     ] {
         match (bool_saisi, decrit) {
+            // En habitation, le booléen seul reste un refus ciblé (code 3), qu'il soit décrit
+            // ou non (lot 1-ven4, reprise de relecture : pas de code 2 puis code 3).
+            (Some(true), false) if habitation => r.hors_perimetre(
+                format!("{c}.{champ}"),
+                Some("true".into()),
+                "humidification et rafraîchissement évaporatif d'un double flux en \
+                 habitation (Th-BCE 2020 §6.3.3.4.9.2 et 6.3.3.4.11)",
+            ),
             (Some(true), false) => r.erreur(
                 format!("{c}.{champ}"),
                 Some("true".into()),
