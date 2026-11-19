@@ -175,13 +175,13 @@ fn somme_des_zones_egale_le_batiment() {
         proche(prod, pv.e_prod_pv_kwh);
         proche(ac, pv.e_prod_pv_ac_kwh);
         proche(exp, pv.e_exportee_kwh);
-        for mois in 0..12 {
+        for (mois, attendu) in pv.e_prod_pv_mensuel_kwh.iter().enumerate() {
             let pm: f64 = s
                 .zones
                 .iter()
                 .map(|z| p(z).produite.mensuel_kwh[mois])
                 .sum();
-            proche(pm, pv.e_prod_pv_mensuel_kwh[mois]);
+            proche(pm, *attendu);
         }
     }
 
