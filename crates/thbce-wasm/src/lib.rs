@@ -43,6 +43,13 @@ export interface OptionsCalcul {
    * série). Faux par défaut : la restitution est alors inchangée.
    */
   series_horaires?: boolean;
+  /**
+   * Restitue en plus, pour chaque bâtiment qui a des générations, les sorties par zone et par
+   * groupe de la fiche 13.2 (`batiments[].sorties_detaillees` : énergie importée et consommée
+   * par poste, production photovoltaïque attribuée, besoins, Cef, Cep, Cep,nr). Faux par
+   * défaut : la restitution est alors inchangée.
+   */
+  sorties_detaillees?: boolean;
 }
 /** Problème relevé dans l'entrée. */
 export interface Probleme {
@@ -82,6 +89,7 @@ export interface ErreurCalcul {
 struct OptionsJs {
     arrondir: Option<bool>,
     series_horaires: Option<bool>,
+    sorties_detaillees: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -187,16 +195,14 @@ pub fn calculer(
     };
     let zone = projet.localisation.zone_climatique_retenue();
     let donnees = meteo::lire(meteo, zone).map_err(|e| erreur("meteo", e.to_string(), None))?;
-    let series_horaires = options.series_horaires.unwrap_or(false);
+    let demandes = thbce_core::Demandes {
+        series: options.series_horaires.unwrap_or(false),
+        sorties_detaillees: options.sorties_detaillees.unwrap_or(false),
+    };
     let options = Options {
         arrondir: options.arrondir.unwrap_or(true),
     };
-    let calcul = if series_horaires {
-        thbce_core::calculer_avec_series
-    } else {
-        thbce_core::calculer
-    };
-    match calcul(&projet, &donnees, &options) {
+    match thbce_core::calculer_avec(&projet, &donnees, &options, &demandes) {
         Ok(resultats) => vers_js(&resultats),
         Err(e) => Err(match &e {
             Erreur::Saisie(r) if r.seulement_hors_perimetre() => erreur(

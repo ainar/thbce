@@ -24,6 +24,7 @@ mod emission_distribution;
 mod enveloppe;
 mod generation;
 mod solaire;
+pub mod sorties_detaillees;
 mod ventilation;
 
 pub use batiment::*;
@@ -176,6 +177,13 @@ pub struct ResultatsBatiment {
     /// `series_horaires` du module WebAssembly ; Q118).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub series_horaires: Option<crate::calcul::series::SeriesHorairesBatiment>,
+    /// Sorties par zone et par groupe de la fiche 13.2 (§13.2.3.3 et §13.2.3.4 : importations,
+    /// consommations, production photovoltaïque attribuée, besoins, Cef, Cep, Cep,nr) ; absentes
+    /// par défaut, présentes à la demande (`calculer_avec`, option `--sorties-detaillees` de la
+    /// ligne de commande, option `sorties_detaillees` du module WebAssembly ; Q116) et pour un
+    /// bâtiment qui a des générations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sorties_detaillees: Option<sorties_detaillees::SortiesDetaillees>,
 }
 
 // Signature imposée par `skip_serializing_if`.
@@ -223,6 +231,9 @@ impl Resultats {
                 i.arrondir();
             }
             if let Some(x) = &mut b.series_horaires {
+                x.arrondir();
+            }
+            if let Some(x) = &mut b.sorties_detaillees {
                 x.arrondir();
             }
             if let Some(x) = &mut b.acv {

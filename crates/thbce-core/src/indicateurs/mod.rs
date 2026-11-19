@@ -22,3 +22,4 @@ pub mod occupants;
 pub mod resultats;
 pub mod sorties_th_b;
 pub mod sorties_th_c;
+pub mod sorties_zones;

@@ -53,6 +53,11 @@ pub struct ResultatCollectif {
     /// éclairage des parties communes, ascenseurs, ventilation des parkings, éclairage des
     /// parkings.
     pub series_batiment_wh: [Vec<f64>; 4],
+    /// Mêmes séries pour chaque zone, dans l'ordre des zones (sorties par zone, fiche 13.2).
+    pub series_zones_wh: Vec<[Vec<f64>; 4]>,
+    /// Consommation horaire des escalators de chaque zone, en Wh ; vide pour une zone sans
+    /// escalator.
+    pub series_escalators_zones_wh: Vec<Vec<f64>>,
 }
 
 /// Cumule une série horaire en Wh en un poste en kWh (annuel et douze mois des scénarios).
@@ -303,7 +308,13 @@ pub fn calculer(
             .map(|h| series_zone.iter().map(|s| s[k][h]).sum())
             .collect()
     });
+    let series_escalators_zones_wh: Vec<Vec<f64>> = series_esc_zone
+        .iter()
+        .map(|s| s.clone().unwrap_or_default())
+        .collect();
     Ok(Some(ResultatCollectif {
+        series_zones_wh: series_zone,
+        series_escalators_zones_wh,
         zones,
         batiment,
         ascenseurs: resultats_ascenseurs,

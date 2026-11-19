@@ -1,0 +1,194 @@
+{
+  "batiments": [
+    {
+      "id": "hotel",
+      "sref_m2": 1200.0,
+      "bbio_pts": 108.3,
+      "cep_kwhep_m2": 161.8,
+      "cep_nr_kwhep_m2": 161.8,
+      "dh_c_h": 1492.2,
+      "ic_energie_kgco2_m2": 191.4,
+      "indicateurs": {
+        "production_pv": {
+          "e_prod_pv_kwh": 22717.7,
+          "e_prod_pv_ac_kwh": 15170.9,
+          "e_exportee_kwh": 7546.8,
+          "tac_pct": 66.8
+        }
+      },
+      "sorties_detaillees": {
+        "zones": [
+          {
+            "id": "nuit",
+            "sref_m2": 900.0,
+            "cef_kwh_m2": 74.3,
+            "cep_kwhep_m2": 171.0,
+            "cep_nr_kwhep_m2": 171.0,
+            "production_pv": {
+              "produite": {
+                "annuel_kwh": 5942.6
+              },
+              "autoconsommee": {
+                "annuel_kwh": 4676.0
+              },
+              "exportee": {
+                "annuel_kwh": 1266.5
+              },
+              "tac_pct": 78.7
+            },
+            "production_pv_variante_sref": {
+              "produite": {
+                "annuel_kwh": 17038.3
+              },
+              "autoconsommee": {
+                "annuel_kwh": 11378.2
+              },
+              "exportee": {
+                "annuel_kwh": 5660.1
+              },
+              "tac_pct": 66.8
+            },
+            "besoins": {
+              "chauffage": {
+                "annuel_kwh": 72967.5
+              },
+              "refroidissement": {
+                "annuel_kwh": 0.0
+              },
+              "ecs": {
+                "annuel_kwh": 34183.8
+              }
+            },
+            "besoins_qsys_thermique": {
+              "chauffage": {
+                "annuel_kwh": 71325.7
+              },
+              "refroidissement": {
+                "annuel_kwh": 0.0
+              }
+            },
+            "importees": [
+              {
+                "poste": "chauffage",
+                "energie": "electricite",
+                "annuel_kwh": 17123.7
+              },
+              {
+                "poste": "ecs",
+                "energie": "electricite",
+                "annuel_kwh": 37174.5
+              },
+              {
+                "poste": "eclairage",
+                "energie": "electricite",
+                "annuel_kwh": 6262.5
+              },
+              {
+                "poste": "auxiliaires_ventilation",
+                "energie": "electricite",
+                "annuel_kwh": 6142.8
+              },
+              {
+                "poste": "auxiliaires_distribution",
+                "energie": "electricite",
+                "annuel_kwh": 207.0
+              },
+              {
+                "poste": "usages_mobiliers",
+                "energie": "electricite",
+                "annuel_kwh": 7435.6
+              }
+            ]
+          },
+          {
+            "id": "jour",
+            "sref_m2": 300.0,
+            "cef_kwh_m2": 58.3,
+            "cep_kwhep_m2": 134.1,
+            "cep_nr_kwhep_m2": 134.1,
+            "production_pv": {
+              "produite": {
+                "annuel_kwh": 16775.2
+              },
+              "autoconsommee": {
+                "annuel_kwh": 10494.9
+              },
+              "exportee": {
+                "annuel_kwh": 6280.3
+              },
+              "tac_pct": 62.6
+            },
+            "production_pv_variante_sref": {
+              "produite": {
+                "annuel_kwh": 5679.4
+              },
+              "autoconsommee": {
+                "annuel_kwh": 3792.7
+              },
+              "exportee": {
+                "annuel_kwh": 1886.7
+              },
+              "tac_pct": 66.8
+            },
+            "besoins": {
+              "chauffage": {
+                "annuel_kwh": 32791.7
+              },
+              "refroidissement": {
+                "annuel_kwh": 0.0
+              },
+              "ecs": {
+                "annuel_kwh": 2830.6
+              }
+            },
+            "besoins_qsys_thermique": {
+              "chauffage": {
+                "annuel_kwh": 32053.9
+              },
+              "refroidissement": {
+                "annuel_kwh": 0.0
+              }
+            },
+            "importees": [
+              {
+                "poste": "chauffage",
+                "energie": "electricite",
+                "annuel_kwh": 7319.9
+              },
+              {
+                "poste": "refroidissement",
+                "energie": "electricite",
+                "annuel_kwh": 1115.2
+              },
+              {
+                "poste": "ecs",
+                "energie": "electricite",
+                "annuel_kwh": 2679.6
+              },
+              {
+                "poste": "eclairage",
+                "energie": "electricite",
+                "annuel_kwh": 3762.0
+              },
+              {
+                "poste": "auxiliaires_ventilation",
+                "energie": "electricite",
+                "annuel_kwh": 2458.5
+              },
+              {
+                "poste": "auxiliaires_distribution",
+                "energie": "electricite",
+                "annuel_kwh": 153.0
+              },
+              {
+                "poste": "usages_mobiliers",
+                "energie": "electricite",
+                "annuel_kwh": 19312.2
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

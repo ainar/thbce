@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 use serde_json::Value;
 use thbce_core::climat::MeteoProjet;
 use thbce_core::entree::Projet;
-use thbce_core::{calculer, Options};
+use thbce_core::{calculer_avec, Demandes, Options};
 use thbce_io::{json, meteo, rapport};
 
 use crate::racine;
@@ -159,8 +159,13 @@ fn un_cas(nom: &str) -> Result<bool, String> {
         println!("{nom} : IGNORÉ (météo réglementaire requise, THBCE_METEO non défini)");
         return Ok(true);
     };
-    let resultats = calculer(&projet, &donnees, &Options::default())
-        .map_err(|e| format!("{nom} : le calcul a échoué : {e}"))?;
+    let resultats = calculer_avec(
+        &projet,
+        &donnees,
+        &Options::default(),
+        &demandes_du_cas(&cas),
+    )
+    .map_err(|e| format!("{nom} : le calcul a échoué : {e}"))?;
     print!("{}", rapport::synthese_indicateurs(&resultats));
     let obtenu = serde_json::to_value(&resultats).map_err(|e| format!("{nom} : {e}"))?;
     let tolerances = cas.get("tolerances").and_then(toml::Value::as_table);
@@ -211,5 +216,16 @@ pub fn commande(noms: &[&str]) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("exemples en écart : {}", echecs.join(", ")))
+    }
+}
+
+/// Sorties facultatives que le cas demande (`sorties_detaillees = true` dans `cas.toml`).
+fn demandes_du_cas(cas: &toml::Table) -> Demandes {
+    Demandes {
+        sorties_detaillees: cas
+            .get("sorties_detaillees")
+            .and_then(toml::Value::as_bool)
+            .unwrap_or(false),
+        ..Demandes::default()
     }
 }

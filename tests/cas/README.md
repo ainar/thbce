@@ -29,6 +29,7 @@ bbio_pts = 0.005        # surcharge par nom de champ
 dh_c_h = 0.01
 ```
 
+- `sorties_detaillees = true` (facultatif) : le cas demande les sorties par zone et par groupe de la fiche 13.2 (`batiments[].sorties_detaillees`) ; l'`attendu.json` peut alors les comparer.
 - `meteo = "re2020"` : le cas a besoin des fichiers météo réglementaires, qui ne sont pas dans le dépôt. Il est **ignoré** si la variable `THBCE_METEO` ne pointe pas vers le fichier CSV ; la CI publique ne l'exécute donc pas.
 - `meteo = "ademe"` : fichier ouvert ADEME / Météo-France de `docs/reference/meteo/ademe/`. Non réglementaire ; sert aux cas exécutés par la CI publique sur une météo réaliste.
 - `meteo = "synthetique"` : jeu constant sans signification physique, réservé aux cas de plomberie.

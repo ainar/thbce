@@ -197,6 +197,12 @@ Resultats { version_moteur, version_methode, reglementaire, origine_meteo_th_bc,
 
 `reglementaire` est faux dès qu'un jeu météo n'est pas celui de la RE2020. Les valeurs sont arrondies à une décimale (§1.3.1, Q8) sauf `--sans-arrondi` (`arrondir: false`).
 
+### Sorties par zone et par groupe (lot 1-sor3, Q116)
+
+Facultatives, absentes par défaut (la restitution est alors inchangée). En ligne de commande : `thbce calcul … --sorties-detaillees` ; dans le module WebAssembly : option `sorties_detaillees: true` de `calculer` ; en Rust : `calculer_avec(…, &Demandes { sorties_detaillees: true, .. })` ; dans `tests/cas/<cas>/cas.toml` : `sorties_detaillees = true`. Elles s'ajoutent aux résultats, pour un bâtiment qui a des générations, en `batiments[].sorties_detaillees = { zones: [ … ] }` (fiche 13.2, éq. 2412 à 2461).
+
+Chaque zone : `id`, `sref_m2`, `importees` et `electricite_consommee` (listes de `{ poste, energie, mensuel_kwh[12], annuel_kwh, annuel_kwh_m2 }` ; postes `chauffage`, `refroidissement`, `ecs`, `eclairage`, `auxiliaires_ventilation`, `auxiliaires_distribution`, `deplacements`, `usages_mobiliers` ; énergies `electricite`, `gaz`, `fioul`, `charbon`, `bois`, `reseau`), `production_pv` et `production_pv_variante_sref` (si le bâtiment a une production : `produite`, `autoconsommee`, `exportee` au même format, `tac_pct`), `cef_kwh_m2`, `cep_kwhep_m2`, `cep_nr_kwhep_m2` (hors usages mobiliers), `besoins` et `besoins_qsys_thermique` (`chauffage`, `refroidissement`, `ecs`, au même format), `groupes`. Chaque groupe : `id`, `sref_m2`, `consommations` (même format ; ni déplacement ni usages mobiliers), `cef_kwh_m2`, `cep_kwhep_m2`, `cep_nr_kwhep_m2`, `besoins`, `besoins_qsys_thermique`. Les lectures (besoins aux bornes des émetteurs ou `Qsys` thermique ; production attribuée au prorata des consommations ou des surfaces ; reste intergroupe réparti au prorata des surfaces) sont dans `docs/questions/Q116.md`. Le forfait de refroidissement n'a pas de valeur mensuelle : l'annuel de la ligne `refroidissement` est supérieur à la somme de ses mois du montant du forfait.
+
 ### Séries horaires (lot 1-sor, Q118)
 
 Facultatives, absentes par défaut (la restitution est alors inchangée). En ligne de commande : `thbce calcul … --horaire <fichier>` écrit les séries dans ce fichier (JSON si le nom finit par `.json`, CSV sinon) et laisse la sortie des résultats telle quelle. Dans le module WebAssembly : option `series_horaires: true` de `calculer`, qui ajoute `batiments[].series_horaires` aux résultats. En Rust : `calculer_avec_series`.
