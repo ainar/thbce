@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Variante de bureaux-simple-flux-ademe (lot 1-sor2) : une cabine d'ascenseur (630 kg, 1 m/s, 6,4 m de course, 2 étages, traction sans réduction, veille par défaut) dessert la zone de bureaux (usage 3, Bv = 1 731,9 voyages/personne/an, tableau 310), sur la météo ouverte ADEME (Tours, H2b). Caractéristiques de la cabine FICTIVES, saisies pour l'exemple."
+source = "aucune : valeurs du moteur au lot 1-sor2 (19 novembre 2026), figées pour détecter les régressions ; ce n'est pas un cas de référence. Recoupements à la main : crates/thbce-core/src/deplacements/ascenseurs.rs et crates/thbce-io/tests/tertiaire.rs. Voir docs/questions/Q119.md"
+meteo = "ademe"
+
+[tolerances]
+defaut = 0.005

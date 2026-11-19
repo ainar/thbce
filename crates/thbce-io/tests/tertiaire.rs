@@ -285,13 +285,17 @@ fn refus() {
     let (c, hors) = chemins(&p);
     assert_eq!(c, ["batiments[0].parkings"]);
     assert!(hors);
-    // Ascenseur desservant la zone de bureaux : hors périmètre.
+    // Ascenseur desservant la zone de bureaux : calculé depuis le lot 1-sor2 (Q119), plus de
+    // refus ; il reste refusé (erreur de saisie) pour la maison individuelle, absente du
+    // tableau 310.
     let mut p = bureaux();
     p.batiments[0].ascenseurs = immeuble.batiments[0].ascenseurs.clone();
     p.batiments[0].ascenseurs[0].zones_desservies = vec!["bureaux".into()];
+    assert!(chemins(&p).0.is_empty());
+    p.batiments[0].zones[0].usage = thbce_core::entree::UsageZone::MaisonIndividuelle;
     let (c, hors) = chemins(&p);
-    assert_eq!(c, ["batiments[0].ascenseurs[0].zones_desservies[0]"]);
-    assert!(hors);
+    assert!(c.contains(&"batiments[0].ascenseurs[0].zones_desservies[0]".to_owned()));
+    assert!(!hors);
 
     // Erreurs de saisie : locaux d'éclairage absents ; type de local d'un autre usage ; ratios
     // qui ne somment pas à 1 ; champs de l'habitation sur une bouche ; puissances de base et
@@ -464,3 +468,70 @@ const BBIO: f64 = 82.9;
 const DH: f64 = 688.7;
 const CEP: f64 = 66.8;
 const IC: f64 = 349.8;
+
+/// Ascenseur d'une zone non résidentielle (fiche 10.1, Q119) : `tests/cas/bureaux-ascenseur-ademe`.
+/// Relations du texte vérifiées à la main (éq. 2274, 2282, 2283, 2291, 2293, 2303, 2304).
+#[test]
+fn ascenseur_des_bureaux() {
+    let chemin = racine().join("tests/cas/bureaux-ascenseur-ademe/entree.json");
+    let p = json::lire_projet(&std::fs::read_to_string(chemin).unwrap()).unwrap();
+    assert!(valider(&p).est_valide());
+    let r = calcul(&p);
+    let b = &r.batiments[0];
+    let a = &b.ascenseurs[0];
+    // Éq. (2282) et (2283) : une cabine, une zone : BVNB = Bv(3)·NB ; Ndem = BVNB·75/(Q·0,2),
+    // avec Bv(3) = 1 731,9 (tableau 310) et NB le nombre maximal d'occupants des scénarios.
+    let nb = thbce_core::deplacements::nb_max_occupants(&p.batiments[0].zones[0]).unwrap();
+    let ndem = 1731.9 * nb * 75.0 / (630.0 * 0.2);
+    assert!((a.nb_demarrages - ndem).abs() < 1e-6 * ndem);
+    // Éq. (2291) : Tmob = (Ch·H/V + V/a)·Ndem, Ch = (2+1)/(2+2)·1,1, a = 0,5 m/s² (tableau 312).
+    let t_mob = (0.75 * 1.1 * 6.4 + 1.0 / 0.5) * ndem;
+    assert!((a.t_mob_h - t_mob / (365.0 * 3600.0)).abs() < 1e-9);
+    // Éq. (2274), tableau 316 : Pti = 75 + 3·2 + 13 + 5 + 140 + 10 = 249 W, signalée par défaut.
+    assert_eq!(a.pti_w, 249.0);
+    assert!(a
+        .valeurs_par_defaut
+        .iter()
+        .any(|v| v.champ == "pti_w" && v.valeur == 249.0));
+    // Éq. (2303) sans veille : Eti = Pti·Timmob, quelle que soit la répartition jour/nuit.
+    let eti_kwh = 249.0 * (8760.0 - t_mob / 3600.0) / 1000.0;
+    assert!((a.e_ti_kwh - eti_kwh).abs() < 1e-6 * eti_kwh);
+    assert!((a.e_tot_kwh - a.e_tm_kwh - a.e_ti_kwh).abs() < 1e-9);
+    // Le poste « déplacements » du relevé électrique porte la cabine ; pas de parties communes.
+    let c = b.consommations_collectif.as_ref().unwrap();
+    assert!((c.ascenseurs.annuel_kwh - a.e_tot_kwh).abs() < 1e-6);
+    assert_eq!(c.eclairage_parties_communes.annuel_kwh, 0.0);
+    let dep = b
+        .indicateurs
+        .as_ref()
+        .unwrap()
+        .electricite_consommee
+        .deplacements_kwh;
+    assert!((dep - a.e_tot_kwh).abs() < 1e-6);
+    // Les besoins ne changent pas : l'ascenseur ne rejette aucun apport interne (Q50 point 12).
+    let sans = calcul(&bureaux());
+    assert_eq!(sans.batiments[0].bbio_pts, b.bbio_pts);
+    assert_eq!(sans.batiments[0].dh_c_h, b.dh_c_h);
+    assert!(b.cep_kwhep_m2.unwrap() > sans.batiments[0].cep_kwhep_m2.unwrap());
+}
+
+/// Valeurs phares de l'ascenseur des bureaux sur la météo réglementaire (Q119).
+#[test]
+#[ignore = "météo réglementaire absente du dépôt (THBCE_METEO)"]
+fn ascenseur_des_bureaux_sur_meteo_reglementaire() {
+    let chemin = racine().join("tests/cas/bureaux-ascenseur-ademe/entree.json");
+    let p = json::lire_projet(&std::fs::read_to_string(chemin).unwrap()).unwrap();
+    let r = calculer(&p, &meteo_reglementaire(&p), &Options { arrondir: false }).unwrap();
+    let [bbio, dh, cep, cep_nr, ic] = phares(&r);
+    let a = &r.batiments[0].ascenseurs[0];
+    println!(
+        "ASC réglementaire : Bbio {bbio:.1} ; DH {dh:.1} ; Cep {cep:.1} ; Cep,nr {cep_nr:.1} ; Ic {ic:.1} ; Etot {:.1}",
+        a.e_tot_kwh
+    );
+    let proche = |a: f64, b: f64| (a - b).abs() <= 0.05 + 1e-9;
+    // Bbio et DH comme sans ascenseur ; Cep +6,3 et Ic énergie +6,9 (2 718,2 kWh d'électricité).
+    assert!(proche(bbio, BBIO) && proche(dh, DH));
+    assert!(proche(cep, 73.1) && proche(cep_nr, 73.1), "Cep {cep}");
+    assert!(proche(ic, 356.7), "Ic énergie {ic}");
+    assert!((a.e_tot_kwh - 2718.2).abs() < 0.05);
+}

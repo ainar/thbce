@@ -80,3 +80,24 @@ fn escalator_valeurs_requises_et_zone_inconnue() {
         .iter()
         .any(|c| c.contains("escalators[0].zones_desservies")));
 }
+
+#[test]
+fn trois_machines_sans_donnee_de_veille_eq_2323() {
+    // Éq. (2323) : 88 W par machine sans scénario de veille (lecture retenue, Q115 point 2).
+    let mut p = cas();
+    for e in &mut p.batiments[0].escalators {
+        e.sc_veille = false;
+        e.etat_fermeture = None;
+        e.p_standby_w = None;
+        e.p_autostart_w = None;
+    }
+    let r = calcul(&p);
+    let e = r.batiments[0].escalators.as_ref().unwrap();
+    assert_eq!(e.p_off_w, 3.0 * 88.0);
+    // Heures de fermeture : 264 W ; la variante littérale (88 W pour l'ensemble) retirerait
+    // (264 − 88) W sur ces heures.
+    let nb_fermees = 8760.0 - e.nb_h_occupation as f64;
+    let kwh_variante = e.e_tot_kwh - nb_fermees * (264.0 - 88.0) / 1000.0;
+    assert!((e.e_tot_kwh - 23_770.4).abs() < 0.1);
+    assert!((kwh_variante - 23_000.0).abs() < 1.0);
+}

@@ -127,7 +127,7 @@ Facultatif ; l'éclairage des parties communes (§7.2) ne demande aucune saisie 
 ```
 Batiment
 ├── ascenseurs[]   { id, tech_mac: traction_avec_reduction | traction_sans_reduction | hydraulique | autre,
-│                    q_kg (≥ 75), v_m_s (≤ 2,5), h_m, netage (≥ 2), cp?, zones_desservies[] (zones de LC),   §10.1
+│                    q_kg (≥ 75), v_m_s (≤ 2,5), h_m, netage (≥ 2), cp?, zones_desservies[] (usages 2 à 28), §10.1
 │                    sc_veille?, pti_w?, dp1_w?, t1_s?, dp2_w?, t2_s? }
 └── parkings[]     { id, type_parking: interieur | exterieur, npl, net,                                       §10.3, §10.4
                      ventilation? { regulee, p_vent600_w_par_place? },
