@@ -401,6 +401,16 @@ export interface BesoinsBbio {
   bbio_pts: number;
 }
 
+/** Besoins en énergie d'un niveau (éq. 2418 à 2420 et 2438 à 2440), en kWh. */
+export interface BesoinsSortie {
+  /** `O_B_Ch` : chauffage. */
+  chauffage: SerieMensuelle;
+  /** `O_B_Ecs` : ECS (`Qw,brut`). */
+  ecs: SerieMensuelle;
+  /** `O_B_Fr` : refroidissement (valeur absolue). */
+  refroidissement: SerieMensuelle;
+}
+
 /** Bilan de la production photovoltaïque du bâtiment (§13.4.3.5). */
 export interface BilanProductionPv {
   /**
@@ -2909,6 +2919,29 @@ export interface LigneBilanEnergie {
   poste: string;
 }
 
+/**
+ * Énergie finale d'un poste pour une énergie : importée (zone) ou consommée (groupe, ou
+ * électricité consommée de la zone).
+ */
+export interface LigneSortie {
+  /**
+   * Valeur annuelle, en kWh : somme des mois, plus le forfait de refroidissement (§13.3,
+   * annuel seulement) pour l'électricité du refroidissement.
+   */
+  annuel_kwh: number;
+  /** Valeur annuelle par m² de surface de référence du niveau, en kWh/m². */
+  annuel_kwh_m2: number;
+  /** Énergie : `electricite`, `gaz`, `fioul`, `charbon`, `bois` ou `reseau`. */
+  energie: string;
+  /** Valeur de chacun des douze mois, en kWh. */
+  mensuel_kwh: number[];
+  /**
+   * Poste : `chauffage`, `refroidissement`, `ecs`, `eclairage`, `auxiliaires_ventilation`,
+   * `auxiliaires_distribution`, `deplacements` ou `usages_mobiliers` (zone seulement).
+   */
+  poste: string;
+}
+
 /** « Lim_Theta » (§8.23.3.7.3) : limites de fonctionnement d'un mode. */
 export interface LimitesPac {
   /** Combinaison des deux limites. */
@@ -3783,6 +3816,24 @@ export interface PostesElectricite {
   refroidissement_kwh: number;
 }
 
+/**
+ * Production photovoltaïque attribuée à une zone, éq. (2433), (2435), (2437), (2447), (2449),
+ * (2451) et (2453).
+ */
+export interface ProductionPvZone {
+  /**
+   * `O_Eef_prod_PV_AC` : part autoconsommée (éq. 2532 à 2534 : taux d'autoconsommation du
+   * bâtiment à chaque pas, appliqué à la production attribuée).
+   */
+  autoconsommee: SerieMensuelle;
+  /** `O_Eef_Elec_Exportee` (éq. 2437). */
+  exportee: SerieMensuelle;
+  /** `O_Eef_prod_PV` : production attribuée à la zone. */
+  produite: SerieMensuelle;
+  /** `O_TAC_elec_PV_annuel` (éq. 2453), en % ; nul sans production. */
+  tac_pct: number;
+}
+
 /** Th-BCE 2020 §8.5 — programmation des relances d'un groupe. */
 export interface Programmation {
   /** « Typepgrm_ch » : programmation de la relance du chauffage (tableau 92). */
@@ -4520,6 +4571,14 @@ export interface ResultatsBatiment {
    * `series_horaires` du module WebAssembly ; Q118).
    */
   series_horaires?: SeriesHorairesBatiment | null;
+  /**
+   * Sorties par zone et par groupe de la fiche 13.2 (§13.2.3.3 et §13.2.3.4 : importations,
+   * consommations, production photovoltaïque attribuée, besoins, Cef, Cep, Cep,nr) ; absentes
+   * par défaut, présentes à la demande (`calculer_avec`, option `--sorties-detaillees` de la
+   * ligne de commande, option `sorties_detaillees` du module WebAssembly ; Q116) et pour un
+   * bâtiment qui a des générations.
+   */
+  sorties_detaillees?: SortiesDetaillees | null;
   /** « SREF_bat » : surface de référence, en m² (Th-BCE 2020 §13.1.3, éq. 2378). */
   sref_m2: number;
   /** Résultats par zone. */
@@ -5667,6 +5726,19 @@ export interface ResultatsZone {
 /** Th-BCE 2020 §10.2.2, tableau 318 : sens de transport d'une machine. */
 export type SensEscalator = "montee" | "descente";
 
+/** Quantité mensuelle (douze mois des scénarios) et annuelle, en kWh. */
+export interface SerieMensuelle {
+  /**
+   * Valeur annuelle, en kWh : somme des mois, plus le forfait de refroidissement (§13.3,
+   * annuel seulement) pour l'électricité du refroidissement.
+   */
+  annuel_kwh: number;
+  /** Valeur annuelle par m² de surface de référence du niveau, en kWh/m². */
+  annuel_kwh_m2: number;
+  /** Valeur de chacun des douze mois, en kWh. */
+  mensuel_kwh: number[];
+}
+
 /** Séries horaires d'un bâtiment, calculées sur le jeu météo « Th-BC » (calcul Th-C). */
 export interface SeriesHorairesBatiment {
   /**
@@ -5675,6 +5747,74 @@ export interface SeriesHorairesBatiment {
    * (`cef.<poste>.<énergie>`, colonnes nulles omises).
    */
   colonnes: ColonneHoraire[];
+}
+
+/** Sorties détaillées d'un bâtiment, dans l'ordre des zones. */
+export interface SortiesDetaillees {
+  /** Zones du bâtiment. */
+  zones: SortiesZone[];
+}
+
+/** Sorties d'un groupe (§13.2.3.3) : quantités consommées, sans production ni importation. */
+export interface SortiesGroupe {
+  /**
+   * Besoins `O_B_*` : énergie requise aux bornes des émetteurs, éq. (2498) (lecture retenue,
+   * Q116) ; `Qw,brut` pour l'ECS.
+   */
+  besoins: BesoinsSortie;
+  /**
+   * Variante de la lecture des besoins : `Qsys` thermique du groupe (éq. 2379 et 2380, le
+   * besoin du Bbio), sans le rendement ni les pertes au dos des émetteurs. L'ECS est inchangée.
+   */
+  besoins_qsys_thermique: BesoinsSortie;
+  /** `O_Cef_annuel` (éq. 2425), en kWh/m². */
+  cef_kwh_m2: number;
+  /** `O_Cep_annuel` (éq. 2426), en kWhep/m². */
+  cep_kwhep_m2: number;
+  /** Consommation d'énergie primaire non renouvelable, en kWhep/m² (même forme que l'éq. 2458). */
+  cep_nr_kwhep_m2: number;
+  /**
+   * Consommations par poste et par énergie (éq. 2416, 2417, 2421, 2422) ; ni déplacement des
+   * occupants ni usages mobiliers au niveau du groupe. Les auxiliaires des réseaux
+   * intergroupes et des centrales de traitement d'air, qui ne dépendent pas d'un seul groupe,
+   * sont répartis au prorata des surfaces de référence (Q116).
+   */
+  consommations: LigneSortie[];
+  /** Identifiant du groupe. */
+  id: string;
+  /** `SREF^gr`, en m² (éq. 2412 et 2413). */
+  sref_m2: number;
+}
+
+/** Sorties d'une zone (§13.2.3.4) : quantités importées, et électricité consommée. */
+export interface SortiesZone {
+  /** Besoins `O_B_*` de la zone (éq. 2438 à 2440 : somme des groupes pondérée par `SREF^gr`). */
+  besoins: BesoinsSortie;
+  /** Variante de la lecture des besoins (`Qsys` thermique). */
+  besoins_qsys_thermique: BesoinsSortie;
+  /** `O_Cef_annuel` (éq. 2456), en kWh/m² ; sans usages mobiliers (éq. 2446). */
+  cef_kwh_m2: number;
+  /** `O_Cep_annuel` (éq. 2457), en kWhep/m². */
+  cep_kwhep_m2: number;
+  /** `O_Cepnr_annuel` (éq. 2458), en kWhep/m². */
+  cep_nr_kwhep_m2: number;
+  /** Électricité consommée (part importée et part autoproduite) par poste (éq. 2432, 2443). */
+  electricite_consommee: LigneSortie[];
+  /** Sorties de chaque groupe de la zone. */
+  groupes: SortiesGroupe[];
+  /** Identifiant de la zone. */
+  id: string;
+  /** Énergie finale importée par poste et par énergie (éq. 2430, 2431, 2441, 2442). */
+  importees: LigneSortie[];
+  /**
+   * Production photovoltaïque attribuée à la zone, au prorata des consommations horaires
+   * d'électricité de la zone (lecture retenue, Q116) ; absente sans production.
+   */
+  production_pv?: ProductionPvZone | null;
+  /** Variante : production attribuée au prorata des surfaces de référence. */
+  production_pv_variante_sref?: ProductionPvZone | null;
+  /** `SREF^zn`, en m² (éq. 2414). */
+  sref_m2: number;
 }
 
 /** « idamont-air-type » (§8.26.3.3.1) : source amont sur air. */

@@ -240,6 +240,46 @@ fn repartir(
         .collect()
 }
 
+/// Coefficients `CoefEP` et `CoefEPnr` de l'électricité (tableau 333).
+pub fn coefficients_electricite() -> (f64, f64) {
+    let v = Vecteur::Electricite(UsageElectricite::AutresUsages);
+    (coef_ep(v), coef_ep_nr(v))
+}
+
+/// Coefficients `(CoefEP, CoefEPnr)` moyens de chaque colonne non électrique (gaz, fioul,
+/// charbon, bois, réseau), pour le chauffage, le refroidissement et l'ECS du bâtiment, pondérés
+/// par les consommations des générateurs (même répartition que `repartir`). Servent aux sorties
+/// par zone et par groupe (Q116), qui n'ont pas la décomposition par générateur.
+pub fn coefficients_moyens(
+    bat: &Batiment,
+    generations: &[ResultatsGeneration],
+    consommations: &ConsommationsPostes,
+) -> [[(f64, f64); 5]; 3] {
+    let postes: [(ChoixPoste, bool); 3] = [
+        (|c| &c.chauffage, false),
+        (|c| &c.refroidissement, true),
+        (|c| &c.ecs, false),
+    ];
+    let mut tab = [[(0.0, 0.0); 5]; 3];
+    for (p, (choisir, froid)) in postes.into_iter().enumerate() {
+        for (k, col) in Colonne::TOUTES.into_iter().enumerate() {
+            let total = col.valeur(choisir(consommations)).max(0.0);
+            let parts = if total > 0.0 {
+                repartir(bat, generations, choisir, col, froid, total)
+            } else {
+                vec![(col.defaut(froid), 1.0)]
+            };
+            let somme: f64 = parts.iter().map(|(_, q)| q).sum();
+            if somme > 0.0 {
+                let ep: f64 = parts.iter().map(|(v, q)| q * coef_ep(v.vecteur)).sum();
+                let nr: f64 = parts.iter().map(|(v, q)| q * coef_ep_nr(v.vecteur)).sum();
+                tab[p][k] = (ep / somme, nr / somme);
+            }
+        }
+    }
+    tab
+}
+
 /// Bâtiment raccordé à un réseau de chaleur urbain : une de ses générations comprend une
 /// sous-station de réseau de chaleur.
 pub fn raccorde_rcu(bat: &Batiment) -> bool {

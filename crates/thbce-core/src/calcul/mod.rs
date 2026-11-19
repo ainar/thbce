@@ -22,6 +22,9 @@ use crate::erreur::Erreur;
 use crate::indicateurs::bilans_energies::{bilan, poste, ReleveElectrique};
 use crate::indicateurs::sorties_th_b::{sorties, EnergiesMensuelles};
 use crate::indicateurs::sorties_th_c::{calculer_indicateurs, EntreesIndicateurs};
+use crate::indicateurs::sorties_zones::{
+    calculer as calculer_sorties, EntreesSorties, ReleveZones,
+};
 use crate::pv::global::produire;
 use crate::pv::ResultatsProductionPv;
 use crate::resultats::{
@@ -63,6 +66,15 @@ impl Default for Options {
     }
 }
 
+/// Sorties facultatives demandées à [`calculer_avec`] ; aucune par défaut.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Demandes {
+    /// Séries horaires principales de chaque bâtiment (`series_horaires` ; Q118).
+    pub series: bool,
+    /// Sorties par zone et par groupe de la fiche 13.2 (`sorties_detaillees` ; Q116).
+    pub sorties_detaillees: bool,
+}
+
 /// Contrôles communs à tout calcul : validité de l'entrée, usages pris en charge, données
 /// météo de la zone climatique du projet.
 fn verifier(
@@ -100,7 +112,18 @@ pub fn calculer(
     meteo: &MeteoProjet,
     options: &Options,
 ) -> Result<Resultats, Erreur> {
-    calculer_selon(projet, meteo, options, false)
+    calculer_selon(projet, meteo, options, &Demandes::default())
+}
+
+/// Comme [`calculer`], et restitue en plus les sorties facultatives de `demandes`. Les autres
+/// résultats sont identiques à ceux de [`calculer`].
+pub fn calculer_avec(
+    projet: &Projet,
+    meteo: &MeteoProjet,
+    options: &Options,
+    demandes: &Demandes,
+) -> Result<Resultats, Erreur> {
+    calculer_selon(projet, meteo, options, demandes)
 }
 
 /// Comme [`calculer`], et restitue en plus les séries horaires principales de chaque bâtiment
@@ -112,15 +135,24 @@ pub fn calculer_avec_series(
     meteo: &MeteoProjet,
     options: &Options,
 ) -> Result<Resultats, Erreur> {
-    calculer_selon(projet, meteo, options, true)
+    calculer_selon(
+        projet,
+        meteo,
+        options,
+        &Demandes {
+            series: true,
+            ..Demandes::default()
+        },
+    )
 }
 
 fn calculer_selon(
     projet: &Projet,
     meteo: &MeteoProjet,
     options: &Options,
-    avec_series: bool,
+    demandes: &Demandes,
 ) -> Result<Resultats, Erreur> {
+    let avec_series = demandes.series;
     let rapport = verifier(projet, meteo)?;
     // Fiche 5.11 : la classe d'exposition au bruit déduite des baies prend la place de la saisie
     // absente (Q202).
@@ -174,6 +206,8 @@ fn calculer_selon(
         // horaires du calcul des indicateurs (§13.4).
         let mut releve = ReleveElectrique::default();
         let mut collecteur: Option<series::Collecteur> = None;
+        // Fiche 13.2 : relevé par zone et par groupe, à la demande seulement.
+        let mut releve_zones: Option<ReleveZones> = None;
         let th_c = simuler_batiment_avec(
             bat,
             projet,
@@ -182,6 +216,11 @@ fn calculer_selon(
             &confort_th_bc,
             |h, b| {
                 releve.relever(h, b);
+                if demandes.sorties_detaillees {
+                    releve_zones
+                        .get_or_insert_with(|| ReleveZones::nouveau(b))
+                        .relever(h, b);
+                }
                 if avec_series {
                     collecteur
                         .get_or_insert_with(|| series::Collecteur::nouveau(b))
@@ -240,30 +279,52 @@ fn calculer_selon(
                 releve.ajouter_serie(poste::ECL, ecl_park);
                 // Éq. (2513) : les escalators sont comptés avec les ascenseurs.
                 releve.ajouter_serie(poste::DEPL, &c.serie_escalators_wh);
+                if let Some(rz) = &mut releve_zones {
+                    for (iz, s) in c.series_zones_wh.iter().enumerate() {
+                        rz.ajouter_serie(iz, poste::ECL, &s[0]);
+                        rz.ajouter_serie(iz, poste::DEPL, &s[1]);
+                        rz.ajouter_serie(iz, poste::AUX_VENT, &s[2]);
+                        rz.ajouter_serie(iz, poste::ECL, &s[3]);
+                    }
+                    for (iz, s) in c.series_escalators_zones_wh.iter().enumerate() {
+                        rz.ajouter_serie(iz, poste::DEPL, s);
+                    }
+                }
                 (Some(c.batiment), c.ascenseurs, c.parkings, c.escalators)
             }
             None => (None, Vec::new(), Vec::new(), None),
         };
         // Éq. (2504) : ventilateurs des centrales, de puissance constante en habitation ; hors
         // habitation, puissance d'occupation ou d'inoccupation à chaque pas (éq. 636 à 639).
-        for (z, zc) in zones.iter().zip(&th_c.zones) {
+        for (iz, (z, zc)) in zones.iter().zip(&th_c.zones).enumerate() {
             if let Some(v) = &z.ventilation {
                 let serie = zc
                     .ventilation
                     .as_ref()
                     .and_then(|vp| ventilation::puissance_horaire_w(vp, &zc.scenarios));
                 match serie {
-                    Some(serie) => releve.ajouter_serie(poste::AUX_VENT, &serie),
-                    None => releve.ajouter_constante(poste::AUX_VENT, v.p_vent_w),
+                    Some(serie) => {
+                        releve.ajouter_serie(poste::AUX_VENT, &serie);
+                        if let Some(rz) = &mut releve_zones {
+                            rz.ajouter_serie_centrales(iz, &serie);
+                        }
+                    }
+                    None => {
+                        releve.ajouter_constante(poste::AUX_VENT, v.p_vent_w);
+                        if let Some(rz) = &mut releve_zones {
+                            rz.ajouter_constante_centrales(iz, v.p_vent_w);
+                        }
+                    }
                 }
             }
         }
         // Fiche 4.7 : usages mobiliers, pour la consommation « tous usages » (éq. 2515).
-        for z in &bat.zones {
-            releve.ajouter_serie(
-                poste::MOB,
-                &crate::indicateurs::equipements_mobiliers::consommation_horaire_wh(z)?,
-            );
+        for (iz, z) in bat.zones.iter().enumerate() {
+            let serie = crate::indicateurs::equipements_mobiliers::consommation_horaire_wh(z)?;
+            releve.ajouter_serie(poste::MOB, &serie);
+            if let Some(rz) = &mut releve_zones {
+                rz.ajouter_serie(iz, poste::MOB, &serie);
+            }
         }
         // §12 : production sur le jeu météo « Th-BC » (comme les consommations).
         let productions: Vec<_> = bat
@@ -342,6 +403,43 @@ fn calculer_selon(
                 bat.id
             ));
         }
+        // Fiche 13.2 : sorties par zone et par groupe, si elles sont demandées.
+        let sorties_detaillees = match (releve_zones, indicateurs.as_ref()) {
+            (Some(rz), Some(i)) => Some(calculer_sorties(
+                &EntreesSorties {
+                    batiment: bat,
+                    th_c: &th_c,
+                    zones: &zones,
+                    total_horaire: &releve.horaire,
+                    prod_pv_wh: &prod_pv_wh,
+                    indicateurs: i,
+                    generations: &generations,
+                    consommations_bat: &consommations_bat.annuel,
+                },
+                rz,
+            )),
+            _ => {
+                if demandes.sorties_detaillees {
+                    avertissements.push(format!(
+                        "bâtiment {} : sans génération, les sorties détaillées par zone et par \
+                         groupe ne sont pas calculées",
+                        bat.id
+                    ));
+                }
+                None
+            }
+        };
+        if sorties_detaillees.as_ref().is_some_and(|s| {
+            s.zones
+                .iter()
+                .any(|z| z.importees.iter().any(|l| l.energie == "bois"))
+        }) {
+            avertissements.push(format!(
+                "bâtiment {} : sorties détaillées, la ligne par générateur au bois de la zone \
+                 (éq. 2444) n'est pas restituée ; le bois est cumulé par poste (docs/questions/Q116.md)",
+                bat.id
+            ));
+        }
         let ic_energie_kgco2_m2 = indicateurs.as_ref().and_then(|i| i.ic_energie_kgco2_m2);
         let mut indicateurs = indicateurs;
         let acv = bat.acv.as_ref().map(|d| {
@@ -395,6 +493,7 @@ fn calculer_selon(
             indicateurs,
             acv,
             series_horaires,
+            sorties_detaillees,
             consommations_collectif: conso_collectif,
             ascenseurs,
             escalators,
