@@ -501,6 +501,13 @@ export interface BoucheConduit {
    */
   q_spec_occ_m3_h?: number | null;
   /**
+   * « qspec,rep,rafnoc » ou « qspec,souf,rafnoc » (selon `isouf`) : débit volumique
+   * spécifique de la bouche en rafraîchissement par surventilation mécanique, en m³/h,
+   * positif (§6.12.2, éq. 758 et 759). Requis pour chaque bouche d'un système qui porte
+   * `rafraichissement_surventilation`, sans objet sinon.
+   */
+  q_spec_rafnoc_m3_h?: number | null;
+  /**
    * « Qvarepspec » : débit de l'avis technique d'un système hygroréglable, en m³/h
    * (§6.2.3.1.1.2). Le débit de base en est déduit ; ne pas saisir alors
    * `q_spec_conv_base_m3_h`.
@@ -907,6 +914,43 @@ export type ConfigurationRecuperateur = "individuelle" | "collective";
 export type ConfinementPv = "libre" | "autre" | "confine";
 
 /**
+ * Consignes du rafraîchissement par surventilation mécanique pour une saison (§6.12.2,
+ * tableau 75 : indices « été » et « mis »).
+ */
+export interface ConsignesSurventilation {
+  /**
+   * « Δθlim_rafnoc » : écart limite entre les températures intérieure et extérieure pour
+   * autoriser le rafraîchissement, en K (−20 à 50).
+   */
+  delta_theta_lim_k: number;
+  /**
+   * « hleg,deb_rafnoc » : heure légale (début de pas de temps) de début de la période de
+   * rafraîchissement nocturne, de 21 à 23 ou de 0 à 8 (éq. 767). Requise pour un
+   * rafraîchissement nocturne, sans objet en freecooling (note de l'éq. 770).
+   */
+  h_leg_deb_h?: number | null;
+  /**
+   * « hleg,fin_rafnoc » : heure légale (début de pas de temps) de fin de la période de
+   * rafraîchissement nocturne, de 21 à 23 ou de 0 à 8, ultérieure à l'heure de début sur la
+   * période nuit (éq. 767).
+   */
+  h_leg_fin_h?: number | null;
+  /**
+   * « θext_rafnoc » : température extérieure limite (basse) pour autoriser le
+   * rafraîchissement, en °C (−20 à 50) ; −20 °C modélise l'absence de sécurité sur la
+   * température extérieure.
+   */
+  theta_ext_c: number;
+  /** « θsd_arr_rafnoc » : température intérieure (sonde) d'arrêt, en °C (−20 à 50). */
+  theta_sd_arr_c: number;
+  /**
+   * « θsd_dec_rafnoc » : température intérieure (sonde) de déclenchement, en °C (−20 à
+   * 50) ; −20 °C modélise l'absence de mesure de température intérieure (§6.12.3.3, notes).
+   */
+  theta_sd_dec_c: number;
+}
+
+/**
  * Consommations en énergie finale, annuelles et mensuelles (mois des scénarios), des
  * générations d'un bâtiment attribuées à un groupe, à une zone ou au bâtiment, ou d'une
  * génération (§8.29, éq. 1497 à 1514).
@@ -1066,13 +1110,18 @@ export interface Cta {
    */
   rafraichissement_evaporatif?: boolean | null;
   /**
+   * Description du rafraîchissement par surventilation mécanique (§6.12, lot 1-ven6) ;
+   * absent : pas de surventilation mécanique (« israfnoc = 0 »).
+   */
+  rafraichissement_surventilation?: SurventilationMecanique | null;
+  /**
    * « Type_régul_AN ». Absent : régulation standard, « par défaut » selon le texte, signalé
    * dans les résultats.
    */
   regulation_air_neuf?: RegulationAirNeuf | null;
   /**
-   * Rafraîchissement par surventilation mécanique (§6.12) : non pris en charge dans cette
-   * version.
+   * Rafraîchissement par surventilation mécanique (§6.12) : `true` exige sa description
+   * `rafraichissement_surventilation` ; forme conservée pour la compatibilité.
    */
   surventilation_mecanique?: boolean | null;
   /**
@@ -1386,8 +1435,13 @@ export interface DoubleFlux {
    */
   rafraichissement_evaporatif?: boolean | null;
   /**
-   * Rafraîchissement par surventilation mécanique (§6.12) : non pris en charge dans cette
-   * version.
+   * Description du rafraîchissement par surventilation mécanique (§6.12, lot 1-ven6) ;
+   * absent : pas de surventilation mécanique (« israfnoc = 0 »).
+   */
+  rafraichissement_surventilation?: SurventilationMecanique | null;
+  /**
+   * Rafraîchissement par surventilation mécanique (§6.12) : `true` exige sa description
+   * `rafraichissement_surventilation` ; forme conservée pour la compatibilité.
    */
   surventilation_mecanique?: boolean | null;
 }
@@ -5427,6 +5481,11 @@ export interface ResultatsVentilationMode {
    */
   nbh_mode_actif?: number | null;
   /**
+   * Nombre d'heures où le rafraîchissement par surventilation mécanique est en service
+   * (« irafnoc_activé(h) = 1 », §6.12.3.3, éq. 766) ; absent sans surventilation.
+   */
+  nbh_rafnoc?: number | null;
+  /**
    * Nombre d'heures de sous-dimensionnement de ces batteries (soufflage requis au-delà de
    * 60 °C ou en deçà de la surface de la batterie froide, éq. 597 et 605) ; absent sans elles.
    */
@@ -5626,6 +5685,33 @@ export interface StockageSaisi {
 }
 
 /**
+ * Th-BCE 2020 §6.12 — rafraîchissement par surventilation mécanique d'un système de
+ * ventilation (calculs Th-C et Th-D seulement). Les débits se saisissent par bouche
+ * (`q_spec_rafnoc_m3_h` de chaque bouche du système).
+ */
+export interface SurventilationMecanique {
+  /** Consignes en saison de refroidissement (indice « été »). */
+  ete: ConsignesSurventilation;
+  /**
+   * Consignes hors saison de refroidissement (indice « mis ») : requises pour un
+   * fonctionnement toute l'année (types 2 et 4, éq. 765), sans objet sinon.
+   */
+  mi_saison?: ConsignesSurventilation | null;
+  /**
+   * « Pvent_rafnoc_rep » : puissance électrique du ventilateur de reprise en
+   * rafraîchissement, en W (éq. 779).
+   */
+  p_vent_rafnoc_rep_w: number;
+  /**
+   * « Pvent_rafnoc_souf » : puissance électrique du ventilateur de soufflage en
+   * rafraîchissement, en W (éq. 779).
+   */
+  p_vent_rafnoc_souf_w: number;
+  /** « israfnoc » de 1 à 4. */
+  type_surventilation: TypeSurventilation;
+}
+
+/**
  * Système solaire combiné (fiches 9.19 et 9.20), un assemblage par objet (« nbassembl = 1 »,
  * éq. 2133 et 2147).
  */
@@ -5815,6 +5901,12 @@ export type TypeRafraichissementEvaporatif = "direct" | "indirect";
 export type TypeReseauChaleurSaisi = "eau_chaude_basse_temperature" | "eau_chaude_haute_temperature" | "vapeur_basse_pression" | "vapeur_haute_pression";
 
 /**
+ * « israfnoc » (§6.12.2, tableau 75) : nature du rafraîchissement par surventilation
+ * mécanique d'un système de ventilation.
+ */
+export type TypeSurventilation = "nocturne_ete" | "nocturne_annee" | "freecooling_ete" | "freecooling_annee";
+
+/**
  * « Typo_emetteur » (§8.23.3.6, tableau 216) : inertie du système d'émission, qui fixe la
  * durée de fonctionnement à charge tendant vers zéro « Dfou0 ».
  */
@@ -5984,6 +6076,11 @@ export interface VentilateurSimpleFlux {
    * en maison individuelle ou accolée et en logement collectif.
    */
   p_vent_pointe_w?: number | null;
+  /**
+   * Rafraîchissement par surventilation mécanique (§6.12, lot 1-ven6) ; absent : pas de
+   * surventilation mécanique.
+   */
+  rafraichissement_surventilation?: SurventilationMecanique | null;
 }
 
 /** Th-BCE 2020 §8.1.3.8 — ventilateurs locaux d'un émetteur. */

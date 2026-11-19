@@ -490,11 +490,24 @@ pub(super) fn valider_ventilation(
                      2020 §6.3.3.4.9.1)",
                 );
             }
-            if df.surventilation_mecanique == Some(true) {
-                r.hors_perimetre(
+            if df.surventilation_mecanique == Some(true)
+                && df.rafraichissement_surventilation.is_none()
+            {
+                r.erreur(
                     format!("{cd}.surventilation_mecanique"),
                     Some("true".into()),
-                    "surventilation_mecanique",
+                    "décrire le rafraîchissement par `rafraichissement_surventilation` (Th-BCE \
+                     2020 §6.12.2, tableau 75)",
+                );
+            }
+            if df.surventilation_mecanique == Some(false)
+                && df.rafraichissement_surventilation.is_some()
+            {
+                r.erreur(
+                    format!("{cd}.surventilation_mecanique"),
+                    Some("false".into()),
+                    "incohérent avec la description `rafraichissement_surventilation` (Th-BCE \
+                     2020 §6.12.2)",
                 );
             }
             valider_humidification(
@@ -577,11 +590,24 @@ pub(super) fn valider_ventilation(
                 }
             }
             valider_mode_actif(r, &cc, zone, cta);
-            if cta.surventilation_mecanique == Some(true) {
-                r.hors_perimetre(
+            if cta.surventilation_mecanique == Some(true)
+                && cta.rafraichissement_surventilation.is_none()
+            {
+                r.erreur(
                     format!("{cc}.surventilation_mecanique"),
                     Some("true".into()),
-                    "rafraîchissement par surventilation mécanique (Th-BCE 2020 §6.12)",
+                    "décrire le rafraîchissement par `rafraichissement_surventilation` (Th-BCE \
+                     2020 §6.12.2, tableau 75)",
+                );
+            }
+            if cta.surventilation_mecanique == Some(false)
+                && cta.rafraichissement_surventilation.is_some()
+            {
+                r.erreur(
+                    format!("{cc}.surventilation_mecanique"),
+                    Some("false".into()),
+                    "incohérent avec la description `rafraichissement_surventilation` (Th-BCE \
+                     2020 §6.12.2)",
                 );
             }
             valider_humidification(
@@ -629,6 +655,7 @@ pub(super) fn valider_ventilation(
              et §6.3.3.1.2)",
         ),
     }
+    valider_surventilation(r, c, v, zone);
     if !matches!(v.systeme, SystemeVentilation::Aeration) {
         for (ig, g) in zone.groupes.iter().enumerate() {
             if let Some(id) = &g.aeration_espace_tampon {
@@ -1110,6 +1137,107 @@ fn valider_batteries(
                     "la température extérieure d'autorisation du préchauffage doit être \
                      inférieure à celle du prérefroidissement (Th-BCE 2020 §6.3.3.2.2, éq. 387)",
                 );
+            }
+        }
+    }
+}
+
+/// Th-BCE 2020 §6.12 : rafraîchissement par surventilation mécanique (tableau 75, éq. 767).
+fn valider_surventilation(r: &mut RapportValidation, c: &str, v: &Ventilation, zone: &Zone) {
+    use crate::ventilation::surventilation_mecanique::periode_incoherente;
+    let surv = v.systeme.surventilation();
+    if let Some(s) = surv {
+        let variante = match &v.systeme {
+            SystemeVentilation::SimpleFluxExtraction(_) => "simple_flux_extraction",
+            SystemeVentilation::SimpleFluxInsufflation(_) => "simple_flux_insufflation",
+            SystemeVentilation::MecaniqueBassePression(_) => "mecanique_basse_pression",
+            SystemeVentilation::DoubleFlux(_) => "double_flux",
+            _ => "cta",
+        };
+        let cs = format!("{c}.systeme.{variante}.rafraichissement_surventilation");
+        r.positif(format!("{cs}.p_vent_rafnoc_rep_w"), s.p_vent_rafnoc_rep_w);
+        r.positif(format!("{cs}.p_vent_rafnoc_souf_w"), s.p_vent_rafnoc_souf_w);
+        let nocturne = s.type_surventilation.est_nocturne();
+        let annee = s.type_surventilation.toute_l_annee();
+        if annee && s.mi_saison.is_none() {
+            r.erreur(
+                format!("{cs}.mi_saison"),
+                None,
+                "consignes hors saison de refroidissement requises pour un fonctionnement toute \
+                 l'année (Th-BCE 2020 §6.12.3.2, éq. 765)",
+            );
+        }
+        if !annee && s.mi_saison.is_some() {
+            r.avertissement(
+                format!("{cs}.mi_saison"),
+                None,
+                "sans objet : le rafraîchissement ne fonctionne qu'en saison de refroidissement \
+                 (Th-BCE 2020 §6.12.3.2, éq. 762 et 763)",
+            );
+        }
+        for (saison, consignes) in [("ete", Some(&s.ete)), ("mi_saison", s.mi_saison.as_ref())] {
+            let Some(k) = consignes else { continue };
+            let ck = format!("{cs}.{saison}");
+            for (champ, x) in [
+                ("theta_sd_dec_c", k.theta_sd_dec_c),
+                ("theta_sd_arr_c", k.theta_sd_arr_c),
+                ("delta_theta_lim_k", k.delta_theta_lim_k),
+                ("theta_ext_c", k.theta_ext_c),
+            ] {
+                r.plage(format!("{ck}.{champ}"), x, -20.0, 50.0);
+            }
+            match (nocturne, k.h_leg_deb_h, k.h_leg_fin_h) {
+                (true, Some(deb), Some(fin)) => {
+                    if deb > 23 || fin > 23 {
+                        r.erreur(
+                            format!("{ck}.h_leg_deb_h"),
+                            Some(format!("{deb} ; {fin}")),
+                            "heures légales de 0 à 23 (Th-BCE 2020 §6.12.2, tableau 75)",
+                        );
+                    } else if let Some(m) = periode_incoherente(deb, fin) {
+                        r.erreur(
+                            format!("{ck}.h_leg_deb_h"),
+                            Some(format!("{deb} ; {fin}")),
+                            format!("{m} (Th-BCE 2020 §6.12.3.3, éq. 767)"),
+                        );
+                    }
+                }
+                (true, _, _) => r.erreur(
+                    format!("{ck}.h_leg_deb_h"),
+                    None,
+                    "heures légales de début et de fin de la période nocturne requises pour un \
+                     rafraîchissement nocturne (Th-BCE 2020 §6.12.3.3, éq. 768 et 769)",
+                ),
+                (false, None, None) => {}
+                (false, _, _) => r.avertissement(
+                    format!("{ck}.h_leg_deb_h"),
+                    None,
+                    "sans objet en freecooling (Th-BCE 2020 §6.12.3.3, note de l'éq. 770)",
+                ),
+            }
+        }
+    }
+    for (ig, g) in zone.groupes.iter().enumerate() {
+        for (ib, b) in g.bouches_conduits.iter().enumerate() {
+            let chemin = format!(
+                "{}.groupes[{ig}].bouches_conduits[{ib}].q_spec_rafnoc_m3_h",
+                zone_chemin(c)
+            );
+            match (surv.is_some(), b.q_spec_rafnoc_m3_h) {
+                (true, Some(q)) => r.positif(chemin, q),
+                (true, None) => r.erreur(
+                    chemin,
+                    None,
+                    "débit de rafraîchissement par surventilation mécanique requis pour chaque \
+                     bouche du système (Th-BCE 2020 §6.12.3.1, éq. 758 et 759)",
+                ),
+                (false, Some(_)) => r.avertissement(
+                    chemin,
+                    None,
+                    "sans objet : le système n'a pas de rafraîchissement par surventilation \
+                     mécanique (Th-BCE 2020 §6.12)",
+                ),
+                (false, None) => {}
             }
         }
     }

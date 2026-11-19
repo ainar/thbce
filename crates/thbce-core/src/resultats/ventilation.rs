@@ -84,6 +84,10 @@ pub struct ResultatsVentilationMode {
     /// 566 et 617) ; absente sans rafraîchissement évaporatif. Comprise dans `c_aux_vent_kwh`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub w_aux_adiab_kwh: Option<f64>,
+    /// Nombre d'heures où le rafraîchissement par surventilation mécanique est en service
+    /// (« irafnoc_activé(h) = 1 », §6.12.3.3, éq. 766) ; absent sans surventilation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nbh_rafnoc: Option<u32>,
 }
 
 /// Ventilation du projet vue d'un groupe (Th-BCE 2020 §6.2 à 6.5).

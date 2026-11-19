@@ -286,6 +286,7 @@ fn double_flux_non_residentiel() {
         rafraichissement_evaporatif: None,
         rafraichissement_adiabatique: None,
         surventilation_mecanique: None,
+        rafraichissement_surventilation: None,
     });
     for b in &mut p.batiments[0].zones[0].groupes[0].bouches_conduits {
         b.q_spec_ch_m3_h = None;

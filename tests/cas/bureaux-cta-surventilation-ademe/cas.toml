@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Variante de tests/cas/bureaux-cta-ademe dont la centrale de prétraitement d'air à débit constant porte un rafraîchissement nocturne par surventilation mécanique toute l'année (§6.12, type 2) : consignes d'été (22 h à 6 h, déclenchement 24 °C, arrêt 21 °C, θext ≥ 12 °C, Δθlim 2 K) et de mi-saison (23 h à 5 h, 26 °C, 23 °C, 14 °C, 3 K) ; 6 000 m³/h par bouche et 1 800 + 2 000 W de ventilateurs en surventilation. Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : valeurs du moteur au lot 1-ven6 (19 novembre 2026), figées pour détecter les régressions ; ce n'est pas un cas de référence. Recoupements à la main : Bbio identique à l'exemple bureaux-cta-ademe ; surface de conduit par défaut recalculée, éq. (760) et (761) : MAX(3 000 ; 6 000) × 0,05 = 300 m² par bouche au lieu de 150 m², d'où des fuites plus fortes dans tous les régimes (lecture Q230 point 3)."
+meteo = "ademe"
