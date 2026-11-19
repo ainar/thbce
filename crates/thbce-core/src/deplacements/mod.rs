@@ -99,7 +99,11 @@ pub fn calculer(
         .zones
         .iter()
         .any(|z| z.usage == UsageZone::LogementCollectif);
-    if !a_communs && bat.parkings.is_empty() && bat.escalators.is_empty() {
+    if !a_communs
+        && bat.parkings.is_empty()
+        && bat.escalators.is_empty()
+        && bat.ascenseurs.is_empty()
+    {
         return Ok(None);
     }
     let sref_bat: f64 = sref_zones_m2.iter().sum();
