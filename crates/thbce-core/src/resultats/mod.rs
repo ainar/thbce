@@ -165,6 +165,11 @@ pub struct ResultatsBatiment {
     /// sans données d'ACV.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub acv: Option<acv::ResultatsAcv>,
+    /// Séries horaires principales du calcul Th-C (8 760 pas de temps) ; présentes seulement à
+    /// la demande (`calculer_avec_series`, option `--horaire` de la ligne de commande, option
+    /// `series_horaires` du module WebAssembly ; Q118).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub series_horaires: Option<crate::calcul::series::SeriesHorairesBatiment>,
 }
 
 // Signature imposée par `skip_serializing_if`.
@@ -210,6 +215,9 @@ impl Resultats {
             }
             if let Some(i) = &mut b.indicateurs {
                 i.arrondir();
+            }
+            if let Some(x) = &mut b.series_horaires {
+                x.arrondir();
             }
             if let Some(x) = &mut b.acv {
                 x.arrondir();

@@ -251,3 +251,45 @@ fn altitude_bornee() {
     assert_eq!(s.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&s.stderr).contains("localisation.alt_m"));
 }
+
+#[test]
+fn horaire_ecrit_les_series_a_part_sans_changer_la_sortie() {
+    let meteo = meteo("h2b-horaire.csv", ZoneClimatique::H2b);
+    let meteo = meteo.as_str();
+    let entree = entree();
+    let csv = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-horaire.csv");
+    let json = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-horaire.json");
+    let sans = thbce(&["calcul", "--meteo", meteo, &entree]);
+    let avec = thbce(&[
+        "calcul",
+        "--meteo",
+        meteo,
+        &entree,
+        "--horaire",
+        csv.to_str().unwrap(),
+    ]);
+    assert!(sans.status.success() && avec.status.success());
+    // La sortie des résultats est la même avec ou sans séries.
+    assert_eq!(sans.stdout, avec.stdout);
+    let texte = std::fs::read_to_string(&csv).unwrap();
+    assert_eq!(texte.lines().count(), 8761);
+    assert!(texte.starts_with("heure,"));
+    let avec = thbce(&[
+        "calcul",
+        "--meteo",
+        meteo,
+        &entree,
+        "--horaire",
+        json.to_str().unwrap(),
+    ]);
+    assert!(avec.status.success());
+    let v: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&json).unwrap()).unwrap();
+    assert_eq!(
+        v["batiments"][0]["colonnes"][0]["valeurs"]
+            .as_array()
+            .unwrap()
+            .len(),
+        8760
+    );
+}
