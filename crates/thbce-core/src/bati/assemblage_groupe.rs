@@ -557,6 +557,13 @@ pub struct GroupeHoraire {
     pub p_occ: f64,
     /// Indice de l'espace tampon par lequel transite l'air neuf des entrées d'air (§5.6.3.1, éq. 134).
     pub entree_air_espace_tampon: Option<usize>,
+    /// Indice de l'espace tampon par lequel transite l'air neuf fourni par les fenêtres en
+    /// aération (§6.7.3.1, « Iclimatique », éq. 715).
+    pub aeration_espace_tampon: Option<usize>,
+    /// Air neuf fourni par les fenêtres au pas de temps en cours en aération (éq. 162 à 164) ;
+    /// `None` hors aération. Fixé par la zone avant chaque pas, il entre avec la
+    /// surventilation naturelle selon l'éq. (256).
+    pub aeration: Option<AirEntrant>,
     /// Part de la surface d'ouverture de son espace tampon attribuée à chaque baie qui donne sur
     /// un espace tampon, au prorata des surfaces d'ouverture des baies (« Aouv_max_tp,i^b »,
     /// §5.5.2 et §5.7.2) ; 0 pour les autres baies. Voir
@@ -779,6 +786,11 @@ impl GroupeHoraire {
                 .as_ref()
                 .and_then(|e| e.espace_tampon.as_ref())
                 .and_then(|id| ids_espaces_tampons.iter().position(|e| e == id)),
+            aeration_espace_tampon: groupe
+                .aeration_espace_tampon
+                .as_ref()
+                .and_then(|id| ids_espaces_tampons.iter().position(|e| e == id)),
+            aeration: None,
             parts_ouverture_et: vec![0.0; nb_baies],
             enveloppe,
         }
@@ -994,7 +1006,19 @@ impl GroupeHoraire {
         } else {
             0.0
         };
-        let qm_surv = qm_aj_kg_s(qv_surv, theta_e, 0.0);
+        // §5.13.3.3, éq. (256) : en aération, un seul débit entrant par les baies, le maximum
+        // de la surventilation naturelle (à la température extérieure) et de l'aération (à la
+        // température et à l'humidité de l'air soufflé, éq. 715 à 718).
+        let qm_aeration = self.aeration.map_or(0.0, |a| a.qm_kg_s);
+        let qm_surv = qm_aj_kg_s(qv_surv, theta_e, qm_aeration);
+        let air_surv = match self.aeration {
+            Some(a) if qm_surv > 0.0 && qm_surv <= a.qm_kg_s => a,
+            _ => AirEntrant {
+                qm_kg_s: qm_surv,
+                theta_c: theta_e,
+                omega_kg_kg: c.omega_e_kg_kg,
+            },
+        };
 
         // §7.1 : éclairage. Volumes normaux (baies de type 2) ; Aeclnat2 = Agr en habitation,
         // surface des locaux ayant accès à la lumière naturelle dans les autres usages.
@@ -1025,7 +1049,7 @@ impl GroupeHoraire {
         for (cible, source) in flux_air.iter_mut().take(4).zip(air_zone) {
             *cible = *source;
         }
-        flux_air[4].qm_kg_s = qm_surv;
+        flux_air[4] = air_surv;
         let air = AirEquivalent::melange(&flux_air);
 
         // §5.21 : sollicitations et matrice de comportement.
