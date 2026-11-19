@@ -1,0 +1,19 @@
+# tableau 232, pages 900, fiche 8.25, Valeurs de Cnnav en chauffage pour la PAC MG air/eau
+# mise en forme : bloc 2x2 du tableau imprimé mis à plat (une ligne par coefficient)
+Grandeur;Coefficient;Valeur
+GUE;Cnnav_GUE(23.5, 32.5);1,15
+GUE;Cnnav_GUE(42.5, 32.5);0.80
+GUE;Cnnav_GUE(51, 42.5);0,80
+GUE;Cnnav_GUE(60, 51);0,80
+Pabs;Cnnav_Pabs(23.5, 32.5);1
+Pabs;Cnnav_Pabs(42.5, 32.5);1.17
+Pabs;Cnnav_Pabs(51, 42.5);1.12
+Pabs;Cnnav_Pabs(60, 51);1,11
+Paux;Cnnav_Paux(23.5, 32.5);1
+Paux;Cnnav_Paux(42.5, 32.5);1
+Paux;Cnnav_Paux(51, 42.5);1
+Paux;Cnnav_Paux(60, 51);1
+ηth,ecs;Cnnav_ηth,ecs(23.5, 32.5);1
+ηth,ecs;Cnnav_ηth,ecs(42.5, 32.5);1
+ηth,ecs;Cnnav_ηth,ecs(51, 42.5);1
+ηth,ecs;Cnnav_ηth,ecs(60, 51);1

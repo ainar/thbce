@@ -1,0 +1,6 @@
+# tableau 248, page 939, fiche 8.28, Température primaire et coefficient Dss en fonction du type de réseau, source: image
+Type de réseau;Température primaire θprs (°C);Dss
+Eau chaude basse température;105;0,6
+Eau chaude haute température;150;0,4
+Vapeur basse pression;110;0,5
+Vapeur haute pression;180;0,4

@@ -37,6 +37,8 @@ use crate::racine;
 pub const DOSSIER: &str = "docs/reference/index";
 /// Fichier des anomalies, relatif à la racine du dépôt.
 pub const ANOMALIES: &str = "docs/reference/index/anomalies.md";
+/// Complément d'anomalies écrit à la main (relevé sur l'image), relatif à la racine du dépôt.
+pub const ANOMALIES_CONSTATEES: &str = "docs/reference/index/anomalies-constatees.md";
 /// Fiches de `docs/couverture.md`, relatif à la racine du dépôt.
 const COUVERTURE: &str = "docs/couverture.md";
 
@@ -950,7 +952,7 @@ fn markdown_anomalies(indexes: &[Index]) -> String {
     let mut s = String::from(
         "<!-- SPDX-License-Identifier: GPL-3.0-or-later -->\n\
          # Anomalies de l'index du texte réglementaire\n\n\
-         Fichier généré par `cargo run -p xtask -- index-texte`, ne pas modifier à la main.\n\n\
+         Fichier généré par `cargo run -p xtask -- index-texte`, ne pas modifier à la main (le relevé final est tenu dans `anomalies-constatees.md`).\n\n\
          Les anomalies sont classées par **nature**, car l'index se fonde sur l'extraction texte \
          (calque du PDF), qui n'est pas l'image des pages :\n\n\
          - *Absent de l'extraction* : le numéro n'apparaît pas dans le texte extrait (équation \
@@ -1018,7 +1020,14 @@ pub fn generer(indexes: &[Index]) -> Vec<(String, String)> {
             csv_legendes(index, "figure", &index.figures),
         ));
     }
-    fichiers.push((ANOMALIES.to_owned(), markdown_anomalies(indexes)));
+    let mut anomalies = markdown_anomalies(indexes);
+    // Relevé tenu à la main (anomalies lues sur l'image), ajouté tel quel à la fin du fichier.
+    if let Ok(complement) = std::fs::read_to_string(racine().join(ANOMALIES_CONSTATEES)) {
+        anomalies.push('\n');
+        anomalies.push_str(complement.replace("\r\n", "\n").trim_end());
+        anomalies.push('\n');
+    }
+    fichiers.push((ANOMALIES.to_owned(), anomalies));
     fichiers
 }
 

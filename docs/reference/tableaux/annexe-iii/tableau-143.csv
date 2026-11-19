@@ -1,0 +1,98 @@
+# tableau 143, page 749-755 (légende p.755), fiche 8.23, titre Nomenclature du modèle, source: image (p.749, p.751) + couche texte (p.750, p.752-755)
+Section;Nom;Description;Unité;Min;Max;Conv.
+Entrées du composant;hleg(h);Heure légale au pas de temps h (0 à 24h).;h;;;
+Entrées du composant / S. Amont;θamont(h);Température de la source amont;°C;;;
+Entrées du composant / Génération;θaval,ch(h);Températures de la source aval pour chaque poste;°C;;;
+Entrées du composant / Génération;θaval,fr(h);Températures de la source aval pour chaque poste;°C;;;
+Entrées du composant / Génération;θaval,ecs(h);Températures de la source aval pour chaque poste;°C;;;
+Entrées du composant / Génération;Qreq,ch(h);Demande en énergie pour un poste donné calculé au niveau de la génération.;W;;;
+Entrées du composant / Génération;Qreq,fr(h);Demande en énergie pour un poste donné calculé au niveau de la génération.;W;;;
+Entrées du composant / Génération;Qreq,ecs(h);Demande en énergie pour un poste donné calculé au niveau de la génération.;W;;;
+Entrées du composant / Génération;Rpuis_dispo(h);Temps de fonctionnement à charge maximale potentiellement disponible (en fraction d'heure).;Réel;;;
+Entrées du composant / Génération;iECS_seule(h);Indicateur de production ECS seule.;Bool;;;
+Entrées du composant / Génération;Pfou_source_amont_maxi(h);Puissance maximale qui peut être fournie compte tenu du COP_pc (ou de l'EER_pc) et des caractéristiques de l'air extrait;W;;;
+Paramètres intrinsèques du composant;Gene_Thermo_Elec;"Catégorie de générateur thermodynamique à compression électrique : Non-réversible (chauffage ou refroidissement) ; Réversible (chauffage et refroidissement) ; ECS seule (en base de production-stockage) ; Double-service (en base de production-stockage) ; Triple-service (en base de production-stockage)";-;;;
+Paramètres intrinsèques du composant;Id_Fougen_Mod;"Pour Cat_Thermo_Elec = Non-réversible, service assuré par le générateur : 1 : Chauffage ; 2 : Refroidissement";Ent;1;2;
+Paramètres intrinsèques du composant;Sys_thermo_Ch;"Technologie en mode chauffage : 1 : PAC air extérieur/ eau ; 2 : PAC air extérieur / air recyclé ; 3 : PAC air extrait / air neuf ; 4 : PAC eau de nappe / eau ; 5 : PAC eau glycolée / eau ; 6 : PAC eau de nappe / air recyclé ; 7 : PAC eau de boucle / air recyclé ; 8 : PAC sol/ eau ; 9 : PAC sol/sol";Ent;1;9;
+Paramètres intrinsèques du composant;Sys_thermo_Fr;"Technologie en mode refroidissement : 1 : refroidisseur air extérieur / eau ; 2 : refroidisseur air extérieur / air recyclé ; 3 : refroidisseur air extrait / air neuf ; 4 : refroidisseur eau / eau et eau glycolée / eau ; 5 : refroidisseur eau / air et eau de boucle / air recyclé ; 6 : refroidisseur eau de nappe / air recyclé";Ent;1;6;
+Paramètres intrinsèques du composant;Sys_thermo_Ecs;"Technologie en mode ECS : 1 : PAC air extérieur / eau ; 2 : PAC air extrait / eau ; 3 : PAC air ambiant / eau ; 4 : PAC eau de nappe / eau ; 5 : PAC sol / eau ; 6 : PAC eau glycolée / eau";Ent;1;6;
+Paramètres intrinsèques du composant;M_θ_Aval_Ch / M_θ_Aval_Fr / M_θ_Aval_Ecs;"Valeurs de températures aval pour lesquelles les COP (ou EER) et Pabs sont saisis : 1 : θav,pivot ; 2 : 2 premières valeurs de θav,i ; 3 : etc…";Ent;1;7;Selon type de générateur thermodynamique
+Paramètres intrinsèques du composant;M_θ_Amont_Ch / M_θ_Amont_Fr / M_θ_Amont_Ecs;"Valeurs de températures amont pour lesquelles les COP (ou EER) et Pabs sont saisis : 1 : θamont,pivot ; 2 : 2 premières valeurs de θamont,j ; 3 : etc…";Ent;1;7;Selon type de générateur thermodynamique
+Paramètres intrinsèques du composant;Statut_données_PC_ch / Statut_données_PC_fr / Statut_données_PC_ECS;"Statut des performances à pleine charge renseignées en chauffage/en ECS : 1 : il existe des valeurs de performance certifiées ou justifiées ; 2 : il n'existe aucune valeur certifiée ou justifiée";Ent;1;-;
+Paramètres intrinsèques du composant / Saisie des performances certifiées ou justifiées en chauffage;{COR(i,j)}ch;"Matrice des statuts de données en mode chauffage : 1 : valeurs certifiées ; 2 : valeurs justifiées.";{Ent};1;2;
+Paramètres intrinsèques du composant / Saisie des performances certifiées ou justifiées en chauffage;{Performance(i,j)}ch;Matrice des coefficients COP selon les températures amont et aval en mode chauffage (avant prétraitement);{-};0;+;
+Paramètres intrinsèques du composant / Saisie des performances certifiées ou justifiées en chauffage;{Pabs(i,j)}ch;Matrice des puissances absorbées selon les températures amont et aval en mode chauffage;{kW};0;+;
+Paramètres intrinsèques du composant / Saisie des performances déclarées ou par défaut en chauffage;Statut_val_pivot_ch;"Statut de la valeur Val_COP: 1 : valeurs déclarées ; 2 : valeur par défaut";Ent;1;2;-
+Paramètres intrinsèques du composant / Saisie des performances déclarées ou par défaut en chauffage;Val_COP_ch;Valeur de COP pivot déclarée en mode chauffage (avant prétraitement);-;0;+;-
+Paramètres intrinsèques du composant / Saisie des performances déclarées ou par défaut en chauffage;Val_Pabs_ch;Valeur de puissance absorbée pivot déclarée en mode chauffage;kW;0;+;-
+Paramètres intrinsèques du composant / Saisie des performances certifiées ou justifiées en mode ECS;{COR(i,j)}ecs;"Matrice des statuts de données en mode ECS : 1 : valeurs certifiées ; 2 : valeurs justifiées.";{Ent};1;2;
+Paramètres intrinsèques du composant / Saisie des performances certifiées ou justifiées en mode ECS;{Performance(i,j)}ecs;Matrice des coefficients COP selon les températures amont et aval en mode ECS (avant prétraitement);{-};0;+;
+Paramètres intrinsèques du composant / Saisie des performances certifiées ou justifiées en mode ECS;{Pabs(i,j)}ecs;Matrice des puissances absorbées selon les températures amont et aval en mode ECS;{kW};0;+;
+Paramètres intrinsèques du composant / Saisie des performances déclarées ou par défaut en mode ECS;Statut_val_pivot_ecs;"Statut de la valeur COPpivot_ecs: 1 : valeurs déclarées ; 2 : valeur par défaut";Ent;1;2;-
+Paramètres intrinsèques du composant / Saisie des performances déclarées ou par défaut en mode ECS;Val_COP_ecs;Valeur de COP pivot déclarée en mode ECS (avant prétraitement);-;0;+∞;-
+Paramètres intrinsèques du composant / Saisie des performances déclarées ou par défaut en mode ECS;Val_Pabs_ecs;Valeur de puissance absorbée pivot déclarée en mode ECS;kW;0;+∞;-
+Paramètres intrinsèques du composant / Saisie des performances certifiées ou justifiées en mode refroidissement;{COR(i,j)}fr;"Matrice des statuts de données en mode refroidissement : 1 : valeurs certifiées ; 2 : valeurs justifiées.";{Ent};1;2;
+Paramètres intrinsèques du composant / Saisie des performances certifiées ou justifiées en mode refroidissement;{Performance(i,j)}fr;Matrice des coefficients EER selon les températures amont et aval en mode refroidissement (avant prétraitement);{-};0;+∞;
+Paramètres intrinsèques du composant / Saisie des performances certifiées ou justifiées en mode refroidissement;{Pabs(i,j)}fr;Matrice des puissances absorbées selon les températures amont et aval en mode refroidissement;{kW};0;+∞;
+Paramètres intrinsèques du composant / Saisie des performances déclarées ou par défaut en mode refroidissement;Statut_val_pivot_fr;"Statut de la valeur EERpivot_fr : 1 : valeurs déclarées ; 2 : valeur par défaut";Ent;1;2;-
+Paramètres intrinsèques du composant / Saisie des performances déclarées ou par défaut en mode refroidissement;Val_EER;Valeur d'EER pivot déclarée en mode refroidissement (avant prétraitement);-;0;+∞;-
+Paramètres intrinsèques du composant / Saisie des performances déclarées ou par défaut en mode refroidissement;Val_Pabs_fr;Valeur de puissance absorbée pivot déclarée en mode refroidissement;kW;0;+∞;-
+Paramètres intrinsèques du composant / Limites de fonctionnement de la machine selon le mode;Lim_θ_ch / Lim_θ_ecs / Lim_θ_fr;"Existence de limites de fonctionnement pour le mode considéré : 0 = pas de limite ; 1 = limite sur l'une ou l'autre des températures de source ; 2 = limite sur l'une et l'autre des températures de source";Ent;0;2;-
+Paramètres intrinsèques du composant / Limites de fonctionnement de la machine selon le mode;θmax_av_ch / θmax_av_ecs;Température maximale aval au delà de laquelle la machine ne peut pas fonctionner en mode chauffage ou ECS;°C;-50;100;-
+Paramètres intrinsèques du composant / Limites de fonctionnement de la machine selon le mode;θmin_av_fr;Température minimale aval au delà de laquelle la machine ne peut pas fonctionner en mode refroidissement;°C;-50;100;
+Paramètres intrinsèques du composant / Limites de fonctionnement de la machine selon le mode;θmin_am_ch / θmin_am_ecs;Température minimale amont en dessous de laquelle la machine ne peut pas fonctionner en mode chauffage ou ECS;°C;-50;100;-
+Paramètres intrinsèques du composant / Limites de fonctionnement de la machine selon le mode;θmax_av_fr;Température maximale amont au delà de laquelle la machine ne peut pas fonctionner en mode refroidissement;°C;-50;100;
+Paramètres intrinsèques du composant / Fonctionnement à charge partielle en ECS (ECS seule) ou en chauffage (double service);Statut_fonct_part;"Statut de la saisie des performances à charge partielle : 0 : par défaut ; 1 : déclarée";Ent;0;1;
+Paramètres intrinsèques du composant / Fonctionnement à charge partielle en ECS (ECS seule) ou en chauffage (double service);Fonc_compr;"Mode de fonctionnement du compresseur : 1 : Fonctionnement en mode continu du compresseur ou en cycles marche arrêt ; 2 : Fonctionnement en cycles marche arrêt du compresseur";Ent;1;2;
+Paramètres intrinsèques du composant / Fonctionnement à charge partielle en ECS (ECS seule) ou en chauffage (double service);Statut_fonct_continu;"Statut de la saisie du point caractéristique du mode continu (contmin) : 2 : par défaut ; 1 : justifié ; 0 : certifié";Ent;0;2;
+Paramètres intrinsèques du composant / Fonctionnement à charge partielle en ECS (ECS seule) ou en chauffage (double service);CcpLRcontmin;Coefficient de correction de la performance pour un taux de charge égal à LRcontmin;Réel;0;2;
+Paramètres intrinsèques du composant / Fonctionnement à charge partielle en ECS (ECS seule) ou en chauffage (double service);LRcontmin;Taux minimal de charge en fonctionnement continu. (= 1 si machine tout ou rien);Réel;0;1;
+Paramètres intrinsèques du composant / Fonctionnement à charge partielle en ECS (ECS seule) ou en chauffage (double service);Deq;Durée équivalente liée aux irréversibilités;Minutes;0;60;0.5
+Paramètres intrinsèques du composant / Fonctionnement à charge partielle en ECS (ECS seule) ou en chauffage (double service);Dfou0;Durée de fonctionnement à charge tendant vers zéro.;Minutes;0;60;
+Paramètres intrinsèques du composant / Puissance d'auxiliaires de la machine;Statut_Taux;"Statut de la saisie de la puissance d'auxiliaire de la machine : 0 : par défaut ; 1 : déclarée";Ent;0;1;
+Paramètres intrinsèques du composant / Puissance d'auxiliaires de la machine;Taux;Part de la puissance électrique des auxiliaires ramenée à la puissance nominale absorbée;Réel;0;1;
+Paramètres intrinsèques du composant / Prétraitement: composition des matrices de performance;{Cnnav_Pabs(θi,θk)}ch / {Cnnav_Pabs(θi,θk)}fr / {Cnnav_Pabs(θi,θk)}ecs;Coefficients permettant le calcul de Pabs à la température aval θi en fonction de Pabs à la température aval θk, à une température amont donnée.;Réel;;;
+Paramètres intrinsèques du composant / Prétraitement: composition des matrices de performance;{Cnnam_Pabs(θj,θn)}ch / {Cnnam_Pabs(θj,θn)}fr / {Cnnam_Pabs(θi,θn)}ecs;Coefficients permettant le calcul de Pabs à la température amont θj en fonction de Pabs à la température amont θn, à une température aval donnée.;Réel;;;
+Paramètres intrinsèques du composant / Prétraitement: composition des matrices de performance;{Cnnav_COP(θi,θk)}ch / {Cnnav_EER(θi,θk)}fr / {Cnnav_COP(θi,θk)}ecs;Coefficients permettant le calcul du COP ou EER à la température aval θi en fonction du COP ou EER à la température aval θk, à une température amont donnée.;Réel;;;Voir selon technologie
+Paramètres intrinsèques du composant / Prétraitement: composition des matrices de performance;{Cnnam_COP(θi,θj)}ch / {Cnnam_EER(θi,θk)}fr / {Cnnam_COP(θi,θj)}ecs;Coefficients permettant le calcul du COP ou EER à la température amont θj en fonction du COP ou EER à la température amont θn, à une température aval donnée;Réel;;;
+Paramètres d'intégration du composant;Typo_emetteur_ch / Typo_emetteur_fr;"Inertie du système d'émission principal utilisé avec le générateur thermodynamique en mode chauffage et/ou refroidissement. 1 : forte : plancher ou plafond intégré au bâti ; 2 : moyenne : radiateur, plafond d'inertie moyenne ; 3 : légère : VCV, plancher et plafond d'inertie faible ; 4 : très légère : systèmes à air.";Ent;1;4;
+Paramètres d'intégration du composant;Rdim;Nombre de machines identiques.;Ent;1;-;
+Sorties;Qfou,ch(h) / Qfou,fr(h) / Qfou,ecs(h);Energie totale effectivement fournie par le générateur pour le mode sollicité.;Wh;;;
+Sorties;Qrest,ch(h) / Qrest,fr(h) / Qrest,ecs(h);Energie restant à fournir (dépassant la puissance maximale du générateur) pour le mode sollicité.;Wh;;;
+Sorties;{Qcef_ch(id_engen)}(h) / {Qcef_ecs(id_engen)}(h) / {Qcef_fr(id_engen)}(h);Consommation en énergie finale du générateur, présenté sous forme de vecteur de 6 valeurs. L'indice id_engen correspond aux différents types d'énergie.;Wh;;;
+Sorties;ηeff,ch(h) / ηeff,fr(h) / ηeff,ecs(h);Efficacité effective du générateur pour le mode sollicité.;Réel;;;
+Sorties;τcharge,ch(h) / τcharge,fr(h) / τcharge,ecs(h);Taux de charge du générateur pour le mode sollicité.;Réel;;;
+Sorties;Φrejet,ch(h) / Φrejet,ecs(h) / Φrejet,fr(h);Quantité d'énergie totale rejetée à la source amont pour le mode sollicité;Wh;;;
+Sorties;Qfou(h);Quantité d'énergie totale fournie par le générateur, tous modes confondus;Wh;;;
+Sorties;Qcons(h);Quantité d'énergie totale consommée par le générateur en énergie finale, tous modes confondus;Wh;;;
+Sorties;Φrejet(h);Quantité d'énergie totale rejetée à la source amont, tous modes confondus;Wh;;;
+Sorties;COP_pc(h) / EER_pc(h);COP (ou EER) utile à pleine charge pour le mode considéré (communiqués à C_Gen_Source_Amont).;;;;
+Sorties;Rfonctecs(h);Temps de fonctionnement du générateur pour la production d'ECS, à puissance maximale (en fraction d'heure).;Réel;;;
+Sorties;Idengen;Identificateur de l'énergie principale : Electricité : 50;Ent;10;69;50
+Sorties;Idfluide_aval;"Nature du fluide aval : 1 : eau ; 2 : air ; 3 : sol";Ent;1;3;
+Sorties;Idfluide_amont;"Nature de la source amont : 1 : eau ; 2 : air ; 3 : sol";Ent;1;3;
+Sorties;idfougen;"Mode de fonctionnement admis par le générateur : 1 : Chauffage seul ; 2 : Refroidissement seul ; 3 : ECS seule ; 4 : Chauffage et ECS ; 5 : Chauffage et refroidissement ; 6 : Chauffage, refroidissement et ECS";Ent;1;6;
+Variables internes;{Valθav(i)}ch / {Valθav(i)}fr / {Valθav(i)}ecs;Liste des températures aval principales du générateur en fonction du mode.;°C;;;
+Variables internes;{Valθam(j)}ch / {Valθam(j)}fr / {Valθam(j)}ecs;Liste des températures amont principales du générateur en fonction du mode.;°C;;;
+Variables internes;Nav_ch / Nav_fr / Nav_ecs;Nombre de températures aval principales pour chaque mode;Ent;1;;
+Variables internes;Nam_ch / Nam_fr / Nam_ecs;Nombre de températures amont principales pour chaque mode;Ent;1;;
+Variables internes;{COPutil(i,j)}ch / {EERutil(i,j)}fr / {COPutil(i,j)}ecs;Matrice des performances (COP ou EER) selon les températures amont et aval après remplissage complet et corrections associées aux statuts de données, pour chacun des modes;{-};;;
+Variables internes;LR(h);Taux de charge du générateur pour le mode considéré;-;;;
+Variables internes;LRcycl(h);Taux de charge calculé par rapport à LRcontmin, lorsque le compresseur fonctionne en marche/arrêt.;-;;;
+Variables internes;COP_LR(h) / EER_LR(h);COP (ou EER) utile et à charge réelle pour le mode considéré;-;;;
+Variables internes;COP_pc_net(h) / EER_pc_net(h);COP utile à pleine charge (EER pour refroidissement), à charge minimale du fonctionnement continu et à charge réelle, sans prise en compte des auxiliaires ou des irréversibilités;-;;;
+Variables internes;COP_LRcontminnet(h) / EER_LRcontminnet(h);COP (ou EER) utile à charge minimale du fonctionnement continu, sans prise en compte des auxiliaires ou des irréversibilités;-;;;
+Variables internes;COP_LR_net(h) / EER_LR_net(h);COP (ou EER) utile à charge réelle, sans prise en compte des auxiliaires ou des irréversibilités;-;;;
+Variables internes;Pfou_pc(h);Puissance fournie par une machine à pleine charge;W;;;
+Variables internes;Pfou_LRcontmin(h);Puissance fournie par une machine à charge minimale du fonctionnement continu;W;;;
+Variables internes;Pfou_LR(h);Puissance fournie par une machine à charge réelle;W;;;
+Variables internes;Pabs_pc(h) / Pabs_LR(h);Puissance absorbée par une machine à pleine charge et à charge réelle;W;;;
+Variables internes;Pcomp_PC(h) / Pcomp_LRcontmin(h) / Pcomp_LR(h);Puissance appelée par le compresseur à pleine charge, à charge minimale du fonctionnement continu et à charge réelle.;W;;;
+Variables internes;Pfou_pc_brut(h);Puissance maximale que peut fournir le générateur avec prise en compte des limites de fonctionnement.;W;;;
+Variables internes;Pcompma_LR(h);Puissance appelée à cause des irréversibilités à charge réelle;W;;;
+Variables internes;Waux,0(h);Puissance effective absorbée par les auxiliaires à charge nulle;W;;;
+Variables internes;CcpLRcontmin_net(h);Correction du COP « net » (sans prise en compte des auxiliaires ou des irréversibilités) pour le taux de charge LRcontmin.;-;;;
+Variables internes;Qreqact(h);Energie requise ramenée à une machine parmi les Rdim identiques;W;;;
+Variables internes;Qrestact(h);Energie restant à fournir à la fin du pas de temps, faisant l'objet d'un report de demande à un autre générateur en séquence ou au pas de temps suivant, pour un générateur.;Wh;;;
+Constantes;Val_util_max;Valeurs utiles maximales de COP ou EER propre à chaque technologie et à chaque mode;Voir selon technologie;;;
+Constantes;Ratbasc,fr-ECS;Délai de basculement entre la fonction ECS et refroidissement;h;;;0,25

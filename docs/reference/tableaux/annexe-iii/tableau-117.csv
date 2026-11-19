@@ -1,0 +1,8 @@
+# tableau 117, page 700, fiche 8.19, titre normes applicables pour la caractérisation des performances thermiques des chaudières
+# remarque : cellules de la colonne Technologie en fusion verticale non présente ; chaque norme transcrite en une ligne, texte de la cellule conservé. Marquage jaune du texte « NF EN ISO/CEI 17065 » dans le corps de page, non reporté ici (hors tableau).
+Technologie;Norme de référence
+Chaudière gaz;NF EN 15502-1 +A1 : Chaudières de chauffage central utilisant les combustibles gazeux - Partie 1 : exigences générales et essais
+Chaudière gaz;NF EN 303-7 Chaudières de chauffage - Partie 7 : chaudières de chauffage central équipées d'un brûleur à air soufflé utilisant les combustibles gazeux de puissance utile inférieure ou égale à 1000 kW
+Chaudière fioul;NF EN 304 : Chaudières de chauffage - Règles d'essai pour les chaudières pour brûleurs à fioul à pulvérisation
+Chaudière bois;NF EN 12809 : Chaudières domestiques à combustible solide destinées à être implantées dans le volume habitable - Puissance calorifique nominale inférieure ou égale à 50 kW - Exigences et méthodes d'essai (Tirage 3)
+Chaudière bois;NF EN 303-5 : Chaudières de chauffage central - Partie 5 : chaudières spéciales pour combustibles solides, à chargement manuel et automatique, puissance utile inférieure ou égale à 500 kW - Définitions, exigences, essais et marquage

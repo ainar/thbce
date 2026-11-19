@@ -1,0 +1,30 @@
+# tableau 257, pages 994-996, fiche 8.32, Rat_Us par défaut en fonction de la typologie de la zone et de l'usage jour/nuit des brasseurs
+N° d'usage;Type d'usage associé;Us=Jour;Us=Nuit
+1;Maisons individuelles ou accolées;0.6;0.4
+2;Logements collectifs;0.54;0.36
+3;Bureaux;0.7;0
+4;Enseignement primaire;0.85;0
+5;Enseignement secondaire;0.75;0
+6;Médiathèques et bibliothèques;0.75;0
+7;Bâtiments universitaires d'enseignement et de recherche et bâtiments d'enseignements atypiques;0.75;0
+8;Hôtels 0, 1 et 2 étoiles (partie nuit);0.728;0.728
+9;Hôtels 3, 4 et 5 étoiles (partie nuit);0.728;0.728
+10;Hôtels 0, 1 et 2 étoiles (partie jour);0.5179;0
+11;Hôtels 3, 4 et 5 étoiles (partie jour);0.79;0
+12;Etablissements d'accueil de la petite enfance;0.728;0
+13;Restaurants - en continu, 18 heures par jour, 7 jours sur 7;0.7;0.7
+14;Restaurants - 1 repas par jour, 5 jours sur 7;0.7;0
+15;Restaurants - 2 repas par jour, 7 jours sur 7;0.7;0
+16;Restaurants - 2 repas par jour, 6 jours sur 7;0.7;0
+17;Commerces;0.93;0
+18;Vestiaires seuls;0.75;0
+19;Etablissements sanitaires avec hébergement;0.6;0.5
+20;Etablissements de santé (partie nuit);0.75;0.45
+21;Etablissements de santé (partie jour);0.65;0
+22;Aérogares;1;0
+23;Industries ou artisanats 3x8h;0.7;0.6
+24;Industries ou artisanats 8h à 18h;0.7;0
+25;Etablissements sportifs municipaux ou scolaires;0.75;0
+26;Restaurants scolaires - 1 repas par jour, 5 jours sur 7;0.7;0
+27;Restaurants scolaires - 3 repas par jour, 5 jours sur 7;0.7;0
+28;Etablissements sportifs privés;0.75;0

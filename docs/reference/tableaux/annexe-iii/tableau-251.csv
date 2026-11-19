@@ -1,0 +1,8 @@
+# tableau 251, page 948, fiche 8.29, Vecteur des coefficients d'énergie primaire {Coefep(énergie)}, source: image
+# remarque : deux colonnes imprimées sous le même en-tête Coefep(énergie ;1) ; la cellule 60 colonne 2 comporte deux lignes imprimées (réseaux de chaleur, puis réseaux de froid), restituées ici sur une seule ligne
+;Coefep(énergie ;1);Coefep(énergie ;1)
+10 : Gaz;1;1
+20 : Fioul;1;1
+40 : Bois;1;1
+50 :Electricité;2.3;2.3
+60 : Réseau de chaleur;1;1-RatENR_rdch pour les réseaux de chaleur 1 pour les réseaux de froid

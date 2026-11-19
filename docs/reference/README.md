@@ -31,6 +31,10 @@ Les fichiers `texte/` et les `.txt` sont des extractions automatiques (`pdftotex
 | `re2020-fa05_usage-batiment_v2.pdf` | FA05 v2 (1er octobre 2026) : identifier l'usage d'un bâtiment et l'exigence associée ; article R. 172-1 du CCH (dates d'application par usage), article 2 de l'arrêté (assimilation d'une petite partie à l'usage principal), correspondance destinations → usages Th-BCE, bâtiments à usage mixte (Q67, Q68). | `texte/fa05-usage-batiment-v2.txt` |
 | `re2020-fa09_exclusion-application-tertiaire-specifique-industrie_v1.pdf` | FA09 v1 (1er octobre 2026) : exclusions d'application aux bâtiments tertiaires spécifiques et industriels (locaux de process, constructions temporaires, petites surfaces, extensions ; Q68). | `texte/fa09-exclusions-tertiaire-specifique-industrie-v1.txt` |
 
+## `tableaux/annexe-iii/` — Tableaux 107 à 266 de l'annexe III en CSV (fiches 8.14 à 8.33, génération)
+
+`tableau-NNN.csv` : transcription de 159 tableaux du texte public du Journal officiel (Licence Ouverte), relue sur l'image et comparée à la couche vectorielle du PDF ; **le PDF fait foi**. `README.md` du dossier : méthode, convention du CSV, écarts et ajouts de mise en forme, points tranchés. Anomalies du texte et de l'index relevées à cette occasion : `index/anomalies-constatees.md` (reprises à la fin de `index/anomalies.md`).
+
 ## `scenarios/` — Scénarios conventionnels (chapitre 15 de l'annexe III)
 
 - `2026-04-29_scenarios_conventionnels.xlsx` : classeur officiel, un onglet par usage (MI, LC, BUR, ENS_PRI…).

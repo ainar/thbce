@@ -1,0 +1,6 @@
+# tableau 230, pages 896, fiche 8.25, Statuts GUE et correction
+StatutGUE;Correction
+Certifié(s);"GUEutil (i;j)= GUE(i;j)"
+Justifié(s);"GUEutil (i;j)= 0,9 x GUE(i;j)"
+Déclaré (pivot seulement);"GUEpivot_util = MIN [0,8 x GUEpivot; GUEutilmax(ch)]"
+Par défaut (pivot seulement);GUEpivot_util = 0,8 x GUEutilmax(ch)

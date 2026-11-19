@@ -1,0 +1,6 @@
+# tableau 142, page 747, fiche 8.22, titre Matrice des consommations en énergies finales {Qcef(po;en)}
+# remarque : matrice imprimée sur une page. Cellules « … » telles quelles ; case grisée « 40: Bois » ligne 1 transcrite vide.
+En Wh;10:Gaz;20:Fioul;30:Charbon;40:Bois;50:Electricité;60:Réseau
+1 : Chauffage;"Q_cef(1;10)";"Q_cef(1;20)";…;;;
+2: Refroidiss.;"Q_cef(2;10)";…;;;;
+3 : ECS;…;;;;;…

@@ -1,0 +1,6 @@
+# tableau 200, pages 797, fiche 8.23, refroidisseurs air extérieur / air recyclé, coefficients Cnn pour Pabs
+Températures aval;Températures amont
+Cnnav_Pabs(22, 27) = 0.95;Cnnam_Pabs(25, 35) = 1.1
+Cnnav_Pabs(32, 27) = 1.05;Cnnam_Pabs(15, 35) = 1.2
+Cnnav_Pabs(37, 27) = 1.1;Cnnam_Pabs(5, 35)=1.3
+;Cnnam_Pabs(45, 35)= 0.9

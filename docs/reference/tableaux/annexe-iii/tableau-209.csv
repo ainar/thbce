@@ -1,0 +1,6 @@
+# tableau 209, page 803, fiche 8.23, refroidisseurs eau / air ou eau glycolée / air, coefficients Cnn pour Pabs, source: auto+image
+Températures aval;Températures amont
+Cnnav_Pabs(22 ; 27) = 0,95;Cnnav_Pabs(22,5 ; 32,5) = 1,10
+Cnnav_Pabs(32 ; 27) = 1,05;Cnnav_Pabs(12,5 ; 32,5) = 1,20
+Cnnav_Pabs(37 ; 27) = 1,1;Cnnav_Pabs(2,5 ;32,5) = 1,30
+;Cnnav_Pabs(42,5 ; 32,5) = 0,90

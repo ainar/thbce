@@ -1,0 +1,8 @@
+# tableau 147, page 760, fiche 8.23, titre Source_Ballon_Base_Thermodynamique_Elec, technologies disponibles
+Sys_thermo_Ecs (mode ECS seul)
+1 : PAC air extérieur / eau
+2 : PAC air extrait / eau
+3 : PAC air ambiant / eau
+4 : PAC eau de nappe / eau
+5 : PAC sol / eau
+6 : PAC eau glycolée / eau

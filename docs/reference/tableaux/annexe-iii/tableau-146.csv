@@ -1,0 +1,9 @@
+# tableau 146, page 759, fiche 8.23, titre Generateur_Thermodynamique_Elec_Reversible, liste des technologies disponibles
+Sys_thermo_Rev;Valeur de Sys_thermo_Ch attribuée;Valeur de Sys_thermo_Fr attribuée
+1 : Machine réversible air extérieur /eau;1 : PAC air extérieur/ eau;1 : refroidisseur air extérieur / eau
+2 : Machine réversible air extérieur / air recyclé;2 : PAC air extérieur / air recyclé;2 : refroidisseur air extérieur / air recyclé
+3 : Machine réversible air extrait / air neuf;3 : PAC air extrait / air neuf;3 : refroidisseur air extrait / air neuf
+4 : Machine réversible eau glycolée / eau;5 : PAC eau glycolée / eau;4 : refroidisseur eau / eau et eau glycolée / eau
+5 : Machine réversible eau de boucle / air;7 : PAC eau de boucle / air recyclé;5 : refroidisseur eau / air et eau de boucle / air recyclé
+6 : Machine réversible eau de nappe / air;6 : PAC eau de nappe / air recyclé;6 : refroidisseur eau de nappe / air recyclé
+7 : Machine réversible eau de nappe / eau;4 : PAC eau de nappe / eau;7 : refroidisseur eau de nappe / eau

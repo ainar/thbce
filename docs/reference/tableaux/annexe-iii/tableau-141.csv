@@ -1,0 +1,22 @@
+# tableau 141, page 745 (corps p. 744-745), fiche 8.22, titre Nomenclature du modèle
+# remarques : colonnes Min/Max/Conv imprimées seulement en Paramètres ; ailleurs vides. Libellé de groupe « G/R de la génération » en étiquette verticale.
+section;groupe;nom;description;unite;min;max;conv
+Entrées du composant;G/R de la génération;Q_req;Demande en énergie transmise au générateur via la gestion/régulation de la génération.;Wh;;;
+Entrées du composant;G/R de la génération;id_fonction;Indicateur de fonction du générateur accompagnant le Q_req(h) (1 : chauffage, 2: refroidissement, 3: ECS), pour les générateurs multi-fonctions.;Ent;;;
+Paramètres intrinsèques du composant;;P_ngen;Puissance nominale d'un appareil, déterminée suivant la NF EN 13240 pour les poêles, la NF EN 13229 pour les inserts, la NF EN 14785 pour les appareils à granulés et la NF EN 15250 pour les poêles à libération lente de chaleur;kW;0;100;-
+Paramètres intrinsèques du composant;;η_H,sys,n;Rendement moyen déterminé suivant la norme NF EN 13240 pour les poêles, la NF EN 13229 pour les inserts, la NF EN 14785 pour les appareils à granulés et la NF EN 15250 pour les poêles à libération lente de chaleur;%;0;100;-
+Paramètres intrinsèques du composant;;P_aux,vent;Puissance des auxiliaires d'un poêle ou insert (ventilateur).;W;0;+∞;
+Paramètres d'intégration;;R_dim;Nombre de générateurs identiques.;Ent;1;+∞;-
+Sorties;;"{Q_cef(fonct.;en.)}";Consommation en énergie finale du générateur, présenté sous forme de matrice {fonction / type d'énergie}.;Wh;;;
+Sorties;;Q_cons;Consommation horaire du générateur en énergie finale.;Wh;;;
+Sorties;;Q_fou;Energie totale effectivement fournie par le générateur au pas de temps h.;Wh;;;
+Sorties;;τ_charge;Taux de charge du générateur pour le poste considéré.;Réel;;;
+Sorties;;W_aux,pro;Consommations d'auxiliaire au pas de temps h.;Wh;;;
+Sorties;;Q_rest;Energie restant à fournir à la fin du pas de temps, faisant l'objet d'un report de demande à un autre générateur en séquence ou au pas de temps suivant.;Wh;;;
+Sorties;;Φ_vc;Pertes thermiques et puissances des auxiliaires du générateur transmises vers l'ambiance chauffée.;Wh;;;
+Sorties;;η_eff;COP, EER ou rendement du générateur.;Réel;;;
+Variables internes;;Q_H,sys,is,100;Pertes du l'appareil de chauffage à puissance nominale.;Wh;;;
+Variables internes;;Q_H,sys,is,0;Pertes du l'appareil de chauffage à charge nulle.;Wh;;;
+Variables internes;;Q_reqact;Puissance requise au niveau du générateur, en tenant compte de R_dim.;Wh;;;
+Variables internes;;Q_fouact;Energie totale fournie par le générateur.;Wh;;;
+Variables internes;;Φ_threcact;Pertes thermiques effectives du générateur vers l'ambiance au pas de temps h.;Wh;;;

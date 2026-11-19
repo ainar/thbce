@@ -1,0 +1,75 @@
+# tableau 123, page 714 (corps p. 711-714), fiche 8.20, titre Nomenclature du modèle
+# remarques : colonne Déf imprimée (Déf) transcrite dans la colonne conv ; cellules « Voir Tableau 115 » (id_type, id_fougen, id_engen, id_fluide_aval) et « Voir Tableau 121 et Tableau 122 » (id_pertes_parois, p_Qp.g_arret, p_Qp.g_fonct) fusionnées, répétées dans chaque ligne. Renvoi « Voir Tableau 129 et Tableau ... » de fmaj rogné à l'impression (fin du numéro coupée), reproduit tel quel. Ligne « Indicateurs de » (étiquette verticale des variables internes) répétée sur chaque ligne d'indicateur. Le « 122 » de l'index en p.712 est la ligne « Voir Tableau 121 et Tableau 122 », pas un tableau distinct.
+section;groupe;nom;description;unite;min;max;conv
+Entrées du composant;Gestion/régulation de la génération;θ_aval,ECS(h) θ_aval,CH(h);Température moyenne d'eau de chauffage ou ECS au pas de temps h;°C;-50;200;-
+Entrées du composant;Gestion/régulation de la génération;θ_amb(h);Température d'ambiance du lieu où se trouve le générateur.;°C;-50;200;20
+Entrées du composant;Gestion/régulation de la génération;Q_req,CH(h) Q_req,ECS(h);Quantité d'énergie thermique à fournir par le générateur au pas de temps h pour le poste chauffage ou ECS;Wh;0;+∞;-
+Entrées du composant;Gestion/régulation de la génération;id_fonction;Indicateur de fonction du générateur accompagnant le Q_req (1 : chauffage, 2: refroidissement, 3: ECS), pour les générateurs multi-fonctions.;Ent;1;3;-
+Entrées du composant;Gestion/régulation de la génération;R_puis_dispo;Temps de fonctionnement à charge maximale potentiellement disponible.;Réel;>0;1;1
+Entrées du composant;Gestion/régulation de la génération;i_ECS_seule;Indicateur de production ECS seule.;Bool;0;1;-
+Paramètres d'intégration du composant;;R_dim;Ratio de dimensionnement du générateur.;Réel;0;+∞;1
+Paramètres d'intégration du composant;;id_raccord_gnr;Type de raccordement des générateurs entre eux, pour un mode de gestion avec priorité : 0 : Permanent, 1 : Avec isolement;Ent;0;1;1
+Paramètres d'intégration du composant;;id_pos_gen;Position de la génération : 1 : En volume chauffé, 0 : Hors volume chauffé.;Ent;0;1;1
+Paramètres intrinsèques du composant;Généraux;id_type;Type du générateur.;Ent;1;1000;Voir Tableau 115
+Paramètres intrinsèques du composant;Généraux;id_fougen;Fonction du générateur.;Ent;1;5;Voir Tableau 115
+Paramètres intrinsèques du composant;Généraux;id_engen;Energie principale du générateur.;Ent;10;69;Voir Tableau 115
+Paramètres intrinsèques du composant;Généraux;id_fluide_aval;Type de fluide caloporteur : 1 : eau, 2 : air ambiant.;Ent;1;2;Voir Tableau 115
+Paramètres intrinsèques du composant;Généraux;P_ngen;Puissance utile nominale du générateur;kW;0;+∞;-
+Paramètres intrinsèques du composant;Généraux;θ_fonct_max;Température de fonctionnement maximale du générateur;°C;20;100;100
+Paramètres intrinsèques du composant;Généraux;θ_fonct_min;Température de fonctionnement minimale du générateur;°C;20;100;30
+Paramètres intrinsèques du composant;Puissances et pertes;W_veille;Consommation électrique à charge nulle;Wh;0;+∞;-
+Paramètres intrinsèques du composant;Puissances et pertes;W_aux,nom;Consommation électrique à la puissance nominale;Wh;0;+∞;-
+Paramètres intrinsèques du composant;Puissances et pertes;Q_po30;Pertes à l'arrêt mesurées ou par défaut;Wh;0;+∞;-
+Paramètres intrinsèques du composant;Puissances et pertes;R_pn;Rendement PCI à la puissance nominale;%;0;150;-
+Paramètres intrinsèques du composant;Puissances et pertes;R_pint;Rendement PCI à la puissance intermédiaire;%;0;150;-
+Paramètres intrinsèques du composant;Puissances et pertes;P_int;Puissance utile intermédiaire du générateur;kW;0;+∞;-
+Paramètres intrinsèques du composant;Puissances et pertes;A;Coefficient de Rpn;-;0;100;
+Paramètres intrinsèques du composant;Puissances et pertes;B;Coefficient de Rpn;-;0;10;
+Paramètres intrinsèques du composant;Puissances et pertes;C;Coefficient de Rpint;-;0;100;
+Paramètres intrinsèques du composant;Puissances et pertes;D;Coefficient de Rpint;-;0;10;
+Paramètres intrinsèques du composant;Puissances et pertes;E;Coefficient de pertes à charge nulle;-;0;10;
+Paramètres intrinsèques du composant;Puissances et pertes;F;Coefficient de pertes à charge nulle;-;-1;1;
+Paramètres intrinsèques du composant;Puissances et pertes;G;Coefficient des puissances d'auxiliaires;-;0;100;
+Paramètres intrinsèques du composant;Puissances et pertes;H;Coefficient des puissances d'auxiliaires;-;0;100;
+Paramètres intrinsèques du composant;Pertes récupérables;id_pertes_parois;Indicateur pour la prise en compte des pertes par les parois à l'arrêt. Voir Tableau 121.;Ent;1;3;Voir Tableau 121 et Tableau 122
+Paramètres intrinsèques du composant;Pertes récupérables;p_Qp.g_arret;Part des pertes par les parois du générateur à l'arrêt (conventionnel).;Réel;0;1;Voir Tableau 121 et Tableau 122
+Paramètres intrinsèques du composant;Pertes récupérables;p_Qp.g_fonct;Part des pertes par les parois du générateur en fonctionnement (conventionnel).;Réel;0;1;Voir Tableau 121 et Tableau 122
+Sorties;;"{Q_cef(fonct.;en.)}";Consommation en énergie finale du générateur, présenté sous forme de matrice {fonction / type d'énergie}.;Wh;0;+∞;-
+Sorties;;Q_cons;Puissance effectivement consommée par le générateur.;Wh;0;+∞;-
+Sorties;;Q_fou;Energie totale effectivement fournie par le générateur.;Wh;0;+∞;-
+Sorties;;τ_charge;Taux de charge du générateur pour le poste considéré.;Réel;0;1;-
+Sorties;;W_aux,pro;Consommations d'auxiliaire propre au processus de génération.;Wh;0;+∞;-
+Sorties;;η_eff;Rendement du générateur exprimé sous forme de réel.;Réel;0;10;-
+Sorties;;Q_rest;Energie restant à fournir à la fin du pas de temps, faisant l'objet d'un report de demande à un autre générateur en séquence ou au pas de temps suivant.;Wh;0;+∞;-
+Sorties;;Φ_vc;Pertes thermiques et puissances des auxiliaires du générateur transmises vers l'ambiance.;Wh;0;+∞;-
+Sorties;;R_fonctecs;Temps de fonctionnement du générateur pour la production d'ECS, à puissance maximale.;Réel;0;1;0
+Variables internes;;θ_aval_corr;Température de fonctionnement définie au niveau de la gestion/régulation de la génération, corrigé selon la plage de fonctionnement du générateur;°C;20;200;-
+Variables internes;;Q_p0;Pertes à charge nulle.;W;0;+∞;-
+Variables internes;;Q_p0prev;Dernière valeur de pertes à l'arrêt calculée pour une température correspondant à un fonctionnement.;W;0;+∞;-
+Variables internes;;Q_pmini;Pertes totales en charge intermédiaire.;W;0;+∞;-
+Variables internes;;Q_px;Pertes totales au point de fonctionnement;W;0;+∞;-
+Variables internes;;P_max;Puissance maximale que peut fournir le générateur dans les conditions de températures amont et aval;W;0;+∞;-
+Variables internes;;Q_consact;Puissance effectivement consommée par le générateur.;Wh;0;+∞;-
+Variables internes;;Q_reqact;Puissance requise au niveau du générateur, en tenant compte de R_dim.;Wh;0;+∞;-
+Variables internes;;Q_fouact;Puissance fournie par un générateur, en tenant compte de R_dim.;Wh;0;+∞;-
+Variables internes;;Φ_threcact;Pertes thermiques effectives du générateur vers l'ambiance.;Wh;0;+∞;-
+Variables internes;;W_auxact;Consommations électriques effectives des auxiliaires de génération.;Wh;0;+∞;-
+Variables internes;;η_eff_%;Rendement du générateur exprimé en pourcentage;%;0;150;-
+Variables internes;Indicateurs de fonctionnement;id_a_fonctionne(h);Indicateur de fonctionnement à charge non-nulle au pas de temps h : 0 : charge nulle, 1 : fonctionnement en chauffage, 2 : fonctionnement en refroidissement, 3 : fonctionnement en ECS,;Ent;0;3;0
+Variables internes;Indicateurs de fonctionnement;id_a_fonctionne(h-1);Indicateur de fonctionnement à charge non-nulle au pas de temps h-1.;Ent;0;3;0
+Variables internes;;R_fonctecs(h-1);Temps de fonctionnement de l'ECS à charge maximale au pas de temps h-1.;Réel;0;1;0
+Variables internes;;Cce;Consommation conventionnelle d'entretien;kW;0;+∞;-
+Variables internes;;PCSI;Ratio entre le pouvoir calorifique supérieur et le pouvoir calorifique inférieur (pour le gaz, le fioul, le bois);-;1;2;-
+Variables internes;;R_pn;Rendement sur PCI du générateur à 100% de charge;-;0;1,2;-
+Variables internes;;R_pint;Rendement sur PCI du générateur à 30% de charge;-;0;1,2;-
+Variables internes;;P_aux;Puissance des auxiliaires (hors chaudières au gaz ou au fioul).;kW;0;;-
+Variables internes;;QP_30;Pertes thermiques du générateur à charge nulle;W;0;;-
+Variables internes;;a_nom;Facteur de correction du rendement en fonction de la température pour le rendement nominal.;-;0;1;-
+Variables internes;;θ_mes_nom;Température à laquelle est défini le rendement nominal R_pn;°C;0;+∞;-
+Variables internes;;a_int;Facteur de correction du rendement en fonction de la température pour le rendement intermédiaire;-;0;1;-
+Variables internes;;θ_mes_int;Température à laquelle est défini le rendement intermédiaire R_pint;°C;0;+∞;-
+Variables internes;;f_maj;Coefficient de majoration qui tient compte du fait que les radiateurs fonctionnent en moyenne à une puissance inférieure à leur puissance nominale;Réel;1;2;Voir Tableau 129 et Tableau
+Variables internes;;R_pn_teta;Rendement à la puissance nominale à la température θ_aval;%;0;150;-
+Variables internes;;R_pint_teta;Rendement à la puissance intermédiaire à la température θ_aval;%;0;150;-
+Variables internes;;Fx;Coefficient intervenant dans les pertes thermiques;-;>0;1;-
+Variables internes;;Q_Parrêt;Coefficient intervenant dans les pertes thermiques;W;>0;1000;-

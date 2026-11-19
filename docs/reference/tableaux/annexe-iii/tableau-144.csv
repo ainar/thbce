@@ -1,0 +1,9 @@
+# tableau 144, page 757, fiche 8.23, titre normes pour la détermination des performances des climatiseurs, groupes refroidisseurs de liquide et PAC à compresseur entraîné par moteur électrique. Appels de note 8, 9, 10 (exposants) conservés en fin de valeur : notes au bas de la page 757.
+Technologie;Mode;Norme de référence
+Toute technologie autre que sol/eau;Mode chauffage;NF EN 14511-2 (note 8)
+# fusion : Toute technologie autre que sol/eau (3 lignes)
+Toute technologie autre que sol/eau;Mode refroidissement;NF EN 14511-2
+Toute technologie autre que sol/eau;Mode production ECS;Selon modalités de la fiche « Saisie des chauffe-eau thermodynamiques à compression électrique » : NF EN 16147 (note 9) NF EN 14511-2
+Sol/eau;Mode chauffage;NF EN 15879-1 (note 10)
+# fusion : Sol/eau (2 lignes)
+Sol/eau;Mode production ECS;Selon modalités de la fiche « Saisie des chauffe-eau thermodynamiques à compression électrique » : NF EN 16147 NF EN 15879-1

@@ -1,0 +1,5 @@
+# tableau 245, page 934, fiche 8.27, correspondance entre la température de sol et la température d'essai de la machine sur source sol, source: image
+# remarque : en-tête imprimé "Températures amont principales (°C)" au-dessus des quatre colonnes ; la ligne "Température de sol" donne les valeurs -5, 0, 5, 10
+;Températures amont principales (°C);;;
+Température de sol θf(h) (°C);-5;0;5;10
+Température de bain d’essai correspondante θamont(h) (°C);-4;1.5;4;6.5

@@ -1,0 +1,6 @@
+# tableau 113, page 693 (corps p. 693 seul), fiche 8.18, titre Matrice des consommations en énergies finales {Qcef (poste;énergie)}
+# remarque : matrice imprimée ; les cellules « … » sont transcrites telles quelles, les cellules vides restent vides. Unité « En Wh » en coin de tableau.
+usage (En Wh);10:Gaz;20:Fioul;30:Charbon;40:Bois;50:Electricité;60:Réseau
+1 : Chauffage;"Q_cef(1;10)";"Q_cef(1;20)";…;;;
+2: Refroidiss.;"Q_cef(2;10)";…;;;;
+3 : ECS;…;;;;;…

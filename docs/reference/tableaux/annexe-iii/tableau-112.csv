@@ -1,0 +1,18 @@
+# tableau 112, page 691 (corps p. 690-691), fiche 8.18, titre Nomenclature du modèle
+# remarques : colonnes Min/Max/Conv imprimées seulement en Paramètres intrinsèques ; ailleurs vides.
+section;nom;description;unite;min;max;conv
+Entrées du composant;Q_req;Demande en énergie transmise au générateur via la gestion/régulation de la génération.;Wh;;;
+Entrées du composant;id_fonction;Indicateur de fonction du générateur accompagnant le Q_req (1 : chauffage, 2: refroidissement, 3: ECS), pour les générateurs multi-fonctions.;Ent;;;
+Paramètres intrinsèques du composant;id_fougen;Fonction du générateur : - 1 : Chauffage, - 2 : Refroidissement, - 3 : ECS, - 4 : Chauffage et ECS - 5 : Chauffage et refroidissement.;Ent;1;5;
+Paramètres intrinsèques du composant;id_engen;Energie principale du générateur.;Ent;10;69;
+Paramètres intrinsèques du composant;P_ngen;Puissance fournie en fonctionnement nominal (100% de charge) du générateur.;W;0;+∞;-
+Sorties;"{Q_cef(fonct.;en.)}";Consommation en énergie finale du générateur, présenté sous forme de matrice {fonction / type d'énergie}.;Wh;;;
+Sorties;Q_cons;Consommation horaire du générateur en énergie finale.;Wh;;;
+Sorties;Q_fou;Energie totale effectivement fournie par le générateur au pas de temps h.;Wh;;;
+Sorties;τ_charge;Taux de charge du générateur pour le poste considéré.;Réel;;;
+Sorties;Q_rest;Energie restant à fournir à la fin du pas de temps, faisant l'objet d'un report de demande à un autre générateur en séquence ou au pas de temps suivant.;Wh;;;
+Sorties;W_aux,pro;Consommations d'auxiliaire au pas de temps h.;Wh;;;
+Sorties;Φ_vc;Pertes thermiques et puissances des auxiliaires du générateur transmises vers l'ambiance chauffée.;Wh;;;
+Sorties;η_eff;Ratio d'efficacité du générateur (rendement);Réel;;;
+Sorties;R_fonctecs;Temps de fonctionnement du générateur pour la production d'ECS à charge maximale au pas de temps h.;Réel;;;
+Variables internes;Φ_threcact;Pertes thermiques effectives du générateur vers l'ambiance au pas de temps h.;Wh;;;

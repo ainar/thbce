@@ -1,0 +1,8 @@
+# tableau 115, page 699, fiche 8.19, titre liste des déclinaisons de chaudières
+# remarque : légende imprimée « Tableau 115: liste des déclinaisons de chaudières » en p.699. L'index indique aussi une entrée « 115 » en p.711 (titre Paramètres intrinsèques du composant) : numéro en double dans l'index, non traité ici.
+Type_Generateur;id_engen;id_fluide_aval
+0) Chaudière à gaz classique;10;1
+1) Chaudière gaz à condensation;10;1
+2) Chaudière fioul classique;20;1
+3) Chaudière fioul à condensation;20;1
+4) Chaudière bois;40;1

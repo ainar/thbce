@@ -1,0 +1,7 @@
+# tableau 139, page 734, fiche 8.21, titre Valeurs utiles maximales des rendements et puissance d'auxiliaires pour un micro-cogénérateur à appoint intégré
+# remarque : ce tableau n'est pas une grille dans l'original mais un ensemble de formules (1175 à 1178) placé au-dessus de la légende. Transcrites telles quelles ; la colonne Valeur contient la formule.
+Grandeur;Formule imprimée
+fx;"fx = P_th;chp100+sup0 / P_th;chp100+sup100"
+η_th,chp100+sup100,nom;η_th,chp100+sup100,nom = 1 / ( fx / η_th,chp100+sup0,nom + (1 - fx) / 90% )
+η_el,chp100+sup100,nom;η_el,chp100+sup100,nom = fx . η_el,chp100+sup0,nom . η_th,chp100+sup100,nom / η_th,chp100+sup0,nom
+Pw_aux,chp100+sup100;"Pw_aux,chp100+sup100 = (45/1000) . (P_th;chp100+sup100)^0,48"

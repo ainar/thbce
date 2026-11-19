@@ -1,0 +1,6 @@
+# tableau 238, pages 905, fiche 8.25, Valeurs de Cnnav en refroidissement des PAC MG air/eau, source: image
+GUE;Pabs;Paux;ηth,ecs
+Cnnav_GUE(4, 9.5) = 0,90;Cnnav_Pabs(4, 9.5) = 0,95;Cnnav_Paux(4, 9.5) = 1;Cnnav_ηth,ecs(4, 9.5) = 0,97
+Cnnav_GUE(15, 9.5) = 1,08;Cnnav_Pabs(15, 9.5) = 1,06;Cnnav_Paux(15, 9.5) = 1;Cnnav_ηth,ecs(15, 9.5) = 1,01
+Cnnav_GUE(20.5, 15) = 1,07;Cnnav_Pabs(20.5, 15) = 1,05;Cnnav_Paux(20.5, 15) = 1;Cnnav_ηth,ecs(20.5, 15) = 1,01
+Cnnav_GUE(26, 20.5) = 1,06;Cnnav_Pabs(26, 20.5) = 1,05;Cnnav_Paux(26, 20.5) = 1;Cnnav_ηth,ecs(26, 20.5) = 1,01

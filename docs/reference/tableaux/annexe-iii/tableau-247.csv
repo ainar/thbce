@@ -1,0 +1,9 @@
+# tableau 247, page 938, fiche 8.28, Coefficient Bss en fonction du type d'isolation, de la catégorie d'isolation et du type de réseau, source: image
+# remarque : "3 ,9" imprimé avec une espace avant la virgule (conservé tel quel) ; colonne 1 = type de réseau
+;Classes d’isolation des composants de la sous-station;;;
+;Isolation réseau secondaire;4;3;2;1
+;Isolation réseau primaire;5;4;3;2
+Type de réseau;Eau chaude basse température;3,5;4;4,4;4,9
+Type de réseau;Eau chaude haute température;3,1;3,5;3 ,9;4,3
+Type de réseau;Vapeur basse pression;2,8;3,2;3,5;3,9
+Type de réseau;Vapeur haute pression;2,6;3;3,3;3,7

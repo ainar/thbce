@@ -1,0 +1,56 @@
+# tableau 114, page 698 (corps p. 695-698), fiche 8.19, titre Nomenclature du modèle
+# remarques : colonne « Déf » imprimée en Paramètres (valeur par défaut) transcrite dans la colonne conv ; « Valeur » des Constantes transcrite dans la colonne conv. Cellules « Voir Tableau 115 » (id_type / Id_fou_gen) et « Voir Tableau 121 et Tableau » (p_Qp.g) répétées dans chaque ligne couverte (fusion) ; le renvoi est rogné à l'impression (fin du numéro coupée), reproduit tel quel.
+section;groupe;nom;description;unite;min;max;conv
+Entrées du composant;Gestion/régulation de la génération;θ_aval,ECS(h) θ_aval,CH(h);Température moyenne d'eau de chauffage ou ECS au pas de temps h;°C;;;
+Entrées du composant;Gestion/régulation de la génération;θ_amb(h);Température d'ambiance du lieu où se trouve le générateur.;°C;;;
+Entrées du composant;Gestion/régulation de la génération;Q_req,CH(h) Q_req,ECS(h);Quantité d'énergie thermique à fournir par le générateur au pas de temps h pour le poste chauffage ou ECS;Wh;;;
+Entrées du composant;Gestion/régulation de la génération;i_ECS_seule(h);Indicateur de production ECS seule au pas de temps h;Bool;;;
+Paramètres d'intégration du composant;;R_dim;Nombre de générateurs identiques;Entier;0;+∞;1
+Paramètres d'intégration du composant;;id_raccord_gnr;Type de raccordement des générateurs entre eux, pour un mode de gestion avec priorité : 0 : Permanent, 1 : Avec isolement;Ent;0;1;1
+Paramètres d'intégration du composant;;id_pos_gen;Position de la génération : 1 : En volume chauffé, 0 : Hors volume chauffé.;Menu;0;1;1
+Paramètres intrinsèques du composant;Généraux;id_type;Type du générateur.;Ent;1;1000;Voir Tableau 115
+Paramètres intrinsèques du composant;Généraux;Id_fou_gen;Fonction du générateur.;Menu;1;5;Voir Tableau 115
+Paramètres intrinsèques du composant;Généraux;TypeCombustibleBois;Type de combustible bois : 1) Bûches, 2) Granulés, 3) Plaquettes;Menu;1;3;
+Paramètres intrinsèques du composant;Puissances;Pn_gen;Puissance thermique utile nominale du générateur en régime haute température;kW;0;+∞;-
+Paramètres intrinsèques du composant;Puissances;R_pn;Rendement thermique sur PCS à la puissance nominale en régime haute température;%;0;100;-
+Paramètres intrinsèques du composant;Puissances;Waux_nom;Puissance électrique absorbée à pleine charge;W;0;+∞;-
+Paramètres intrinsèques du composant;Puissances;Pint;Puissance thermique utile à 30% de charge en régime basse température;kW;0;+∞;-
+Paramètres intrinsèques du composant;Puissances;R_pint;Rendement thermique sur PCS à la puissance P_int en régime basse température;%;0;100;-
+Paramètres intrinsèques du composant;Puissances;Waux_int;Puissance électrique absorbée à charge intermédiaire P_int;W;0;+∞;-
+Paramètres intrinsèques du composant;Puissances;Wveille;Puissance électrique absorbée à charge nulle;W;0;+∞;-
+Paramètres intrinsèques du composant;Puissances;Alim_Chaudiere_Bois;Type de chargement de la chaudière bois : 0) Chargement manuel, tirage naturel 1) Chargement manuel, air pulsé 2) Chargement automatique, tirage naturel 3) Chargement automatique, air pulsé;Menu;0;3;
+Paramètres intrinsèques du composant;Pertes récupérables;Q_po_30;Pertes thermiques en régime stabilisé pour un ΔT de 30°C;W;0;+∞;-
+Paramètres intrinsèques du composant;Pertes récupérables;id_pertes_parois;Indicateur pour la prise en compte des pertes par les parois à l'arrêt. Voir Tableau 121.;Menu;1;3;-
+Paramètres intrinsèques du composant;Pertes récupérables;p_Qp.g_arret;Part des pertes par les parois du générateur à l'arrêt (conventionnel).;Réel;0;1;Voir Tableau 121 et Tableau
+Paramètres intrinsèques du composant;Pertes récupérables;p_Qp.g_fonct;Part des pertes par les parois du générateur en fonctionnement (conventionnel).;Réel;0;1;Voir Tableau 121 et Tableau
+Sorties;;id_fluide_aval;Type de fluide caloporteur : 1 : eau, 2 : air ambiant.;Ent;1;2;
+Sorties;;id_engen;Type d'énergie principal du générateur.;Ent;10;69;
+Sorties;;θ_fonct_max;Température de fonctionnement maximale du générateur;°C;20;100;100
+Sorties;;θ_fonct_min;Température de fonctionnement minimale du générateur;°C;20;100;30
+Sorties;;"{Q_cef(fo.;en.)}(h)";Consommation en énergie finale du générateur, présenté sous forme de matrice {fonction / type d'énergie}.;Wh;;;
+Sorties;;Q_cons(h);Quantité d'énergie totale consommée par le générateur pour le type d'énergie principal;Wh;;;
+Sorties;;Q_fou(h);Quantité d'énergie totale fournie par le générateur;Wh;;;
+Sorties;;Q_fou,ch(h) Q_fou,ecs(h);Quantité d'énergie totale effectivement fournie par le générateur en chauffage et ECS;Wh;;;
+Sorties;;Q_rest,ch(h) Q_rest,ecs(h);Quantité d'énergie requise et non-fournie par le générateur en chauffage et ECS;Wh;;;
+Sorties;;τ_charge(h);Taux de charge du générateur pour le poste considéré.;Réel;;;
+Sorties;;W_aux,pro(h);Consommations d'auxiliaire propre au processus de génération.;Wh;;;
+Sorties;;η_eff(h);Rendement du générateur exprimé sous forme de réel.;Réel;;;
+Sorties;;Φ_vc(h);Quantité d'énergie échangée entre le générateur et l'ambiance dans lequel il est placé.;Wh;;;
+Sorties;;R_fonctecs(h);Temps de fonctionnement de l'ECS à charge maximale au pas de temps h;Réel;0;1;0
+Sorties;;R_puisdispo(h);Ratio de puissance disponible pour le service chauffage au pas de temps h;Réel;0;1;0
+Sorties;;Q_Parrêt;Coefficient intervenant dans les pertes thermiques;W;>0;1000;-
+Variables internes;;θ_aval,ch(h) θ_aval,ecs(h);Température moyenne d'eau aval au pas de temps h;°C;;;
+Variables internes;;θ_aval,cr_ch(h) θ_aval,cr_ecs(h);Température moyenne d'eau aval au pas de temps h;°C;;;
+Variables internes;;P_th,nom,ch(h) P_th,nom,ecs(h);Puissances thermiques nominales du générateur en chauffage et production ECS;W;;;
+Variables internes;;P_th,int,ch(h) P_th,int,ecs(h);Puissances thermiques intermédiaires du générateur en chauffage et production ECS;W;;;
+Variables internes;;R_puis,dispo(h);Ratio de puissance disponible pour le poste chauffage;Réel;;;
+Variables internes;;Q_pertes(h);Quantités d'énergie perdues par l'enveloppe de la chaudière et dans les fumées totale du générateur au pas de temps h;Wh;;;
+Variables internes;;Q_pertes,ch(h) Q_pertes,ecs(h);Quantités d'énergie perdues par l'enveloppe de la chaudière et dans les fumées en chauffage et ECS;Wh;;;
+Variables internes;;Q_cons,ch(h) Q_cons,ecs(h);Quantités d'énergie consommées en chauffage et ECS;Wh;;;
+Variables internes;;φ_th,stab,ch(h) φ_th,stab,ecs(h);Pertes thermiques en régime stabilisé de l'appareil ramenées à la température aval en chauffage et ECS;Wh;;;
+Variables internes;;Φ_pertes,int,ch(h) Φ_pertes,int,ecs(h);Pertes thermiques de la chaudière au taux de charge intermédiaire;Wh;;;
+Variables internes;;Φ_pertes,nom,ch(h) Φ_pertes,nom,ecs(h);Pertes thermiques de la chaudière au taux de charge nominal;Wh;;;
+Variables internes;;fx;Facteur d'interpolation;Réel;;;
+Constantes;;PCSI{type_combustible};Ratio du PCS (Pouvoir Calorifique Supérieur) sur le PCI (Pouvoir Calorifique Inférieur);Réel;;;Voir Tableau 116
+Constantes;;c1 à c10, n;Coefficients pour la détermination des valeurs par défaut des chaudières gaz, fioul et bois;Réel;;;Voir §8.19.3.1.4
+Constantes;;t_h;Durée d'un pas de temps de simulation;h;;;1

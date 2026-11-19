@@ -1,0 +1,9 @@
+# tableau 128, page 717, fiche 8.20, titre Puissances d'auxiliaires par défaut
+# remarque : tableau sans en-tête de colonnes imprimé ; colonnes valeur_1 et valeur_2 nommées par ordre d'impression. Groupe repris sur chaque ligne.
+groupe;libellé;valeur_1;valeur_2
+Générateurs d'air chaud;Sans ventilateur côté émission;0;4
+Générateurs d'air chaud;Avec ventilateur côté émission;0;54
+Tubes radiants;Avec ventilateur côté émission;0;54
+Radiateurs gaz, poêles et inserts gaz;Par ventilateur (on compte séparément les ventilateurs côté combustion et côté émission);40;0
+Chauffe eau gaz;(ligne de groupe seule);0;0
+Accumulateurs gaz;(ligne de groupe seule);0;0
