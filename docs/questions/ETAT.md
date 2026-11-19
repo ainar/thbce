@@ -139,3 +139,4 @@
 | Q217 | ACV : renouvellements des composants et fluides dont la DVE atteint ou dépasse la PER | tranchée, à confirmer par un cas de référence |
 | Q218 | ACV : eau des usages « N/C » du tableau 7 et des zones de consommations différentes | tranchée, à confirmer par un cas de référence |
 | Q230 | Rafraîchissement par surventilation mécanique (fiche 6.12, éq. 758 à 780) : saisie par système, heure légale, saison propre, surface de conduit, bypass, puissances des centrales à débit variable, mode actif | lecture du lot 1-ven6, à confirmer par un cas de référence |
+| Q231 | Puits climatique (fiches 6.8, 6.10 et 6.11, éq. 719 à 731, 750 à 757) : régulation retenue, débit de l'éq. (726), débits du pas précédent, température intérieure du puits, un système par puits | lecture du lot 1-ven8, à confirmer par un cas de référence |

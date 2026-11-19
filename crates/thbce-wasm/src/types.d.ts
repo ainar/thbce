@@ -659,6 +659,28 @@ export interface Bypass {
   theta_int_bypass_hiver_c: number;
 }
 
+/**
+ * Consignes du bypass d'un puits climatique (§6.10.2, tableau 73, éq. 751 et 752) : le puits
+ * est contourné lorsque l'air extérieur est plus frais que l'air intérieur, plus chaud que la
+ * consigne extérieure et que l'air intérieur dépasse la consigne intérieure.
+ */
+export interface BypassPuits {
+  /** « θext,bypass_PC^été » : la même hors période de chauffage, en °C. */
+  theta_ext_ete_c: number;
+  /**
+   * « θext,bypass_PC^hiver » : température extérieure de consigne au-dessus de laquelle le
+   * puits peut être contourné en période de chauffage, en °C.
+   */
+  theta_ext_hiver_c: number;
+  /** « θint,bypass_PC^été » : la même hors période de chauffage, en °C. */
+  theta_int_ete_c: number;
+  /**
+   * « θint,bypass_PC^hiver » : température intérieure de consigne au-dessus de laquelle le
+   * puits peut être contourné en période de chauffage, en °C.
+   */
+  theta_int_hiver_c: number;
+}
+
 /** Capteurs solaires d'une boucle (tableau 292). */
 export interface CapteursSolaires {
   /** « Kθ » : facteur d'angle d'incidence, de 0 à 1 (sans valeur par défaut dans le texte). */
@@ -3856,6 +3878,32 @@ export interface ProtectionsEspaceTampon {
 /** Puits climatique ou hydraulique (§6.8 à 6.11). */
 export type Puits = "climatique" | "hydraulique";
 
+/**
+ * Th-BCE 2020 §6.8.2, tableau 69 — puits climatique (ou canadien) : conduits enterrés dans
+ * lesquels circule l'air neuf, et gestion de son bypass (§6.10.2, tableau 73).
+ */
+export interface PuitsClimatique {
+  /**
+   * Gestion du bypass en fonction des températures (« typegest_PC » = 1, §6.10.2) ; absent :
+   * pas de bypass (« typegest_PC » = 0), le puits est toujours traversé.
+   */
+  bypass?: BypassPuits | null;
+  /** « di » : diamètre intérieur du conduit, en m (strictement positif). */
+  di_m: number;
+  /** « ep » : épaisseur du conduit, en m (positive ou nulle). */
+  ep_m: number;
+  /** « L » : longueur d'un conduit, en m (strictement positive). */
+  l_m: number;
+  /** « λtube » : conductivité thermique du conduit, en W/(m.K) (strictement positive). */
+  lambda_tube_w_m_k: number;
+  /** « nd » : nombre de conduits (au moins 1). */
+  nd: number;
+  /** « Z » : profondeur d'enfouissement des conduits, en m (positive ou nulle). */
+  profondeur_m: number;
+  /** « Type_solPC » : nature du sol (tableau 70). */
+  type_sol: TypeSolPuits;
+}
+
 /** Quantités d'eau annuelles du bâtiment (§4.4.2) et de la parcelle (§4.6.2), en m³/an. */
 export interface QuantitesEauAcv {
   /** « Nocc » (§5.2.3). */
@@ -5209,6 +5257,22 @@ export interface ResultatsProductionPv {
   installations: ResultatsInstallationPv[];
 }
 
+/** Fonctionnement annuel d'un puits climatique dans un calcul. */
+export interface ResultatsPuitsClimatique {
+  /**
+   * Nombre d'heures où l'air neuf traverse le puits : non contourné (éq. 750 à 752) et
+   * débit d'air neuf non nul.
+   */
+  nbh_actif: number;
+  /**
+   * Énergie apportée à l'air neuf en préchauffage, en kWh : somme positive de
+   * `Cpa × qm,air_neuf × (θan − θext)` (éq. 731, 728).
+   */
+  q_prechauffage_kwh: number;
+  /** Énergie retirée à l'air neuf en prérafraîchissement, en kWh, négative. */
+  q_prerefroidissement_kwh: number;
+}
+
 /** Récupérateur de chaleur collectif sur les eaux grises, calcul Th-C (§9.21.6). */
 export interface ResultatsRecuperateurCollectif {
   /** « εech_eg_fixe » retenue pour l'échangeur central (§9.21.6.3.2.1). */
@@ -5496,6 +5560,11 @@ export interface ResultatsVentilationMode {
    * revoir le dimensionnement ; absente sans ces batteries.
    */
   nbh_sous_dimensionnement_consecutives?: number | null;
+  /**
+   * Fonctionnement du puits climatique de l'air neuf (fiches 6.8, 6.10 et 6.11) ; absent
+   * sans puits.
+   */
+  puits_climatique?: ResultatsPuitsClimatique | null;
   /** Énergie fournie pour la sécurité antigel de l'échangeur, en kWh (éq. 508). */
   q_ag_kwh: number;
   /**
@@ -5900,6 +5969,9 @@ export type TypeRafraichissementEvaporatif = "direct" | "indirect";
 /** Type d'un réseau de chaleur (§8.28.3.1, tableaux 247 et 248). */
 export type TypeReseauChaleurSaisi = "eau_chaude_basse_temperature" | "eau_chaude_haute_temperature" | "vapeur_basse_pression" | "vapeur_haute_pression";
 
+/** « Type_solPC » : nature du sol d'un puits climatique (§6.8.3.2.1, tableau 70). */
+export type TypeSolPuits = "sol_humide" | "sable_sec" | "sable_humide" | "argile_humide" | "argile_mouillee";
+
 /**
  * « israfnoc » (§6.12.2, tableau 75) : nature du rafraîchissement par surventilation
  * mécanique d'un système de ventilation.
@@ -6122,10 +6194,18 @@ export interface Ventilation {
   /** Identifiant du système. */
   id: string;
   /**
-   * Raccordement à un puits climatique ou hydraulique (§6.8 à 6.11) : non pris en charge
-   * dans cette version.
+   * Raccordement à un puits climatique ou hydraulique (§6.8 à 6.11). Le puits climatique
+   * (`climatique`) se décrit par `puits_climatique` ; le puits hydraulique n'est pas encore
+   * pris en charge.
    */
   puits?: Puits | null;
+  /**
+   * Description du puits climatique (fiches 6.8, 6.10 et 6.11), requise si `puits` vaut
+   * `climatique` et interdite sinon. Le système doit être un simple flux par insufflation,
+   * un double flux ou une centrale de traitement d'air (§6.11.3). Le puits ne dessert que
+   * ce système.
+   */
+  puits_climatique?: PuitsClimatique | null;
   /**
    * Réseau de conduits : étanchéité et parties hors volume chauffé (§6.2.3.4, §6.3.3.3.2,
    * §6.5.3.4).

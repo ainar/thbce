@@ -54,11 +54,11 @@ use super::humidification::{
     ETA_HUM_CONV,
 };
 use super::mecanique_basse_pression;
-use super::puits_climatique::EtatPuits;
 use super::mecanique_sf::{
     dugd_equ_h, h_cond_ext_w_k, p_vent_groupe_w, p_vent_residentiel_w, qm_kg_s, rho_kg_m3,
     t_apres_conduit_c, t_apres_ventilateur_c, t_lnc_c, theta_i_cond_c, C_PA_J_KG_K,
 };
+use super::puits_climatique::EtatPuits;
 use super::surventilation_mecanique::{a_cond_rafnoc_m2, SurventilationResolue};
 
 /// Nature du système, résolue pour le calcul.
@@ -1552,10 +1552,7 @@ impl VentilationProjet {
         }
         // Air neuf : air extérieur sans puits (éq. 413 et 657) ; avec un puits climatique, sortie
         // du puits avec les débits d'air neuf de la fin du pas précédent (éq. 414 et 658).
-        let theta_an_prec = self
-            .puits
-            .as_ref()
-            .map_or(theta_ext_c, |p| p.theta_an_c());
+        let theta_an_prec = self.puits.as_ref().map_or(theta_ext_c, |p| p.theta_an_c());
         // §6.3.3.4.5.3 : rafraîchissement évaporatif indirect autorisé (« Aut_adiab = 1 » et
         // « Type_Humidification_Ete = 2 ») ; pas de recyclage (éq. 440), pas de bypass (éq. 493).
         let indirect = regime.adiab && self.adiabatique.is_some_and(|a| a.indirect);

@@ -163,7 +163,12 @@ pub fn theta_sortie_active_c(theta_ext_c: f64, epsilon: f64, theta_sol_c: f64) -
 /// Th-BCE 2020 §6.10.3, éq. (750) à (752) : conditions simultanées `θext < θi,fin`,
 /// `θext >` consigne extérieure et `θi,fin >` consigne intérieure, de la période de chauffage ou
 /// du reste de l'année.
-pub fn delta_bypass(b: &BypassPuits, chauffage: bool, theta_ext_c: f64, theta_i_fin_c: f64) -> bool {
+pub fn delta_bypass(
+    b: &BypassPuits,
+    chauffage: bool,
+    theta_ext_c: f64,
+    theta_i_fin_c: f64,
+) -> bool {
     let (ext, int) = if chauffage {
         (b.theta_ext_hiver_c, b.theta_int_hiver_c)
     } else {
@@ -188,9 +193,11 @@ pub fn activation_fiche_6_8(
     theta_sortie_active_c: f64,
 ) -> bool {
     if chauffage {
-        theta_ext_c < theta_arret_hiver_c && (!gestion_sur_sortie || theta_ext_c < theta_sortie_active_c)
+        theta_ext_c < theta_arret_hiver_c
+            && (!gestion_sur_sortie || theta_ext_c < theta_sortie_active_c)
     } else {
-        theta_ext_c > theta_arret_ete_c && (!gestion_sur_sortie || theta_ext_c > theta_sortie_active_c)
+        theta_ext_c > theta_arret_ete_c
+            && (!gestion_sur_sortie || theta_ext_c > theta_sortie_active_c)
     }
 }
 

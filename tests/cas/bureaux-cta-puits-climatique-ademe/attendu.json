@@ -1,0 +1,73 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b"
+  },
+  "batiments": [
+    {
+      "id": "bureaux",
+      "sref_m2": 1000.0,
+      "bbio_pts": 94.3,
+      "dh_c_h": 579.9,
+      "cep_kwhep_m2": 67.8,
+      "cep_nr_kwhep_m2": 67.8,
+      "ic_energie_kgco2_m2": 236.4,
+      "indicateurs": {
+        "cef_kwhef_m2": 41.1,
+        "exigences": {
+          "bbio_max_pts": 87.9,
+          "cep_max_kwhep_m2": 82.7,
+          "cep_nr_max_kwhep_m2": 73.0,
+          "ic_energie_max_kgco2_m2": 194.7,
+          "conforme": false
+        },
+        "electricite_consommee": {
+          "chauffage_kwh": 131.3,
+          "ecs_kwh": 3191.7,
+          "eclairage_kwh": 6033.1,
+          "auxiliaires_ventilation_kwh": 10234.6
+        }
+      },
+      "zones": [
+        {
+          "id": "bureaux",
+          "ventilation": {
+            "p_vent_w": 3000.0,
+            "c_aux_vent_kwh": 10234.6,
+            "th_d": {
+              "nbh_bypass": 3461,
+              "q_ag_kwh": 0.0,
+              "q_prechaud_kwh": 2034.5,
+              "puits_climatique": {
+                "nbh_actif": 6312,
+                "q_prechauffage_kwh": 26192.5,
+                "q_prerefroidissement_kwh": -9817.1
+              }
+            },
+            "th_c": {
+              "nbh_bypass": 3295,
+              "q_ag_kwh": 0.0,
+              "q_prechaud_kwh": 1784.0,
+              "puits_climatique": {
+                "nbh_actif": 6815,
+                "q_prechauffage_kwh": 26657.6,
+                "q_prerefroidissement_kwh": -13574.5
+              }
+            }
+          },
+          "groupes": [
+            {
+              "id": "plateaux",
+              "ventilation": {
+                "q_spec_repris_m3_h": -6836.9,
+                "q_spec_souffle_m3_h": 6836.9,
+                "q_souffle_cond_m3_h": 7199.2,
+                "c_aux_vent_kwh": 10234.6
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

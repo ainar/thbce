@@ -747,7 +747,11 @@ fn validation_du_puits_climatique() {
     assert!(valider(&p).est_valide(), "{:?}", valider(&p).erreurs);
     // Déclaré sans description, ou décrit sans déclaration.
     let mut p = double_flux_avec_puits(None);
-    zone_mut(&mut p).ventilation.as_mut().unwrap().puits_climatique = None;
+    zone_mut(&mut p)
+        .ventilation
+        .as_mut()
+        .unwrap()
+        .puits_climatique = None;
     assert_eq!(chemins(&p), [format!("{c}.puits_climatique")]);
     let mut p = double_flux_avec_puits(None);
     zone_mut(&mut p).ventilation.as_mut().unwrap().puits = None;
@@ -814,7 +818,11 @@ fn double_flux_avec_puits_a_la_main() {
     let s = v.pas(0.0, 0.004, &etat, &mut air, true);
     let qm0 = rho_kg_m3(18.0) * 100.0 / 3600.0;
     let theta_an0 = 0.945_850_645 * 9.8;
-    assert!((s.theta_an_c.unwrap() - theta_an0).abs() < 1e-4, "{:?}", s.theta_an_c);
+    assert!(
+        (s.theta_an_c.unwrap() - theta_an0).abs() < 1e-4,
+        "{:?}",
+        s.theta_an_c
+    );
     assert!(s.puits_actif);
     // Énergie échangée (éq. 728) : Cpa × qm × (θan − θext).
     proche(s.q_puits_wh, C_PA_J_KG_K * qm0 * s.theta_an_c.unwrap());
