@@ -13,7 +13,7 @@ use thbce_core::entree::{AutoreglageEntreesAir, EntreesAir, Projet, UsageZone};
 use thbce_core::valider;
 use thbce_core::ventilation::debits_air_cep::{
     altitudes, coefficient_entree_air, coefficient_permeabilite, coefficients_pression,
-    delta_p_comp_pa, flux_entrants, h_moy_m, hall_fictif, permea_verticale, q_v_def, rho_kg_m3,
+    delta_p_comp_pa, flux_aeration, flux_entrants, h_moy_m, hall_fictif, permea_verticale, q_v_def, rho_kg_m3,
     trav_zone_conventionnel, EntreeAir, EtatGroupe, Exterieur, GroupeAeraulique, LectureAltitudes,
     ZoneAeraulique,
 };
@@ -50,6 +50,7 @@ fn etat(theta: f64, repris: f64, souffle: f64) -> EtatGroupe {
         t_air_souffle_c: theta,
         omega_air_souffle_kg_kg: 0.0,
         theta_an_c: None,
+        aeration: false,
     }
 }
 
@@ -521,4 +522,35 @@ fn surfaces_de_permeabilite_de_la_maison_de_demonstration() {
         thbce_core::calculer(&projet(), &meteo, &thbce_core::Options { arrondir: false }).unwrap();
     let e = &r.batiments[0].zones[0].groupes[0].enveloppe;
     assert_eq!((e.a_f_perm_m2, e.a_toit_perm_m2), (100.0, 100.0));
+}
+
+#[test]
+fn aeration_debit_repris_oppose_au_debit_souffle() {
+    // Th-BCE 2020 §5.6.3.4.5, éq. (162) à (164) : maison de 19 °C, dehors à 0 °C sans vent, un
+    // groupe, 100 m³/h d'air neuf fourni par la fenêtre. Masse volumique de l'air soufflé à
+    // 0 °C et 0 kg/kg (éq. 131 à 134) : 1,2 × 292/273 = 1,283516 kg/m³ ;
+    // qm,spec_soufflé = 1,283516 × 100/3600 = 0,0356532 kg/s ; qm,spec_repris = −0,0356532
+    // (éq. 163), et non `ρint × qspec_repris/3600` : le débit repris n'est plus saisi.
+    let z = maison(groupe(60.0, 40.0, None));
+    let ext = exterieur(0.0, 0.0);
+    let mut e = etat(19.0, 0.0, 100.0);
+    e.t_air_souffle_c = 0.0;
+    e.aeration = true;
+    let b = z.bilan(&ext, &[e]).unwrap();
+    let g = &b.groupes[0];
+    let attendu = 1.2 * 292.0 / 273.0 * 100.0 / 3600.0;
+    proche(g.q_m_spec_souffle_kg_s, attendu, 1e-12);
+    assert_eq!(g.q_m_spec_repris_kg_s, -g.q_m_spec_souffle_kg_s);
+    // Les débits spécifiques s'annulent : pas de transfert par le hall, ni d'air neuf de plus
+    // que les fuites par les défauts d'étanchéité (zone sans vent ni tirage : nulles).
+    proche(g.q_m_hall_kg_s, 0.0, 1e-9);
+    // Éq. (256) : l'air soufflé n'est plus un flux de plus ; il est rendu à part, à sa température.
+    let flux = flux_entrants(g, &ext, &e, None);
+    assert_eq!(flux.len(), 1);
+    let a = flux_aeration(g, &e).unwrap();
+    assert_eq!((a.qm_kg_s, a.theta_c, a.omega_kg_kg), (g.q_m_spec_souffle_kg_s, 0.0, 0.0));
+    // Hors aération, le flux d'air soufflé reste dans la liste et `flux_aeration` n'existe pas.
+    e.aeration = false;
+    assert!(flux_aeration(g, &e).is_none());
+    assert_eq!(flux_entrants(g, &ext, &e, None).len(), 2);
 }

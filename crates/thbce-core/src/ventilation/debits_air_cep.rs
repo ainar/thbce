@@ -15,8 +15,9 @@
 //! entrées d'air qui y puisent (§5.6.3.1, éq. 134) ; hall
 //! fictif (aucun groupe de circulation saisi). Les débits spécifiques sont ceux d'une ventilation
 //! mécanique à simple ou à double flux (éq. 154 à 157), ce qui couvre le système conventionnel
-//! du Bbio ; l'aération par les fenêtres, la ventilation naturelle par conduit et les centrales
-//! à débit variable (éq. 158, 159, 162 à 166) viendront avec leurs systèmes (lot 6a).
+//! du Bbio ; l'aération par les fenêtres (éq. 162 à 164, `EtatGroupe::aeration`, lot 1-ven5,
+//! `docs/questions/Q098.md`) ; la ventilation naturelle par conduit (éq. 165) viendra avec son
+//! système.
 //! Lectures : `docs/questions/Q037.md`.
 
 use crate::bati::comportement_thermique::AirEntrant;
@@ -357,6 +358,9 @@ pub struct EtatGroupe {
     /// « TAN » des entrées d'air, en °C, quand l'air neuf transite d'abord par un espace
     /// tampon (« Tair_out », §5.6.3.1, éq. 134) ; `None` : l'air neuf est à la température extérieure.
     pub theta_an_c: Option<f64>,
+    /// Ventilation naturelle par ouverture des fenêtres (§5.6.3.4.5) : le débit soufflé est un
+    /// air neuf fourni par la fenêtre et le débit repris en est l'opposé (éq. 162 et 163).
+    pub aeration: bool,
 }
 
 /// Débits d'un groupe à l'équilibre aéraulique de la zone.
@@ -564,10 +568,15 @@ impl ZoneAeraulique {
                         b.q_v_ea_sort_m3_h += 3600.0 * q_v_m3_s.min(0.0);
                     }
                 }
-                b.q_m_spec_repris_kg_s = rho_int * e.q_spec_repris_m3_h / 3600.0;
                 b.q_m_spec_souffle_kg_s = rho_kg_m3(e.t_air_souffle_c, e.omega_air_souffle_kg_kg)
                     * e.q_spec_souffle_m3_h
                     / 3600.0;
+                // Éq. (163) en aération ; éq. (154) à (157) sinon.
+                b.q_m_spec_repris_kg_s = if e.aeration {
+                    -b.q_m_spec_souffle_kg_s
+                } else {
+                    rho_int * e.q_spec_repris_m3_h / 3600.0
+                };
                 b
             })
     }
@@ -690,11 +699,16 @@ pub fn flux_entrants(
             });
         }
     }
-    flux.push(AirEntrant {
-        qm_kg_s: bilan.q_m_spec_souffle_kg_s,
-        theta_c: etat.t_air_souffle_c,
-        omega_kg_kg: etat.omega_air_souffle_kg_kg,
-    });
+    // En aération, l'air soufflé n'est pas un flux de plus : il entre par les baies avec la
+    // surventilation naturelle, un seul débit étant retenu (§5.13.3.3, éq. 256 ; voir
+    // `flux_aeration`).
+    if !etat.aeration {
+        flux.push(AirEntrant {
+            qm_kg_s: bilan.q_m_spec_souffle_kg_s,
+            theta_c: etat.t_air_souffle_c,
+            omega_kg_kg: etat.omega_air_souffle_kg_kg,
+        });
+    }
     if let (true, Some((theta_c, omega_kg_kg))) = (bilan.q_m_hall_kg_s > 0.0, hall) {
         flux.push(AirEntrant {
             qm_kg_s: bilan.q_m_hall_kg_s,
@@ -703,4 +717,19 @@ pub fn flux_entrants(
         });
     }
     flux
+}
+
+/// Air neuf fourni par les fenêtres d'un groupe en aération : « qm,aération » et son état.
+///
+/// Th-BCE 2020 §5.6.3.4.5, éq. (162) à (164) : `qm,aération = qm,spec_soufflé`, soit
+/// `ρair_soufflé × qspec_soufflé/3600`, à la température et à l'humidité de l'air soufflé
+/// (§6.7.3, éq. 715 à 718). Ce flux entre avec la surventilation naturelle selon l'éq. (256),
+/// `Qma = max(Qv,surv/3600 × ρext ; Σ qm,aération)` : un seul débit entrant par les baies ;
+/// `None` hors aération.
+pub fn flux_aeration(bilan: &BilanGroupe, etat: &EtatGroupe) -> Option<AirEntrant> {
+    etat.aeration.then_some(AirEntrant {
+        qm_kg_s: bilan.q_m_spec_souffle_kg_s,
+        theta_c: etat.t_air_souffle_c,
+        omega_kg_kg: etat.omega_air_souffle_kg_kg,
+    })
 }

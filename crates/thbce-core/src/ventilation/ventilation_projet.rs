@@ -36,7 +36,8 @@ use crate::resultats::ValeurParDefaut;
 use super::bouche_conduit::{
     a_cond_defaut_collectif_m2, a_cond_defaut_maison_m2, debits_dep_habitation,
     debits_dep_non_residentiel, k_res, q_fuites_m3_h, Debits, DebitsBoucheProjet, PressionReseau,
-    TypologieReseau, CDEP_DEFAUT, CRDBNR_DEFAUT, DUGD_DEFAUT_H, K_RES_DEFAUT,
+    TypologieReseau, CDEP_DEFAUT, CFENB, CRDBNR_BBIO, CRDBNR_DEFAUT, DUGD_DEFAUT_H,
+    K_RES_BBIO, K_RES_DEFAUT,
 };
 use super::cta_et_double_flux::{
     antigel, conditions_debit_nominal, debits_nominaux, delta_bypass, epsilon_detaille, epsilon_t,
@@ -69,6 +70,8 @@ pub enum NatureSysteme {
     BassePression,
     /// Double flux (§6.3) ; `None` : sans échangeur.
     DoubleFlux(Option<EchangeurResolu>),
+    /// Aération par ouverture des fenêtres (§6.7) : aucun ventilateur ni conduit.
+    Aeration,
 }
 
 /// Efficacité d'un échangeur.
@@ -580,12 +583,19 @@ impl VentilationProjet {
                 });
                 (NatureSysteme::DoubleFlux(echangeur), PressionReseau::Haute)
             }
+            // Éq. (162) à (164) ; Kres = 0 (tableau 59, « cas de l'aération et du BBio »).
+            SystemeVentilation::Aeration => (NatureSysteme::Aeration, PressionReseau::Haute),
             _ => return None,
         };
+        let aeration = nature == NatureSysteme::Aeration;
 
         // §6.2.3.4, tableau 59 : coefficient de fuite.
-        let k_res = k_res(v.reseau.classe_etancheite);
-        if v.reseau.classe_etancheite.is_none() {
+        let k_res = if aeration {
+            K_RES_BBIO
+        } else {
+            k_res(v.reseau.classe_etancheite)
+        };
+        if v.reseau.classe_etancheite.is_none() && !aeration {
             valeurs_par_defaut.push(defaut(
                 "ventilation.reseau.classe_etancheite".to_owned(),
                 K_RES_DEFAUT,
@@ -595,12 +605,14 @@ impl VentilationProjet {
         }
         let d_p_pa = typologie.d_p_pa(pression);
         // Surfaces saisies (Is_surf_cond_def = 0) si toutes les bouches en portent une.
-        let surfaces_saisies = zone
-            .groupes
-            .iter()
-            .flat_map(|g| &g.bouches_conduits)
-            .all(|b| b.a_cond_m2.is_some());
+        let surfaces_saisies = aeration
+            || zone
+                .groupes
+                .iter()
+                .flat_map(|g| &g.bouches_conduits)
+                .all(|b| b.a_cond_m2.is_some());
         let ratfuitevc = match v.reseau.ratfuitevc {
+            _ if aeration => 0.0,
             Some(r) => r,
             None => {
                 let r = typologie.ratfuitevc_defaut();
@@ -629,7 +641,8 @@ impl VentilationProjet {
                     ));
                     DUGD_DEFAUT_H
                 });
-                let cdep = b.cdep.unwrap_or_else(|| {
+                // §6.2.3.3.1, note 1 : « Dans le cas de l'aération, Cdep = Cfenb ».
+                let cdep = if aeration { Some(CFENB) } else { b.cdep }.unwrap_or_else(|| {
                     valeurs_par_defaut.push(defaut(
                         format!("{chemin}.cdep"),
                         CDEP_DEFAUT,
@@ -644,8 +657,10 @@ impl VentilationProjet {
                         .q_spec_ch_m3_h
                         .zip(b.q_spec_occ_m3_h)
                         .is_some_and(|(ch, occ)| occ < ch);
-                    let crdbnr = if recyclage {
-                        1.0
+                    // §6.2.3.2.1 : « Dans le cas particulier de l'aération, Crdbnr = 1 quelle
+                    // que soit l'occupation ».
+                    let crdbnr = if recyclage || aeration {
+                        CRDBNR_BBIO
                     } else {
                         b.crdbnr.unwrap_or_else(|| {
                             valeurs_par_defaut.push(defaut(
@@ -804,6 +819,9 @@ impl VentilationProjet {
                 c.p_vent_sou_ch_w,
                 Some((c.p_vent_rep_zn_inocc_w, c.p_vent_sou_zn_inocc_w)),
             ),
+            // Aération : aucun ventilateur.
+            SystemeVentilation::Aeration if non_residentiel => (0.0, 0.0, Some((0.0, 0.0))),
+            SystemeVentilation::Aeration => (0.0, 0.0, None),
             // Basse pression : habitation seulement ; CTA : hors habitation seulement.
             _ if non_residentiel => return None,
             SystemeVentilation::Cta(_) => return None,
@@ -1129,6 +1147,13 @@ impl VentilationProjet {
         }
     }
 
+    /// Vrai pour une aération par ouverture des fenêtres (§6.7) : les débits repris sont alors
+    /// l'opposé des débits soufflés (éq. 163) et l'air soufflé est un air neuf entrant par les
+    /// baies (éq. 256).
+    pub fn est_aeration(&self) -> bool {
+        self.nature == NatureSysteme::Aeration
+    }
+
     /// Vrai si les débits et la puissance dépendent de l'indicateur de ventilation de la zone
     /// (usages autres que l'habitation).
     pub fn selon_occupation(&self) -> bool {
@@ -1252,6 +1277,7 @@ impl VentilationProjet {
                 let (q, total) = somme(&|d| d.q_souffle_m3_h, true);
                 p_vent_groupe_w(p_vent_w, q, total)
             }
+            NatureSysteme::Aeration => 0.0,
         }
     }
 
@@ -1509,6 +1535,12 @@ impl VentilationProjet {
                 // Éq. (514), (563) et (669) : humidité de l'air extérieur.
                 omega_air_souffle_kg_kg: omega_ext_kg_kg,
             };
+        }
+        // §6.7.3 : en aération, l'air neuf fourni par la fenêtre est à la température et à
+        // l'humidité extérieures (éq. 716 et 718) ; la température de sortie d'un espace tampon
+        // (éq. 715) est substituée par la zone, qui la connaît. Ni centrale ni ventilateur.
+        if self.nature == NatureSysteme::Aeration {
+            return PasVentilation::default();
         }
         let b = self.b;
         let t_lnc = |g: usize| t_lnc_c(b, groupes[g].theta_i_fin_c, theta_ext_c);

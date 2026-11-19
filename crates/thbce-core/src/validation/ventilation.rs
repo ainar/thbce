@@ -610,14 +610,13 @@ pub(super) fn valider_ventilation(
                 valider_echangeur(r, &format!("{cc}.echangeur"), e);
             }
         }
-        SystemeVentilation::NaturelleParConduits
-        | SystemeVentilation::Hybride
-        | SystemeVentilation::Aeration => r.hors_perimetre(
-            cs.clone(),
-            Some(nom_json(&v.systeme)),
-            "ventilation naturelle, hybride ou par ouverture des fenêtres (Th-BCE 2020 §6.6 et \
-             §6.7)",
-        ),
+        SystemeVentilation::NaturelleParConduits | SystemeVentilation::Hybride => r
+            .hors_perimetre(
+                cs.clone(),
+                Some(nom_json(&v.systeme)),
+                "ventilation naturelle par conduits ou hybride (Th-BCE 2020 §6.6)",
+            ),
+        SystemeVentilation::Aeration => valider_aeration(r, c, v, zone),
         SystemeVentilation::CentraleTraitementAir if !habitation => r.erreur(
             cs.clone(),
             Some(nom_json(&v.systeme)),
@@ -631,6 +630,17 @@ pub(super) fn valider_ventilation(
              et §6.3.3.1.2)",
         ),
     }
+    if !matches!(v.systeme, SystemeVentilation::Aeration) {
+        for (ig, g) in zone.groupes.iter().enumerate() {
+            if let Some(id) = &g.aeration_espace_tampon {
+                r.erreur(
+                    format!("{}.groupes[{ig}].aeration_espace_tampon", zone_chemin(c)),
+                    Some(id.clone()),
+                    "ne se saisit que pour un système d'aération (Th-BCE 2020 §6.7.3.1)",
+                );
+            }
+        }
+    }
     if let Some(p) = v.puits {
         r.hors_perimetre(
             format!("{c}.puits"),
@@ -639,15 +649,16 @@ pub(super) fn valider_ventilation(
         );
     }
 
-    // Réseau.
+    // Réseau ; sans conduit en aération (§6.7).
+    let aeration = matches!(v.systeme, SystemeVentilation::Aeration);
     let cr = format!("{c}.reseau");
     r.plage(format!("{cr}.b"), v.reseau.b, 0.0, 1.0);
     if let Some(x) = v.reseau.ratfuitevc {
         r.plage(format!("{cr}.ratfuitevc"), x, 0.0, 1.0);
     }
     for (champ, requis, valeur) in [
-        ("r_rep_m2k_w", a_reprise, v.reseau.r_rep_m2k_w),
-        ("r_souf_m2k_w", a_soufflage, v.reseau.r_souf_m2k_w),
+        ("r_rep_m2k_w", a_reprise && !aeration, v.reseau.r_rep_m2k_w),
+        ("r_souf_m2k_w", a_soufflage && !aeration, v.reseau.r_souf_m2k_w),
     ] {
         match valeur {
             Some(x) => r.positif(format!("{cr}.{champ}"), x),
@@ -1096,6 +1107,83 @@ fn valider_batteries(
                     "la température extérieure d'autorisation du préchauffage doit être \
                      inférieure à celle du prérefroidissement (Th-BCE 2020 §6.3.3.2.2, éq. 387)",
                 );
+            }
+        }
+    }
+}
+
+/// Th-BCE 2020 §6.7 : aération par ouverture des fenêtres.
+///
+/// Les débits d'air neuf d'un groupe sont ceux de ses bouches de soufflage (éq. 162) ; le débit
+/// repris en est déduit (éq. 163). Les paramètres propres aux systèmes mécaniques sont fixés par
+/// le texte : `Cdep = Cfenb` (§6.2.3.3.1, note 1), `Crdbnr = 1` (§6.2.3.2.1), `Kres = 0`
+/// (tableau 59, « cas de l'aération et du BBio »). Les saisir est une erreur ; les paramètres
+/// du réseau, sans objet, sont signalés. Lecture : `docs/questions/Q098.md`.
+fn valider_aeration(r: &mut RapportValidation, c: &str, v: &Ventilation, zone: &Zone) {
+    let cs = format!("{c}.systeme");
+    let a_soufflage = zone
+        .groupes
+        .iter()
+        .flat_map(|g| &g.bouches_conduits)
+        .any(|b| b.isouf == Isouf::Soufflage);
+    let sans_bouche = zone.groupes.iter().all(|g| g.bouches_conduits.is_empty());
+    if !a_soufflage && !sans_bouche {
+        r.erreur(
+            cs,
+            None,
+            "au moins une bouche de soufflage requise : en aération, le débit d'air neuf d'un \
+             groupe est la somme de ses débits spécifiques soufflés (Th-BCE 2020 §5.6.3.4.5, \
+             éq. 162)",
+        );
+    }
+    let reseau = &v.reseau;
+    if reseau.classe_etancheite.is_some()
+        || reseau.ratfuitevc.is_some()
+        || reseau.r_rep_m2k_w.is_some()
+        || reseau.r_souf_m2k_w.is_some()
+    {
+        r.avertissement(
+            format!("{c}.reseau"),
+            None,
+            "sans objet en aération : pas de conduit, fuites nulles (Th-BCE 2020 §6.2.3.4, \
+             tableau 59, « cas de l'aération et du BBio »)",
+        );
+    }
+    for (ig, g) in zone.groupes.iter().enumerate() {
+        let cg = format!("{}.groupes[{ig}]", zone_chemin(c));
+        for (ib, b) in g.bouches_conduits.iter().enumerate() {
+            let cb = format!("{cg}.bouches_conduits[{ib}]");
+            if b.isouf == Isouf::Reprise {
+                r.avertissement(
+                    format!("{cb}.isouf"),
+                    Some("reprise".to_owned()),
+                    "en aération, le débit repris d'un groupe est l'opposé de son débit \
+                     soufflé (Th-BCE 2020 §5.6.3.4.5, éq. 163) : cette bouche de reprise n'est \
+                     pas comptée ; décrire l'air neuf fourni par une bouche de soufflage",
+                );
+            }
+            for (champ, valeur, regle) in [
+                (
+                    "cdep",
+                    b.cdep,
+                    "en aération, Cdep = Cfenb quelle que soit l'occupation (Th-BCE 2020 \
+                     §6.2.3.3.1, note 1)",
+                ),
+                (
+                    "crdbnr",
+                    b.crdbnr,
+                    "en aération, Crdbnr = 1 quelle que soit l'occupation (Th-BCE 2020 \
+                     §6.2.3.2.1, tableau 57)",
+                ),
+                (
+                    "a_cond_m2",
+                    b.a_cond_m2,
+                    "sans objet en aération : pas de conduit (Th-BCE 2020 §6.2.3.4, tableau 59)",
+                ),
+            ] {
+                if let Some(x) = valeur {
+                    r.erreur(format!("{cb}.{champ}"), Some(x.to_string()), regle);
+                }
             }
         }
     }

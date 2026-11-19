@@ -160,6 +160,12 @@ pub struct Groupe {
     /// n'a pas d'entrée d'air.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub entrees_air: Option<EntreesAir>,
+    /// Identifiant de l'espace tampon par lequel transite l'air neuf fourni par les fenêtres du
+    /// groupe pour l'aération (§6.7.3.1, « Iclimatique » : l'air soufflé est alors à la
+    /// température de sortie de l'espace tampon, éq. 715). Absent : l'air vient directement de
+    /// l'extérieur (éq. 716). Ne se saisit que pour un système d'aération (§6.7).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub aeration_espace_tampon: Option<Id>,
     /// « iclim » : vrai si le groupe est climatisé, c'est-à-dire refroidi par un émetteur de
     /// froid (§8.1.2, §8.4.2). Requis en habitation. Employé par le calcul des consommations
     /// (Th-C) : sans climatisation, pas de saison de refroidissement (§4.6.3.2) ni de besoin de

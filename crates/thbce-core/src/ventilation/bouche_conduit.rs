@@ -37,6 +37,10 @@ pub const DUGD_BBIO_H: f64 = 14.0;
 pub const CRDBNR_BBIO: f64 = 1.0;
 /// « CdepBBio » : coefficient de dépassement du calcul du Bbio (§6.2.3.3.1, éq. 414).
 pub const CDEP_BBIO: f64 = 1.0;
+/// « Cfenb » : coefficient de la fenêtre, valeur de « Cdep » en aération (§6.2.3.3.1,
+/// note 1 : « Dans le cas de l'aération, Cdep = Cfenb quelle que soit l'occupation » ; tableau
+/// de la nomenclature, constantes (p. 328) : « Cfenb », coefficient de la fenêtre, 1.7).
+pub const CFENB: f64 = 1.7;
 /// « Kres » : coefficient de fuite du réseau, en m³/(s.m²) sous 1 Pa, dans le « cas de
 /// l'aération et du BBio » (§6.2.3.4, tableau 59).
 pub const K_RES_BBIO: f64 = 0.0;
