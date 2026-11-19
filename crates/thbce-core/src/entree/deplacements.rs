@@ -150,3 +150,69 @@ pub struct PlageHoraire {
     /// Heure légale de fin, de 0 à 24.
     pub fin_h: u8,
 }
+
+/// Th-BCE 2020 §10.2.2, tableau 318 : sens de transport d'une machine.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SensEscalator {
+    /// Machine assurant la montée (`Pnoload_m`, `H_m`).
+    Montee,
+    /// Machine assurant la descente (`Pnoload_d`, `H_d`).
+    Descente,
+}
+
+/// Th-BCE 2020 §10.2.2 et §10.2.3.4.3 : état de la machine pendant les heures de fermeture
+/// quand le scénario de mise en veille est connu (`Poff`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum EtatFermeture {
+    /// Arrêt complet : `Pstandby` (éq. 2322).
+    ArretComplet,
+    /// Arrêt sans passager, réactivation sur détection : `Pautostart`.
+    ArretSansPassager,
+    /// Vitesse nominale à vide : `Pnoload`.
+    VitesseNominaleAVide,
+}
+
+/// Th-BCE 2020 §10.2.2, tableau 318 — un escalator ou un tapis roulant (hauteur nulle, éq.
+/// 2325). Le modèle traite l'ensemble des machines du bâtiment (§10.2.3.4.3) : puissances et
+/// hauteurs des machines de même sens se cumulent (`docs/questions/Q115.md`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Escalator {
+    /// Identifiant de la machine.
+    pub id: Id,
+    /// Sens de transport.
+    pub sens: SensEscalator,
+    /// « Vnom » : vitesse nominale, en m/s (0 exclu, au plus 2,5). Facultative : sans effet sur
+    /// le calcul, l'éq. (2321) remplaçant `M·g·sin θ·Vnom` par `M·g·H`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub v_nom_m_s: Option<f64>,
+    /// « H » : hauteur de déplacement de la machine, en m ; 0 pour un tapis roulant (éq.
+    /// 2325). Les hauteurs des machines de même sens se cumulent : pour deux machines en
+    /// parallèle desservant les mêmes niveaux, saisir 0 pour la seconde.
+    pub h_m: f64,
+    /// « Pnoload » : puissance à vitesse nominale à vide, en W. Pas de valeur par défaut.
+    pub p_noload_w: f64,
+    /// « Slowspeed » : régulation basse vitesse. Faux par défaut.
+    #[serde(default)]
+    pub slowspeed: bool,
+    /// « Pslowspeed » : puissance à vitesse réduite, en W ; requise si `slowspeed`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_slowspeed_w: Option<f64>,
+    /// « ScVeille » : le scénario de mise en veille est connu. Faux par défaut : 88 W à l'arrêt
+    /// (éq. 2323, signalé). Vrai : `etat_fermeture` et la puissance de cet état sont requis.
+    #[serde(default)]
+    pub sc_veille: bool,
+    /// État pendant la fermeture si `sc_veille` ; `arret_complet` par défaut.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub etat_fermeture: Option<EtatFermeture>,
+    /// « Pstandby » : puissance en arrêt complet, en W.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_standby_w: Option<f64>,
+    /// « Pautostart » : puissance en arrêt sans passager, en W.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p_autostart_w: Option<f64>,
+    /// « C » : identifiants des zones desservies (au moins une, hors maison individuelle).
+    pub zones_desservies: Vec<Id>,
+}

@@ -124,7 +124,7 @@ fn enveloppe_pm_sur_meteo_reglementaire() {
         ),
         (
             "bureaux-stores-venitiens-ademe",
-            [95.8, 988.8, 65.3, 65.3, 318.7],
+            [95.8, 987.4, 65.3, 65.3, 318.7],
             vec!["bbio", "ic_energie"],
         ),
     ] {

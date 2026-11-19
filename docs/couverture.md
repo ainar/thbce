@@ -235,7 +235,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | § | Fiche | Pages | Lot | Module prévu (`crates/thbce-…`) | Statut |
 |---|---|---|---|---|---|
 | 10.1 | C_Bat_Ascenseurs | 1295–1308 | 6e | `core/src/deplacements/ascenseurs.rs` | implémenté : éq. (2274) à (2310), tableaux 310 à 317 ; lectures Q50 ; la fiche d'application ministérielle n'est pas dans les références |
-| 10.2 | C_Bat_Escalators | 1309–1317 | après v1 | `core/src/deplacements/escalators.rs` | non commencé |
+| 10.2 | C_Bat_Escalators | 1309–1317 | 1-sor | `core/src/deplacements/escalators.rs`, `validation/collectif.rs` | implémenté : ensemble des escalators et tapis roulants, masse transportée (éq. 2315 à 2319), profil de mobilité (éq. 2320), puissances en occupation et à l'arrêt (éq. 2311 à 2314, 2321 à 2323), partition par zone (éq. 2324), tapis roulant (éq. 2325) ; lectures Q115 |
 | 10.3 | C_VEN_Calcul des consommations de ventilation des parcs de stationnement fermés | 1318–1326 | 6e | `core/src/deplacements/parkings.rs` | implémenté : éq. (2326) à (2346), tableau 321 ; hors habitation codé et testé mais inaccessible (zones d'habitation seules) ; lectures Q50 |
 | 10.4 | C_ECL_calcul des consommations d’éclairage des parkings | 1327–1332 | 6e | `core/src/deplacements/parkings.rs` | implémenté : éq. (2347) à (2354), tableau 323 ; lectures Q50 |
 
@@ -263,7 +263,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 13.3 | C_Sn_Methode_Th_C_Forfait de consommations de refroidissement | 1379–1385 | 7 | `core/src/indicateurs/forfait_refroidissement.rs` | implémenté : éq. (2493) à (2496), tableaux 334 à 336 ; seuil haut `DH_max` du groupe (annexe de l'article R. 172-4, chapitre III, §IV) ; lectures Q54 |
 | 13.4 | C_Calc_Bilans_Energies_Consommees_et_importées | 1386–1395 | 7 | `core/src/indicateurs/bilans_energies.rs` | implémenté au niveau du bâtiment : consommations horaires d'électricité par poste (éq. 2497 à 2519, relevées pendant le calcul Th-C), production photovoltaïque (éq. 2523, 2524, 2526), autoconsommation, taux et importations (éq. 2527 à 2530, 2535, 2537) ; sans cogénération ni PV de parcelle (hors de la version) ; niveau zone (éq. 2532 à 2534, 2536) non restitué ; lectures Q54 |
 | 13.5 | C_BAT_Confort_d’été | 1396–1403 | 5 | `core/src/confort/confort_ete.rs` | implémenté hors systèmes modifiant la sensation thermique (`Δθcorr_syst = 0`) : éq. (2543) à (2551), usages d'habitation ; DH par groupe, groupe le plus défavorable au niveau de la zone et du bâtiment ; calculé avec la ventilation du projet (lot 6a, Q42) et les systèmes du projet : émetteurs, distributions, ECS et pertes récupérables (lot 6b, Q43 à Q45) |
-| 13.6 | C_CALC_Indicateurs pédagogiques en fonction du nombre d’occupants | 1404–1406 | 7 | — | limite annoncée de la version 0.1, non restituée : le nombre d'occupants (pièces principales des logements, tableau 342) n'est pas saisi (Q54) |
+| 13.6 | C_CALC_Indicateurs pédagogiques en fonction du nombre d’occupants | 1404–1406 | 1-sor | `core/src/indicateurs/occupants.rs` | implémenté : `Nocc` de la zone (`types_logements`, éq. 131 et tableau 342, ou `nb_occupants` ; scénarios conventionnels en tertiaire hors enseignement), `Nocc` du bâtiment (éq. 2552), Cep par occupant (éq. 2553) et Ic énergie par occupant ; lectures Q117 |
 
 ### 14. Glossaire (p. 1407–1408)
 
