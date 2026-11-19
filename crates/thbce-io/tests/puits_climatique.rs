@@ -8,8 +8,8 @@
 //! THBCE_METEO=/chemin/vers/meteo-re2020-conventionnelle.csv cargo test -p thbce-io --test puits_climatique -- --ignored --nocapture
 //! ```
 //!
-//! Un puits d'efficacité nulle (longueur quasi nulle) laisse les résultats inchangés à l'octet
-//! près ; les effets sur le DH et le préchauffage sont des propriétés physiques, aucun cas de
+//! Un puits d'efficacité quasi nulle (longueur quasi nulle) laisse les résultats arrondis
+//! inchangés ; les effets sur le DH et le préchauffage sont des propriétés physiques, aucun cas de
 //! référence n'étant disponible.
 
 #![allow(
@@ -74,9 +74,12 @@ fn puits(r: &Resultats) -> (ResultatsPuitsClimatique, ResultatsPuitsClimatique) 
     )
 }
 
-/// Résultats complets en JSON, sans le fonctionnement du puits, ni les noms et libellés qui
-/// distinguent les deux projets comparés.
-fn json_hors_puits(r: &Resultats) -> serde_json::Value {
+/// Résultats arrondis (§1.3.1) en JSON, sans le fonctionnement du puits, ni les noms et
+/// libellés qui distinguent les deux projets comparés. Un puits d'efficacité de l'ordre de
+/// 10⁻¹¹ écarte les résultats en pleine précision de moins de 10⁻⁹ : la comparaison se fait sur
+/// la restitution arrondie à une décimale.
+fn json_hors_puits(projet: &Projet, m: &MeteoProjet) -> serde_json::Value {
+    let r = calculer(projet, m, &Options { arrondir: true }).unwrap();
     fn nettoyer(v: &mut serde_json::Value) {
         match v {
             serde_json::Value::Object(o) => {
@@ -87,7 +90,7 @@ fn json_hors_puits(r: &Resultats) -> serde_json::Value {
             _ => {}
         }
     }
-    let mut v = serde_json::from_str(&json::ecrire_resultats(r)).unwrap();
+    let mut v = serde_json::from_str(&json::ecrire_resultats(&r)).unwrap();
     nettoyer(&mut v);
     v
 }
@@ -130,11 +133,10 @@ fn verifier(nom: &str, reference: &str, m: &MeteoProjet, titre: &str) {
         c.q_prerefroidissement_kwh,
         d.nbh_actif
     );
-    // Un puits sans effet (ε ≈ 0) donne les résultats de l'exemple sans puits, à l'octet près.
-    let inefficace = brut(&avec_puits_inefficace(nom), m);
+    // Un puits sans effet (ε ≈ 0) donne les résultats de l'exemple sans puits.
     assert_eq!(
-        json_hors_puits(&inefficace),
-        json_hors_puits(&sans),
+        json_hors_puits(&avec_puits_inefficace(nom), m),
+        json_hors_puits(&cas(reference), m),
         "{titre} {nom}"
     );
 }
