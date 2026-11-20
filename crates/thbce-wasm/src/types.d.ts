@@ -254,6 +254,62 @@ export interface AutoreglageEntreesAir {
 }
 
 /**
+ * Th-BCE 2020 §8.20.2, tableau 123 — autre générateur à combustion au gaz (types 103 à 109 :
+ * radiateurs, chauffe-eau, accumulateurs, générateurs d'air chaud, tubes et panneaux
+ * radiants). La fonction (« idfougen ») et le fluide aval (« idfluide_aval ») sont ceux du
+ * tableau 124 ; la position de la génération fixe « idpos_gen ».
+ */
+export interface AutreGenerateurCombustionSaisi {
+  /** Gaz de pétrole liquéfié (PCSI de 1,09, tableau 125) ; gaz naturel sinon (1,11). */
+  gpl?: boolean;
+  /**
+   * « Pint » : puissance utile intermédiaire d'un générateur d'air chaud, en kW. Absent :
+   * 30 % de `Pngen` (rendement « Rpint » défini à 30 % de charge, tableau 123), valeur par
+   * défaut signalée.
+   */
+  p_int_kw?: number | null;
+  /**
+   * Puissance de la veilleuse d'allumage, en W, s'il y en a une : la consommation de veille
+   * est augmentée de cette puissance divisée par 2,58 (§8.20.3.4).
+   */
+  p_veilleuse_w?: number | null;
+  /** « idpertes_parois » (tableau 131). */
+  pertes_parois: PertesParoisChaudiere;
+  /** « Pngen » : puissance utile nominale, en kW. */
+  pn_gen_kw: number;
+  /**
+   * « Qpo30 » : pertes à l'arrêt pour un écart de 30 K entre l'eau ou l'air chauds et
+   * l'ambiance, en W (générateurs d'air chaud, accumulateurs et chauffe-eau). Absent :
+   * éq. (1123) et tableau 127.
+   */
+  q_po_30_w?: number | null;
+  /**
+   * « idraccord_gnr » : raccordement à la génération, pour une gestion en cascade ou en
+   * alternance. Absent : avec isolement (valeur par défaut du tableau 123).
+   */
+  raccordement?: RaccordementGenerateur | null;
+  /** Rendements mesurés ; absents : valeurs par défaut (§8.20.3.4, tableau 126). */
+  rendements?: RendementsCombustion | null;
+  /**
+   * « θfonct_min » : température minimale de fonctionnement d'un générateur sur eau
+   * (accumulateur, chauffe-eau), en °C (de 20 à 100). Absent : 20 °C (§8.20.3.2.2).
+   */
+  theta_fonct_min_c?: number | null;
+  /** Type du générateur (tableau 124). */
+  type_generateur: TypeAutreGenerateurCombustion;
+  /**
+   * « Waux,nom » : puissance électrique des auxiliaires à la puissance nominale, en W.
+   * Absent : « Paux » du tableau 128 (éq. 1124), quand le tableau en donne une.
+   */
+  w_aux_nom_w?: number | null;
+  /**
+   * « Wveille » : puissance électrique à charge nulle, en W (le texte n'en donne pas de
+   * valeur par défaut).
+   */
+  w_veille_w: number;
+}
+
+/**
  * Auxiliaires d'une chaudière, en W ; chaque valeur absente prend sa valeur par défaut
  * (éq. 1075 à 1077), signalée dans les résultats.
  */
@@ -2117,6 +2173,12 @@ export interface EssaiEn16147 {
 export type EtatFermeture = "arret_complet" | "arret_sans_passager" | "vitesse_nominale_a_vide";
 
 /**
+ * Évacuation des fumées d'un radiateur, poêle ou insert au gaz sans ventilateur côté
+ * combustion (tableau 129).
+ */
+export type EvacuationFumees = "micro_ventouse" | "cheminee";
+
+/**
  * Catégorie de contraintes extérieures propre à un groupe (annexe de l'article R. 172-4,
  * chapitre V, partie II).
  */
@@ -3380,7 +3442,9 @@ export type NatureGenerateur = {
   poele_ou_insert: PoeleSaisi;
 } | {
   reseau_de_chaleur_ou_de_froid: ReseauChaleurFroidSaisi;
-} | "autre_generateur_a_combustion" | {
+} | {
+  autre_generateur_a_combustion: AutreGenerateurCombustionSaisi;
+} | {
   thermodynamique_gaz: ThermodynamiqueGazSaisi;
 } | "boucle_d_eau_ou_drv" | "cogeneration" | "pac_hybride";
 
@@ -4358,6 +4422,13 @@ export interface QuantitesEauAcv {
   q_parcelle_eaux_usees_m3: number;
 }
 
+/**
+ * « idraccord_gnr » (§8.20.2 et §8.21.2) : raccordement hydraulique d'un générateur à
+ * combustion ou d'un cogénérateur au reste de la génération, pour un mode de gestion avec
+ * priorité (cascade ou alternance).
+ */
+export type RaccordementGenerateur = "permanent" | "avec_isolement";
+
 /** « idraccord_reseau » (§8.4.2). */
 export type RaccordementReseaux = "avec_isolement" | "permanent";
 
@@ -4539,6 +4610,19 @@ export interface RendementsChaudiere {
   r_pn_pct: number;
   /** Statut des deux rendements. */
   statut: StatutRendementChaudiere;
+}
+
+/** Rendements sur PCI d'un autre générateur à combustion. */
+export interface RendementsCombustion {
+  /**
+   * « Rpint » : rendement sur PCI à charge intermédiaire, en % ; générateurs d'air chaud
+   * seulement (absent : valeur par défaut du tableau 126).
+   */
+  r_pint_pct?: number | null;
+  /** « Rpn » : rendement sur PCI à la puissance nominale, en %. */
+  r_pn_pct: number;
+  /** Statut des rendements. */
+  statut: StatutRendementCombustion;
 }
 
 /**
@@ -6307,6 +6391,12 @@ export type StatutMesure = "certifie" | "justifie";
 export type StatutRendementChaudiere = "certifie" | "justifie" | "declare";
 
 /**
+ * Statut des rendements d'un autre générateur à combustion (§8.20.3.6.1.1, §8.20.3.6.2.1 et
+ * §8.20.3.7.1).
+ */
+export type StatutRendementCombustion = "certifie" | "justifie" | "declare";
+
+/**
  * Th-BCE 2020 §9.14.3.1, tableau 291 — assemblage d'un ballon de stockage d'ECS et de ses
  * générateurs : « base seule » sans `appoint`, « base et appoint intégré » avec.
  */
@@ -6508,6 +6598,46 @@ export type TransfertBoucle = {
     ua_hx_w_k?: number | null;
   };
 } | "sans_echangeur";
+
+/**
+ * Type d'un autre générateur à combustion (§8.20.3.1, tableau 124) ; les déclinaisons
+ * précisent les lignes des tableaux 126 à 130.
+ */
+export type TypeAutreGenerateurCombustion = {
+  radiateur_gaz: {
+    /** Évacuation des fumées : requise sans ventilateur côté combustion (tableau 129). */
+    evacuation_fumees?: EvacuationFumees | null;
+    /** Présence d'un ventilateur côté combustion (tableaux 126 et 129). */
+    ventilateur_combustion: boolean;
+    /** Présence d'un ventilateur côté émission (tableau 128 : 40 W par ventilateur). */
+    ventilateur_emission: boolean;
+  };
+} | "chauffe_eau_gaz" | {
+  accumulateur_gaz: {
+    /** Accumulateur à condensation (tableau 126). */
+    condensation: boolean;
+    /**
+     * Appareil de plus de 200 L dont le temps de montée en température est inférieur à
+     * 45 min (tableau 127 : `E` = 1,7 au lieu de 1,5).
+     */
+    plus_de_200_l_montee_rapide?: boolean;
+  };
+} | {
+  air_chaud: {
+    /** Générateur à condensation (type 107 ; standard sinon, type 106). */
+    condensation: boolean;
+    /** Présence d'un ventilateur côté émission (tableau 128). */
+    ventilateur_emission: boolean;
+  };
+} | {
+  tube_radiant: {
+    /**
+     * Présence d'un ventilateur côté émission (tableau 128 ; sans ventilateur, le
+     * tableau ne donne pas de valeur par défaut : `w_aux_nom_w` est requis).
+     */
+    ventilateur_emission: boolean;
+  };
+} | "panneau_radiant";
 
 /** Type de capteur (tableau 293). */
 export type TypeCapteurSolaire = "non_vitre" | "vitre" | "tubulaire";

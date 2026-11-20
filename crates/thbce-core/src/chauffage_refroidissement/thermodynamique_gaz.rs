@@ -906,7 +906,15 @@ impl MachineAbsorption {
                 if technologie != Ecs::AirEau {
                     return None;
                 }
-                // Q135 : « Dfou0 » du mode ECS repris du tableau 216 (fiche 8.23).
+                // Q135 : « Dfou0 » du mode ECS repris du tableau 216 (fiche 8.23), signalé
+                // comme valeur par défaut (relecture du lot 2c).
+                defaut(
+                    "ecs.dfou0_min",
+                    super::thermodynamique_elec::DFOU0_ECS_MIN,
+                    "Th-BCE 2020 §8.24 : « Dfou0 » du mode ECS non donné par la fiche ; durée \
+                     de fonctionnement minimale de l'ECS reprise du tableau 216 de la fiche 8.23 \
+                     (lecture Q135)",
+                );
                 (
                     Poste::Ecs,
                     &ECS_AIR_EAU,

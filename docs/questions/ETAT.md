@@ -133,6 +133,8 @@
 | Q142 | Pompes à chaleur à moteur gaz (fiche 8.25, lot 2c) : auxiliaires de l'unité extérieure déclarés « plafonnés » à une valeur minimale, et puissance gaz au pivot (éq. 1367 et 1368) | hypothèse retenue, à confirmer par le mainteneur |
 | Q143 | Pompes à chaleur à moteur gaz (fiche 8.25, lot 2c) : consommation restituée avec ou sans les irréversibilités des cycles (éq. 1392, 1393, 1399 et 1400) ; reste à fournir (éq. 1378) | hypothèse retenue, à confirmer par le mainteneur |
 | Q144 | Pompes à chaleur à moteur gaz (fiche 8.25, lot 2c) : production indirecte d'ECS par récupération sur le moteur, refusée | hypothèse retenue, à confirmer par le mainteneur |
+| Q155 | Autres générateurs à combustion (fiche 8.20, lot 2e) : unités des rendements, générateur d'air chaud calculé comme une chaudière, pertes à charge nulle, valeurs par défaut manquantes | hypothèse retenue, à confirmer par un cas de référence |
+| Q156 | Autres générateurs à combustion (fiche 8.20, lot 2e) : raccordement des générateurs entre eux (idraccord_gnr) et pertes à l'arrêt | hypothèse retenue, à confirmer par un cas de référence |
 | Q200 | Classement au bruit d'une baie : saisie facultative baie par baie (fiche 5.11, chapitre V partie I) — champs, libellés, données à saisir | tranchée, à confirmer par un cas de référence |
 | Q201 | Classement au bruit : tranche de distance d'une valeur égale à une borne (65 m dans « 0-65 m » et « 65-125 m ») | tranchée, à confirmer par un cas de référence |
 | Q202 | Classement au bruit : la classe déduite des baies tient lieu de saisie absente ; cohérence avec la saisie directe | tranchée, à confirmer par un cas de référence |
