@@ -13,11 +13,13 @@ mod combustion;
 mod effet_joule;
 mod reseaux_chaleur;
 mod thermodynamique;
+mod thermodynamique_gaz;
 
 pub use combustion::*;
 pub use effet_joule::*;
 pub use reseaux_chaleur::*;
 pub use thermodynamique::*;
+pub use thermodynamique_gaz::*;
 
 /// Th-BCE 2020 §8.14, §8.17.2 et §8.4.2 — génération : ensemble de générateurs qui reçoit les
 /// demandes d'un ou de plusieurs réseaux de distribution intergroupes de chauffage, de
@@ -171,9 +173,9 @@ pub enum NatureGenerateur {
     /// Types 103 à 109 : radiateurs, chauffe-eau et accumulateurs au gaz, générateurs d'air
     /// chaud, tubes et panneaux radiants (§8.20) : hors de la première version.
     AutreGenerateurACombustion,
-    /// Type 504 et pompes à chaleur à moteur gaz (§8.24 et §8.25) : hors de la première
-    /// version.
-    ThermodynamiqueGaz,
+    /// Type 504 : générateur thermodynamique au gaz, à absorption (§8.24) ou à moteur gaz
+    /// (§8.25), sur air extérieur.
+    ThermodynamiqueGaz(ThermodynamiqueGazSaisi),
     /// Types 507 à 509 : pompe à chaleur sur boucle d'eau, thermo-frigo-pompe, générateur DRV
     /// (§8.15 et §8.16) : hors de la première version.
     BoucleDEauOuDrv,
