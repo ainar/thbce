@@ -209,6 +209,16 @@ pub(super) fn valider_stockages(
                     );
                 }
             }
+            _ => {
+                references = false;
+                r.erreur(
+                    format!("{cc}.source_amont"),
+                    None,
+                    "un chauffe-eau thermodynamique puise sa chaleur dans l'air extérieur, l'air \
+                     ambiant d'un volume non chauffé ou l'air extrait (Th-BCE 2020 §9.22) : \
+                     source sur eau ou sur sol non admise",
+                );
+            }
         }
         let valeurs = x.v_tot_l > 0.0
             && e.t_h_h > 0.0

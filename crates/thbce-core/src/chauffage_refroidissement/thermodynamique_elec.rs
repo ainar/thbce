@@ -263,6 +263,288 @@ pub const FR_AIR_EXTERIEUR_AIR_RECYCLE: Grille = Grille {
     amont_perf_grande_puissance: None,
 };
 
+/// Températures aval des PAC sur eau à eau chaude, en °C (figures 120, 121 et 124).
+const THETA_AVAL_CH_EAU_C: &[f64] = &[23.5, 32.5, 42.5, 51.0, 60.0];
+/// Ordre de saisie des températures aval de ces PAC (tableaux 159, 162 et 171).
+const ORDRE_AVAL_CH_EAU: &[usize] = &[1, 2, 3, 0, 4];
+/// Complément du COP sur la colonne du pivot de ces PAC (éq. 1245, 1247, 1253 ; tableaux 160,
+/// 163 et 172).
+const AVAL_COP_CH_EAU: &[Regle] = &[r(0, 1, 1.1), r(2, 1, 0.8), r(3, 2, 0.8), r(4, 3, 0.8)];
+/// Complément de la puissance absorbée sur la colonne du pivot de ces PAC (tableaux 161, 164
+/// et 173).
+const AVAL_PABS_CH_EAU: &[Regle] = &[r(0, 1, 1.09), r(2, 1, 0.9), r(3, 2, 0.915), r(4, 3, 0.91)];
+/// Températures amont des sources sur eau de nappe, en °C (moyenne de l'eau entrant et sortant
+/// de l'évaporateur ; figures 120, 122 et 129).
+const THETA_AMONT_NAPPE_C: &[f64] = &[3.5, 8.5, 13.5, 18.5];
+/// Températures amont des sources sur eau glycolée, en °C (figures 121 et 131).
+const THETA_AMONT_GLYCOLEE_C: &[f64] = &[-6.5, -1.5, 3.5, 8.5, 13.5];
+/// Températures amont des sources sur sol (températures de bain d'essai), en °C (figures 124,
+/// 125 et 130 ; tableau 245).
+const THETA_AMONT_SOL_C: &[f64] = &[-4.0, 1.5, 4.0, 6.5];
+/// Températures aval des PAC à air recyclé, en °C (figures 122 et 123).
+const THETA_AVAL_AIR_RECYCLE_C: &[f64] = &[5.0, 10.0, 15.0, 20.0, 25.0];
+/// Ordre de saisie des températures aval de ces PAC (tableaux 165 et 168).
+const ORDRE_AVAL_AIR_RECYCLE: &[usize] = &[3, 2, 4, 1, 0];
+/// Complément du COP sur la colonne du pivot de ces PAC (éq. 1249 et 1251 ; tableaux 166 et
+/// 169). Les indices de l'éq. (1249), « (2,4) » pour la ligne du pivot et « (2,3) » pour celle à
+/// 15 °C, sont lus « (4,2) » et « (3,2) » (lecture Q150).
+const AVAL_COP_AIR_RECYCLE: &[Regle] = &[r(0, 3, 1.3), r(1, 3, 1.2), r(2, 3, 1.1), r(4, 3, 0.9)];
+/// Complément de la puissance absorbée sur la colonne du pivot de ces PAC (tableaux 167 et
+/// 170).
+const AVAL_PABS_AIR_RECYCLE: &[Regle] =
+    &[r(0, 3, 1.15), r(1, 3, 1.10), r(2, 3, 1.05), r(4, 3, 0.95)];
+
+/// §8.23.3.3.4 — PAC eau de nappe / eau en chauffage (figure 120, tableaux 159 à 161,
+/// éq. 1245 et 1246).
+pub const CH_EAU_DE_NAPPE_EAU: Grille = Grille {
+    val_util_max: 4.7,
+    theta_aval_c: THETA_AVAL_CH_EAU_C,
+    theta_amont_c: THETA_AMONT_NAPPE_C,
+    pivot: (1, 1),
+    ordre_aval: ORDRE_AVAL_CH_EAU,
+    ordre_amont: &[1, 0, 2, 3],
+    aval_perf: AVAL_COP_CH_EAU,
+    amont_perf: &[r(0, 1, 0.9), r(2, 1, 1.1), r(3, 1, 1.2)],
+    aval_pabs: AVAL_PABS_CH_EAU,
+    amont_pabs: &[r(0, 1, 0.95), r(2, 1, 1.05), r(3, 1, 1.10)],
+    amont_perf_grande_puissance: None,
+};
+
+/// §8.23.3.3.5 — PAC eau glycolée / eau en chauffage (figure 121, tableaux 162 à 164,
+/// éq. 1247 et 1248).
+pub const CH_EAU_GLYCOLEE_EAU: Grille = Grille {
+    val_util_max: 3.7,
+    theta_aval_c: THETA_AVAL_CH_EAU_C,
+    theta_amont_c: THETA_AMONT_GLYCOLEE_C,
+    pivot: (1, 1),
+    ordre_aval: ORDRE_AVAL_CH_EAU,
+    ordre_amont: &[1, 2, 3, 0, 4],
+    aval_perf: AVAL_COP_CH_EAU,
+    amont_perf: &[r(0, 1, 0.90), r(2, 1, 1.10), r(3, 1, 1.20), r(4, 1, 1.30)],
+    aval_pabs: AVAL_PABS_CH_EAU,
+    amont_pabs: &[r(0, 1, 0.95), r(2, 1, 1.05), r(3, 1, 1.10), r(4, 1, 1.15)],
+    amont_perf_grande_puissance: None,
+};
+
+/// §8.23.3.3.6 — PAC eau de nappe / air recyclé en chauffage (figure 122, tableaux 165 à 167,
+/// éq. 1249 et 1250).
+pub const CH_EAU_DE_NAPPE_AIR_RECYCLE: Grille = Grille {
+    val_util_max: 3.5,
+    theta_aval_c: THETA_AVAL_AIR_RECYCLE_C,
+    theta_amont_c: THETA_AMONT_NAPPE_C,
+    pivot: (3, 1),
+    ordre_aval: ORDRE_AVAL_AIR_RECYCLE,
+    ordre_amont: &[1, 0, 2, 3],
+    aval_perf: AVAL_COP_AIR_RECYCLE,
+    amont_perf: &[r(0, 1, 0.9), r(2, 1, 1.1), r(3, 1, 1.2)],
+    aval_pabs: AVAL_PABS_AIR_RECYCLE,
+    amont_pabs: &[r(0, 1, 0.95), r(2, 1, 1.05), r(3, 1, 1.10)],
+    amont_perf_grande_puissance: None,
+};
+
+/// §8.23.3.3.7 — PAC eau de boucle / air recyclé en chauffage (figure 123, tableaux 168 à
+/// 170, éq. 1251 et 1252).
+pub const CH_EAU_DE_BOUCLE_AIR_RECYCLE: Grille = Grille {
+    val_util_max: 4.0,
+    theta_aval_c: THETA_AVAL_AIR_RECYCLE_C,
+    theta_amont_c: &[8.5, 13.5, 18.5, 23.5, 28.5],
+    pivot: (3, 2),
+    ordre_aval: ORDRE_AVAL_AIR_RECYCLE,
+    ordre_amont: &[2, 1, 3, 0, 4],
+    aval_perf: AVAL_COP_AIR_RECYCLE,
+    amont_perf: &[r(0, 2, 0.8), r(1, 2, 0.9), r(3, 2, 1.1), r(4, 2, 1.2)],
+    aval_pabs: AVAL_PABS_AIR_RECYCLE,
+    amont_pabs: &[r(0, 2, 0.9), r(1, 2, 0.95), r(3, 2, 1.05), r(4, 2, 1.10)],
+    amont_perf_grande_puissance: None,
+};
+
+/// §8.23.3.3.8 — PAC sol / eau en chauffage (figure 124, tableaux 171 à 173, éq. 1253 et
+/// 1254). Le pivot est à 32,5 °C d'eau (figure 124 et indices « (2,3) ») ; « Θaval = 20 » de
+/// la phrase du pivot, « −1;5 » des coefficients (lu 1,5 °C) et les priorités aval de la figure
+/// (différentes du tableau 171, qui fait foi pour l'ordre de saisie) sont lus comme des
+/// coquilles (lecture Q150).
+pub const CH_SOL_EAU: Grille = Grille {
+    val_util_max: 3.8,
+    theta_aval_c: THETA_AVAL_CH_EAU_C,
+    theta_amont_c: THETA_AMONT_SOL_C,
+    pivot: (1, 2),
+    ordre_aval: ORDRE_AVAL_CH_EAU,
+    ordre_amont: &[2, 1, 0, 3],
+    aval_perf: &[r(0, 1, 1.1), r(2, 1, 0.8), r(3, 2, 0.8), r(4, 3, 0.8)],
+    amont_perf: &[r(0, 2, 0.8), r(1, 2, 0.95), r(3, 2, 1.07)],
+    aval_pabs: AVAL_PABS_CH_EAU,
+    amont_pabs: &[r(0, 2, 1.0), r(1, 2, 1.0), r(3, 2, 1.0)],
+    amont_perf_grande_puissance: None,
+};
+
+/// §8.23.3.3.9 — PAC sol / sol en chauffage (figure 125, tableaux 174 à 176, éq. 1255) : une
+/// seule température aval, 35 °C.
+pub const CH_SOL_SOL: Grille = Grille {
+    val_util_max: 3.8,
+    theta_aval_c: &[35.0],
+    theta_amont_c: THETA_AMONT_SOL_C,
+    pivot: (0, 2),
+    ordre_aval: &[0],
+    ordre_amont: &[2, 1, 0, 3],
+    aval_perf: &[],
+    amont_perf: &[r(0, 2, 0.8), r(1, 2, 0.95), r(3, 2, 1.07)],
+    aval_pabs: &[],
+    amont_pabs: &[r(0, 2, 1.0), r(1, 2, 1.0), r(3, 2, 1.0)],
+    amont_perf_grande_puissance: None,
+};
+
+/// §8.23.3.4.4 — PAC eau de nappe / eau en ECS (figure 129, tableaux 186 à 188, éq. 1256 et
+/// 1260). « Cnnam_Pabs(18,5 ; 8,5) = 0,90 » est retenu tel qu'imprimé (lecture Q150).
+pub const ECS_EAU_DE_NAPPE_EAU: Grille = Grille {
+    val_util_max: 3.7,
+    theta_aval_c: THETA_AVAL_ECS_C,
+    theta_amont_c: THETA_AMONT_NAPPE_C,
+    pivot: (4, 1),
+    ordre_aval: ORDRE_AVAL_ECS,
+    ordre_amont: &[1, 0, 2, 3],
+    aval_perf: AVAL_COP_ECS,
+    amont_perf: &[r(0, 1, 0.9), r(2, 1, 1.1), r(3, 1, 1.2)],
+    aval_pabs: AVAL_PABS_ECS,
+    amont_pabs: &[r(0, 1, 0.95), r(2, 1, 1.05), r(3, 1, 0.90)],
+    amont_perf_grande_puissance: None,
+};
+
+/// §8.23.3.4.5 — PAC sol / eau en ECS (figure 130, tableaux 189 à 191, éq. 1256 et 1261). Les
+/// indices du pivot « (5,2) » sont lus « (5,3) », colonne à 4 °C (lecture Q150).
+pub const ECS_SOL_EAU: Grille = Grille {
+    val_util_max: 3.0,
+    theta_aval_c: THETA_AVAL_ECS_C,
+    theta_amont_c: THETA_AMONT_SOL_C,
+    pivot: (4, 2),
+    ordre_aval: ORDRE_AVAL_ECS,
+    ordre_amont: &[2, 1, 0, 3],
+    aval_perf: AVAL_COP_ECS,
+    amont_perf: &[r(0, 2, 0.8), r(1, 2, 0.95), r(3, 2, 1.07)],
+    aval_pabs: AVAL_PABS_ECS,
+    amont_pabs: &[r(0, 2, 1.0), r(1, 2, 1.0), r(3, 2, 1.0)],
+    amont_perf_grande_puissance: None,
+};
+
+/// §8.23.3.4.6 — PAC eau glycolée / eau en ECS (figure 131, tableaux 192 à 194, éq. 1256 et
+/// 1262).
+pub const ECS_EAU_GLYCOLEE_EAU: Grille = Grille {
+    val_util_max: 3.7,
+    theta_aval_c: THETA_AVAL_ECS_C,
+    theta_amont_c: THETA_AMONT_GLYCOLEE_C,
+    pivot: (4, 1),
+    ordre_aval: ORDRE_AVAL_ECS,
+    ordre_amont: &[1, 2, 3, 0, 4],
+    aval_perf: AVAL_COP_ECS,
+    amont_perf: &[r(0, 1, 0.90), r(2, 1, 1.10), r(3, 1, 1.20), r(4, 1, 1.30)],
+    aval_pabs: AVAL_PABS_ECS,
+    amont_pabs: &[r(0, 1, 0.95), r(2, 1, 1.05), r(3, 1, 1.10), r(4, 1, 1.15)],
+    amont_perf_grande_puissance: None,
+};
+
+/// Températures aval des refroidisseurs à eau glacée, en °C (figures 135 et 138).
+const THETA_AVAL_FR_EAU_C: &[f64] = &[4.0, 9.5, 15.0, 20.5, 26.0];
+/// Températures aval des refroidisseurs à air recyclé, en °C (figures 136 et 137).
+const THETA_AVAL_FR_AIR_C: &[f64] = &[22.0, 27.0, 32.0, 37.0];
+/// Températures amont des refroidisseurs sur eau, en °C (moyenne de l'eau entrant et sortant
+/// du condenseur ; figures 135 et 136).
+const THETA_AMONT_FR_EAU_C: &[f64] = &[2.5, 12.5, 22.5, 32.5, 42.5];
+/// Températures amont des refroidisseurs sur eau de nappe (ou captage), en °C (figures 137 et
+/// 138).
+const THETA_AMONT_FR_NAPPE_C: &[f64] = &[7.5, 12.5, 17.5, 22.5];
+/// Complément de l'EER sur la colonne du pivot des refroidisseurs à eau glacée (éq. 1269 et
+/// 1275 ; tableaux 205 et 214).
+const AVAL_EER_FR_EAU: &[Regle] = &[r(0, 1, 0.9), r(2, 1, 1.075), r(3, 1, 1.15), r(4, 1, 1.225)];
+/// Complément de la puissance absorbée sur cette colonne (tableaux 206 et 215).
+const AVAL_PABS_FR_EAU: &[Regle] = &[
+    r(0, 1, 0.945),
+    r(2, 1, 1.055),
+    r(3, 1, 1.11),
+    r(4, 1, 1.165),
+];
+/// Complément de l'EER sur la colonne du pivot des refroidisseurs à air recyclé (éq. 1271 et
+/// 1273 ; tableaux 208 et 211). Les indices « (4,3) » de l'éq. (1271) et « (1,2) », « (2,3) »,
+/// « (2,4) » de l'éq. (1273) sont lus comme des lignes de la colonne du pivot (lecture Q150).
+const AVAL_EER_FR_AIR: &[Regle] = &[r(0, 1, 0.9), r(2, 1, 1.075), r(3, 1, 1.15)];
+/// Complément de la puissance absorbée sur cette colonne (tableaux 209 et 212).
+const AVAL_PABS_FR_AIR: &[Regle] = &[r(0, 1, 0.95), r(2, 1, 1.05), r(3, 1, 1.1)];
+/// Complément de l'EER sur chaque ligne des refroidisseurs sur eau (tableaux 205 et 208).
+const AMONT_EER_FR_EAU: &[Regle] = &[r(0, 3, 1.6), r(1, 3, 1.4), r(2, 3, 1.2), r(4, 3, 0.8)];
+/// Complément de la puissance absorbée sur chaque ligne de ces refroidisseurs (tableaux 206 et
+/// 209).
+const AMONT_PABS_FR_EAU: &[Regle] = &[r(0, 3, 1.30), r(1, 3, 1.20), r(2, 3, 1.10), r(4, 3, 0.90)];
+/// Complément de l'EER sur chaque ligne des refroidisseurs sur eau de nappe (tableaux 211 et
+/// 214).
+const AMONT_EER_FR_NAPPE: &[Regle] = &[r(0, 1, 1.10), r(2, 1, 0.90), r(3, 1, 0.80)];
+/// Complément de la puissance absorbée sur chaque ligne de ces refroidisseurs (tableaux 212 et
+/// 215).
+const AMONT_PABS_FR_NAPPE: &[Regle] = &[r(0, 1, 1.05), r(2, 1, 0.95), r(3, 1, 1.10)];
+
+/// §8.23.3.5.4 — refroidisseur eau / eau ou eau glycolée / eau (figure 135, tableaux 204 à
+/// 206, éq. 1269 et 1270).
+pub const FR_EAU_EAU: Grille = Grille {
+    val_util_max: 3.7,
+    theta_aval_c: THETA_AVAL_FR_EAU_C,
+    theta_amont_c: THETA_AMONT_FR_EAU_C,
+    pivot: (1, 3),
+    ordre_aval: &[1, 3, 2, 4, 0],
+    ordre_amont: &[3, 2, 1, 0, 4],
+    aval_perf: AVAL_EER_FR_EAU,
+    amont_perf: AMONT_EER_FR_EAU,
+    aval_pabs: AVAL_PABS_FR_EAU,
+    amont_pabs: AMONT_PABS_FR_EAU,
+    amont_perf_grande_puissance: None,
+};
+
+/// §8.23.3.5.5 — refroidisseur eau / air ou eau glycolée / air (figure 136, tableaux 207 à
+/// 209, éq. 1271 et 1272). Les mentions « IdFluide_aval = 1 : eau » et « IdFluide_amont = 1 :
+/// air » sont lues inversées (lecture Q150).
+pub const FR_EAU_AIR: Grille = Grille {
+    val_util_max: 2.7,
+    theta_aval_c: THETA_AVAL_FR_AIR_C,
+    theta_amont_c: THETA_AMONT_FR_EAU_C,
+    pivot: (1, 3),
+    ordre_aval: &[1, 0, 2, 3],
+    ordre_amont: &[3, 2, 1, 0, 4],
+    aval_perf: AVAL_EER_FR_AIR,
+    amont_perf: AMONT_EER_FR_EAU,
+    aval_pabs: AVAL_PABS_FR_AIR,
+    amont_pabs: AMONT_PABS_FR_EAU,
+    amont_perf_grande_puissance: None,
+};
+
+/// §8.23.3.5.6 — refroidisseur eau de nappe (ou captage) / air (figure 137, tableaux 210 à 212,
+/// éq. 1273 et 1274).
+pub const FR_EAU_DE_NAPPE_AIR_RECYCLE: Grille = Grille {
+    val_util_max: 3.7,
+    theta_aval_c: THETA_AVAL_FR_AIR_C,
+    theta_amont_c: THETA_AMONT_FR_NAPPE_C,
+    pivot: (1, 1),
+    ordre_aval: &[1, 0, 2, 3],
+    ordre_amont: &[1, 2, 0, 3],
+    aval_perf: AVAL_EER_FR_AIR,
+    amont_perf: AMONT_EER_FR_NAPPE,
+    aval_pabs: AVAL_PABS_FR_AIR,
+    amont_pabs: AMONT_PABS_FR_NAPPE,
+    amont_perf_grande_puissance: None,
+};
+
+/// §8.23.3.5.7 — refroidisseur eau de nappe (ou captage) / eau (figure 138, tableaux 213 à 215,
+/// éq. 1275 et 1276). Les indices « (2,4) » du pivot de l'éq. (1275) sont lus « (2,2) », comme
+/// au §8.23.3.5.7.2 (lecture Q150).
+pub const FR_EAU_DE_NAPPE_EAU: Grille = Grille {
+    val_util_max: 3.7,
+    theta_aval_c: THETA_AVAL_FR_EAU_C,
+    theta_amont_c: THETA_AMONT_FR_NAPPE_C,
+    pivot: (1, 1),
+    ordre_aval: &[1, 3, 2, 4, 0],
+    ordre_amont: &[1, 2, 0, 3],
+    aval_perf: AVAL_EER_FR_EAU,
+    amont_perf: AMONT_EER_FR_NAPPE,
+    aval_pabs: AVAL_PABS_FR_EAU,
+    amont_pabs: AMONT_PABS_FR_NAPPE,
+    amont_perf_grande_puissance: None,
+};
+
 /// Valeur de performance mesurée, certifiée ou justifiée (« Statut_données_PC = 1 »).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PointMesure {
@@ -876,13 +1158,20 @@ pub fn dfou0_min(typo: crate::entree::TypoEmetteur) -> f64 {
     }
 }
 
-/// Grille d'une technologie de chauffage ; `None` pour une technologie hors de la version.
+/// Grille d'une technologie de chauffage ; `None` pour une technologie hors de la version (air
+/// extrait / air neuf).
 pub fn grille_chauffage(t: crate::entree::TechnologieChauffagePac) -> Option<&'static Grille> {
     use crate::entree::TechnologieChauffagePac as T;
     match t {
         T::AirExterieurEau => Some(&CH_AIR_EXTERIEUR_EAU),
         T::AirExterieurAirRecycle => Some(&CH_AIR_EXTERIEUR_AIR_RECYCLE),
-        _ => None,
+        T::EauDeNappeEau => Some(&CH_EAU_DE_NAPPE_EAU),
+        T::EauGlycoleeEau => Some(&CH_EAU_GLYCOLEE_EAU),
+        T::EauDeNappeAirRecycle => Some(&CH_EAU_DE_NAPPE_AIR_RECYCLE),
+        T::EauDeBoucleAirRecycle => Some(&CH_EAU_DE_BOUCLE_AIR_RECYCLE),
+        T::SolEau => Some(&CH_SOL_EAU),
+        T::SolSol => Some(&CH_SOL_SOL),
+        T::AirExtraitAirNeuf => None,
     }
 }
 
@@ -894,7 +1183,11 @@ pub fn grille_refroidissement(
     match t {
         T::AirExterieurEau => Some(&FR_AIR_EXTERIEUR_EAU),
         T::AirExterieurAirRecycle => Some(&FR_AIR_EXTERIEUR_AIR_RECYCLE),
-        _ => None,
+        T::EauEau => Some(&FR_EAU_EAU),
+        T::EauAir => Some(&FR_EAU_AIR),
+        T::EauDeNappeAirRecycle => Some(&FR_EAU_DE_NAPPE_AIR_RECYCLE),
+        T::EauDeNappeEau => Some(&FR_EAU_DE_NAPPE_EAU),
+        T::AirExtraitAirNeuf => None,
     }
 }
 
@@ -905,7 +1198,9 @@ pub fn grille_ecs(t: crate::entree::TechnologieEcsPac) -> Option<&'static Grille
         T::AirExterieurEau => Some(&ECS_AIR_EXTERIEUR_EAU),
         T::AirExtraitEau => Some(&ECS_AIR_EXTRAIT_EAU),
         T::AirAmbiantEau => Some(&ECS_AIR_AMBIANT_EAU),
-        _ => None,
+        T::EauDeNappeEau => Some(&ECS_EAU_DE_NAPPE_EAU),
+        T::SolEau => Some(&ECS_SOL_EAU),
+        T::EauGlycoleeEau => Some(&ECS_EAU_GLYCOLEE_EAU),
     }
 }
 
@@ -1001,6 +1296,7 @@ impl GenerateurThermodynamique {
             }
             FonctionnementCompresseurSaisi::ToutOuRien => FonctionnementCompresseur::ToutOuRien,
         };
+        let mut defauts = Vec::new();
         let (source, t_air_lim_c) = match &s.source_amont {
             SourceAmontSaisie::AirExterieur { p_vent_gaine_w } => (
                 SourceAmontGenerateur {
@@ -1032,8 +1328,15 @@ impl GenerateurThermodynamique {
                 },
                 Some(*t_air_lim_c),
             ),
+            // Sources sur eau et sur sol (§8.26.3.3.2, fiche 8.27).
+            saisie => (
+                SourceAmontGenerateur {
+                    source: super::sources_amont::resoudre_eau_sol(saisie, &mut defauts)?,
+                    p_vent_gaine_w: 0.0,
+                },
+                None,
+            ),
         };
-        let mut defauts = Vec::new();
         let limites = |l: Option<LimitesPac>| match l {
             None => Limites::Aucune,
             Some(l) => match l.combinaison {
@@ -1565,5 +1868,57 @@ mod tests {
         proche(p.pfou_pc_w, 603.6 * 1280.0 / 780.0);
         let p = g.point(Poste::Ecs, 5000.0, 20.0, 45.0, 1.0, true, None);
         proche(p.pfou_pc_w, 1280.0);
+    }
+
+    #[test]
+    fn grilles_sur_eau_et_sur_sol_a_la_main() {
+        // PAC eau de nappe / air recyclé (éq. 1249 et 1250) : pivot déclaré 5,0 réduit de 20 %
+        // et plafonné à 3,5 ; ligne à 5 °C : 3,5 × 1,3 = 4,55 ; colonne à 18,5 °C : × 1,2.
+        let m = CH_EAU_DE_NAPPE_AIR_RECYCLE.construire(&PerformancesSaisies::PivotDeclare {
+            performance: 5.0,
+            pabs_w: 2000.0,
+        });
+        proche(m.perf[3][1], 3.5);
+        proche(m.perf[0][1], 4.55);
+        proche(m.perf[0][3], 4.55 * 1.2);
+        proche(m.pabs_w[0][1], 2300.0);
+        proche(m.pabs_w[0][3], 2300.0 * 1.10);
+        // PAC sol / sol (éq. 1255) : une ligne, pivot par défaut 0,8 × 3,8 = 3,04 à 4 °C.
+        let m = CH_SOL_SOL.construire(&PerformancesSaisies::PivotDefaut { pabs_w: 1000.0 });
+        proche(m.perf[0][2], 3.04);
+        proche(m.perf[0][0], 3.04 * 0.8);
+        proche(m.perf[0][1], 3.04 * 0.95);
+        proche(m.perf[0][3], 3.04 * 1.07);
+        proche(m.pabs_w[0][0], 1000.0);
+        // À 2,75 °C (tableau 245 pour 2,5 °C de sol), à mi-chemin entre 1,5 et 4 °C ; la
+        // température aval est sans effet.
+        let (pabs, cop) = m.pleine_charge(2.75, 28.0);
+        proche(cop, 0.5 * 3.04 * 0.95 + 0.5 * 3.04);
+        proche(pabs, 1000.0);
+        assert!(CH_SOL_SOL
+            .verifier_mesures(&[PointMesure {
+                theta_aval_c: 35.0,
+                theta_amont_c: 4.0,
+                performance: 4.2,
+                pabs_w: 900.0,
+                justifiee: false,
+            }])
+            .is_ok());
+        // Refroidisseur eau de nappe / eau (éq. 1275 et 1276) : 0,8 × 5 = 4 plafonné à 3,7 ;
+        // ligne à 26 °C : 3,7 × 1,225 ; colonne à 22,5 °C : × 0,8.
+        let m = FR_EAU_DE_NAPPE_EAU.construire(&PerformancesSaisies::PivotDeclare {
+            performance: 5.0,
+            pabs_w: 1000.0,
+        });
+        proche(m.perf[1][1], 3.7);
+        proche(m.perf[4][1], 3.7 * 1.225);
+        proche(m.perf[4][3], 3.7 * 1.225 * 0.8);
+        proche(m.pabs_w[0][0], 945.0 * 1.05);
+        // PAC eau glycolée / eau en ECS (éq. 1256 et 1262) : pivot par défaut 0,8 × 3,7 à
+        // −1,5 °C et 45 °C ; ligne à 55 °C : × 0,8 ; colonne à 13,5 °C : × 1,3.
+        let m = ECS_EAU_GLYCOLEE_EAU.construire(&PerformancesSaisies::PivotDefaut { pabs_w: 1000.0 });
+        proche(m.perf[4][1], 2.96);
+        proche(m.perf[5][4], 2.96 * 0.8 * 1.3);
+        proche(m.pabs_w[5][4], 900.0 * 1.15);
     }
 }
