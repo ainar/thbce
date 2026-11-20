@@ -466,18 +466,21 @@ impl DebitsNaturelle {
     }
 }
 
-/// Créneau de grand débit de la cuisine : vrai si l'heure légale `h_leg` (début du pas, de 0 à
-/// 23) est dans un des deux créneaux du tableau 67.
+/// Créneau de grand débit de la cuisine : vrai si l'heure légale `h_leg` est dans un des deux
+/// créneaux du tableau 67.
 ///
-/// Th-BCE 2020 §6.6.3.2.2, tableau 67 : `Dugd = 0` : non appliqué ; sinon maison individuelle
-/// ou accolée 11 h à 12 h et 18 h à 19 h, logement collectif 11 h à 13 h et 18 h à 20 h. Un pas
-/// de début `h_leg` est dans `[deb ; fin[` (Q236 point 2).
+/// Th-BCE 2020 §6.6.3.2.2, tableau 67 et éq. (706), (708) : `Dugd = 0` : non appliqué ; sinon
+/// maison individuelle ou accolée 11 h à 12 h et 18 h à 19 h, logement collectif 11 h à 13 h et
+/// 18 h à 20 h, bornes incluses (`hleg(h) ∈ [hgd,deb ; hgd,fin]`). `h_leg` est ici le numéro de
+/// case du scénario, de 1 à 24 (heure légale de fin de pas, §4.1.3), l'échelle de `hgd` (de 1 à
+/// 24, nomenclature p. 414) : le créneau « 11 h à 12 h » couvre les pas de 10 h à 11 h et de
+/// 11 h à 12 h (Q236 point 2).
 pub fn est_grand_debit(dugd_h: f64, logement_collectif: bool, h_leg: u8) -> bool {
     if dugd_h <= 0.0 {
         return false;
     }
-    let fin = if logement_collectif { 2 } else { 1 };
-    (11..11 + fin).contains(&h_leg) || (18..18 + fin).contains(&h_leg)
+    let fin = if logement_collectif { 13 } else { 12 };
+    (11..=fin).contains(&h_leg) || (18..=fin + 7).contains(&h_leg)
 }
 
 /// Condition de l'assistance mécanique hors créneau de grand débit : vent inférieur et
@@ -948,14 +951,19 @@ mod tests {
             p_vent_w: vec![vec![10.0, 11.0], vec![20.0, 21.0], vec![30.0, 31.0]],
             p_vent_pointe_w: 80.0,
         };
-        // Tableau 67 : maison, 11 h et 18 h ; logement collectif, 11 h et 12 h, 18 h et 19 h ;
-        // sans grand débit (Dugd = 0), jamais.
+        // Tableau 67, bornes incluses, cases de 1 à 24 : maison, 11 à 12 et 18 à 19 ; logement
+        // collectif, 11 à 13 et 18 à 20 ; sans grand débit (Dugd = 0), jamais.
+        assert!(!est_grand_debit(14.0, false, 10));
         assert!(est_grand_debit(14.0, false, 11));
-        assert!(!est_grand_debit(14.0, false, 12));
+        assert!(est_grand_debit(14.0, false, 12));
+        assert!(!est_grand_debit(14.0, false, 13));
         assert!(est_grand_debit(14.0, false, 18));
-        assert!(est_grand_debit(14.0, true, 12));
-        assert!(est_grand_debit(14.0, true, 19));
-        assert!(!est_grand_debit(14.0, true, 20));
+        assert!(est_grand_debit(14.0, false, 19));
+        assert!(!est_grand_debit(14.0, false, 20));
+        assert!(est_grand_debit(14.0, true, 13));
+        assert!(!est_grand_debit(14.0, true, 14));
+        assert!(est_grand_debit(14.0, true, 20));
+        assert!(!est_grand_debit(14.0, true, 21));
         assert!(!est_grand_debit(0.0, true, 11));
         // Éq. (706) : assistance si vent < 4 m/s et θext > 12 °C.
         assert!(besoin_assistance(&a, 3.9, 12.5));
