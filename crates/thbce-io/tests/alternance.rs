@@ -91,8 +91,8 @@ fn verifier(meteo_de: &dyn Fn(&Projet) -> MeteoProjet, titre: &str) -> Resultats
         .map(|x| x.q_fou_ch_kwh + x.q_fou_ecs_kwh)
         .sum();
     assert!((par_generateur - fourni).abs() < 1e-6, "{titre}");
-    // La chaudière de 24 kW, sollicitée en premier, est coupée après 20 heures où la demande
-    // tient dans les 12 kW de la suivante : celle-ci fournit l'essentiel de l'énergie.
+    // La chaudière de 24 kW, sollicitée en premier, fournit pendant 19 heures où la demande
+    // tient dans les 12 kW de la suivante, puis est coupée à la 20ᵉ : la suivante fournit l'essentiel de l'énergie.
     let f = fournies(&r);
     let petite = f[0].1[0] + f[0].1[1];
     let grande = f[1].1[0] + f[1].1[1];
@@ -209,4 +209,20 @@ fn pac_hybride_renvoie_a_la_fiche_d_application() {
     let r = thbce_core::valider(&projet(&v));
     assert!(r.seulement_hors_perimetre(), "{:?}", r.erreurs);
     assert!(r.erreurs.iter().any(|e| e.message.contains("§16.4")));
+}
+
+/// Un générateur hors périmètre seul sur un poste donne le seul refus de code 3 : le contrôle
+/// de montage du §8.17.3.1 est sauté (pas d'erreur « aucun générateur n'assure le poste »).
+#[test]
+fn generateur_hors_perimetre_seul_refuse_en_code_3_seul() {
+    for nature in ["cogeneration", "pac_hybride"] {
+        let mut v = json_du_cas(EXEMPLE);
+        let g = &mut v["batiments"][0]["generations"][0];
+        g["generateurs"].as_array_mut().unwrap().truncate(1);
+        g["generateurs"][0]["nature"] = nature.into();
+        g.as_object_mut().unwrap().remove("priorite");
+        let r = thbce_core::valider(&projet(&v));
+        assert!(!r.erreurs.is_empty());
+        assert!(r.seulement_hors_perimetre(), "{nature} : {:?}", r.erreurs);
+    }
 }
