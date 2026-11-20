@@ -96,7 +96,11 @@ fn bilans_des_exemples_ademe() {
         );
         assert!((g.q_fou_ch_kwh - g.q_ch_kwh).abs() < 1.0, "{nom}");
         assert!(g.q_fou_ch_kwh > 0.0, "{nom}");
-        for x in g.generateurs.iter().filter(|x| x.id != "appoint-electrique") {
+        for x in g
+            .generateurs
+            .iter()
+            .filter(|x| x.id != "appoint-electrique")
+        {
             // Éq. (1332) à (1334) : rejet négatif en chauffage, positif en refroidissement.
             if x.q_fou_fr_kwh == 0.0 {
                 assert!(x.phi_rejet_kwh < 0.0, "{nom} : {}", x.id);
@@ -175,7 +179,10 @@ fn nappe_pompes_et_echangeur() {
     source(&mut v)["nappe"]["echangeur"]["p_pompes_inter_w"] = 0.0.into();
     let sans = calcul(&v, &meteo_ademe);
     let heures = (pac(&base).w_aux_kwh - pac(&sans).w_aux_kwh) / 0.060;
-    assert!((heures - heures.round()).abs() < 1e-6 && heures <= 8760.0, "{heures}");
+    assert!(
+        (heures - heures.round()).abs() < 1e-6 && heures <= 8760.0,
+        "{heures}"
+    );
     // Sans échangeur : la source n'est plus atténuée par l'échangeur ni par les rejets.
     let mut v = json_du_cas(NAPPE);
     source(&mut v)["nappe"]
@@ -200,9 +207,7 @@ fn tour_humide_et_seche() {
     v["batiments"][0]["generations"][0]["generateurs"][1]["nature"]["thermodynamique_electrique"]
         ["source_amont"]["tour_de_refroidissement"]["nature"] = "seche".into();
     let seche = calcul(&v, &meteo_ademe);
-    assert!(
-        froid(&base).consommations.total_kwh() < froid(&seche).consommations.total_kwh()
-    );
+    assert!(froid(&base).consommations.total_kwh() < froid(&seche).consommations.total_kwh());
     assert!(froid(&base).q_fou_fr_kwh > 0.0);
     // ΔθCond_FR par défaut signalé.
     assert!(froid(&base)
@@ -272,8 +277,7 @@ fn refus_et_erreurs() {
         .any(|e| e.message.contains("tableau 146")));
     // Chauffe-eau thermodynamique sur eau : erreur de saisie.
     let mut v = json_du_cas(GEOTHERMIE);
-    v["batiments"][0]["generations"][1]["chauffe_eau_thermodynamiques"][0]["source_amont"] =
-        serde_json::json!({"nappe": {
+    v["batiments"][0]["generations"][1]["chauffe_eau_thermodynamiques"][0]["source_amont"] = serde_json::json!({"nappe": {
             "nappe": {"theta_min_c": 10.0, "theta_max_c": 12.0, "mois_minimum": 3},
             "pompes": {"gestion": "marche_permanente", "p_pompes_w": 10.0}}});
     let r = erreurs(&v);
@@ -311,7 +315,11 @@ fn exemples_meteo_reglementaire() {
         ];
         println!(
             "{nom} : Cep {:.1}, Cep,nr {:.1}, Ic énergie {:.1}, DH {:.1}, conforme {:?}",
-            obtenu[0], obtenu[1], obtenu[2], obtenu[3], i.exigences.as_ref().map(|e| e.conforme)
+            obtenu[0],
+            obtenu[1],
+            obtenu[2],
+            obtenu[3],
+            i.exigences.as_ref().map(|e| e.conforme)
         );
         ecarts.extend(
             obtenu
