@@ -1570,6 +1570,18 @@ export interface EauAcv {
   s_toitures_m2?: number | null;
 }
 
+/**
+ * « ΔθEvap_CH » (ou « ΔθCond_CH ») et « ΔθCond_FR » : écarts de température aux bornes de
+ * l'échangeur côté source en chauffage et en refroidissement (§8.26.3.3.2, éq. 1427 et 1439).
+ * Chacun, absent, vaut 5 K par défaut, signalé dans les résultats.
+ */
+export interface EcartsSourceEau {
+  /** Écart en chauffage et en ECS, en K. */
+  delta_theta_ch_k?: number | null;
+  /** Écart en refroidissement, en K. */
+  delta_theta_fr_k?: number | null;
+}
+
 /** Th-BCE 2020 §6.3.2, tableau 61, et §6.3.3.4.6 — échangeur d'un double flux. */
 export interface Echangeur {
   /**
@@ -1646,6 +1658,30 @@ export interface EchangeurEcsSaisi {
    * nominal pour un échangeur externe).
    */
   p_ech_ecs_kw: number;
+}
+
+/**
+ * Échangeur de barrage d'une source sur eau de nappe et circuit intermédiaire (§8.26.3.3.2.1,
+ * « idamont-eau-type = 4 », éq. 1411 à 1424).
+ */
+export interface EchangeurNappe {
+  /** « Cpeinter » : chaleur spécifique du fluide du circuit intermédiaire, en J/(kg.K). */
+  cp_inter_j_kg_k: number;
+  /** « type_echangeur » : nature des écoulements. */
+  ecoulements: EcoulementsEchangeur;
+  /**
+   * « Ppompes_inter » : puissance électrique des pompes du circuit intermédiaire, en W
+   * (éq. 1446 et 1447).
+   */
+  p_pompes_inter_w: number;
+  /** « Qv_inter_nom » : débit total nominal du fluide du circuit intermédiaire, en m³/h. */
+  qv_inter_nom_m3_h: number;
+  /** « Qv_nappe_nom » : débit nominal d'eau de nappe, en m³/h. */
+  qv_nappe_nom_m3_h: number;
+  /** « ρinter » : masse volumique du fluide du circuit intermédiaire, en kg/m³. */
+  rho_inter_kg_m3: number;
+  /** « UA » : coefficient de l'échangeur, en W/K. */
+  ua_w_k: number;
 }
 
 /** Échangeur en représentation simplifiée. */
@@ -1729,6 +1765,9 @@ export interface EclairageParking {
 
 /** « idtype_echangeur » (tableau 61). */
 export type EcoulementEchangeur = "contre_courant" | "courants_paralleles" | "courants_croises_brasses";
+
+/** « type_echangeur » (§8.26.3.3.2.1, éq. 1418 à 1421). */
+export type EcoulementsEchangeur = "contre_courant" | "courants_paralleles" | "courants_croises";
 
 /** Th-BCE 2020 §8.18.2, tableau 112 — générateur direct à effet Joule. */
 export interface EffetJouleSaisi {
@@ -2579,6 +2618,9 @@ export type GestionEauxPluviales = "infiltration" | "separatif" | "unitaire";
 /** « Type-GPM » (§5.9.2) : gestion d'un volet ou d'un store enroulable. */
 export type GestionPm = "automatique_avec_derogation" | "manuelle_non_motorisee" | "manuelle_motorisee";
 
+/** « idgest_captage » et « idgest_pompe_captage_cont_var ». */
+export type GestionPompesCaptage = "marche_permanente" | "demande_tout_ou_rien" | "demande_vitesse_variable";
+
 /** « typegest_PH » : gestion de la pompe du puits hydraulique (§6.9.3.2.3). */
 export type GestionPuitsHydraulique = "temperature_exterieure" | "temperatures_exterieure_et_eau";
 
@@ -3285,6 +3327,9 @@ export type NatureGenerateur = {
   reseau_de_chaleur_ou_de_froid: ReseauChaleurFroidSaisi;
 } | "autre_generateur_a_combustion" | "thermodynamique_gaz" | "boucle_d_eau_ou_drv" | "cogeneration" | "pac_hybride";
 
+/** « idtour » (§8.26.3.3.2.2). */
+export type NatureTourRefroidissement = "humide" | "seche";
+
 /** Nature des travaux pour le choix du régime d'exigences (fiche 4.4 ; FA03 v2). */
 export type NatureTravaux = "construction" | "extension" | "surelevation";
 
@@ -3873,6 +3918,21 @@ export interface PointRendementOnduleur {
   eta: number;
   /** « Xi » : `PPV / PAC NOM`. */
   x: number;
+}
+
+/**
+ * « idgest_captage » et « idgest_pompe_captage_cont_var » (§8.26.3.4.2) : pompes d'une source
+ * sur eau.
+ */
+export interface PompesCaptage {
+  /** Gestion des pompes. */
+  gestion: GestionPompesCaptage;
+  /**
+   * « Ppompes_captage » : puissance électrique des pompes de captage, de nappe ou de
+   * boucle, en W (selon le type, toute la puissance ou la part qui vainc les pertes de
+   * charge des conduits).
+   */
+  p_pompes_w: number;
 }
 
 /** Th-BCE 2020 §5.19.2 — pont thermique. */
@@ -6071,7 +6131,11 @@ export interface SortiesZone {
   sref_m2: number;
 }
 
-/** « idamont-air-type » (§8.26.3.3.1) : source amont sur air. */
+/**
+ * Source amont d'un générateur thermodynamique (§8.26 et §8.27) : sur air
+ * (« idamont-air-type », §8.26.3.3.1), sur eau (« idamont-eau-type », §8.26.3.3.2) ou sur sol
+ * (fiche 8.27).
+ */
 export type SourceAmontSaisie = {
   air_exterieur: {
     /**
@@ -6096,6 +6160,93 @@ export type SourceAmontSaisie = {
     t_air_lim_c: number;
     /** Zone dont le système de ventilation irrigue la source. */
     zone: string;
+  };
+} | {
+  captage: {
+    /** « ΔθEvap_CH » et « ΔθCond_FR » (éq. 1427). */
+    ecarts?: EcartsSourceEau | null;
+    /** « L » : longueur du conduit de captage, en m (éq. 1410). */
+    l_m: number;
+    /** Pompes de captage (éq. 1444 et 1445). */
+    pompes: PompesCaptage;
+    /**
+     * « Rb » : résistance thermique équivalente entre le fluide et l'interface avec le
+     * sol naturel, en K.m/W (éq. 1410).
+     */
+    rb_k_m_w: number;
+    /**
+     * « θmin_source », « θmax_source » et « idmois mini » : température de l'interface
+     * avec le sol naturel (éq. 1408 et 1409).
+     */
+    sol: TemperatureSinusoidale;
+  };
+} | {
+  nappe: {
+    /** « ΔθEvap_CH » et « ΔθCond_FR » (éq. 1427). */
+    ecarts?: EcartsSourceEau | null;
+    /**
+     * Échangeur de barrage et circuit intermédiaire (« idamont-eau-type = 4 ») ; absent :
+     * nappe sans échangeur (« idamont-eau-type = 5 », éq. 1425 et 1426).
+     */
+    echangeur?: EchangeurNappe | null;
+    /**
+     * « θmin_source », « θmax_source » et « idmois mini » : température de l'eau de
+     * nappe (éq. 1408 et 1409).
+     */
+    nappe: TemperatureSinusoidale;
+    /** Pompes de captage (« Ppompes_captage », éq. 1444 et 1445). */
+    pompes: PompesCaptage;
+  };
+} | {
+  tour_de_refroidissement: {
+    /**
+     * « ΔθCond_FR » : écart de température aux bornes du condenseur, en K (éq. 1436).
+     * Absent : 5 K, signalé dans les résultats.
+     */
+    delta_theta_cond_fr_k?: number | null;
+    /**
+     * « Δθtour » : écart entre l'eau en sortie de tour et la température humide (tour
+     * humide) ou sèche (tour sèche) de l'air extérieur, en K (éq. 1432 et 1434).
+     */
+    delta_theta_tour_k: number;
+    /** « idtour » : tour humide ou sèche. */
+    nature: NatureTourRefroidissement;
+    /**
+     * « Ppompes_tour » : puissance électrique des pompes du circuit de refroidissement,
+     * en W (éq. 1449).
+     */
+    p_pompes_tour_w: number;
+    /** « Pvent_tour » : puissance électrique des ventilateurs de la tour, en W (éq. 1450). */
+    p_vent_tour_w: number;
+    /**
+     * « θes_tour_consigne » : consigne de température d'eau en sortie de tour, en °C
+     * (éq. 1433 et 1435).
+     */
+    theta_es_consigne_c: number;
+  };
+} | {
+  boucle_d_eau: {
+    /**
+     * « θmin_boucle », « θmax_boucle » et mois de la température minimale (éq. 1437 et
+     * 1438).
+     */
+    boucle: TemperatureSinusoidale;
+    /** « ΔθCond_CH » et « ΔθCond_FR » (éq. 1439). */
+    ecarts?: EcartsSourceEau | null;
+    /** Pompes de boucle (« Ppompes_captage », éq. 1444 et 1445). */
+    pompes: PompesCaptage;
+  };
+} | {
+  sol: {
+    /** « L » : longueur du conduit de captage, en m (éq. 1463). */
+    l_m: number;
+    /** « Rb » : résistance thermique équivalente, en K.m/W (éq. 1463). */
+    rb_k_m_w: number;
+    /**
+     * « θmin_sol », « θmax_sol » et « id_mois_mini_sol » : température de l'interface
+     * entre le sol et les tubes de fluide frigorigène (éq. 1461 et 1462).
+     */
+    sol: TemperatureSinusoidale;
   };
 };
 
@@ -6240,6 +6391,20 @@ export type TechnologiePv = "mono_cristallin_si" | "multi_cristallin_si" | "cd_t
 
 /** « Sys_thermo_Fr » (§8.23.3.2, tableau 145). */
 export type TechnologieRefroidissementPac = "air_exterieur_eau" | "air_exterieur_air_recycle" | "air_extrait_air_neuf" | "eau_eau" | "eau_air" | "eau_de_nappe_air_recycle" | "eau_de_nappe_eau";
+
+/**
+ * Température d'une source qui suit une évolution annuelle sinusoïdale, mois par mois
+ * (§8.26.3.3.2, éq. 1408, 1409, 1437 et 1438 ; §8.27.3.2, éq. 1461 et 1462). Une source de
+ * température constante se décrit avec `theta_min_c = theta_max_c`.
+ */
+export interface TemperatureSinusoidale {
+  /** « idmois mini » : numéro du mois de la température minimale, de 1 à 12. */
+  mois_minimum: number;
+  /** Température maximale annuelle, en °C. */
+  theta_max_c: number;
+  /** Température minimale annuelle, en °C. */
+  theta_min_c: number;
+}
 
 /** Terres évacuées du chantier (éq. 95). */
 export interface TerresEvacuees {
