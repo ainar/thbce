@@ -7,9 +7,12 @@
 use super::*;
 use crate::chauffage_refroidissement::chaudieres_gaz_fioul_bois::Chaudiere;
 use crate::chauffage_refroidissement::generateur_direct_a_effet_joule::GenerateurEffetJoule;
+use crate::chauffage_refroidissement::pac_moteur_gaz::PacMoteurGaz;
 use crate::chauffage_refroidissement::poeles_et_inserts::Poele;
 use crate::chauffage_refroidissement::reseau_de_chaleur_et_de_froid::ReseauChaleurFroid;
+use crate::chauffage_refroidissement::sources_amont::{SourceAmont, SourceAmontGenerateur};
 use crate::chauffage_refroidissement::thermodynamique_elec::GenerateurThermodynamique;
+use crate::chauffage_refroidissement::thermodynamique_gaz::MachineAbsorption;
 use crate::ecs::echangeur_ballon::{
     ApplicationAccumulateur, CirculateurPrimaire, EchangeurEcs, MOD_MIN_DEFAUT,
 };
@@ -26,7 +29,7 @@ impl GenerationHoraire {
     ) -> Self {
         use crate::entree::{
             FonctionEffetJoule, GestionTemperatureGeneration, NatureGenerateur, PositionGeneration,
-            TypePriorite,
+            ThermodynamiqueGazSaisi, TypePriorite,
         };
         let en_vc = g.position == PositionGeneration::EnVolumeChauffe;
         let mut generateurs: Vec<GenerateurHoraire> = g
@@ -72,11 +75,30 @@ impl GenerationHoraire {
                     NatureGenerateur::ReseauDeChaleurOuDeFroid(r) => {
                         Generateur::Reseau(resoudre_reseau(r, rdim, en_vc)?)
                     }
+                    // Fiches 8.24 et 8.25 : source amont sur air extérieur, sans auxiliaires
+                    // amont propres.
+                    NatureGenerateur::ThermodynamiqueGaz(t) => {
+                        source = Some(SourceAmontGenerateur {
+                            source: SourceAmont::AirExterieur,
+                            p_vent_gaine_w: 0.0,
+                        });
+                        match t {
+                            ThermodynamiqueGazSaisi::Absorption(a) => {
+                                let (m, defauts) = MachineAbsorption::resoudre(a, rdim)?;
+                                valeurs_par_defaut = defauts;
+                                Generateur::Absorption(Box::new(m))
+                            }
+                            ThermodynamiqueGazSaisi::MoteurGaz(a) => {
+                                let (m, defauts) = PacMoteurGaz::resoudre(a, rdim);
+                                valeurs_par_defaut = defauts;
+                                Generateur::MoteurGaz(Box::new(m))
+                            }
+                        }
+                    }
                     // Natures refusées par la validation (code 3) : points d'entrée des lots
                     // à venir, qui remplacent leur branche par l'aiguillage vers leur modèle
                     // (`docs/architecture.md`, §3.10).
                     NatureGenerateur::AutreGenerateurACombustion
-                    | NatureGenerateur::ThermodynamiqueGaz
                     | NatureGenerateur::BoucleDEauOuDrv
                     | NatureGenerateur::Cogeneration
                     | NatureGenerateur::PacHybride => return None,

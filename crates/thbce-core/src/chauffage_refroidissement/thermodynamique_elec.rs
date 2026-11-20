@@ -749,7 +749,7 @@ impl Grille {
 
 /// Indices et coefficient d'interpolation d'une température dans une liste croissante
 /// (éq. 1283 à 1285) : hors de la liste, la valeur de la borne est conservée.
-fn encadrement(valeurs: &[f64], theta: f64) -> (usize, usize, f64) {
+pub(crate) fn encadrement(valeurs: &[f64], theta: f64) -> (usize, usize, f64) {
     let n = valeurs.len();
     if n == 0 {
         return (0, 0, 0.0);

@@ -8,9 +8,11 @@ use super::{EntreesAppel, FonctionGenerateur, SortiesAppel};
 use crate::chauffage_refroidissement::calculs_generation::Poste;
 use crate::chauffage_refroidissement::chaudieres_gaz_fioul_bois::Chaudiere;
 use crate::chauffage_refroidissement::generateur_direct_a_effet_joule::GenerateurEffetJoule;
+use crate::chauffage_refroidissement::pac_moteur_gaz::PacMoteurGaz;
 use crate::chauffage_refroidissement::poeles_et_inserts::Poele;
 use crate::chauffage_refroidissement::reseau_de_chaleur_et_de_froid::ReseauChaleurFroid;
 use crate::chauffage_refroidissement::thermodynamique_elec::GenerateurThermodynamique;
+use crate::chauffage_refroidissement::thermodynamique_gaz::MachineAbsorption;
 
 /// Générateur idéal : fournit exactement la demande, sans limite de puissance, avec un
 /// rendement unitaire, en consommant de l'électricité.
@@ -51,6 +53,10 @@ pub enum Generateur {
     Poele(Poele),
     /// Types 600 et 601 : sous-station de réseau de chaleur ou de froid (§8.28).
     Reseau(ReseauChaleurFroid),
+    /// Type 504 : machine à absorption au gaz (§8.24).
+    Absorption(Box<MachineAbsorption>),
+    /// Type 504 : pompe à chaleur à moteur gaz (§8.25).
+    MoteurGaz(Box<PacMoteurGaz>),
     /// Générateur idéal, pour les tests.
     Ideal(GenerateurIdeal),
 }
@@ -73,6 +79,8 @@ impl Generateur {
                 (_, false, true) => FonctionGenerateur::Ecs,
                 _ => FonctionGenerateur::Chauffage,
             },
+            Self::Absorption(g) => g.fonction(),
+            Self::MoteurGaz(g) => g.fonction(),
             Self::Ideal(g) => g.fonction,
         }
     }
@@ -88,6 +96,8 @@ impl Generateur {
             Self::Chaudiere(g) => g.pn_gen_tot_w(),
             Self::Poele(g) => g.pn_gen_tot_w(),
             Self::Reseau(g) => g.pn_gen_tot_w(),
+            Self::Absorption(g) => g.pn_gen_tot_w(),
+            Self::MoteurGaz(g) => g.pn_gen_tot_w(poste),
             // Sans puissance nominale : parts égales en mode sans priorité.
             Self::Ideal(_) => 1.0,
         }
@@ -101,6 +111,8 @@ impl Generateur {
             Self::Chaudiere(g) => g.appel(e),
             Self::Poele(g) => g.appel(e),
             Self::Reseau(g) => g.appel(e),
+            Self::Absorption(g) => g.appel(e),
+            Self::MoteurGaz(g) => g.appel(e),
             Self::Ideal(g) => g.appel(e),
         }
     }

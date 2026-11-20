@@ -13,12 +13,14 @@ use crate::entree::{
 use combustion::{valider_chaudiere, valider_poele};
 use reseaux_chaleur::valider_reseau;
 use thermodynamique::valider_thermodynamique;
+use thermodynamique_gaz::{fluide_aval_gaz, postes_gaz, valider_thermodynamique_gaz};
 
 // Un fichier par famille de générateurs. Un nouveau générateur ajoute sa nature dans
 // `postes_assures` et `valider_generation`, et ses contrôles dans un fichier déclaré ci-dessous.
 mod combustion;
 mod reseaux_chaleur;
 mod thermodynamique;
+mod thermodynamique_gaz;
 
 /// Postes qu'un générateur saisi peut assurer : `[chauffage, refroidissement, ECS]`.
 pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
@@ -38,6 +40,7 @@ pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
             c.fonction != FonctionChaleur::Chauffage,
         ],
         NatureGenerateur::PoeleOuInsert(_) => [true, false, false],
+        NatureGenerateur::ThermodynamiqueGaz(t) => postes_gaz(t),
         NatureGenerateur::ReseauDeChaleurOuDeFroid(ReseauChaleurFroidSaisi::Chaleur {
             fonction,
             ..
@@ -52,7 +55,6 @@ pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
         // Natures refusées (code 3) : le lot qui les ouvre donne ici leurs postes, tirés de
         // leur saisie (`docs/architecture.md`, §3.10).
         NatureGenerateur::AutreGenerateurACombustion
-        | NatureGenerateur::ThermodynamiqueGaz
         | NatureGenerateur::BoucleDEauOuDrv
         | NatureGenerateur::Cogeneration
         | NatureGenerateur::PacHybride => [false; 3],
@@ -68,15 +70,11 @@ pub(super) fn nature_hors_perimetre(n: &NatureGenerateur) -> Option<(&'static st
         | NatureGenerateur::ThermodynamiqueElectrique(_)
         | NatureGenerateur::Chaudiere(_)
         | NatureGenerateur::PoeleOuInsert(_)
-        | NatureGenerateur::ReseauDeChaleurOuDeFroid(_) => None,
+        | NatureGenerateur::ReseauDeChaleurOuDeFroid(_)
+        | NatureGenerateur::ThermodynamiqueGaz(_) => None,
         NatureGenerateur::AutreGenerateurACombustion => Some((
             "autre_generateur_a_combustion",
             "autre générateur à combustion (Th-BCE 2020 §8.20, types 103 à 109)",
-        )),
-        NatureGenerateur::ThermodynamiqueGaz => Some((
-            "thermodynamique_gaz",
-            "générateur thermodynamique au gaz, à absorption ou à moteur (Th-BCE 2020 §8.24 et \
-             §8.25, type 504)",
         )),
         NatureGenerateur::BoucleDEauOuDrv => Some((
             "boucle_d_eau_ou_drv",
@@ -113,9 +111,10 @@ pub(super) fn fluide_aval_hydraulique(n: &NatureGenerateur) -> Option<bool> {
         }
         NatureGenerateur::PoeleOuInsert(_) => Some(false),
         NatureGenerateur::EffetJoule(_) | NatureGenerateur::ThermodynamiqueElectrique(_) => None,
+        // Selon le mode et la technologie : contrôlé à part (`fluide_aval_gaz`).
+        NatureGenerateur::ThermodynamiqueGaz(_) => None,
         // Natures refusées (code 3) : à fixer par le lot qui les ouvre.
         NatureGenerateur::AutreGenerateurACombustion
-        | NatureGenerateur::ThermodynamiqueGaz
         | NatureGenerateur::BoucleDEauOuDrv
         | NatureGenerateur::Cogeneration
         | NatureGenerateur::PacHybride => None,
@@ -379,6 +378,15 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
             NatureGenerateur::ReseauDeChaleurOuDeFroid(n) => {
                 valider_reseau(r, &format!("{cg}.nature.reseau_de_chaleur_ou_de_froid"), n);
             }
+            NatureGenerateur::ThermodynamiqueGaz(t) => {
+                valider_thermodynamique_gaz(
+                    r,
+                    &format!("{cg}.nature.thermodynamique_gaz"),
+                    t,
+                    &x.id,
+                    g,
+                );
+            }
             autre => {
                 if let Some((nom, quoi)) = nature_hors_perimetre(autre) {
                     r.hors_perimetre(format!("{cg}.nature"), Some(nom.into()), quoi);
@@ -537,6 +545,28 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
                             "{c}.generateurs[{k}].nature.thermodynamique_electrique.{}.technologie",
                             noms[p]
                         ),
+                        None,
+                        format!(
+                            "technologie incohérente avec les réseaux de {} de la génération : \
+                             un générateur sur air alimente des réseaux fictifs, un générateur \
+                             sur eau des réseaux hydrauliques (Th-BCE 2020 §8.17.3.1)",
+                            noms[p]
+                        ),
+                    );
+                }
+            }
+        }
+    }
+    // Générateurs thermodynamiques au gaz (§8.24 et §8.25) : fluide aval selon la technologie.
+    for (k, x) in g.generateurs.iter().enumerate() {
+        let NatureGenerateur::ThermodynamiqueGaz(t) = &x.nature else {
+            continue;
+        };
+        for (p, eau) in fluide_aval_gaz(t).into_iter().enumerate() {
+            if let (Some(eau), Some(hydraulique)) = (eau, types[p]) {
+                if eau != hydraulique {
+                    r.erreur(
+                        format!("{c}.generateurs[{k}].nature.thermodynamique_gaz"),
                         None,
                         format!(
                             "technologie incohérente avec les réseaux de {} de la génération : \
