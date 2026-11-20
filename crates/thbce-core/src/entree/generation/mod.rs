@@ -111,7 +111,8 @@ pub enum TypePriorite {
     Cascade,
     /// 3 : en alternance (§8.17.3.7.2.3) : générateurs d'une même fonction (un seul poste, ou
     /// chauffage et ECS), sollicités par puissance nominale décroissante ; un générateur est
-    /// coupé après 20 heures (« Nbasculement_init ») où le générateur suivant aurait suffi.
+    /// fournit pendant 19 heures où le générateur suivant aurait suffi et est coupé à la 20ᵉ
+    /// (« Nbasculement_init » = 20).
     /// Incompatible avec un ballon de stockage (§8.17.3.6).
     Alternance,
 }

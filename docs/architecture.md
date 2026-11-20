@@ -233,11 +233,13 @@ La fiche 8.14 assemble la génération (figure 103) ; le lot 2a a rendu explicit
 | Fiche | Variante actuelle | Branches à remplir | Branchement propre à la fiche |
 |---|---|---|---|
 | 8.15, boucles d'eau (type 507) | `BoucleDEauOuDrv` (à scinder : 8.15 et 8.16) | `nature_hors_perimetre`, `postes_assures`, `fluide_aval_hydraulique`, `resoudre`, `Generateur` | bilan de la boucle (composant « transferts entre générateurs sur boucle d'eau » de la figure 103) dans `GenerationHoraire::pas`, autour de l'appel des générateurs instantanés ; température de boucle comme source amont (`ConditionsSource`) ; cumuls éq. 1490 et 1491 (`calculs_generation.rs`) |
-| 8.16, DRV et thermofrigopompes (508, 509) | `BoucleDEauOuDrv` | idem | rejet récupéré en chauffage après l'appel en refroidissement (`ModePriorite` inchangé), dans `GenerationHoraire::pas` |
-| 8.20, autres générateurs à combustion (103 à 109) | `AutreGenerateurACombustion` | idem ; `fluide_aval_hydraulique` selon le type (air pour les générateurs d'air chaud et radiants) | vecteur gaz ou GPL : `indicateurs/sorties_th_c.rs::vecteur_generateur` |
-| 8.21, cogénération (700) | `Cogeneration` | idem | électricité produite : `SortiesAppel::q_prelec_wh` et `JeuDonnees::q_prelec_wh` existent ; cumuls éq. 1492, 1493, 1515 à 1519 ; autoconsommation (§13.4) |
+| 8.16, DRV et thermofrigopompes (508, 509) | `BoucleDEauOuDrv` | idem | rejet récupéré en chauffage après l'appel en refroidissement (`ModePriorite` inchangé), dans `GenerationHoraire::pas` ; cumuls de rejet et de récupération à ajouter dans `calculs_generation.rs` |
+| 8.20, autres générateurs à combustion (103 à 109) | `AutreGenerateurACombustion` | idem ; `fluide_aval_hydraulique` selon le type (air pour les générateurs d'air chaud et radiants) | vecteur gaz ou GPL : `indicateurs/sorties_th_c.rs::vecteur_generateur` ; `idraccord_gnr` (raccordement des générateurs entre eux, non saisi aujourd'hui) sert dans la fiche 8.20 (éq. 1150 à 1158, p. 722-723, gestion avec priorité, alternance comprise : Q125 point 5) |
+| 8.21, cogénération (700) | `Cogeneration` | idem | électricité produite : `SortiesAppel::q_prelec_wh` et `JeuDonnees::q_prelec_wh` existent ; cumuls éq. 1492, 1493, 1515 à 1519 ; autoconsommation (§13.4) ; modifie `GenerationHoraire::pas` (production simultanée de chaleur et d'électricité) et les cumuls |
 | 8.24 et 8.25, PAC à absorption et à moteur gaz (504) | `ThermodynamiqueGaz` | idem | sources amont : `chauffage_refroidissement/sources_amont.rs::SourceAmont` (partagées avec la fiche 8.23) |
 | 8.23 sur eau ou sur sol, 8.26 et 8.27 | technologies sans grille (`validation/generation/thermodynamique.rs`) | recette §3.2 | `match` sur `SourceAmont` dans `SystemesBatiment::pas` |
+| 8.30 et 8.31, géocooling | aucune variante de `NatureGenerateur` | non préparés : à créer (variante, aiguillages, `GenerationHoraire::pas` pour l'échange avec le sol, cumuls) | — |
+| 8.33, VEFA | aucune variante | non préparé : à créer | — |
 | §16.4, PAC hybride | `PacHybride` | aucune : saisie par composants (PAC et chaudière en cascade), Q126 | — |
 
 La gestion des priorités (`ModePriorite`) est commune à tous : un générateur qui répond au contrat `EntreesAppel` → `SortiesAppel` et dont `Generateur::pn_gen_tot_w` et `Generateur::fonction` sont renseignés est géré sans autre changement sans priorité, en cascade et en alternance.

@@ -467,6 +467,15 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
     if g.priorite == Some(TypePriorite::Alternance) {
         valider_alternance(r, c, g);
     }
+    // Cohérence du montage (§8.17.3.1) : sautée dès qu'un générateur est hors périmètre. Sa
+    // fonction n'est pas connue (`postes_assures` renvoie `[false; 3]`) : le contrôle ajouterait
+    // des erreurs trompeuses (code 2) au refus « non pris en charge » (code 3).
+    if g.generateurs
+        .iter()
+        .any(|x| nature_hors_perimetre(&x.nature).is_some())
+    {
+        return;
+    }
     // Cohérence du montage (§8.17.3.1).
     // Un système solaire combiné assure lui-même une partie du chauffage (fiches 9.19 et 9.20).
     let assure = |p: usize| {
