@@ -2,6 +2,50 @@
 // Fichier généré par `cargo run -p xtask -- typescript` depuis les JSON Schema d'entrée
 // et de résultats ; ne pas modifier à la main.
 
+/** §8.24.2, tableau 217 — machine à absorption au gaz, sur air extérieur. */
+export interface AbsorptionGazSaisie {
+  /**
+   * « Fonc_brûl » : régulation du brûleur. Absent : tout ou rien (§8.24.3.6.4.1, lecture
+   * Q137), signalé dans les résultats.
+   */
+  bruleur?: FonctionnementBruleur | null;
+  /**
+   * « Idechangeur » : présence d'un échangeur eau/fumées. Absent : pas d'échangeur
+   * (§8.24.3.6.4.1), signalé dans les résultats.
+   */
+  echangeur_fumees?: boolean | null;
+  /**
+   * « LRcontmin » et « CcpLRcontmin » d'un brûleur modulant, certifiés ou justifiés
+   * (éq. 1357 et 1358). Absent : 0,70 et 0,90 en chauffage et en refroidissement, 0,65 et
+   * 0,75 en ECS (éq. 1362 et 1363), signalés dans les résultats. Sans objet en tout ou rien.
+   */
+  fonctionnement_continu?: FonctionnementContinu | null;
+  /** « Lim_Theta » : limites de fonctionnement (§8.24.3.3.1.5). Absent : pas de limite. */
+  limites?: LimitesPac | null;
+  /** « Idfougen » et technologie : mode unique de la machine. */
+  mode: ModeAbsorptionGaz;
+  /**
+   * « Paux0 » : puissance des auxiliaires à charge nulle d'une machine, en W. Absent :
+   * valeur par défaut selon la puissance nominale (éq. 1364).
+   */
+  p_aux_0?: ValeurMesuree | null;
+  /**
+   * Performances à pleine charge : GUE, puissance gaz absorbée (« débit calorifique ») et
+   * puissance électrique des auxiliaires.
+   */
+  performances: PerformancesGaz;
+  /**
+   * « Pertes40°C » : pertes à l'arrêt pour 40 K d'écart avec l'ambiance, en W. Absent :
+   * valeur par défaut selon la puissance nominale (éq. 1365).
+   */
+  pertes_40c?: ValeurMesuree | null;
+  /**
+   * « Rdtcomb_pivot » : rendement de combustion sur PCI au point pivot (sans dimension).
+   * Absent : valeur par défaut (éq. 1366).
+   */
+  rdt_comb_pivot?: ValeurMesuree | null;
+}
+
 /**
  * Affectation d'une baie à un local pour l'éclairement naturel (§5.10.3.2, « type de baie »).
  *
@@ -1243,6 +1287,9 @@ export interface Cta {
   type_cta: TypeCta;
 }
 
+/** « Type_cycle_FR » (tableau 217). */
+export type CycleAbsorption = "simple_effet_ou_gax" | "double_effet";
+
 /** « Idcycle » (§9.22.3.2.3, tableau 305). */
 export type CycleSoutirage = "s" | "m" | "l" | "xl" | "xxl";
 
@@ -2400,6 +2447,9 @@ export type FonctionEffetJoule = "chauffage" | "ecs";
 /** Fonction d'un réseau de distribution (« idfonction », §8.7.2, §8.9.2). */
 export type FonctionReseau = "chauffage" | "refroidissement";
 
+/** « Fonc_brûl » (tableau 217). */
+export type FonctionnementBruleur = "modulant" | "tout_ou_rien";
+
 /** « Fonc_compr » (§8.23.3.7.4). */
 export type FonctionnementCompresseurSaisi = "puissance_variable" | "tout_ou_rien";
 
@@ -2418,6 +2468,9 @@ export interface FonctionnementContinu {
    */
   statut: StatutMesure;
 }
+
+/** « Fonct_moteur » (tableau 229). */
+export type FonctionnementMoteurGaz = "cycles_marche_arret" | "vitesse_variable";
 
 /** Forfait de consommation de refroidissement d'un groupe (§13.3, éq. 2493). */
 export interface ForfaitRefroidissementGroupe {
@@ -3182,6 +3235,33 @@ export interface MatriceAutoVolet {
   occupation: LigneAutoVolet[];
 }
 
+/** Mode unique d'une machine à absorption (« Idfougen » 1, 2 ou 3) et sa technologie. */
+export type ModeAbsorptionGaz = {
+  chauffage: {
+    /** « Syst_Thermo_CH ». */
+    technologie: TechnologieChauffageGahp;
+    /** « Typo_emetteur » : inertie du système d'émission, qui fixe « Dfou0 » (figure 167). */
+    typo_emetteur: TypoEmetteur;
+  };
+} | {
+  refroidissement: {
+    /**
+     * « Type_cycle_FR » : cycle de la machine, qui fixe la valeur utile maximale de l'EER
+     * pivot (0,7 ou 1,0). Pas de valeur par défaut.
+     */
+    cycle: CycleAbsorption;
+    /** « Syst_Thermo_FR ». */
+    technologie: TechnologieRefroidissementGahp;
+    /** « Typo_emetteur » (figure 167). */
+    typo_emetteur: TypoEmetteur;
+  };
+} | {
+  ecs: {
+    /** « Syst_Thermo_ECS ». */
+    technologie: TechnologieEcsGahp;
+  };
+};
+
 /** Mode chauffage d'un générateur thermodynamique (§8.23.3.3). */
 export interface ModeChauffagePac {
   /**
@@ -3213,6 +3293,23 @@ export interface ModeEcsPac {
   performances: PerformancesPac;
   /** « Sys_thermo_Ecs » : technologie en ECS (tableau 147). */
   technologie: TechnologieEcsPac;
+}
+
+/** Mode chauffage ou refroidissement d'une PAC à moteur gaz (§8.25.3.2 et §8.25.3.3). */
+export interface ModePacMoteurGaz {
+  /**
+   * « Paux,uint,pc » : puissance électrique des unités intérieures à pleine charge, déclarée,
+   * en W. Absent : 6 % de la puissance gaz absorbée au point pivot (éq. 1369), signalé dans
+   * les résultats.
+   */
+  p_aux_uint_w?: number | null;
+  /**
+   * Performances à pleine charge (GUE ou EER, puissance gaz absorbée, puissance des
+   * auxiliaires de l'unité extérieure « Paux,uext »).
+   */
+  performances: PerformancesGaz;
+  /** « Syst_thermo_ch » ou « Syst_thermo_fr ». */
+  technologie: TechnologiePacMoteurGaz;
 }
 
 /** Mode refroidissement d'un générateur thermodynamique (§8.23.3.5). */
@@ -3283,7 +3380,9 @@ export type NatureGenerateur = {
   poele_ou_insert: PoeleSaisi;
 } | {
   reseau_de_chaleur_ou_de_froid: ReseauChaleurFroidSaisi;
-} | "autre_generateur_a_combustion" | "thermodynamique_gaz" | "boucle_d_eau_ou_drv" | "cogeneration" | "pac_hybride";
+} | "autre_generateur_a_combustion" | {
+  thermodynamique_gaz: ThermodynamiqueGazSaisi;
+} | "boucle_d_eau_ou_drv" | "cogeneration" | "pac_hybride";
 
 /** Nature des travaux pour le choix du régime d'exigences (fiche 4.4 ; FA03 v2). */
 export type NatureTravaux = "construction" | "extension" | "surelevation";
@@ -3403,6 +3502,35 @@ export interface Ouvrant {
    * et la signale dans les résultats.
    */
   type_ouvrant?: TypeOuvrant | null;
+}
+
+/** §8.25.2, tableau 229 — pompe à chaleur à moteur gaz (PAC MG) sur air extérieur, réversible. */
+export interface PacMoteurGazSaisie {
+  /** Mode chauffage ; absent : la machine ne chauffe pas. */
+  chauffage?: ModePacMoteurGaz | null;
+  /**
+   * « LRcontmin » et « CcpLRcontmin » d'un moteur à vitesse variable, certifiés ou justifiés
+   * (§8.25.3.1). Absent : 0,4 et 1,0, signalés dans les résultats. Sans objet en cycles
+   * marche-arrêt.
+   */
+  fonctionnement_continu?: FonctionnementContinu | null;
+  /**
+   * « Fonct_moteur ». Absent : cycles marche-arrêt (valeur par défaut du tableau 229),
+   * signalé dans les résultats.
+   */
+  moteur?: FonctionnementMoteurGaz | null;
+  /**
+   * « Paux0 » : puissance électrique des auxiliaires à charge nulle, déclarée, en W.
+   * Absent : 0,12 kW (§8.25.3.1), signalé dans les résultats.
+   */
+  p_aux_0_w?: number | null;
+  /**
+   * Production indirecte d'ECS par récupération de chaleur sur le moteur (§8.25.3.4.5) :
+   * non prise en charge dans cette version (lecture Q144).
+   */
+  production_ecs_indirecte?: ProductionEcsIndirecteSaisie | null;
+  /** Mode refroidissement ; absent : la machine ne refroidit pas. */
+  refroidissement?: ModePacMoteurGaz | null;
 }
 
 /**
@@ -3715,6 +3843,36 @@ export type PerformancesCapteurs = {
 };
 
 /**
+ * Performances à pleine charge d'un générateur thermodynamique au gaz (§8.24.3 et
+ * §8.25.3.1) : « Statut_données », « statut_valeur_pivot » et « statut_Paux_pivot ».
+ */
+export type PerformancesGaz = {
+  mesurees: PointPerformanceGaz[];
+} | {
+  pivot_declare: {
+    /** Puissance gaz absorbée au point pivot, en kW (sur PCI). */
+    pabs_kw: number;
+    /**
+     * Puissance électrique des auxiliaires au point pivot, en W, déclarée : majorée selon
+     * la fiche. Absent : valeur par défaut de la fiche, signalée dans les résultats.
+     */
+    paux_w?: number | null;
+    /** GUE (ou EER d'une PAC à moteur gaz en refroidissement) déclaré au point pivot. */
+    performance: number;
+  };
+} | {
+  pivot_defaut: {
+    /** Puissance gaz absorbée au point pivot, en kW (sur PCI). */
+    pabs_kw: number;
+    /**
+     * Puissance électrique des auxiliaires au point pivot, en W, comme pour
+     * `pivot_declare`.
+     */
+    paux_w?: number | null;
+  };
+};
+
+/**
  * Performances à pleine charge d'un mode (§8.23.3.1) : « Statut_données_PC » et
  * « Statut_val_pivot ».
  */
@@ -3867,6 +4025,28 @@ export interface PointPerformance {
   theta_aval_c: number;
 }
 
+/** Valeur mesurée d'une matrice de performances au gaz. */
+export interface PointPerformanceGaz {
+  /** Puissance gaz absorbée mesurée à pleine charge, en kW (jamais corrigée). */
+  pabs_kw: number;
+  /**
+   * Puissance électrique des auxiliaires mesurée à pleine charge, en W (unité extérieure
+   * d'une PAC à moteur gaz).
+   */
+  paux_w: number;
+  /** GUE (ou EER) mesuré à pleine charge. */
+  performance: number;
+  /**
+   * Statut : un GUE justifié est réduit de 10 %, une puissance d'auxiliaires justifiée
+   * majorée de 10 %.
+   */
+  statut: StatutMesure;
+  /** Température amont de la mesure, en °C : une des températures de la technologie. */
+  theta_amont_c: number;
+  /** Température aval de la mesure, en °C : une des températures de la technologie. */
+  theta_aval_c: number;
+}
+
 /** Point de la courbe de rendement d'un onduleur. */
 export interface PointRendementOnduleur {
   /** « ηi » : rendement à ce point, entre 0 et 1. */
@@ -3955,6 +4135,17 @@ export interface PostesElectricite {
   mobilier_kwh: number;
   /** Refroidissement (forfait de refroidissement compris, §13.3). */
   refroidissement_kwh: number;
+}
+
+/** Production indirecte d'ECS d'une PAC à moteur gaz (tableau 229) : reconnue, non calculée. */
+export interface ProductionEcsIndirecteSaisie {
+  /**
+   * « ηth,ecs » pivot : efficacité de la production indirecte ramenée à la puissance gaz.
+   * Absent : valeur par défaut de la fiche.
+   */
+  eta_th_ecs?: number | null;
+  /** « Ppompe,ECS » : puissance de la pompe de charge, en W. */
+  p_pompe_ecs_w: number;
 }
 
 /**
@@ -6226,8 +6417,14 @@ export interface TauxAuxiliaires {
 /** Th-BCE 2020 §10.1.2, tableau 309 — « TechMac » : typologie d'ascenseur. */
 export type TechMac = "traction_avec_reduction" | "traction_sans_reduction" | "hydraulique" | "autre";
 
+/** « Syst_Thermo_CH » (tableau 217). */
+export type TechnologieChauffageGahp = "air_eau_classique" | "air_eau_haute_temperature" | "eau_glycolee_eau_classique" | "eau_glycolee_eau_haute_temperature" | "eau_eau";
+
 /** « Sys_thermo_Ch » (§8.23.3.2, tableau 145). */
 export type TechnologieChauffagePac = "air_exterieur_eau" | "air_exterieur_air_recycle" | "air_extrait_air_neuf" | "eau_de_nappe_eau" | "eau_glycolee_eau" | "eau_de_nappe_air_recycle" | "eau_de_boucle_air_recycle" | "sol_eau" | "sol_sol";
+
+/** « Syst_Thermo_ECS » (tableau 217). */
+export type TechnologieEcsGahp = "air_eau" | "eau_glycolee_eau" | "eau_eau";
 
 /**
  * « Sys_thermo_Ecs » (§8.23.3.2, tableau 147). Températures aval de toutes les technologies :
@@ -6235,8 +6432,14 @@ export type TechnologieChauffagePac = "air_exterieur_eau" | "air_exterieur_air_r
  */
 export type TechnologieEcsPac = "air_exterieur_eau" | "air_extrait_eau" | "air_ambiant_eau" | "eau_de_nappe_eau" | "sol_eau" | "eau_glycolee_eau";
 
+/** « Syst_thermo_ch/fr » (tableau 229). */
+export type TechnologiePacMoteurGaz = "air_exterieur_eau" | "air_exterieur_air_recycle";
+
 /** « Type_Techno_Capteur » (tableau 328). */
 export type TechnologiePv = "mono_cristallin_si" | "multi_cristallin_si" | "cd_te" | "cis" | "amorphe_si" | "autre";
+
+/** « Syst_Thermo_FR » (tableau 217). */
+export type TechnologieRefroidissementGahp = "air_eau" | "eau_eau";
 
 /** « Sys_thermo_Fr » (§8.23.3.2, tableau 145). */
 export type TechnologieRefroidissementPac = "air_exterieur_eau" | "air_exterieur_air_recycle" | "air_extrait_air_neuf" | "eau_eau" | "eau_air" | "eau_de_nappe_air_recycle" | "eau_de_nappe_eau";
@@ -6290,6 +6493,13 @@ export interface ThermodynamiqueElectriqueSaisi {
    */
   taux_auxiliaires?: TauxAuxiliaires | null;
 }
+
+/** Th-BCE 2020 §8.24 et §8.25 — générateur thermodynamique au gaz. */
+export type ThermodynamiqueGazSaisi = {
+  absorption: AbsorptionGazSaisie;
+} | {
+  moteur_gaz: PacMoteurGazSaisie;
+};
 
 /** Transfert de la boucle vers le ballon (§9.15.3.1). */
 export type TransfertBoucle = {
@@ -6431,6 +6641,17 @@ export type UsageBrasseur = "nuit" | "jour" | "jour_et_nuit";
  * en charge ».
  */
 export type UsageZone = "maison_individuelle" | "logement_collectif" | "bureaux" | "enseignement_primaire" | "enseignement_secondaire" | "mediatheque_bibliotheque" | "universitaire" | "hotel012_nuit" | "hotel345_nuit" | "hotel012_jour" | "hotel345_jour" | "petite_enfance" | "restaurant_continu" | "restaurant1_repas5_jours" | "restaurant2_repas7_jours" | "restaurant2_repas6_jours" | "commerces" | "vestiaires" | "sanitaire_avec_hebergement" | "sante_nuit" | "sante_jour" | "aerogare" | "industrie3x8" | "industrie8h18h" | "sport_municipal_scolaire" | "restaurant_scolaire1_repas" | "restaurant_scolaire3_repas" | "sport_prive";
+
+/** Valeur certifiée ou justifiée d'une caractéristique de charge partielle (§8.24.3.6.4.1). */
+export interface ValeurMesuree {
+  /**
+   * Statut : une valeur justifiée est corrigée selon la règle de la grandeur (éq. 1359 à
+   * 1361).
+   */
+  statut: StatutMesure;
+  /** Valeur mesurée. */
+  valeur: number;
+}
 
 /**
  * Valeur par défaut donnée par le texte de la méthode et appliquée à un paramètre non saisi.

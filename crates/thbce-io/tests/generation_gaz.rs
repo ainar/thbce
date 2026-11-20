@@ -148,8 +148,17 @@ fn generateurs_au_gaz_sur_la_meteo_ademe() {
             a.ccp_lr_contmin = if a.poste == Poste::Ecs { 0.75 } else { 0.90 };
         }
     });
+    // Q135 : Dfou0 de 6 min (distribution à eau par défaut) au lieu de 26 min en ECS.
+    let dfou0_6 = gaz_th_c(&gahp, &m, |x| {
+        if let Generateur::Absorption(a) = x {
+            if a.poste == Poste::Ecs {
+                a.dfou0_min = 6.0;
+            }
+        }
+    });
     println!(
-        "maison-gahp : gaz {gaz:.1} kWh ; sans pertes {sans_pertes:.1} ; modulant {modulant:.1}"
+        "maison-gahp : gaz {gaz:.1} kWh ; sans pertes {sans_pertes:.1} ; modulant {modulant:.1} ; \
+         Dfou0 ECS 6 min {dfou0_6:.1}"
     );
     assert!(sans_pertes < gaz);
     assert!(modulant.is_finite() && modulant > 0.0);
