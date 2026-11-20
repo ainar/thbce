@@ -109,7 +109,11 @@ pub enum TypePriorite {
     /// 2 : en cascade ; le générateur prioritaire est sollicité jusqu'à sa puissance maximale,
     /// le reste passe au suivant (pompe à chaleur et appoint, par exemple).
     Cascade,
-    /// 3 : en alternance (§8.17.3.7.2.3) : non pris en charge dans cette version.
+    /// 3 : en alternance (§8.17.3.7.2.3) : générateurs d'une même fonction (un seul poste, ou
+    /// chauffage et ECS), sollicités par puissance nominale décroissante ; un générateur est
+    /// fournit pendant 19 heures où le générateur suivant aurait suffi et est coupé à la 20ᵉ
+    /// (« Nbasculement_init » = 20).
+    /// Incompatible avec un ballon de stockage (§8.17.3.6).
     Alternance,
 }
 
@@ -177,7 +181,10 @@ pub enum NatureGenerateur {
     /// Type 700 : système de cogénération (§8.21) : hors de la première version.
     Cogeneration,
     /// Pompe à chaleur hybride (association d'une pompe à chaleur et d'une chaudière dans un
-    /// même produit) : hors de la première version.
+    /// même produit) saisie comme un seul générateur : non prise en charge. Elle n'est pas un
+    /// type du tableau 111 ; la fiche d'application du §16.4 la décrit par ses composants, à
+    /// saisir comme une pompe à chaleur et une chaudière à condensation d'une même génération
+    /// en cascade (lecture Q126).
     PacHybride,
 }
 

@@ -402,8 +402,10 @@ fn validation_des_systemes() {
     assert!(messages(&p)
         .iter()
         .any(|m| m.contains("rang de priorité requis")));
+    // Gestion en alternance (lot 2a) : deux générateurs de même fonction, sans ballon, sont
+    // admis.
     p.batiments[0].generations[0].priorite = serde_json::from_str(r#""alternance""#).unwrap();
-    assert!(messages(&p).iter().any(|m| m.contains("alternance")));
+    assert!(!messages(&p).iter().any(|m| m.contains("alternance")));
     let mut p = cas("maison-double-flux-ademe");
     let v = serde_json::to_value(&p.batiments[0].zones[0].ventilation).unwrap();
     let mut v2 = v.clone();

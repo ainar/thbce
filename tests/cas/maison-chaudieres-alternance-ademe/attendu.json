@@ -1,0 +1,66 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b",
+    "altcorr_m": 100,
+    "base_ext_c": -6.5
+  },
+  "batiments": [
+    {
+      "id": "maison",
+      "sref_m2": 96.4,
+      "bbio_pts": 63.8,
+      "dh_c_h": 1496.3,
+      "zones": [
+        {
+          "id": "logement",
+          "groupes": [
+            {
+              "id": "volume-chauffe",
+              "enveloppe": {
+                "a_op_m2": 290.0,
+                "h_th_op_w_k": 45.0,
+                "l_pt_m": 40.0,
+                "h_th_pt_w_k": 4.0,
+                "a_baies_m2": 10.0,
+                "h_ges_sp_w_k": 13.0
+              }
+            }
+          ]
+        }
+      ],
+      "cep_kwhep_m2": 72.2,
+      "cep_nr_kwhep_m2": 72.2,
+      "ic_energie_kgco2_m2": 464.0,
+      "indicateurs": {
+        "cef_kwhef_m2": 58.9,
+        "exigences": {
+          "bbio_max_pts": 64.7,
+          "cep_max_kwhep_m2": 70.2,
+          "cep_nr_max_kwhep_m2": 51.5,
+          "ic_energie_max_kgco2_m2": 149.7,
+          "conforme": false
+        }
+      },
+      "generations": [
+        {
+          "id": "chaufferie",
+          "q_fou_ecs_kwh": 1489.3,
+          "q_rep_fin_kwh": 0.0,
+          "generateurs": [
+            {
+              "id": "chaudiere-12kw",
+              "q_fou_ch_kwh": 2758.2,
+              "q_fou_ecs_kwh": 1485.4
+            },
+            {
+              "id": "chaudiere-24kw",
+              "q_fou_ch_kwh": 27.5,
+              "q_fou_ecs_kwh": 4.0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

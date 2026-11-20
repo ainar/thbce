@@ -72,8 +72,14 @@ impl GenerationHoraire {
                     NatureGenerateur::ReseauDeChaleurOuDeFroid(r) => {
                         Generateur::Reseau(resoudre_reseau(r, rdim, en_vc)?)
                     }
-                    // Natures refusées par la validation.
-                    _ => return None,
+                    // Natures refusées par la validation (code 3) : points d'entrée des lots
+                    // à venir, qui remplacent leur branche par l'aiguillage vers leur modèle
+                    // (`docs/architecture.md`, §3.10).
+                    NatureGenerateur::AutreGenerateurACombustion
+                    | NatureGenerateur::ThermodynamiqueGaz
+                    | NatureGenerateur::BoucleDEauOuDrv
+                    | NatureGenerateur::Cogeneration
+                    | NatureGenerateur::PacHybride => return None,
                 };
                 Some(GenerateurHoraire {
                     id: s.id.clone(),
@@ -86,6 +92,7 @@ impl GenerationHoraire {
                     source,
                     valeurs_par_defaut,
                     jeu: JeuDonnees::default(),
+                    n_basculement: N_BASCULEMENT_INIT,
                     cumuls: CumulsGenerateur::default(),
                 })
             })
@@ -120,7 +127,8 @@ impl GenerationHoraire {
             en_volume_chauffe: g.position == PositionGeneration::EnVolumeChauffe,
             priorite: match g.priorite {
                 Some(TypePriorite::Cascade) => ModePriorite::Cascade,
-                _ => ModePriorite::SansPriorite,
+                Some(TypePriorite::Alternance) => ModePriorite::Alternance,
+                Some(TypePriorite::SansPriorite) | None => ModePriorite::SansPriorite,
             },
             gestion_ch: gestion(g.gestion_temperature_chauffage),
             gestion_fr: gestion(g.gestion_temperature_refroidissement),
