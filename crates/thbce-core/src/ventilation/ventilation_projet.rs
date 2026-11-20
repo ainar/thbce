@@ -1262,8 +1262,8 @@ impl VentilationProjet {
                 rho_int_prec_kg_m3: rho_humide_kg_m3(g.theta_i_fin_c, g.omega_i_fin_kg_kg),
                 p_ib_prec_pa,
             },
-            // Case de scénario de 1 à 24 : le pas de la case `k` commence à l'heure légale `k − 1`.
-            h_leg: date_scenario(h).heure.saturating_sub(1),
+            // Case de scénario de 1 à 24, échelle de `hgd` (tableau 67, Q236 point 2).
+            h_leg: date_scenario(h).heure,
         });
         // Consommation de l'assistance mécanique, relevée pour le groupe desservi.
         let (w, groupe) = (n.c_vent_wh, n.groupe);

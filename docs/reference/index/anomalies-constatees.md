@@ -33,6 +33,9 @@ Vérifiées sur l'image de la page ; la lecture retenue est dans le fichier de q
 - éq. (730) (p. 439) : « hiver » écrit pour « été » (puits réglé hors période de chauffage) ; lue « été » (Q231 point 1).
 - éq. (747) (p. 447) : « hiver » écrit pour « été » dans la gestion de la pompe hors période de chauffage (`θext,arrêt_PH_hiver`) ; lue « été » (Q233 point 3).
 - tableau 71 (p. 443) : `Qmax_PH` donné en m³/s alors que les éq. (737), (743) et (745) ne sont homogènes qu'avec un débit en m³/h (comme `QPH(h)`) ; lu en m³/h (Q233 point 1).
-- éq. (689) (fiche 6.6) : le rapport `vvent,réf / vvent,c` est l'inverse de celui de l'éq. (688) ; lu `v8 × vvent,c / Vvent,réf` (Q234 point 1).
+- éq. (689) (fiche 6.6, p. 421) : le texte écrit `vcond,s,8 × vvent_réf / vvent,c(h)`, le même rapport que l'éq. (688) (p. 420) ; coquille, la limite est la vitesse du conduit dont la vitesse corrigée vaut `vcond,s,8`, soit `v8 × vvent,c / vvent_réf` (Q234 point 1 ; effet négligeable sur les exemples).
 - éq. (701) et (704) (fiche 6.6) : `Aboucheeq`, défini pour la bouche fixe seule, intervient aussi avec une bouche autoréglable ; part des fuites lue `qfuites / (qbouche + qfuites)` (Q235 point 2).
 - éq. (707) (fiche 6.6) : pas d'équation du débit soufflé spécifique en refoulement ; lu par analogie (Q235 point 1).
+- éq. (706) et (708) (fiche 6.6, p. 426-427) et tableau 67 (p. 425) : créneaux écrits `hleg(h) ∈ [hgd,deb ; hgd,fin]` (bornes incluses) avec `hgd` de 1 à 24 (p. 414), alors que la fiche 6.12 donne `hleg` de 0 à 23 au début du pas ; lu comme la case de scénario de 1 à 24, bornes incluses (Q236 point 2).
+- tableau 65 (fiche 6.6, p. 412) : « pour le calcul du Bbio », phrase recopiée du §6.1.2 (la fiche 6.7 écrit « Cep ») ; la fiche 6.6 n'intervient pas dans le Bbio (Q234 point 5).
+- éq. (694) (fiche 6.6, p. 422) : renvoie à un « Tableau 66 » pour les huit vitesses d'essai de l'extracteur (tableau non numéroté, p. 420), numéro déjà porté par la courbe de la bouche autoréglable (p. 418) (Q234 point 2).
