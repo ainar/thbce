@@ -233,6 +233,16 @@ impl GenerationHoraire {
             };
         }
 
+        // Fiche 8.21 : bilan du pas des cogénérateurs, une fois leurs postes servis
+        // (production simultanée de chaleur et d'électricité, éq. 1179 à 1224).
+        for g in &mut self.generateurs {
+            if let Generateur::Cogeneration(c) = &g.modele {
+                if let Some(b) = c.bilan_du_pas(theta_amb) {
+                    g.jeu.ajouter_cogeneration(&b);
+                }
+            }
+        }
+
         // §8.17.3.8, éq. (1053) à (1055) : auxiliaires amont des générateurs thermodynamiques,
         // ajoutés à leurs auxiliaires et à leur matrice au prorata des charges des postes.
         for g in &mut self.generateurs {
@@ -333,6 +343,7 @@ impl GenerationHoraire {
             g.cumuls.w_aux_wh += g.jeu.w_aux_wh;
             g.cumuls.phi_vc_wh += g.jeu.phi_vc_wh;
             g.cumuls.phi_rejet_wh += g.jeu.phi_rejet_wh;
+            g.cumuls.q_prelec_wh += g.jeu.q_prelec_wh;
             let f = g.modele.fonction();
             for poste in Poste::TOUS {
                 let p = poste.indice();

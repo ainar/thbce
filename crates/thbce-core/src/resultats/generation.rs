@@ -86,6 +86,10 @@ pub struct ResultatsGenerateur {
     /// kWh (négative : chaleur puisée ; positive : chaleur rejetée en refroidissement).
     #[serde(default, skip_serializing_if = "est_nul")]
     pub phi_rejet_kwh: f64,
+    /// « Eef_prelec » : électricité produite par un cogénérateur, en kWh (éq. 1516) ; absente
+    /// pour les autres générateurs.
+    #[serde(default, skip_serializing_if = "est_nul")]
+    pub q_prelec_kwh: f64,
     /// Valeurs par défaut de la méthode appliquées au générateur.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,

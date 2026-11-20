@@ -89,6 +89,35 @@ pub struct BilanProductionPv {
     pub e_prod_pv_ac_mensuel_kwh: Vec<f64>,
 }
 
+/// Bilan de l'électricité produite par les cogénérateurs du bâtiment (fiche 8.21, §13.2.3.5 et
+/// §13.4.3.5, lot 2e).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct BilanProductionCogeneration {
+    /// « O_Eef_Prod_Coge_annuel » : électricité produite, en kWh (éq. 2480).
+    pub e_prod_coge_kwh: f64,
+    /// « O_Eef_prod_coge_AC_annuel » : électricité produite autoconsommée, en kWh (éq. 2482).
+    pub e_prod_coge_ac_kwh: f64,
+    /// Électricité produite exportée, en kWh (part de la cogénération de l'éq. 2483) ; sans
+    /// effet sur Cep, Cep,nr et Ic énergie.
+    pub e_exportee_kwh: f64,
+    /// « O_TAC_elec_Coge_annuel » : taux d'autoconsommation de l'électricité produite, en %
+    /// (éq. 2486).
+    pub tac_pct: f64,
+    /// « O_TAC_elec_annuel » : taux d'autoconsommation de toute l'électricité produite
+    /// (photovoltaïque et cogénération), en % (éq. 2484).
+    pub tac_elec_pct: f64,
+    /// « Cef_tot_comb^cogé,bat » : consommation d'énergie finale du combustible des
+    /// cogénérateurs pour le chauffage et l'ECS, auxiliaires exclus, en kWh (§13.2.2).
+    pub cef_tot_comb_kwh: f64,
+    /// « O_TAC_Coge_global_annuel » : taux d'autoconsommation global de la chaleur et de
+    /// l'électricité des cogénérateurs, en % (éq. 2455 ; annexe II §3.7.2, éq. 5).
+    pub tac_global_pct: f64,
+    /// Électricité produite, par mois des scénarios, en kWh (éq. 2466).
+    pub e_prod_coge_mensuel_kwh: Vec<f64>,
+    /// Électricité produite autoconsommée, par mois, en kWh (éq. 2468).
+    pub e_prod_coge_ac_mensuel_kwh: Vec<f64>,
+}
+
 /// Forfait de consommation de refroidissement d'un groupe (§13.3, éq. 2493).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct ForfaitRefroidissementGroupe {
@@ -400,6 +429,9 @@ pub struct ResultatsIndicateurs {
     /// Bilan de la production photovoltaïque ; absent sans installation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub production_pv: Option<BilanProductionPv>,
+    /// Bilan de l'électricité produite par les cogénérateurs ; absent sans cogénération.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub production_cogeneration: Option<BilanProductionCogeneration>,
     /// Forfaits de consommation de refroidissement des groupes non climatisés dont le DH
     /// dépasse le seuil bas (§13.3) ; absent sans forfait.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -462,6 +494,26 @@ impl ResultatsIndicateurs {
                 .e_prod_pv_mensuel_kwh
                 .iter_mut()
                 .chain(p.e_prod_pv_ac_mensuel_kwh.iter_mut())
+            {
+                *x = a(*x);
+            }
+        }
+        if let Some(p) = &mut self.production_cogeneration {
+            for x in [
+                &mut p.e_prod_coge_kwh,
+                &mut p.e_prod_coge_ac_kwh,
+                &mut p.e_exportee_kwh,
+                &mut p.tac_pct,
+                &mut p.tac_elec_pct,
+                &mut p.cef_tot_comb_kwh,
+                &mut p.tac_global_pct,
+            ] {
+                *x = a(*x);
+            }
+            for x in p
+                .e_prod_coge_mensuel_kwh
+                .iter_mut()
+                .chain(p.e_prod_coge_ac_mensuel_kwh.iter_mut())
             {
                 *x = a(*x);
             }

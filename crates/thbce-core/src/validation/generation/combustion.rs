@@ -246,3 +246,80 @@ pub(super) fn valider_autre_combustion(
         );
     }
 }
+
+/// Th-BCE 2020 §8.21 : système de cogénération.
+pub(super) fn valider_cogeneration(
+    r: &mut RapportValidation,
+    c: &str,
+    x: &crate::entree::CogenerationSaisie,
+) {
+    use crate::entree::{PerformancesCogeneration, StatutPerformancesCogeneration as S};
+    let mut point = |nom: &str, p: &PerformancesCogeneration| {
+        r.strictement_positif(format!("{c}.{nom}.p_th_kw"), p.p_th_kw);
+        r.plage(format!("{c}.{nom}.p_th_kw"), p.p_th_kw, 0.0, 70.0);
+        let valeurs = [
+            ("eta_th_pct", p.eta_th_pct, 100.0),
+            ("eta_el_pct", p.eta_el_pct, 100.0),
+            ("p_w_aux_kw", p.p_w_aux_kw, f64::MAX),
+        ];
+        for (champ, v, max) in valeurs {
+            match (p.statut, v) {
+                (S::Defaut, Some(_)) => r.erreur(
+                    format!("{c}.{nom}.{champ}"),
+                    None,
+                    "sans objet pour un statut « par défaut » (Th-BCE 2020 §8.21.3.1.3)",
+                ),
+                (S::Defaut, None) => {}
+                (_, None) => r.erreur(
+                    format!("{c}.{nom}.{champ}"),
+                    None,
+                    "valeur requise pour un statut déclaré, justifié ou certifié (Th-BCE 2020 \
+                     §8.21.2, tableau 135)",
+                ),
+                (_, Some(v)) => r.plage(format!("{c}.{nom}.{champ}"), v, 0.0, max),
+            }
+        }
+        if let Some(th) = p.eta_th_pct {
+            r.strictement_positif(format!("{c}.{nom}.eta_th_pct"), th);
+            if th + p.eta_el_pct.unwrap_or(0.0) >= 100.0 {
+                r.erreur(
+                    format!("{c}.{nom}"),
+                    None,
+                    "la somme des rendements thermique et électrique sur PCS doit être \
+                     inférieure à 100 % (pertes positives, éq. 1195 à 1200)",
+                );
+            }
+        }
+    };
+    point("module_seul", &x.module_seul);
+    if let Some(a) = &x.avec_appoint {
+        point("avec_appoint", a);
+        if a.p_th_kw <= x.module_seul.p_th_kw {
+            r.erreur(
+                format!("{c}.avec_appoint.p_th_kw"),
+                Some(a.p_th_kw.to_string()),
+                "la puissance avec l'appoint intégré à pleine charge doit dépasser celle du \
+                 module seul (Th-BCE 2020 §8.21.3.2.6)",
+            );
+        }
+    }
+    if let Some(p) = x.p_th_min_kw {
+        r.strictement_positif(format!("{c}.p_th_min_kw"), p);
+        if p >= x.module_seul.p_th_kw {
+            r.erreur(
+                format!("{c}.p_th_min_kw"),
+                Some(p.to_string()),
+                "« Pth,chp_min » doit être inférieure à la puissance du module seul (Th-BCE 2020 \
+                 §8.21.3.2.6)",
+            );
+        }
+    }
+    for (nom, v) in [
+        ("phi_th_stab_30_w", x.phi_th_stab_30_w),
+        ("p_w_aux_veille_w", x.p_w_aux_veille_w),
+    ] {
+        if let Some(v) = v {
+            r.plage(format!("{c}.{nom}"), v, 0.0, f64::MAX);
+        }
+    }
+}

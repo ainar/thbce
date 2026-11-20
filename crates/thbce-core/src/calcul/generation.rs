@@ -49,6 +49,7 @@ pub(super) fn resultats_generations(b: &BatimentHoraire) -> Vec<ResultatsGenerat
                             eta_eff_ecs_an: k.eta_eff_an(Poste::Ecs),
                             w_aux_kwh: k.w_aux_wh / 1000.0,
                             phi_rejet_kwh: k.phi_rejet_wh / 1000.0,
+                            q_prelec_kwh: k.q_prelec_wh / 1000.0,
                             valeurs_par_defaut: x.valeurs_par_defaut.clone(),
                         }
                     })

@@ -241,6 +241,26 @@ impl JeuDonnees {
         self.tau_charge_poste[p] = s.tau_charge;
         self.appele[p] = true;
     }
+
+    /// Bilan du pas d'un cogénérateur (fiche 8.21, éq. 1216 à 1224), ajouté après les appels
+    /// des postes : consommations du combustible et des auxiliaires par poste, électricité
+    /// produite, pertes vers l'ambiance.
+    pub fn ajouter_cogeneration(
+        &mut self,
+        b: &crate::chauffage_refroidissement::systeme_de_cogeneration::BilanCogeneration,
+    ) {
+        for (poste, i) in [(Poste::Chauffage, 0), (Poste::Ecs, 1)] {
+            self.q_cef
+                .ajouter(poste, b.energie, b.q_cef_combustible_wh[i]);
+            self.q_cef
+                .ajouter(poste, Energie::Electricite, b.q_cef_elec_wh[i]);
+        }
+        self.q_cons_wh += b.q_cons_wh;
+        self.q_prelec_wh += b.q_prelec_wh;
+        self.phi_vc_wh += b.phi_vc_wh;
+        self.w_aux_pro_wh += b.w_aux_pro_wh;
+        self.w_aux_wh += b.w_aux_pro_wh;
+    }
 }
 
 /// Générateur d'une génération, avec ses paramètres d'intégration et ses cumuls.

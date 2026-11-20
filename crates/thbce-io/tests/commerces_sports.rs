@@ -438,12 +438,12 @@ fn saisie_des_grands_volumes() {
         assert!(u.est_pris_en_charge(), "{u:?}");
     }
 
-    // Un système hors périmètre reste refusé : cogénération (§8.21).
+    // Un système hors périmètre reste refusé : boucle d'eau (§8.15).
     let mut p = commerce();
     let gens = &mut p.batiments[0].generations[0].generateurs;
     let mut cogen = gens[0].clone();
-    cogen.id = "cogeneration".into();
-    cogen.nature = thbce_core::entree::NatureGenerateur::Cogeneration;
+    cogen.id = "boucle-eau".into();
+    cogen.nature = thbce_core::entree::NatureGenerateur::BoucleDEauOuDrv;
     gens.push(cogen);
     assert!(valider(&p).seulement_hors_perimetre());
 }

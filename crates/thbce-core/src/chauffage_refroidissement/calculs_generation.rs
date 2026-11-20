@@ -202,6 +202,8 @@ pub struct CumulsGenerateur {
     pub w_aux_wh: f64,
     /// Pertes vers l'ambiance, en Wh.
     pub phi_vc_wh: f64,
+    /// « Eef_prelec » : électricité produite (cogénération), en Wh (éq. 1515 et 1516).
+    pub q_prelec_wh: f64,
     /// « φrejet » : énergie échangée avec la source amont, en Wh (négative en chauffage et en
     /// ECS, positive en refroidissement).
     pub phi_rejet_wh: f64,

@@ -11,7 +11,9 @@ use crate::entree::{
     ReseauIntergroupes, SystemeVentilation, TechnologieChauffagePac, TechnologieRefroidissementPac,
     TypePriorite,
 };
-use combustion::{valider_autre_combustion, valider_chaudiere, valider_poele};
+use combustion::{
+    valider_autre_combustion, valider_chaudiere, valider_cogeneration, valider_poele,
+};
 use reseaux_chaleur::valider_reseau;
 use thermodynamique::valider_thermodynamique;
 use thermodynamique_gaz::{fluide_aval_gaz, postes_gaz, valider_thermodynamique_gaz};
@@ -47,6 +49,11 @@ pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
             [!ecs, false, ecs]
         }
         NatureGenerateur::ThermodynamiqueGaz(t) => postes_gaz(t),
+        NatureGenerateur::Cogeneration(c) => [
+            c.fonction != FonctionChaleur::Ecs,
+            false,
+            c.fonction != FonctionChaleur::Chauffage,
+        ],
         NatureGenerateur::ReseauDeChaleurOuDeFroid(ReseauChaleurFroidSaisi::Chaleur {
             fonction,
             ..
@@ -60,9 +67,7 @@ pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
         }
         // Natures refusées (code 3) : le lot qui les ouvre donne ici leurs postes, tirés de
         // leur saisie (`docs/architecture.md`, §3.10).
-        NatureGenerateur::BoucleDEauOuDrv
-        | NatureGenerateur::Cogeneration
-        | NatureGenerateur::PacHybride => [false; 3],
+        NatureGenerateur::BoucleDEauOuDrv | NatureGenerateur::PacHybride => [false; 3],
     }
 }
 
@@ -77,15 +82,12 @@ pub(super) fn nature_hors_perimetre(n: &NatureGenerateur) -> Option<(&'static st
         | NatureGenerateur::PoeleOuInsert(_)
         | NatureGenerateur::ReseauDeChaleurOuDeFroid(_)
         | NatureGenerateur::ThermodynamiqueGaz(_)
-        | NatureGenerateur::AutreGenerateurACombustion(_) => None,
+        | NatureGenerateur::AutreGenerateurACombustion(_)
+        | NatureGenerateur::Cogeneration(_) => None,
         NatureGenerateur::BoucleDEauOuDrv => Some((
             "boucle_d_eau_ou_drv",
             "pompe à chaleur sur boucle d'eau, thermo-frigo-pompe ou générateur DRV (Th-BCE 2020 \
              §8.15 et §8.16, types 507 à 509)",
-        )),
-        NatureGenerateur::Cogeneration => Some((
-            "cogeneration",
-            "système de cogénération (Th-BCE 2020 §8.21, type 700)",
         )),
         // Q126 : la PAC hybride n'est pas un type du tableau 111 ; la fiche d'application du
         // §16.4 la décrit par ses composants (générateur thermodynamique, chaudière à
@@ -108,9 +110,9 @@ pub(super) fn nature_hors_perimetre(n: &NatureGenerateur) -> Option<(&'static st
 /// générateur ouvert par un lot à venir y reçoit sa branche (`docs/architecture.md`, §3.10).
 pub(super) fn fluide_aval_hydraulique(n: &NatureGenerateur) -> Option<bool> {
     match n {
-        NatureGenerateur::Chaudiere(_) | NatureGenerateur::ReseauDeChaleurOuDeFroid(_) => {
-            Some(true)
-        }
+        NatureGenerateur::Chaudiere(_)
+        | NatureGenerateur::ReseauDeChaleurOuDeFroid(_)
+        | NatureGenerateur::Cogeneration(_) => Some(true),
         NatureGenerateur::PoeleOuInsert(_) => Some(false),
         // Tableau 124 : sur eau pour les chauffe-eau et accumulateurs, sur air ambiant sinon.
         NatureGenerateur::AutreGenerateurACombustion(c) => {
@@ -120,9 +122,7 @@ pub(super) fn fluide_aval_hydraulique(n: &NatureGenerateur) -> Option<bool> {
         // Selon le mode et la technologie : contrôlé à part (`fluide_aval_gaz`).
         NatureGenerateur::ThermodynamiqueGaz(_) => None,
         // Natures refusées (code 3) : à fixer par le lot qui les ouvre.
-        NatureGenerateur::BoucleDEauOuDrv
-        | NatureGenerateur::Cogeneration
-        | NatureGenerateur::PacHybride => None,
+        NatureGenerateur::BoucleDEauOuDrv | NatureGenerateur::PacHybride => None,
     }
 }
 
@@ -379,6 +379,9 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
             }
             NatureGenerateur::PoeleOuInsert(p) => {
                 valider_poele(r, &format!("{cg}.nature.poele_ou_insert"), p);
+            }
+            NatureGenerateur::Cogeneration(c) => {
+                valider_cogeneration(r, &format!("{cg}.nature.cogeneration"), c);
             }
             NatureGenerateur::AutreGenerateurACombustion(c) => {
                 valider_autre_combustion(
