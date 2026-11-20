@@ -172,8 +172,8 @@ pub enum NatureGenerateur {
     /// Types 600 et 601 : sous-station d'un réseau de chaleur ou de froid (§8.28).
     ReseauDeChaleurOuDeFroid(ReseauChaleurFroidSaisi),
     /// Types 103 à 109 : radiateurs, chauffe-eau et accumulateurs au gaz, générateurs d'air
-    /// chaud, tubes et panneaux radiants (§8.20) : hors de la première version.
-    AutreGenerateurACombustion,
+    /// chaud, tubes et panneaux radiants (§8.20).
+    AutreGenerateurACombustion(Box<AutreGenerateurCombustionSaisi>),
     /// Type 504 : générateur thermodynamique au gaz, à absorption (§8.24) ou à moteur gaz
     /// (§8.25), sur air extérieur.
     ThermodynamiqueGaz(ThermodynamiqueGazSaisi),

@@ -179,6 +179,9 @@ fn vecteur_generateur(nature: &NatureGenerateur, col: Colonne, froid: bool) -> V
         (NatureGenerateur::Chaudiere(c), Colonne::Gaz) if c.gpl => {
             VecteurConnu::nouveau("gpl", Vecteur::Gpl)
         }
+        (NatureGenerateur::AutreGenerateurACombustion(c), Colonne::Gaz) if c.gpl => {
+            VecteurConnu::nouveau("gpl", Vecteur::Gpl)
+        }
         (NatureGenerateur::Chaudiere(c), Colonne::Bois) => bois(c.combustible_bois),
         (NatureGenerateur::PoeleOuInsert(p), Colonne::Bois) => bois(Some(p.combustible_bois)),
         (

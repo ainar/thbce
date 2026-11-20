@@ -21,6 +21,7 @@
 //! - [`sources_amont`] : sources amont sur air des générateurs thermodynamiques (§8.26) ;
 //! - [`calculs_generation`] : matrices et cumuls des consommations (§8.29).
 
+pub mod autres_generateurs_a_combustion;
 pub mod bilan_hydrique;
 pub mod brasseurs_air;
 pub mod calculs_generation;

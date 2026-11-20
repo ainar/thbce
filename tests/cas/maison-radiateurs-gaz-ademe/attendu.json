@@ -1,0 +1,99 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b",
+    "altcorr_m": 100.0,
+    "base_ext_c": -6.5
+  },
+  "batiments": [
+    {
+      "id": "maison",
+      "sref_m2": 96.4,
+      "bbio_pts": 63.8,
+      "dh_c_h": 1505.5,
+      "zones": [
+        {
+          "id": "logement",
+          "groupes": [
+            {
+              "id": "volume-chauffe",
+              "enveloppe": {
+                "a_op_m2": 290.0,
+                "h_th_op_w_k": 45.0,
+                "l_pt_m": 40.0,
+                "h_th_pt_w_k": 4.0,
+                "a_baies_m2": 10.0,
+                "h_ges_sp_w_k": 13.0
+              }
+            }
+          ]
+        }
+      ],
+      "cep_kwhep_m2": 79.6,
+      "cep_nr_kwhep_m2": 79.6,
+      "ic_energie_kgco2_m2": 573.5,
+      "indicateurs": {
+        "cef_kwhef_m2": 69.4,
+        "exigences": {
+          "bbio_max_pts": 64.7,
+          "cep_max_kwhep_m2": 70.2,
+          "cep_nr_max_kwhep_m2": 51.5,
+          "ic_energie_max_kgco2_m2": 149.7,
+          "conforme": false
+        }
+      },
+      "generations": [
+        {
+          "id": "generation-radiateurs-gaz",
+          "generateurs": [
+            {
+              "id": "radiateur-gaz",
+              "q_fou_ch_kwh": 2681.9,
+              "q_fou_ecs_kwh": 0.0,
+              "consommations": {
+                "chauffage": {
+                  "gaz_kwh": 3389.8
+                },
+                "refroidissement": {},
+                "ecs": {}
+              },
+              "eta_eff_ch_an": 0.79,
+              "w_aux_kwh": 0.0
+            },
+            {
+              "id": "panneaux-appoint",
+              "q_fou_ch_kwh": 0.0,
+              "q_fou_ecs_kwh": 0.0,
+              "consommations": {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {}
+              },
+              "w_aux_kwh": 0.0
+            }
+          ]
+        },
+        {
+          "id": "generation-ecs-gaz",
+          "generateurs": [
+            {
+              "id": "chauffe-eau-gaz",
+              "q_fou_ch_kwh": 0.0,
+              "q_fou_ecs_kwh": 1488.3,
+              "consommations": {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {
+                  "gaz_kwh": 2556.1,
+                  "electricite_kwh": 17.4
+                }
+              },
+              "eta_eff_ecs_an": 0.58,
+              "w_aux_kwh": 17.4
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

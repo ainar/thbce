@@ -5,6 +5,7 @@
 //! [`Generateur`] ; son modèle reste dans son propre module de `chauffage_refroidissement`.
 
 use super::{EntreesAppel, FonctionGenerateur, SortiesAppel};
+use crate::chauffage_refroidissement::autres_generateurs_a_combustion::AutreGenerateurCombustion;
 use crate::chauffage_refroidissement::calculs_generation::Poste;
 use crate::chauffage_refroidissement::chaudieres_gaz_fioul_bois::Chaudiere;
 use crate::chauffage_refroidissement::generateur_direct_a_effet_joule::GenerateurEffetJoule;
@@ -57,6 +58,8 @@ pub enum Generateur {
     Absorption(Box<MachineAbsorption>),
     /// Type 504 : pompe à chaleur à moteur gaz (§8.25).
     MoteurGaz(Box<PacMoteurGaz>),
+    /// Types 103 à 109 : autre générateur à combustion (§8.20).
+    AutreCombustion(Box<AutreGenerateurCombustion>),
     /// Générateur idéal, pour les tests.
     Ideal(GenerateurIdeal),
 }
@@ -81,6 +84,13 @@ impl Generateur {
             },
             Self::Absorption(g) => g.fonction(),
             Self::MoteurGaz(g) => g.fonction(),
+            Self::AutreCombustion(g) => {
+                if g.famille.ecs() {
+                    FonctionGenerateur::Ecs
+                } else {
+                    FonctionGenerateur::Chauffage
+                }
+            }
             Self::Ideal(g) => g.fonction,
         }
     }
@@ -98,6 +108,7 @@ impl Generateur {
             Self::Reseau(g) => g.pn_gen_tot_w(),
             Self::Absorption(g) => g.pn_gen_tot_w(),
             Self::MoteurGaz(g) => g.pn_gen_tot_w(poste),
+            Self::AutreCombustion(g) => g.pn_gen_tot_w(),
             // Sans puissance nominale : parts égales en mode sans priorité.
             Self::Ideal(_) => 1.0,
         }
@@ -113,6 +124,7 @@ impl Generateur {
             Self::Reseau(g) => g.appel(e),
             Self::Absorption(g) => g.appel(e),
             Self::MoteurGaz(g) => g.appel(e),
+            Self::AutreCombustion(g) => g.appel(e),
             Self::Ideal(g) => g.appel(e),
         }
     }
@@ -120,8 +132,10 @@ impl Generateur {
     /// Fin du pas de temps : les générateurs à mémoire d'un pas de temps (chaudières,
     /// éq. 1089, 1105 et 1106) conservent l'état du pas qui s'achève.
     pub fn fin_de_pas(&mut self) {
-        if let Self::Chaudiere(g) = self {
-            g.fin_de_pas();
+        match self {
+            Self::Chaudiere(g) => g.fin_de_pas(),
+            Self::AutreCombustion(g) => g.fin_de_pas(),
+            _ => {}
         }
     }
 }
