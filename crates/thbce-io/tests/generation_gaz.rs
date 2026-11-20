@@ -117,13 +117,7 @@ fn generateurs_au_gaz_sur_la_meteo_ademe() {
     // Rendement saisonnier sur gaz inférieur au GUE pivot (1,2) : charge partielle et pertes.
     let eta = g.q_fou_ch_kwh / c.chauffage.gaz_kwh;
     assert!(eta > 0.3 && eta < 1.2, "{eta}");
-    for v in [
-        "bruleur",
-        "echangeur_fumees",
-        "p_aux_0",
-        "pertes_40c",
-        "rdt_comb_pivot",
-    ] {
+    for v in ["bruleur", "echangeur_fumees", "p_aux_0", "rdt_comb_pivot"] {
         assert!(
             g.generateurs[0]
                 .valeurs_par_defaut
@@ -276,6 +270,6 @@ fn generateurs_au_gaz_sur_la_meteo_reglementaire() {
     assert!(ecarts.is_empty(), "{ecarts:?}");
 }
 
-const PHARES_GAHP: [f64; 4] = [152.7, 152.7, 1118.7, 1064.8];
+const PHARES_GAHP: [f64; 4] = [108.8, 108.8, 724.6, 1064.8];
 const PHARES_MG_AIR_AIR: [f64; 4] = [133.7, 133.7, 523.7, 1042.9];
 const PHARES_MG_COMMERCE: [f64; 4] = [141.9, 141.9, 491.6, 1938.5];

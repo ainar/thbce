@@ -29,11 +29,11 @@
           ]
         }
       ],
-      "cep_kwhep_m2": 144.5,
-      "cep_nr_kwhep_m2": 144.5,
-      "ic_energie_kgco2_m2": 1038.3,
+      "cep_kwhep_m2": 102.9,
+      "cep_nr_kwhep_m2": 102.9,
+      "ic_energie_kgco2_m2": 664.3,
       "indicateurs": {
-        "cef_kwhef_m2": 125.8,
+        "cef_kwhef_m2": 84.1,
         "exigences": {
           "bbio_max_pts": 64.7,
           "cep_max_kwhep_m2": 70.2,

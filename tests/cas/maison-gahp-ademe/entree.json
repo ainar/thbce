@@ -405,6 +405,10 @@
                         "performance": 1.5,
                         "pabs_kw": 12.0
                       }
+                    },
+                    "pertes_40c": {
+                      "valeur": 400.0,
+                      "statut": "justifie"
                     }
                   }
                 }
@@ -425,6 +429,10 @@
                       "pivot_defaut": {
                         "pabs_kw": 8.0
                       }
+                    },
+                    "pertes_40c": {
+                      "valeur": 250.0,
+                      "statut": "certifie"
                     }
                   }
                 }
