@@ -441,6 +441,14 @@ fn calculer_selon(
                 bat.id
             ));
         }
+        if sorties_detaillees.is_some() && releve.prod_coge.iter().any(|x| *x > 0.0) {
+            avertissements.push(format!(
+                "bâtiment {} : sorties détaillées, l'électricité produite par la cogénération \
+                 entre dans les importations des zones (éq. 2536) mais sa part par zone (éq. 2521, \
+                 2434 et 2436) n'est pas restituée (docs/questions/Q157.md)",
+                bat.id
+            ));
+        }
         let ic_energie_kgco2_m2 = indicateurs.as_ref().and_then(|i| i.ic_energie_kgco2_m2);
         let mut indicateurs = indicateurs;
         let acv = bat.acv.as_ref().map(|d| {
