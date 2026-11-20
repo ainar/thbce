@@ -16,12 +16,12 @@
       "id": "maison",
       "sref_m2": 96.4,
       "bbio_pts": 64.6,
-      "dh_c_h": 1573.0,
-      "cep_kwhep_m2": 111.7,
-      "cep_nr_kwhep_m2": 111.7,
-      "ic_energie_kgco2_m2": 135.7,
+      "dh_c_h": 1573.6,
+      "cep_kwhep_m2": 114.8,
+      "cep_nr_kwhep_m2": 114.8,
+      "ic_energie_kgco2_m2": 139.7,
       "indicateurs": {
-        "cef_kwhef_m2": 48.5,
+        "cef_kwhef_m2": 49.9,
         "exigences": {
           "bbio_max_pts": 64.7,
           "cep_max_kwhep_m2": 70.2,
@@ -29,10 +29,10 @@
           "ic_energie_max_kgco2_m2": 149.7
         },
         "electricite_consommee": {
-          "chauffage_kwh": 1891.7,
-          "ecs_kwh": 2119.6,
+          "chauffage_kwh": 1981.0,
+          "ecs_kwh": 2119.5,
           "eclairage_kwh": 189.3,
-          "auxiliaires_ventilation_kwh": 65.8
+          "auxiliaires_ventilation_kwh": 108.0
         }
       },
       "zones": [
@@ -40,28 +40,28 @@
           "id": "logement",
           "ventilation": {
             "id": "ventilation-hybride",
-            "p_vent_w": 7.5,
-            "c_aux_vent_kwh": 65.8,
+            "p_vent_w": 12.3,
+            "c_aux_vent_kwh": 108.0,
             "th_d": {
               "nbh_bypass": 0,
               "q_ag_kwh": 0.0,
               "naturelle": {
-                "nbh_extraction": 4247,
-                "nbh_refoulement": 1642,
-                "nbh_assistance": 2871,
-                "nbh_grand_debit": 730,
-                "w_assistance_kwh": 65.818
+                "nbh_extraction": 3841,
+                "nbh_refoulement": 1481,
+                "nbh_assistance": 3438,
+                "nbh_grand_debit": 1460,
+                "w_assistance_kwh": 107.964
               }
             },
             "th_c": {
               "nbh_bypass": 0,
               "q_ag_kwh": 0.0,
               "naturelle": {
-                "nbh_extraction": 4260,
-                "nbh_refoulement": 1629,
-                "nbh_assistance": 2871,
-                "nbh_grand_debit": 730,
-                "w_assistance_kwh": 65.818
+                "nbh_extraction": 3848,
+                "nbh_refoulement": 1474,
+                "nbh_assistance": 3438,
+                "nbh_grand_debit": 1460,
+                "w_assistance_kwh": 107.964
               }
             },
             "valeurs_par_defaut": [
@@ -111,11 +111,11 @@
             {
               "id": "volume-chauffe",
               "ventilation": {
-                "q_spec_repris_m3_h": -51.0,
-                "q_spec_souffle_m3_h": 4.3,
-                "q_repris_cond_m3_h": -51.7,
-                "q_souffle_cond_m3_h": 4.3,
-                "c_aux_vent_kwh": 65.8
+                "q_spec_repris_m3_h": -58.5,
+                "q_spec_souffle_m3_h": 4.0,
+                "q_repris_cond_m3_h": -59.2,
+                "q_souffle_cond_m3_h": 4.0,
+                "c_aux_vent_kwh": 108.0
               }
             }
           ]
