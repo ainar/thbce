@@ -213,9 +213,7 @@ pub fn efficacite_echangeur(ecoulements: EcoulementsEchangeur, nut: f64, c: f64)
                 (1.0 - e) / (1.0 - c * e)
             }
         }
-        EcoulementsEchangeur::CourantsParalleles => {
-            (1.0 - libm::exp(-nut * (1.0 + c))) / (1.0 + c)
-        }
+        EcoulementsEchangeur::CourantsParalleles => (1.0 - libm::exp(-nut * (1.0 + c))) / (1.0 + c),
         EcoulementsEchangeur::CourantsCroises => {
             1.0 / (1.0 / (1.0 - libm::exp(-nut)) + c / (1.0 - libm::exp(-nut * c)) - 1.0 / nut)
         }
@@ -379,12 +377,14 @@ impl SourceAmont {
         if debut_saison {
             etat.t_depart_c = T_DEPART_INITIAL_C;
         }
-        let phi_prec = if debut_saison { 0.0 } else { c.phi_rejet_prec_w };
+        let phi_prec = if debut_saison {
+            0.0
+        } else {
+            c.phi_rejet_prec_w
+        };
         let tau_prec = if debut_saison { 0.0 } else { c.tau_charge_prec };
         Some(match *self {
-            Self::AirExterieur | Self::AirAmbiant { .. } | Self::AirExtrait { .. } => {
-                return None
-            }
+            Self::AirExterieur | Self::AirAmbiant { .. } | Self::AirExtrait { .. } => return None,
             // Éq. (1410) et (1427).
             Self::Captage {
                 sol,
@@ -674,7 +674,10 @@ mod tests {
                 p_captage_w: 200.0,
                 p_inter_w: 0.0,
             },
-            ecarts: Ecarts { ch_k: 5.0, fr_k: 5.0 },
+            ecarts: Ecarts {
+                ch_k: 5.0,
+                fr_k: 5.0,
+            },
         };
         let mut etat = EtatSourceAmont::default();
         let mut c = ConditionsEauSol {
@@ -727,10 +730,16 @@ mod tests {
             ecoulements: EcoulementsEchangeur::ContreCourant,
         };
         let mut t_depart = 12.0;
-        proche(nappe_avec_echangeur(&x, 1.0, 10.0, -4180.0, &mut t_depart), 11.0);
+        proche(
+            nappe_avec_echangeur(&x, 1.0, 10.0, -4180.0, &mut t_depart),
+            11.0,
+        );
         proche(t_depart, 10.0);
         // Débits nuls : pas d'échange, départ conservé (éq. 1414).
-        proche(nappe_avec_echangeur(&x, 0.0, 10.0, -4180.0, &mut t_depart), 10.0);
+        proche(
+            nappe_avec_echangeur(&x, 0.0, 10.0, -4180.0, &mut t_depart),
+            10.0,
+        );
         proche(t_depart, 10.0);
     }
 
@@ -811,7 +820,10 @@ mod tests {
                     mois_minimum: 1,
                 },
                 pompes: p,
-                ecarts: Ecarts { ch_k: 5.0, fr_k: 5.0 },
+                ecarts: Ecarts {
+                    ch_k: 5.0,
+                    fr_k: 5.0,
+                },
             },
             p_vent_gaine_w: 0.0,
         };

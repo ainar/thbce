@@ -200,7 +200,12 @@ fn sources_refroidissement(t: TechnologieRefroidissementPac) -> &'static [&'stat
     match t {
         T::AirExterieurEau | T::AirExterieurAirRecycle => &["air_exterieur"],
         T::AirExtraitAirNeuf => &["air_extrait"],
-        T::EauEau | T::EauAir => &["captage", "nappe", "tour_de_refroidissement", "boucle_d_eau"],
+        T::EauEau | T::EauAir => &[
+            "captage",
+            "nappe",
+            "tour_de_refroidissement",
+            "boucle_d_eau",
+        ],
         T::EauDeNappeAirRecycle | T::EauDeNappeEau => &["nappe", "captage"],
     }
 }
@@ -298,16 +303,17 @@ fn valider_source_amont(
     let pompes = |r: &mut RapportValidation, ch: String, p: &PompesCaptage| {
         r.positif(format!("{ch}.p_pompes_w"), p.p_pompes_w);
     };
-    let ecarts = |r: &mut RapportValidation, ch: String, e: Option<crate::entree::EcartsSourceEau>| {
-        if let Some(e) = e {
-            if let Some(v) = e.delta_theta_ch_k {
-                r.positif(format!("{ch}.ecarts.delta_theta_ch_k"), v);
+    let ecarts =
+        |r: &mut RapportValidation, ch: String, e: Option<crate::entree::EcartsSourceEau>| {
+            if let Some(e) = e {
+                if let Some(v) = e.delta_theta_ch_k {
+                    r.positif(format!("{ch}.ecarts.delta_theta_ch_k"), v);
+                }
+                if let Some(v) = e.delta_theta_fr_k {
+                    r.positif(format!("{ch}.ecarts.delta_theta_fr_k"), v);
+                }
             }
-            if let Some(v) = e.delta_theta_fr_k {
-                r.positif(format!("{ch}.ecarts.delta_theta_fr_k"), v);
-            }
-        }
-    };
+        };
     match s {
         SourceAmontSaisie::AirExterieur { p_vent_gaine_w } => {
             if let Some(p) = p_vent_gaine_w {
@@ -417,6 +423,34 @@ fn valider_source_amont(
             r.positif(format!("{ch}.rb_k_m_w"), *rb_k_m_w);
             r.strictement_positif(format!("{ch}.l_m"), *l_m);
             "sol"
+        }
+    }
+}
+
+/// Vrai si une technologie de chauffage alimente des réseaux fictifs (fluide aval air, ou sol
+/// pour la PAC sol / sol, à détente directe ; lecture Q145), faux pour des réseaux hydrauliques
+/// (§8.17.3.1, « IdFluide_aval » du §8.23.3.3).
+pub(super) fn aval_fictif_chauffage(t: TechnologieChauffagePac) -> bool {
+    use TechnologieChauffagePac as T;
+    match t {
+        T::AirExterieurEau | T::EauDeNappeEau | T::EauGlycoleeEau | T::SolEau => false,
+        T::AirExterieurAirRecycle
+        | T::AirExtraitAirNeuf
+        | T::EauDeNappeAirRecycle
+        | T::EauDeBoucleAirRecycle
+        | T::SolSol => true,
+    }
+}
+
+/// Vrai si une technologie de refroidissement alimente des réseaux fictifs (fluide aval air ;
+/// §8.17.3.1, « IdFluide_aval » du §8.23.3.5, lu « air » pour le refroidisseur eau / air,
+/// lecture Q150).
+pub(super) fn aval_fictif_refroidissement(t: TechnologieRefroidissementPac) -> bool {
+    use TechnologieRefroidissementPac as T;
+    match t {
+        T::AirExterieurEau | T::EauEau | T::EauDeNappeEau => false,
+        T::AirExterieurAirRecycle | T::AirExtraitAirNeuf | T::EauAir | T::EauDeNappeAirRecycle => {
+            true
         }
     }
 }

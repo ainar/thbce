@@ -1916,7 +1916,8 @@ mod tests {
         proche(m.pabs_w[0][0], 945.0 * 1.05);
         // PAC eau glycolée / eau en ECS (éq. 1256 et 1262) : pivot par défaut 0,8 × 3,7 à
         // −1,5 °C et 45 °C ; ligne à 55 °C : × 0,8 ; colonne à 13,5 °C : × 1,3.
-        let m = ECS_EAU_GLYCOLEE_EAU.construire(&PerformancesSaisies::PivotDefaut { pabs_w: 1000.0 });
+        let m =
+            ECS_EAU_GLYCOLEE_EAU.construire(&PerformancesSaisies::PivotDefaut { pabs_w: 1000.0 });
         proche(m.perf[4][1], 2.96);
         proche(m.perf[5][4], 2.96 * 0.8 * 1.3);
         proche(m.pabs_w[5][4], 900.0 * 1.15);
