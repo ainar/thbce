@@ -103,7 +103,11 @@ pub(super) fn valider_stockages(
                          base identiques (`rdim` du générateur désigné)",
                     );
                 }
-                let thermo = matches!(x.nature, NatureGenerateur::ThermodynamiqueElectrique(_));
+                let thermo = matches!(
+                    x.nature,
+                    NatureGenerateur::ThermodynamiqueElectrique(_)
+                        | NatureGenerateur::ThermodynamiqueGaz(_)
+                );
                 match s.base.h_rel_ech {
                     None if thermo => r.erreur(
                         format!("{cs}.base.h_rel_ech"),
