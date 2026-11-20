@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Variante de tests/cas/commerce-pac-ademe (commerce de 800 m², plancher chauffant, appoint électrique de 15 kW en cascade) où les huit pompes à chaleur électriques sont remplacées par une pompe à chaleur à moteur gaz air extérieur / eau (§8.25, type 504) à vitesse variable (LRcontmin = 0,4 et CcpLRcontmin = 1 par défaut) : quatre performances mesurées, certifiées à 7 °C (GUE 1,45 et 1,25 à 32,5 et 42,5 °C aval ; 40 et 45 kW de gaz ; 900 W d'auxiliaires) et justifiées à −7 °C (GUE 1,1 et 0,95, réduits de 10 % ; 48 et 52 kW ; 950 W, majorés de 10 %), le reste de la matrice complété par les coefficients des tableaux 232 et 233 ; unités intérieures par défaut (6 % du gaz au pivot). Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : calcul du moteur, fiche 8.25 relue sur les p. 890 à 911 de l'annexe III (lectures Q140 à Q144). Ce n'est pas un cas de référence."
+meteo = "ademe"
