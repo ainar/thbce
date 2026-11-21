@@ -11,7 +11,9 @@ use crate::chauffage_refroidissement::generateur_direct_a_effet_joule::Generateu
 use crate::chauffage_refroidissement::pac_moteur_gaz::PacMoteurGaz;
 use crate::chauffage_refroidissement::poeles_et_inserts::Poele;
 use crate::chauffage_refroidissement::reseau_de_chaleur_et_de_froid::ReseauChaleurFroid;
-use crate::chauffage_refroidissement::sources_amont::{Sinusoide, SourceAmont, SourceAmontGenerateur};
+use crate::chauffage_refroidissement::sources_amont::{
+    Sinusoide, SourceAmont, SourceAmontGenerateur,
+};
 use crate::chauffage_refroidissement::systeme_de_cogeneration::Cogenerateur;
 use crate::chauffage_refroidissement::thermodynamique_elec::GenerateurThermodynamique;
 use crate::chauffage_refroidissement::thermodynamique_gaz::MachineAbsorption;
@@ -219,10 +221,14 @@ impl GenerationHoraire {
                         mois_minimum: boucle.mois_minimum,
                     });
                 }
-                let rang_groupe = groupes.iter().position(|x| *x == p.groupe).unwrap_or_else(|| {
-                    groupes.push(p.groupe.clone());
-                    groupes.len() - 1
-                });
+                let rang_groupe =
+                    groupes
+                        .iter()
+                        .position(|x| *x == p.groupe)
+                        .unwrap_or_else(|| {
+                            groupes.push(p.groupe.clone());
+                            groupes.len() - 1
+                        });
                 membres.push(MembreBoucle {
                     generateur: i,
                     rang_groupe,

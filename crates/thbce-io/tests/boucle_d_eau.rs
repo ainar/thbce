@@ -218,7 +218,6 @@ fn hotel_a_boucle_d_eau_bilans_annuels() {
             .as_ref()
             .unwrap()
             .annuel
-            .clone()
     };
     let (jour, nuit) = (zone("jour"), zone("nuit"));
     let pac_jour = &x("pac-jour").consommations;
@@ -286,7 +285,10 @@ fn validation_de_la_boucle_d_eau() {
     assert!(messages(&v).is_empty(), "{:?}", messages(&v));
     // Sans description de la boucle.
     let mut x = v.clone();
-    boucle(&mut x).as_object_mut().unwrap().remove("boucle_d_eau");
+    boucle(&mut x)
+        .as_object_mut()
+        .unwrap()
+        .remove("boucle_d_eau");
     assert!(messages(&x).iter().any(|m| m.contains("§8.15.3.1")));
     // Sans générateur de chauffage de la boucle alors que les PAC chauffent.
     let mut x = v.clone();
@@ -324,8 +326,7 @@ fn validation_de_la_boucle_d_eau() {
     assert!(messages(&x).iter().any(|m| m.contains("même température")));
     // Groupe inconnu, ou groupe relié sans PAC.
     let mut x = v.clone();
-    boucle(&mut x)["generateurs"][1]["nature"]["pac_sur_boucle_d_eau"]["groupe"] =
-        "inconnu".into();
+    boucle(&mut x)["generateurs"][1]["nature"]["pac_sur_boucle_d_eau"]["groupe"] = "inconnu".into();
     let m = messages(&x);
     assert!(m.iter().any(|m| m.contains("groupe inconnu")), "{m:?}");
     assert!(m.iter().any(|m| m.contains("« jour »")), "{m:?}");

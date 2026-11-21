@@ -79,7 +79,7 @@ pub(super) fn valider_pac_boucle(
     }
     if g.boucle_d_eau.is_none() {
         r.erreur(
-            format!("{c}"),
+            c.to_owned(),
             None,
             "une pompe à chaleur sur boucle d'eau appartient à une génération qui décrit la \
              boucle (`boucle_d_eau`, Th-BCE 2020 §8.15.3.1)",
@@ -263,7 +263,10 @@ pub(super) fn valider_boucle(r: &mut RapportValidation, c: &str, g: &Generation,
     for (i, d) in bat.distributions_intergroupes.iter().enumerate() {
         if d.generation == g.id && !matches!(d.reseau, crate::entree::ReseauIntergroupes::Fictif) {
             r.erreur(
-                format!("{}.distributions_intergroupes[{i}].reseau", super::c_batiment(c)),
+                format!(
+                    "{}.distributions_intergroupes[{i}].reseau",
+                    super::c_batiment(c)
+                ),
                 None,
                 "les réseaux d'une génération à boucle d'eau sont fictifs : ses pompes à chaleur \
                  sont des machines eau / air (Th-BCE 2020 §8.15.1 et §8.17.3.1)",
@@ -303,7 +306,11 @@ pub(super) fn valider_boucle(r: &mut RapportValidation, c: &str, g: &Generation,
                              {} : une pompe à chaleur de la boucle doit lui être associée \
                              (`groupe`) et assurer ce poste (Th-BCE 2020 §8.15.3.1)",
                             gr.id,
-                            if froid { "refroidissement" } else { "chauffage" }
+                            if froid {
+                                "refroidissement"
+                            } else {
+                                "chauffage"
+                            }
                         ),
                     );
                 }
@@ -321,8 +328,7 @@ fn eau_aval(n: &NatureGenerateur) -> bool {
             t.chauffage
                 .as_ref()
                 .is_none_or(|m| !aval_fictif_chauffage(m.technologie))
-                && t
-                    .refroidissement
+                && t.refroidissement
                     .as_ref()
                     .is_none_or(|m| !aval_fictif_refroidissement(m.technologie))
         }

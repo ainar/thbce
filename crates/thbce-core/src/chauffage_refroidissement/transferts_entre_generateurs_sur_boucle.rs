@@ -270,7 +270,7 @@ mod tests {
                 consigne_c: 20.0,
                 p_pompes_w: 300.0,
                 p_vent_w: 500.0,
-            delta_cond_fr_k: 0.0,
+                delta_cond_fr_k: 0.0,
             },
             qv_nom_m3_h: 3.6,
         };
@@ -321,8 +321,17 @@ mod tests {
             mode_groupe(&d(0.0, 0.0, false, true)),
             Some(Poste::Refroidissement)
         );
-        assert_eq!(mode_groupe(&d(0.0, 0.0, true, true)), Some(Poste::Chauffage));
-        assert_eq!(mode_groupe(&d(50.0, 0.0, true, false)), Some(Poste::Chauffage));
-        assert_eq!(mode_groupe(&d(0.0, 0.0, true, false)), Some(Poste::Chauffage));
+        assert_eq!(
+            mode_groupe(&d(0.0, 0.0, true, true)),
+            Some(Poste::Chauffage)
+        );
+        assert_eq!(
+            mode_groupe(&d(50.0, 0.0, true, false)),
+            Some(Poste::Chauffage)
+        );
+        assert_eq!(
+            mode_groupe(&d(0.0, 0.0, true, false)),
+            Some(Poste::Chauffage)
+        );
     }
 }

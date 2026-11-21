@@ -10,10 +10,10 @@ use crate::entree::{
     GestionTemperatureGeneration, NatureGenerateur, PositionGeneration, ReseauChaleurFroidSaisi,
     ReseauIntergroupes, SystemeVentilation, TypePriorite,
 };
+use boucle_d_eau::{valider_boucle, valider_pac_boucle};
 use combustion::{
     valider_autre_combustion, valider_chaudiere, valider_cogeneration, valider_poele,
 };
-use boucle_d_eau::{valider_boucle, valider_pac_boucle};
 use reseaux_chaleur::valider_reseau;
 use thermodynamique::valider_thermodynamique;
 use thermodynamique_gaz::{fluide_aval_gaz, postes_gaz, valider_thermodynamique_gaz};

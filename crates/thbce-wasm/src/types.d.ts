@@ -726,6 +726,30 @@ export type BoucheNaturelle = {
   type: "autoreglable";
 };
 
+/**
+ * Th-BCE 2020 §8.15.2 et §8.15.3.5 — boucle d'eau d'une génération : maintien en température
+ * de la boucle par un générateur de chauffage et un générateur de froid de la génération (types
+ * autres que 507, fluide aval eau), ou par une tour de refroidissement.
+ */
+export interface BoucleDEauGeneration {
+  /**
+   * « θmax_rech_BE » : température de fonctionnement maximale de chauffage de la boucle, en
+   * °C (de 20 à 100, éq. 969). Requise si la génération a un générateur de chauffage de la
+   * boucle.
+   */
+  theta_max_rech_c?: number | null;
+  /**
+   * « θmin_fr_BE » : température de fonctionnement minimale de refroidissement de la
+   * boucle, en °C (éq. 975). Requise si la génération a un générateur de froid de la boucle.
+   */
+  theta_min_fr_c?: number | null;
+  /**
+   * Tour de refroidissement de la boucle (« idtour » 1 ou 2) ; absente : la boucle est
+   * refroidie par un générateur de froid de la génération (« idtour = 0 »).
+   */
+  tour?: TourBoucleSaisie | null;
+}
+
 /** Réseau d'ECS intergroupe bouclé (§9.8.2). */
 export interface BoucleEcs {
   /**
@@ -2733,6 +2757,12 @@ export interface GenerateurSaisi {
  */
 export interface Generation {
   /**
+   * Boucle d'eau (§8.15) : présente si la génération décrit une boucle d'eau, c'est-à-dire
+   * des pompes à chaleur sur boucle d'eau (`pac_sur_boucle_d_eau`) et les générateurs qui
+   * maintiennent la boucle en température. Absente pour toute autre génération.
+   */
+  boucle_d_eau?: BoucleDEauGeneration | null;
+  /**
    * Chauffe-eau solaires individuels (§9.14 et §9.15, kits CESI §9.23) : ballon dont le
    * générateur de base est une boucle solaire, avec un appoint intégré, un appoint séparé
    * instantané ou sans appoint. Comme les autres assemblages avec stockage, ils sont les
@@ -3576,6 +3606,8 @@ export type NatureGenerateur = {
   autre_generateur_a_combustion: AutreGenerateurCombustionSaisi;
 } | {
   thermodynamique_gaz: ThermodynamiqueGazSaisi;
+} | {
+  pac_sur_boucle_d_eau: PacSurBoucleDEauSaisie;
 } | "boucle_d_eau_ou_drv" | {
   cogeneration: CogenerationSaisie;
 } | "pac_hybride";
@@ -3730,6 +3762,26 @@ export interface PacMoteurGazSaisie {
   production_ecs_indirecte?: ProductionEcsIndirecteSaisie | null;
   /** Mode refroidissement ; absent : la machine ne refroidit pas. */
   refroidissement?: ModePacMoteurGaz | null;
+}
+
+/**
+ * Th-BCE 2020 §8.15.1 et §8.15.3.1 — pompe à chaleur sur boucle d'eau (type 507), traitée
+ * comme un groupe frigorifique eau / air (§8.23).
+ *
+ * La machine se décrit comme un générateur thermodynamique à compression électrique : source
+ * amont `boucle_d_eau` (la température de la boucle, éq. 1437 à 1439, est commune à toutes les
+ * pompes à chaleur de la génération), technologie « eau de boucle / air recyclé » en chauffage
+ * et « eau / air » en refroidissement, sans ECS. `rdim` de la génération donne le nombre de
+ * machines identiques « Npbe » du groupe.
+ */
+export interface PacSurBoucleDEauSaisie {
+  /**
+   * Identifiant du groupe desservi par la pompe à chaleur (lien d'interface, §8.15.3.1) :
+   * la machine assure la demande de la génération pour ce groupe (éq. 1002 et 1003).
+   */
+  groupe: string;
+  /** Machine : générateur thermodynamique à compression électrique (§8.23) sur la boucle. */
+  pac: ThermodynamiqueElectriqueSaisi;
 }
 
 /**
@@ -5252,6 +5304,40 @@ export interface ResultatsBbio {
   mensuel: BesoinsBbio[];
 }
 
+/** Bilan annuel d'une boucle d'eau, calcul Th-C (§8.15.3.4). */
+export interface ResultatsBoucleDEau {
+  /**
+   * « Φrejet_totBE_ch » : froid rejeté dans la boucle par les pompes à chaleur en
+   * chauffage (chaleur qu'elles y puisent), en kWh (éq. 965).
+   */
+  phi_rejet_tot_ch_kwh: number;
+  /**
+   * « Φrejet_totBE_fr » : chaleur rejetée dans la boucle par les pompes à chaleur en
+   * refroidissement, en kWh (éq. 966).
+   */
+  phi_rejet_tot_fr_kwh: number;
+  /**
+   * « Qrep_ch » et « Qrep_fr » des générateurs de la boucle restant reportées à la fin de
+   * l'année, en kWh.
+   */
+  q_rep_fin_kwh: number;
+  /**
+   * « Qsys_BE_ch » : énergie de chauffage demandée au générateur de chauffage de la boucle,
+   * en kWh (éq. 968).
+   */
+  q_sys_ch_kwh: number;
+  /**
+   * « Qsys_BE_fr » : énergie de refroidissement demandée au générateur de froid ou à la
+   * tour de la boucle, en kWh (éq. 968).
+   */
+  q_sys_fr_kwh: number;
+  /**
+   * « Qtransfert_BE » : énergie transférée entre les pompes à chaleur par la boucle, en kWh
+   * (éq. 967).
+   */
+  q_transfert_kwh: number;
+}
+
 /**
  * Boucle solaire d'un chauffe-eau solaire, calcul Th-C (§9.15 ; sorties « Esol_tot^BS » et
  * « Eef_aux_tot^BS » des fiches d'assemblage). L'énergie solaire transmise au ballon est
@@ -5680,6 +5766,8 @@ export interface ResultatsGenerateur {
 
 /** Génération, calcul Th-C (§8.14, §8.17 et §8.29). */
 export interface ResultatsGeneration {
+  /** Bilan de la boucle d'eau (fiche 8.15) ; absent pour une génération sans boucle. */
+  boucle_d_eau?: ResultatsBoucleDEau | null;
   /**
    * Consommations en énergie finale de la génération, par poste et par type d'énergie
    * (éq. 1056 et 1057).
@@ -6889,6 +6977,42 @@ export type ThermodynamiqueGazSaisi = {
 } | {
   moteur_gaz: PacMoteurGazSaisie;
 };
+
+/**
+ * Th-BCE 2020 §8.15.3.7.1 — tour de refroidissement d'une boucle d'eau (éq. 972 à 974),
+ * décrite dans la source amont de la boucle et traitée comme un générateur de froid.
+ */
+export interface TourBoucleSaisie {
+  /**
+   * « Δθtour » : écart entre l'eau en sortie de tour et la température humide (tour humide)
+   * ou sèche (tour sèche) de l'air extérieur, en K (éq. 1432 et 1434).
+   */
+  delta_theta_tour_k: number;
+  /**
+   * Identifiant de la tour dans les résultats des générateurs, distinct de ceux des
+   * générateurs de la génération.
+   */
+  id: string;
+  /** « idtour » : tour humide ou sèche. */
+  nature: NatureTourRefroidissement;
+  /**
+   * « Ppompes_tour » : puissance électrique des pompes du circuit de la tour, en W
+   * (éq. 973).
+   */
+  p_pompes_tour_w: number;
+  /** « Pvent_tour » : puissance électrique des ventilateurs de la tour, en W (éq. 973). */
+  p_vent_tour_w: number;
+  /**
+   * « qv,nom,tour » : débit nominal d'eau à refroidir circulant dans la tour, en m³/h
+   * (éq. 972).
+   */
+  qv_nom_m3_h: number;
+  /**
+   * « θes_tour_consigne » : consigne de température d'eau en sortie de tour, en °C
+   * (éq. 1433 et 1435).
+   */
+  theta_es_consigne_c: number;
+}
 
 /** Transfert de la boucle vers le ballon (§9.15.3.1). */
 export type TransfertBoucle = {
