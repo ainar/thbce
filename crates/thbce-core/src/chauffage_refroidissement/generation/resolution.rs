@@ -840,6 +840,7 @@ fn resoudre_autre_combustion(
 /// Résolution des autres générateurs à combustion (types 103 à 109) : valeurs par défaut
 /// calculées à la main d'après les tableaux 126 à 131 et le §8.20.3.4.
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests_autre_combustion {
     use super::*;
     use crate::chauffage_refroidissement::autres_generateurs_a_combustion::Famille;
@@ -968,7 +969,7 @@ mod tests_autre_combustion {
         // Qpo30 = 1000·300·(1,75 − 0,55·log10 300)/100 = 1 162,75 W ; Paux = 4·300 = 1 200 W.
         let (g, _) = resout(&saisi(ac(false, false), 400.0));
         proche(g.p_int_kw, 120.0);
-        let l = 300f64.log10();
+        let l = libm::log10(300.0);
         proche(g.q_po_30_w, 3000.0 * (1.75 - 0.55 * l));
         assert!((g.q_po_30_w - 1162.75).abs() < 0.01);
         proche(g.w_aux_nom_w, 1200.0);
