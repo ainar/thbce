@@ -1,8 +1,12 @@
 ### Ajouté
 
 - Fiche 8.20 (lot 2e) : autres générateurs à combustion au gaz naturel ou au GPL, types 103 à 109 (radiateurs, poêles et inserts, chauffe-eau, accumulateurs, générateurs d'air chaud, tubes et panneaux radiants) : valeurs par défaut des tableaux 126 à 128, statut des rendements, pertes à charge nulle, chauffage, ECS, arrêt selon le raccordement (`raccordement`, « idraccord_gnr », en cascade ou en alternance), pertes récupérables ; lectures Q155 et Q156. Exemples `maison-radiateurs-gaz-ademe` et `gymnase-air-chaud-ademe`, tests `crates/thbce-io/tests/autres_combustion.rs`.
+- Fiche 8.21 (lot 2e) : systèmes de cogénération (micro-cogénérateurs à moteur à combustion interne, Stirling ou micro-turbine, avec ou sans appoint intégré, au gaz, GPL, fioul ou bois) ; l'électricité produite entre dans la production du bâtiment et son autoconsommation (§13.4), donc dans les importations, le Cep, le Cep,nr et l'Ic énergie ; sorties `q_prelec_kwh` des générateurs et `indicateurs.production_cogeneration` (production, autoconsommation, export, taux d'autoconsommation, taux global) ; sous-lot 8.2 de l'ACV au prorata du taux global (annexe II, éq. 16) ; lectures Q157 et Q158. Exemples `maison-cogeneration-ademe` et `hotel-cogeneration-ademe`, tests `crates/thbce-io/tests/cogeneration.rs`.
 - Fiche 8.24 : le « Dfou0 » de 26 min du mode ECS des machines à absorption (repris du tableau 216, Q135) est signalé dans `valeurs_par_defaut`.
 
 ### Modifié
 
-- Format : la nature `autre_generateur_a_combustion`, jusqu'ici une chaîne refusée en code 3, porte désormais ses données (`{"autre_generateur_a_combustion": {...}}`). Sans effet sur les entrées valides, puisqu'elle était refusée.
+- Format : la nature `autre_generateur_a_combustion`, jusqu'ici une chaîne refusée en code 3, porte désormais ses données (`{"autre_generateur_a_combustion": {...}}`). Sans effet sur les entrées valides, puisqu'elle était refusée. De même pour la nature `cogeneration` (`{"cogeneration": {...}}`).
+- Le sous-lot 8.2 de l'ACV n'est plus refusé en code 3 : il est calculé avec un cogénérateur, refusé en code 2 sans.
+- Les tests de refus en code 3 emploient désormais la boucle d'eau (`boucle_d_eau_ou_drv`, §8.15) au lieu de la cogénération.
+- Cogénération (relecture) : le bilan de production est établi dès qu'un cogénérateur existe, même sans électricité produite (taux global d'autoconsommation 100 %, éq. 5 de l'annexe II, au lieu de 0 % qui annulait le sous-lot 8.2 de l'ACV) ; un cogénérateur d'ECS doit être le générateur de base d'un ballon (refus de validation sinon, Q157) ; rendements thermiques corrigés bornés à zéro. Tests : mode module + appoint à la main, types × combustibles × fonctions, statuts, Rdim > 1, variante littérale.

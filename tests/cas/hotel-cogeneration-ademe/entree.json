@@ -1,0 +1,747 @@
+{
+  "nom": "Hôtel de deux zones, parties nuit et jour (lot 0c2)",
+  "localisation": {
+    "departement": "37",
+    "alt_m": 80,
+    "dmer_km": 200,
+    "durb_km": 5
+  },
+  "catalogue": {
+    "parois": [
+      {
+        "id": "mur",
+        "u_k_w_m2k": 0.2,
+        "sf_c_k": 0.0048,
+        "sf_e_k": 0.00835,
+        "incl_k": "verticale"
+      },
+      {
+        "id": "toiture",
+        "u_k_w_m2k": 0.12,
+        "sf_c_k": 0.00288,
+        "sf_e_k": 0.00502,
+        "incl_k": "horizontale_flux_ascendant"
+      },
+      {
+        "id": "plancher",
+        "u_k_w_m2k": 0.15,
+        "sf_c_k": 0,
+        "sf_e_k": 0,
+        "incl_k": "horizontale_flux_descendant"
+      }
+    ],
+    "baies": [
+      {
+        "id": "fenetre",
+        "u_sp_vert_w_m2k": 1.3,
+        "u_ap_vert_w_m2k": 1.1,
+        "sans_protection": {
+          "sw1_e": 0.4,
+          "sw2_e": 0.05,
+          "sw3_e": 0,
+          "tli": 0.6
+        },
+        "avec_protection": {
+          "sw1_e": 0.02,
+          "sw2_e": 0.03,
+          "sw3_e": 0,
+          "tli": 0
+        },
+        "protection_mobile": {
+          "type_pm": "volet",
+          "gestion": "manuelle_motorisee",
+          "exterieure": true,
+          "seconde_protection": false
+        },
+        "ouvrant": {
+          "type_ouvrant": "francaise_ou_anglaise"
+        }
+      }
+    ],
+    "masques": []
+  },
+  "batiments": [
+    {
+      "id": "hotel",
+      "zones": [
+        {
+          "id": "nuit",
+          "usage": "hotel012_nuit",
+          "h_zone_m": 2.7,
+          "h_plancher_m": 0,
+          "q4pa_surf_m3_h_m2": 1.0,
+          "ventilation": {
+            "id": "vmc-nuit",
+            "systeme": {
+              "simple_flux_extraction": {
+                "p_vent_occ_w": 900,
+                "p_vent_inocc_w": 900
+              }
+            },
+            "reseau": {
+              "r_rep_m2k_w": 0.6,
+              "b": 1.0
+            }
+          },
+          "groupes": [
+            {
+              "id": "nuit",
+              "su_m2": 900,
+              "v_m3": 2430.0,
+              "categorie_ce1_ce2": "CE1",
+              "inertie": {
+                "quotidienne": "moyenne",
+                "sequentielle": "defaut",
+                "ams_surf_m2_m2": 2.5,
+                "annuelle": "defaut",
+                "ama_surf_m2_m2": 2.5
+              },
+              "parois_opaques": [
+                {
+                  "id": "mur-sud",
+                  "type_paroi": "mur",
+                  "a_k_m2": 27.0,
+                  "exposition": {
+                    "azimut_deg": 0,
+                    "inclinaison_deg": 90
+                  }
+                },
+                {
+                  "id": "mur-ouest",
+                  "type_paroi": "mur",
+                  "a_k_m2": 67.5,
+                  "exposition": {
+                    "azimut_deg": 90,
+                    "inclinaison_deg": 90
+                  }
+                },
+                {
+                  "id": "mur-nord",
+                  "type_paroi": "mur",
+                  "a_k_m2": 40.5,
+                  "exposition": {
+                    "azimut_deg": 180,
+                    "inclinaison_deg": 90
+                  }
+                },
+                {
+                  "id": "mur-est",
+                  "type_paroi": "mur",
+                  "a_k_m2": 54.0,
+                  "exposition": {
+                    "azimut_deg": 270,
+                    "inclinaison_deg": 90
+                  }
+                },
+                {
+                  "id": "toiture",
+                  "type_paroi": "toiture",
+                  "a_k_m2": 900,
+                  "exposition": {
+                    "azimut_deg": 0,
+                    "inclinaison_deg": 0
+                  }
+                },
+                {
+                  "id": "plancher-bas",
+                  "type_paroi": "plancher",
+                  "a_k_m2": 900,
+                  "exposition": {
+                    "azimut_deg": 0,
+                    "inclinaison_deg": 180
+                  }
+                }
+              ],
+              "baies": [
+                {
+                  "id": "baie-sud",
+                  "type_baie": "fenetre",
+                  "a_b_m2": 54.0,
+                  "exposition": {
+                    "azimut_deg": 0,
+                    "inclinaison_deg": 90
+                  },
+                  "expo_br": "br1"
+                },
+                {
+                  "id": "baie-ouest",
+                  "type_baie": "fenetre",
+                  "a_b_m2": 13.5,
+                  "exposition": {
+                    "azimut_deg": 90,
+                    "inclinaison_deg": 90
+                  },
+                  "expo_br": "br1"
+                },
+                {
+                  "id": "baie-nord",
+                  "type_baie": "fenetre",
+                  "a_b_m2": 40.5,
+                  "exposition": {
+                    "azimut_deg": 180,
+                    "inclinaison_deg": 90
+                  },
+                  "expo_br": "br1"
+                },
+                {
+                  "id": "baie-est",
+                  "type_baie": "fenetre",
+                  "a_b_m2": 27.0,
+                  "exposition": {
+                    "azimut_deg": 270,
+                    "inclinaison_deg": 90
+                  },
+                  "expo_br": "br1"
+                }
+              ],
+              "ponts_thermiques": [
+                {
+                  "id": "plancher-bas-mur",
+                  "psi_l_w_mk": 0.1,
+                  "l_l_m": 120.0,
+                  "sf_c_l": 0,
+                  "sf_e_l": 0
+                },
+                {
+                  "id": "acrotere",
+                  "psi_l_w_mk": 0.3,
+                  "l_l_m": 120.0,
+                  "sf_c_l": 0,
+                  "sf_e_l": 0
+                }
+              ],
+              "entrees_air": {
+                "m_m3_h": 2700
+              },
+              "bouches_conduits": [
+                {
+                  "id": "extraction",
+                  "isouf": "reprise",
+                  "q_spec_occ_m3_h": 2700,
+                  "q_spec_inocc_m3_h": 2700,
+                  "crdbnr": 0.9,
+                  "cdep": 1.15
+                }
+              ],
+              "iclim": false,
+              "programmation": {
+                "chauffage": "horloge"
+              },
+              "distributions": [
+                {
+                  "id": "distribution-plancher",
+                  "fonction": "chauffage",
+                  "distribution_intergroupe": "intergroupes-chauffage",
+                  "reseau": {
+                    "hydraulique": {
+                      "regulation_debit": "debit_constant_continu",
+                      "regulation_temperature": "loi_d_eau",
+                      "theta_dep_dim_c": 35.0,
+                      "delta_theta_em_dim_k": 5.0,
+                      "q_nom_m3_h": 11.2,
+                      "circulateur": "vitesse_constante",
+                      "p_aux_w": 60.0,
+                      "l_vc_m": 112.5,
+                      "l_hvc_m": 0.0,
+                      "u_vc_w_mk": 0.2,
+                      "u_hvc_w_mk": 0.0
+                    }
+                  }
+                }
+              ],
+              "emetteurs": [
+                {
+                  "id": "plancher-chauffant",
+                  "chauffage": {
+                    "type_emetteur": "plancher_chauffant",
+                    "variation_spatiale": {
+                      "classe": {
+                        "classe": "A",
+                        "hsp_m": 3.0
+                      }
+                    },
+                    "variation_temporelle": {
+                      "defaut": {
+                        "arret_total": true
+                      }
+                    },
+                    "effet_joule": false,
+                    "rats": 1.0,
+                    "ratt": 1.0,
+                    "distribution": "distribution-plancher"
+                  },
+                  "pertes_au_dos": {
+                    "r_i_m2k_w": 0.15,
+                    "u_e_w_m2k": 0.15
+                  }
+                }
+              ],
+              "emetteurs_ecs": [
+                {
+                  "id": "sanitaires",
+                  "rat_em": 1.0,
+                  "part_melangeur": 0.0,
+                  "part_mitigeur": 1.0,
+                  "part_temporisateur": 0.0,
+                  "appareils": "douche_seule",
+                  "distribution": {
+                    "d_int_m": 0.016,
+                    "l_hvc_m": 0.0,
+                    "nb_dist": 1
+                  },
+                  "distribution_intergroupe": "ecs-individuelle"
+                }
+              ],
+              "locaux": [
+                {
+                  "id": "chambres",
+                  "type_local": "chambre_sans_cuisine",
+                  "ratio_local": 0.7,
+                  "ratio_ecl_nat": 0.9,
+                  "eclairage": {
+                    "p_ecl_tot_w_m2": 5,
+                    "gest_ecl": "interrupteur_manuel",
+                    "grad_ecl": "manuelle",
+                    "fractionne": false
+                  }
+                },
+                {
+                  "id": "sanitaires",
+                  "type_local": "sanitaires_collectifs",
+                  "ratio_local": 0.05,
+                  "ratio_ecl_nat": 0.0,
+                  "eclairage": {
+                    "p_ecl_tot_w_m2": 5,
+                    "gest_ecl": "marche_et_arret_automatiques",
+                    "grad_ecl": "aucune",
+                    "fractionne": false,
+                    "p_ecl_aux_w_m2": 0.1
+                  }
+                },
+                {
+                  "id": "service",
+                  "type_local": "local_service",
+                  "ratio_local": 0.1,
+                  "ratio_ecl_nat": 0.0,
+                  "eclairage": {
+                    "p_ecl_tot_w_m2": 4,
+                    "gest_ecl": "interrupteur_manuel",
+                    "grad_ecl": "manuelle",
+                    "fractionne": false
+                  }
+                },
+                {
+                  "id": "circulations",
+                  "type_local": "circulation_accueil",
+                  "ratio_local": 0.15,
+                  "ratio_ecl_nat": 0.2,
+                  "eclairage": {
+                    "p_ecl_tot_w_m2": 4,
+                    "gest_ecl": "marche_et_arret_automatiques",
+                    "grad_ecl": "manuelle",
+                    "fractionne": false,
+                    "p_ecl_aux_w_m2": 0.1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "jour",
+          "usage": "hotel012_jour",
+          "h_zone_m": 2.7,
+          "h_plancher_m": 0,
+          "q4pa_surf_m3_h_m2": 1.0,
+          "ventilation": {
+            "id": "vmc-jour",
+            "systeme": {
+              "simple_flux_extraction": {
+                "p_vent_occ_w": 700,
+                "p_vent_inocc_w": 60
+              }
+            },
+            "reseau": {
+              "r_rep_m2k_w": 0.6,
+              "b": 1.0
+            }
+          },
+          "groupes": [
+            {
+              "id": "jour",
+              "su_m2": 300,
+              "v_m3": 810.0,
+              "categorie_ce1_ce2": "CE1",
+              "inertie": {
+                "quotidienne": "moyenne",
+                "sequentielle": "defaut",
+                "ams_surf_m2_m2": 2.5,
+                "annuelle": "defaut",
+                "ama_surf_m2_m2": 2.5
+              },
+              "parois_opaques": [
+                {
+                  "id": "mur-sud",
+                  "type_paroi": "mur",
+                  "a_k_m2": 28.8,
+                  "exposition": {
+                    "azimut_deg": 0,
+                    "inclinaison_deg": 90
+                  }
+                },
+                {
+                  "id": "mur-ouest",
+                  "type_paroi": "mur",
+                  "a_k_m2": 42.3,
+                  "exposition": {
+                    "azimut_deg": 90,
+                    "inclinaison_deg": 90
+                  }
+                },
+                {
+                  "id": "mur-nord",
+                  "type_paroi": "mur",
+                  "a_k_m2": 33.3,
+                  "exposition": {
+                    "azimut_deg": 180,
+                    "inclinaison_deg": 90
+                  }
+                },
+                {
+                  "id": "mur-est",
+                  "type_paroi": "mur",
+                  "a_k_m2": 37.8,
+                  "exposition": {
+                    "azimut_deg": 270,
+                    "inclinaison_deg": 90
+                  }
+                },
+                {
+                  "id": "toiture",
+                  "type_paroi": "toiture",
+                  "a_k_m2": 300,
+                  "exposition": {
+                    "azimut_deg": 0,
+                    "inclinaison_deg": 0
+                  }
+                },
+                {
+                  "id": "plancher-bas",
+                  "type_paroi": "plancher",
+                  "a_k_m2": 300,
+                  "exposition": {
+                    "azimut_deg": 0,
+                    "inclinaison_deg": 180
+                  }
+                }
+              ],
+              "baies": [
+                {
+                  "id": "baie-sud",
+                  "type_baie": "fenetre",
+                  "a_b_m2": 18.0,
+                  "exposition": {
+                    "azimut_deg": 0,
+                    "inclinaison_deg": 90
+                  },
+                  "expo_br": "br1"
+                },
+                {
+                  "id": "baie-ouest",
+                  "type_baie": "fenetre",
+                  "a_b_m2": 4.5,
+                  "exposition": {
+                    "azimut_deg": 90,
+                    "inclinaison_deg": 90
+                  },
+                  "expo_br": "br1"
+                },
+                {
+                  "id": "baie-nord",
+                  "type_baie": "fenetre",
+                  "a_b_m2": 13.5,
+                  "exposition": {
+                    "azimut_deg": 180,
+                    "inclinaison_deg": 90
+                  },
+                  "expo_br": "br1"
+                },
+                {
+                  "id": "baie-est",
+                  "type_baie": "fenetre",
+                  "a_b_m2": 9.0,
+                  "exposition": {
+                    "azimut_deg": 270,
+                    "inclinaison_deg": 90
+                  },
+                  "expo_br": "br1"
+                }
+              ],
+              "ponts_thermiques": [
+                {
+                  "id": "plancher-bas-mur",
+                  "psi_l_w_mk": 0.1,
+                  "l_l_m": 69.3,
+                  "sf_c_l": 0,
+                  "sf_e_l": 0
+                },
+                {
+                  "id": "acrotere",
+                  "psi_l_w_mk": 0.3,
+                  "l_l_m": 69.3,
+                  "sf_c_l": 0,
+                  "sf_e_l": 0
+                }
+              ],
+              "entrees_air": {
+                "m_m3_h": 2400
+              },
+              "bouches_conduits": [
+                {
+                  "id": "extraction",
+                  "isouf": "reprise",
+                  "q_spec_occ_m3_h": 2400,
+                  "q_spec_inocc_m3_h": 240,
+                  "crdbnr": 0.9,
+                  "cdep": 1.15
+                }
+              ],
+              "iclim": false,
+              "programmation": {
+                "chauffage": "horloge"
+              },
+              "distributions": [
+                {
+                  "id": "distribution-plancher",
+                  "fonction": "chauffage",
+                  "distribution_intergroupe": "intergroupes-chauffage",
+                  "reseau": {
+                    "hydraulique": {
+                      "regulation_debit": "debit_constant_continu",
+                      "regulation_temperature": "loi_d_eau",
+                      "theta_dep_dim_c": 35.0,
+                      "delta_theta_em_dim_k": 5.0,
+                      "q_nom_m3_h": 3.8,
+                      "circulateur": "vitesse_constante",
+                      "p_aux_w": 60.0,
+                      "l_vc_m": 37.5,
+                      "l_hvc_m": 0.0,
+                      "u_vc_w_mk": 0.2,
+                      "u_hvc_w_mk": 0.0
+                    }
+                  }
+                }
+              ],
+              "emetteurs": [
+                {
+                  "id": "plancher-chauffant",
+                  "chauffage": {
+                    "type_emetteur": "plancher_chauffant",
+                    "variation_spatiale": {
+                      "classe": {
+                        "classe": "A",
+                        "hsp_m": 3.0
+                      }
+                    },
+                    "variation_temporelle": {
+                      "defaut": {
+                        "arret_total": true
+                      }
+                    },
+                    "effet_joule": false,
+                    "rats": 1.0,
+                    "ratt": 1.0,
+                    "distribution": "distribution-plancher"
+                  },
+                  "pertes_au_dos": {
+                    "r_i_m2k_w": 0.15,
+                    "u_e_w_m2k": 0.15
+                  }
+                }
+              ],
+              "emetteurs_ecs": [
+                {
+                  "id": "sanitaires",
+                  "rat_em": 1.0,
+                  "part_melangeur": 0.0,
+                  "part_mitigeur": 1.0,
+                  "part_temporisateur": 0.0,
+                  "appareils": "douche_seule",
+                  "distribution": {
+                    "d_int_m": 0.016,
+                    "l_hvc_m": 0.0,
+                    "nb_dist": 1
+                  },
+                  "distribution_intergroupe": "ecs-individuelle"
+                }
+              ],
+              "locaux": [
+                {
+                  "id": "bureaux",
+                  "type_local": "bureau_standard",
+                  "ratio_local": 0.15,
+                  "ratio_ecl_nat": 0.8,
+                  "eclairage": {
+                    "p_ecl_tot_w_m2": 6,
+                    "gest_ecl": "interrupteur_manuel",
+                    "grad_ecl": "manuelle",
+                    "fractionne": false
+                  }
+                },
+                {
+                  "id": "sanitaires",
+                  "type_local": "sanitaires_collectifs",
+                  "ratio_local": 0.1,
+                  "ratio_ecl_nat": 0.0,
+                  "eclairage": {
+                    "p_ecl_tot_w_m2": 5,
+                    "gest_ecl": "marche_et_arret_automatiques",
+                    "grad_ecl": "aucune",
+                    "fractionne": false,
+                    "p_ecl_aux_w_m2": 0.1
+                  }
+                },
+                {
+                  "id": "circulations",
+                  "type_local": "circulation_accueil",
+                  "ratio_local": 0.45,
+                  "ratio_ecl_nat": 0.3,
+                  "eclairage": {
+                    "p_ecl_tot_w_m2": 4,
+                    "gest_ecl": "marche_et_arret_automatiques",
+                    "grad_ecl": "manuelle",
+                    "fractionne": false,
+                    "p_ecl_aux_w_m2": 0.1
+                  }
+                },
+                {
+                  "id": "petits-dej",
+                  "type_local": "salle_petits_dejeuners",
+                  "ratio_local": 0.3,
+                  "ratio_ecl_nat": 0.5,
+                  "eclairage": {
+                    "p_ecl_tot_w_m2": 6,
+                    "gest_ecl": "interrupteur_manuel",
+                    "grad_ecl": "manuelle",
+                    "fractionne": false
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "generations": [
+        {
+          "id": "chaufferie-cogeneration",
+          "raccordement_reseaux": "avec_isolement",
+          "position": "en_volume_chauffe",
+          "priorite": "cascade",
+          "gestion_temperature_chauffage": "reseaux",
+          "generateurs": [
+            {
+              "id": "cogenerateur-mci",
+              "rdim": 1,
+              "priorite_chauffage": 1,
+              "nature": {
+                "cogeneration": {
+                  "fonction": "chauffage",
+                  "combustible": "gaz_naturel",
+                  "condensation": false,
+                  "type_cogenerateur": "moteur_combustion_interne",
+                  "module_seul": {
+                    "p_th_kw": 5.0,
+                    "statut": "declaree",
+                    "eta_th_pct": 62.0,
+                    "eta_el_pct": 27.0,
+                    "p_w_aux_kw": 0.12
+                  },
+                  "p_th_min_kw": 2.5,
+                  "raccordement": "permanent"
+                }
+              }
+            },
+            {
+              "id": "appoint-electrique",
+              "rdim": 1,
+              "priorite_chauffage": 2,
+              "nature": {
+                "effet_joule": {
+                  "fonction": "chauffage",
+                  "pn_gen_w": 15000
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "chauffe-eau",
+          "raccordement_reseaux": "avec_isolement",
+          "position": "en_volume_chauffe",
+          "generateurs": [
+            {
+              "id": "resistance",
+              "rdim": 6,
+              "nature": {
+                "effet_joule": {
+                  "fonction": "ecs",
+                  "pn_gen_w": 9000
+                }
+              }
+            }
+          ],
+          "stockages": [
+            {
+              "id": "ballon",
+              "nb_assemblages": 6,
+              "ballon": {
+                "v_tot_l": 500,
+                "pertes": {
+                  "defaut": {
+                    "nature": "effet_joule_vertical"
+                  }
+                },
+                "theta_max_c": 65
+              },
+              "base": {
+                "generateur": "resistance",
+                "programmation": "permanent",
+                "z_reg": 1
+              }
+            }
+          ]
+        }
+      ],
+      "distributions_intergroupes": [
+        {
+          "id": "intergroupes-chauffage",
+          "fonction": "chauffage",
+          "generation": "chaufferie-cogeneration",
+          "reseau": {
+            "hydraulique_individuel": {
+              "l_vc_m": 0,
+              "l_hvc_m": 0,
+              "u_vc_w_mk": 0,
+              "u_hvc_w_mk": 0,
+              "p_aux_w": 0,
+              "circulateur": "aucun"
+            }
+          }
+        }
+      ],
+      "distributions_ecs_intergroupes": [
+        {
+          "id": "ecs-individuelle",
+          "generation": "chauffe-eau",
+          "reseau": "aucun"
+        }
+      ],
+      "exigences": {
+        "categorie_contraintes_exterieures": "categorie_1",
+        "zone_bruit": "br1",
+        "annee_depot_permis": 2026,
+        "mois_depot_permis": 9
+      }
+    }
+  ]
+}

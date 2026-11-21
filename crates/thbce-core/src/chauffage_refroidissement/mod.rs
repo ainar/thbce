@@ -38,6 +38,7 @@ pub mod reseau_de_chaleur_et_de_froid;
 pub mod reseaux_cta;
 pub mod saisons_fonctionnement;
 pub mod sources_amont;
+pub mod systeme_de_cogeneration;
 pub mod systemes_groupe;
 pub mod thermodynamique_elec;
 pub mod thermodynamique_gaz;

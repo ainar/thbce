@@ -23,7 +23,13 @@ fn exiger(r: &mut RapportValidation, c: &str, v: Option<f64>, nom: &str, pourquo
     }
 }
 
-fn valider_composant(r: &mut RapportValidation, c: &str, x: &ComposantAcv, parcelle: bool) {
+fn valider_composant(
+    r: &mut RapportValidation,
+    c: &str,
+    x: &ComposantAcv,
+    parcelle: bool,
+    avec_cogeneration: bool,
+) {
     if !parcelle && lot_de(&x.sous_lot).is_none() {
         r.erreur(
             format!("{c}.sous_lot"),
@@ -31,12 +37,15 @@ fn valider_composant(r: &mut RapportValidation, c: &str, x: &ComposantAcv, parce
             "sous-lot inconnu (annexe II, tableau 5 : 1.1 à 11.3, 12, 13)",
         );
     }
-    if !parcelle && x.sous_lot == "8.2" {
-        r.hors_perimetre(
+    // Annexe II, éq. (16) : composants du sous-lot 8.2 affectés au prorata du taux
+    // d'autoconsommation global de la cogénération, qui demande un cogénérateur (fiche 8.21).
+    if !parcelle && x.sous_lot == "8.2" && !avec_cogeneration {
+        r.erreur(
             format!("{c}.sous_lot"),
             Some(x.sous_lot.clone()),
-            "sous-lot 8.2 (cogénération, affecté au prorata du taux d'autoconsommation TAC_cogé, \
-             éq. 16)",
+            "sous-lot 8.2 (installation de cogénération) sans cogénérateur dans les générations \
+             du bâtiment : le taux d'autoconsommation global TAC_cogé (annexe II, éq. 16) n'est \
+             pas défini",
         );
     }
     r.positif(format!("{c}.quantite"), x.quantite);
@@ -164,7 +173,7 @@ fn valider_chantier(
                 );
             }
             for (i, x) in composants.iter().enumerate() {
-                valider_composant(r, &format!("{cc}.composants[{i}]"), x, true);
+                valider_composant(r, &format!("{cc}.composants[{i}]"), x, true, false);
             }
         }
         ChantierAcv::SimplifieMaison {
@@ -369,8 +378,19 @@ pub(super) fn valider_acv(r: &mut RapportValidation, cb: &str, bat: &Batiment) {
         &format!("{c}.composants"),
         a.composants.iter().map(|x| &x.id),
     );
+    let avec_cogeneration = bat.generations.iter().any(|g| {
+        g.generateurs
+            .iter()
+            .any(|x| matches!(x.nature, crate::entree::NatureGenerateur::Cogeneration(_)))
+    });
     for (i, x) in a.composants.iter().enumerate() {
-        valider_composant(r, &format!("{c}.composants[{i}]"), x, false);
+        valider_composant(
+            r,
+            &format!("{c}.composants[{i}]"),
+            x,
+            false,
+            avec_cogeneration,
+        );
         if let Some(k) = a
             .lots_forfaitaires
             .iter()
@@ -455,7 +475,7 @@ pub(super) fn valider_acv(r: &mut RapportValidation, cb: &str, bat: &Batiment) {
     if let Some(p) = &a.parcelle {
         let cp = format!("{c}.parcelle");
         for (i, x) in p.composants.iter().enumerate() {
-            valider_composant(r, &format!("{cp}.composants[{i}]"), x, true);
+            valider_composant(r, &format!("{cp}.composants[{i}]"), x, true, false);
         }
         if valider_terres(r, &format!("{cp}.comblements"), &p.comblements, &[], true) {
             let s = &a.donnees_service;

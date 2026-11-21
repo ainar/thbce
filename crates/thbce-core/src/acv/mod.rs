@@ -48,6 +48,8 @@ pub struct EntreesAcv<'a> {
     pub ic_energie_kgco2_m2: Option<f64>,
     /// Taux d'autoconsommation de la production photovoltaïque, en %.
     pub tac_pv_pct: Option<f64>,
+    /// « TAC_cogé global » du bâtiment, en % (annexe II §3.7.2, éq. 5 ; fiche 13.2, éq. 2455).
+    pub tac_coge_global_pct: Option<f64>,
 }
 
 /// Cumul d'un sous-lot, en kg éq. CO2 (absolu) puis rapporté à la Sref.
@@ -297,7 +299,9 @@ pub fn calculer_acv(e: &EntreesAcv) -> ResultatsAcv {
     // Composants, par sous-lot puis par lot (éq. 15, 21, 22, 27 à 34, 140 à 142).
     let cumuls = cumuls_composants(e, &mut defauts, &mut fluides);
     let tac = e.tac_pv_pct.unwrap_or(0.0) / 100.0;
+    let tac_coge = e.tac_coge_global_pct.unwrap_or(0.0) / 100.0;
     let avec_lot13 = cumuls.contains_key("13");
+    let avec_8_2 = cumuls.contains_key("8.2");
     let mut par_lot: BTreeMap<u8, Vec<(String, Cumul)>> = BTreeMap::new();
     for (k, mut c) in cumuls {
         let lot = lot_de(&k).or_else(|| donnees::lot_forfait(&k)).unwrap_or(0);
@@ -308,6 +312,14 @@ pub fn calculer_acv(e: &EntreesAcv) -> ResultatsAcv {
             c.dynamique = c.dynamique.map(|x| x * tac);
             c.ded *= tac;
             c.stock_c *= tac;
+        }
+        if k == "8.2" {
+            // Éq. (16) : prorata du taux d'autoconsommation global de la cogénération, même
+            // affectation pour StockC et Icded (comme le lot 13, éq. 22).
+            c.statique = c.statique.map(|x| x * tac_coge);
+            c.dynamique = c.dynamique.map(|x| x * tac_coge);
+            c.ded *= tac_coge;
+            c.stock_c *= tac_coge;
         }
         par_lot.entry(lot).or_default().push((k, c));
     }
@@ -488,6 +500,7 @@ pub fn calculer_acv(e: &EntreesAcv) -> ResultatsAcv {
             q_parcelle_eaux_usees_m3: q_parc.1,
         },
         tac_pv_pct: avec_lot13.then_some(tac * 100.0),
+        tac_coge_global_pct: avec_8_2.then_some(tac_coge * 100.0),
         exigences: None,
         valeurs_par_defaut: defauts,
     }
@@ -636,6 +649,7 @@ mod tests {
             zones: &[(1, 100.0)],
             ic_energie_kgco2_m2: Some(150.0),
             tac_pv_pct: None,
+            tac_coge_global_pct: None,
         });
         // Nocc = 4 + 2 = 6 (éq. 131) ; Qeau potable = 48 × 6 = 288 m³/an (éq. 91).
         proche(r.eau_quantites.nocc, 6.0);

@@ -7,7 +7,9 @@
 //! ([`ReleveElectrique`]), en différence des cumuls des groupes, des réseaux et des générations
 //! d'un pas de temps à l'autre ; les postes calculés hors du modèle thermique (logement
 //! collectif, parkings, usages mobiliers, ventilateurs des centrales) s'y ajoutent ensuite.
-//! L'autoconsommation se calcule heure par heure (éq. 2527 à 2537).
+//! L'autoconsommation se calcule heure par heure (éq. 2527 à 2537), sur la production
+//! photovoltaïque et sur l'électricité produite par les cogénérateurs (fiche 8.21, éq. 2520 à
+//! 2522 et 2526), relevée elle aussi pendant le calcul Th-C.
 
 use crate::bati::assemblage_batiment::BatimentHoraire;
 use crate::chauffage_refroidissement::calculs_generation::{Energie, Poste};
@@ -45,14 +47,20 @@ pub mod poste {
 pub struct ReleveElectrique {
     /// Consommation de chaque pas de temps, par poste.
     pub horaire: Vec<[f64; NB_POSTES]>,
+    /// « Eelec-prod-coge(h) » : électricité produite par les cogénérateurs du bâtiment à chaque
+    /// pas de temps, en Wh (éq. 2520 à 2522).
+    pub prod_coge: Vec<f64>,
     precedent: [f64; NB_POSTES],
+    precedent_coge: f64,
 }
 
 impl Default for ReleveElectrique {
     fn default() -> Self {
         Self {
             horaire: vec![[0.0; NB_POSTES]; NB_HEURES_AN],
+            prod_coge: vec![0.0; NB_HEURES_AN],
             precedent: [0.0; NB_POSTES],
+            precedent_coge: 0.0,
         }
     }
 }
@@ -115,6 +123,19 @@ impl ReleveElectrique {
             }
         }
         self.precedent = c;
+        // Éq. (1493) et (2520) à (2522) : la production attribuée aux groupes, sommée sur le
+        // bâtiment, est celle des générations (les ratios de l'éq. 1492 somment à 1).
+        let coge: f64 = b
+            .systemes
+            .generations_horaires
+            .iter()
+            .flat_map(|g| &g.generateurs)
+            .map(|x| x.cumuls.q_prelec_wh)
+            .sum();
+        if let Some(x) = self.prod_coge.get_mut(h) {
+            *x += coge - self.precedent_coge;
+        }
+        self.precedent_coge = coge;
     }
 
     /// Ajoute une série horaire (en Wh) au poste d'indice `p`.
@@ -149,12 +170,36 @@ pub struct BilanElectrique {
     pub prod_pv_mensuel_wh: [f64; 12],
     /// Autoconsommation par mois.
     pub prod_pv_ac_mensuel_wh: [f64; 12],
+    /// « Eelec-prod-coge » de l'année (éq. 2522).
+    pub prod_coge_wh: f64,
+    /// « Eelec-prod-coge-AC » de l'année (éq. 2531).
+    pub prod_coge_ac_wh: f64,
+    /// Production des cogénérateurs, par mois.
+    pub prod_coge_mensuel_wh: [f64; 12],
+    /// Production des cogénérateurs autoconsommée, par mois.
+    pub prod_coge_ac_mensuel_wh: [f64; 12],
 }
 
 impl BilanElectrique {
-    /// Électricité exportée sur l'année (éq. 2469 et 2483).
+    /// Électricité exportée sur l'année (éq. 2469 et 2483), photovoltaïque et cogénération.
     pub fn exportee_wh(&self) -> f64 {
+        self.exportee_pv_wh() + self.prod_coge_wh - self.prod_coge_ac_wh
+    }
+
+    /// Part photovoltaïque de l'électricité exportée sur l'année.
+    pub fn exportee_pv_wh(&self) -> f64 {
         self.prod_pv_wh - self.prod_pv_ac_wh
+    }
+
+    /// « O_TAC_elec_coge_annuel », en % (éq. 2486) ; `None` sans production.
+    pub fn tac_coge_pct(&self) -> Option<f64> {
+        (self.prod_coge_wh > 0.0).then(|| 100.0 * self.prod_coge_ac_wh / self.prod_coge_wh)
+    }
+
+    /// « O_TAC_elec_annuel », en % (éq. 2484) ; `None` sans production.
+    pub fn tac_total_pct(&self) -> Option<f64> {
+        let p = self.prod_pv_wh + self.prod_coge_wh;
+        (p > 0.0).then(|| 100.0 * (self.prod_pv_ac_wh + self.prod_coge_ac_wh) / p)
     }
 
     /// « O_TAC_elec_PV_annuel », en % (éq. 2485) ; `None` sans production.
@@ -167,24 +212,45 @@ impl BilanElectrique {
 ///
 /// `cons` : consommations horaires par poste, usages mobiliers compris ; `prod_pv_wh` :
 /// production photovoltaïque attribuée au bâtiment, « Eelec_prod_PV(h) » (éq. 2523), vide sans
-/// installation. Sans cogénération (hors de la première version), la production totale est la
-/// production photovoltaïque (éq. 2526).
-pub fn bilan(cons: &[[f64; NB_POSTES]], prod_pv_wh: &[f64]) -> BilanElectrique {
+/// installation ; `prod_coge_wh` : électricité produite par les cogénérateurs du bâtiment,
+/// « Eelec-prod-coge(h) » (éq. 2522), vide sans cogénération. La production totale est leur
+/// somme (éq. 2526).
+pub fn bilan(
+    cons: &[[f64; NB_POSTES]],
+    prod_pv_wh: &[f64],
+    prod_coge_wh: &[f64],
+) -> BilanElectrique {
     let mut b = BilanElectrique::default();
     for (h, w) in cons.iter().enumerate() {
         let mois = usize::from(date_scenario(h).mois) - 1;
-        let prod = prod_pv_wh.get(h).copied().unwrap_or(0.0).max(0.0);
+        let pv = prod_pv_wh.get(h).copied().unwrap_or(0.0).max(0.0);
+        let coge = prod_coge_wh.get(h).copied().unwrap_or(0.0).max(0.0);
+        // Éq. (2526).
+        let prod = pv + coge;
         // Éq. (2519) : consommation tous usages, mobilier compris.
         let tous: f64 = w.iter().sum();
         // Éq. (2527) : énergie autoconsommée.
         let ac = prod.min(tous.max(0.0));
         // Éq. (2529) : taux d'autoproduction, nul sans consommation.
         let tap = if tous > 0.0 { ac / tous } else { 0.0 };
-        // Éq. (2528) et (2530) : sans cogénération, TAC·Eprod_PV = Eprod_AC.
-        b.prod_pv_wh += prod;
-        b.prod_pv_ac_wh += ac;
-        b.prod_pv_mensuel_wh[mois] += prod;
-        b.prod_pv_ac_mensuel_wh[mois] += ac;
+        // Éq. (2528), nul sans production ; éq. (2530) et (2531) : autoconsommation de chaque
+        // production au prorata.
+        let tac = if prod > 0.0 { ac / prod } else { 0.0 };
+        // Sans production de cogénération, `ac` est repris tel quel (identité bit à bit avec
+        // le bilan photovoltaïque seul, sans le détour par le rapport `ac / prod`).
+        let (pv_ac, coge_ac) = if coge > 0.0 {
+            (tac * pv, tac * coge)
+        } else {
+            (ac, 0.0)
+        };
+        b.prod_pv_wh += pv;
+        b.prod_pv_ac_wh += pv_ac;
+        b.prod_pv_mensuel_wh[mois] += pv;
+        b.prod_pv_ac_mensuel_wh[mois] += pv_ac;
+        b.prod_coge_wh += coge;
+        b.prod_coge_ac_wh += coge_ac;
+        b.prod_coge_mensuel_wh[mois] += coge;
+        b.prod_coge_ac_mensuel_wh[mois] += coge_ac;
         for (p, &x) in w.iter().enumerate() {
             // Éq. (2535).
             let imp = x * (1.0 - tap);
@@ -212,7 +278,7 @@ mod tests {
         cons[1][poste::MOB] = 300.0;
         // Heure 2 : 1 000 Wh d'éclairage, 250 Wh produits.
         cons[2][poste::ECL] = 1000.0;
-        let b = bilan(&cons, &[0.0, 900.0, 250.0]);
+        let b = bilan(&cons, &[0.0, 900.0, 250.0], &[]);
         assert_eq!(b.prod_pv_wh, 1150.0);
         // 600 Wh autoconsommés à l'heure 1, 250 Wh à l'heure 2.
         assert_eq!(b.prod_pv_ac_wh, 850.0);
@@ -228,8 +294,26 @@ mod tests {
     #[test]
     fn sans_production_tout_est_importe() {
         let cons = vec![[10.0; NB_POSTES]; 24];
-        let b = bilan(&cons, &[]);
+        let b = bilan(&cons, &[], &[]);
         assert_eq!(b.imp_wh, b.cons_wh);
         assert_eq!(b.tac_pct(), None);
+    }
+
+    #[test]
+    fn autoconsommation_avec_cogeneration() {
+        // Heure 0 : 1 000 Wh consommés, 600 Wh photovoltaïques et 900 Wh de cogénération :
+        // TAC = 1000/1500, réparti au prorata (éq. 2528, 2530 et 2531).
+        let mut cons = vec![[0.0; NB_POSTES]; 2];
+        cons[0][poste::CH] = 1000.0;
+        // Heure 1 : 400 Wh consommés, 300 Wh de cogénération seule.
+        cons[1][poste::ECS] = 400.0;
+        let b = bilan(&cons, &[600.0, 0.0], &[900.0, 300.0]);
+        assert!((b.prod_pv_ac_wh - 400.0).abs() < 1e-12);
+        assert!((b.prod_coge_ac_wh - (600.0 + 300.0)).abs() < 1e-12);
+        assert_eq!(b.imp_wh[poste::CH], 0.0);
+        assert!((b.imp_wh[poste::ECS] - 100.0).abs() < 1e-12);
+        assert!((b.exportee_wh() - 500.0).abs() < 1e-12);
+        assert!((b.exportee_pv_wh() - 200.0).abs() < 1e-12);
+        assert!((b.tac_coge_pct().unwrap() - 75.0).abs() < 1e-12);
     }
 }

@@ -181,6 +181,10 @@ pub struct EntreesSorties<'a> {
     pub total_horaire: &'a [[f64; NB_POSTES]],
     /// Production photovoltaïque horaire du bâtiment, en Wh ; vide sans installation.
     pub prod_pv_wh: &'a [f64],
+    /// Électricité produite par les cogénérateurs du bâtiment, par heure, en Wh (éq. 2522) :
+    /// elle entre dans l'autoconsommation (éq. 2527 à 2529) ; sa part par zone (éq. 2521)
+    /// n'est pas restituée (lecture Q157).
+    pub prod_coge_wh: &'a [f64],
     /// Indicateurs du bâtiment (forfaits de refroidissement).
     pub indicateurs: &'a ResultatsIndicateurs,
     /// Générations du bâtiment.
@@ -325,10 +329,11 @@ pub fn calculer(e: &EntreesSorties<'_>, mut releve: ReleveZones) -> SortiesDetai
             .map(|z| z[h].iter().sum::<f64>())
             .sum();
         let prod = e.prod_pv_wh.get(h).copied().unwrap_or(0.0).max(0.0);
-        // Éq. (2527) à (2530), (2536).
-        let ac = prod.min(tous_bat.max(0.0));
+        let prod_tot = prod + e.prod_coge_wh.get(h).copied().unwrap_or(0.0).max(0.0);
+        // Éq. (2526) à (2530), (2536).
+        let ac = prod_tot.min(tous_bat.max(0.0));
         let tap = if tous_bat > 0.0 { ac / tous_bat } else { 0.0 };
-        let tac = if prod > 0.0 { ac / prod } else { 0.0 };
+        let tac = if prod_tot > 0.0 { ac / prod_tot } else { 0.0 };
         for z in 0..nz {
             let w = &releve.zones_horaire[z][h];
             for p in 0..NB_POSTES {
@@ -522,7 +527,7 @@ pub fn calculer(e: &EntreesSorties<'_>, mut releve: ReleveZones) -> SortiesDetai
                     0.0,
                     sref_z,
                 );
-                // Éq. (2437), sans cogénération.
+                // Éq. (2437), part photovoltaïque (lecture Q157).
                 let exportee = SerieMensuelle::nouvelle(
                     std::array::from_fn(|m| (pv[iz][v][0][m] - pv[iz][v][1][m]) / 1000.0),
                     0.0,

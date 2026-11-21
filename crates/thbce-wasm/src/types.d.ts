@@ -557,6 +557,46 @@ export interface BesoinsSortie {
   refroidissement: SerieMensuelle;
 }
 
+/**
+ * Bilan de l'électricité produite par les cogénérateurs du bâtiment (fiche 8.21, §13.2.3.5 et
+ * §13.4.3.5, lot 2e).
+ */
+export interface BilanProductionCogeneration {
+  /**
+   * « Cef_tot_comb^cogé,bat » : consommation d'énergie finale du combustible des
+   * cogénérateurs pour le chauffage et l'ECS, auxiliaires exclus, en kWh (§13.2.2).
+   */
+  cef_tot_comb_kwh: number;
+  /**
+   * Électricité produite exportée, en kWh (part de la cogénération de l'éq. 2483) ; sans
+   * effet sur Cep, Cep,nr et Ic énergie.
+   */
+  e_exportee_kwh: number;
+  /** « O_Eef_prod_coge_AC_annuel » : électricité produite autoconsommée, en kWh (éq. 2482). */
+  e_prod_coge_ac_kwh: number;
+  /** Électricité produite autoconsommée, par mois, en kWh (éq. 2468). */
+  e_prod_coge_ac_mensuel_kwh: number[];
+  /** « O_Eef_Prod_Coge_annuel » : électricité produite, en kWh (éq. 2480). */
+  e_prod_coge_kwh: number;
+  /** Électricité produite, par mois des scénarios, en kWh (éq. 2466). */
+  e_prod_coge_mensuel_kwh: number[];
+  /**
+   * « O_TAC_elec_annuel » : taux d'autoconsommation de toute l'électricité produite
+   * (photovoltaïque et cogénération), en % (éq. 2484).
+   */
+  tac_elec_pct: number;
+  /**
+   * « O_TAC_Coge_global_annuel » : taux d'autoconsommation global de la chaleur et de
+   * l'électricité des cogénérateurs, en % (éq. 2455 ; annexe II §3.7.2, éq. 5).
+   */
+  tac_global_pct: number;
+  /**
+   * « O_TAC_elec_Coge_annuel » : taux d'autoconsommation de l'électricité produite, en %
+   * (éq. 2486).
+   */
+  tac_pct: number;
+}
+
 /** Bilan de la production photovoltaïque du bâtiment (§13.4.3.5). */
 export interface BilanProductionPv {
   /**
@@ -1055,6 +1095,51 @@ export type ClasseEmetteurFroid = "A" | "B" | "C";
 /** « Cletres » : classe d'étanchéité d'un réseau aéraulique (tableau 59). */
 export type ClasseEtancheite = "A" | "B" | "C";
 
+/**
+ * Th-BCE 2020 §8.21.2, tableau 135 — système de cogénération (micro-cogénérateur de débit
+ * calorifique inférieur à 70 kW et de puissance électrique inférieure à 50 kW : moteur à
+ * combustion interne, moteur Stirling, micro-turbine ; les piles à combustible sont exclues).
+ * La position de la génération fixe « idpos_gen ».
+ */
+export interface CogenerationSaisie {
+  /**
+   * « chp100+sup100 » : module et brûleur d'appoint intégré à pleine charge
+   * (« idapp_inte » = 1) ; absent sans appoint intégré.
+   */
+  avec_appoint?: PerformancesCogeneration | null;
+  /** « type_combustible ». */
+  combustible: CombustibleCogeneration;
+  /** « ind_condensation » : micro-cogénérateur à condensation (tableau 137). */
+  condensation: boolean;
+  /** « idfougen » : chauffage, ECS, ou chauffage et ECS. */
+  fonction: FonctionChaleur;
+  /** « chp100+sup0 » : module de cogénération seul à pleine charge. */
+  module_seul: PerformancesCogeneration;
+  /**
+   * « Pth,chp_min » : puissance thermique minimale de fonctionnement stabilisé du module,
+   * en kW. Absent : 60 % de « Pth;chp100+sup0 » (tableau 140).
+   */
+  p_th_min_kw?: number | null;
+  /**
+   * « PWaux,veille » : puissance électrique des auxiliaires en veille, en W. Absent : 15 W
+   * (tableau 140).
+   */
+  p_w_aux_veille_w?: number | null;
+  /**
+   * « φth,stab,30 » : pertes en régime stabilisé pour une eau à 50 °C et une ambiance à
+   * 20 °C, en W. Absent : tableau 140.
+   */
+  phi_th_stab_30_w?: number | null;
+  /**
+   * « idraccord_gnr » : raccordement hydraulique à la génération (le tableau 135 ne donne
+   * pas de valeur par défaut) ; raccordé en permanence, le cogénérateur compte ses pertes à
+   * l'arrêt (éq. 1220, lecture Q157).
+   */
+  raccordement: RaccordementGenerateur;
+  /** « type_chp ». */
+  type_cogenerateur: TypeCogenerateur;
+}
+
 /** Une série horaire : 8 760 valeurs, dans l'ordre des pas de temps de l'année. */
 export interface ColonneHoraire {
   /** Nom de la série (voir `docs/modele-donnees.md`). */
@@ -1070,6 +1155,9 @@ export type CombinaisonLimites = "l_une_ou_l_autre" | "l_une_et_l_autre";
 
 /** « TypeCombustibleBois » (§8.19.2). */
 export type CombustibleBoisSaisi = "buches" | "granules" | "plaquettes";
+
+/** « type_combustible » d'un cogénérateur et de son appoint intégré (§8.21.3.1.1, tableau 136). */
+export type CombustibleCogeneration = "gaz_naturel" | "gpl" | "fioul" | "bois_buches" | "bois_granules" | "bois_plaquettes";
 
 /**
  * Composant (produit de construction ou équipement) associé à une donnée environnementale
@@ -3488,7 +3576,9 @@ export type NatureGenerateur = {
   autre_generateur_a_combustion: AutreGenerateurCombustionSaisi;
 } | {
   thermodynamique_gaz: ThermodynamiqueGazSaisi;
-} | "boucle_d_eau_ou_drv" | "cogeneration" | "pac_hybride";
+} | "boucle_d_eau_ou_drv" | {
+  cogeneration: CogenerationSaisie;
+} | "pac_hybride";
 
 /** « idtour » (§8.26.3.3.2.2). */
 export type NatureTourRefroidissement = "humide" | "seche";
@@ -3950,6 +4040,32 @@ export type PerformancesCapteurs = {
     type_capteur: TypeCapteurSolaire;
   };
 };
+
+/**
+ * Performances à 100 % de charge du module de cogénération, avec l'appoint intégré à 0 % ou à
+ * 100 % de charge (« chp100+sup0 », « chp100+sup100 »).
+ */
+export interface PerformancesCogeneration {
+  /**
+   * « ηel;chp_100+sup_x,nom » : rendement de production électrique sur PCS, en % ; requis si
+   * le statut n'est pas « par défaut ».
+   */
+  eta_el_pct?: number | null;
+  /**
+   * « ηth;chp_100+sup_x,nom » : rendement thermique sur PCS, en % ; requis si le statut n'est
+   * pas « par défaut ».
+   */
+  eta_th_pct?: number | null;
+  /** « Pth;chp_100+sup_x,nom » : puissance thermique nominale, en kW (au plus 70). */
+  p_th_kw: number;
+  /**
+   * « PWaux,chp_100+sup_x » : puissance électrique des auxiliaires à pleine charge, en kW ;
+   * requise si le statut n'est pas « par défaut ».
+   */
+  p_w_aux_kw?: number | null;
+  /** Statut des rendements et des auxiliaires. */
+  statut: StatutPerformancesCogeneration;
+}
 
 /**
  * Performances à pleine charge d'un générateur thermodynamique au gaz (§8.24.3 et
@@ -4962,6 +5078,11 @@ export interface ResultatsAcv {
   stock_c_kgc_m2: number;
   /** « StockCparcelle », en kg C/m² (éq. 143) ; absent sans parcelle. */
   stock_c_parcelle_kgc_m2?: number | null;
+  /**
+   * « TAC_cogé global » appliqué au sous-lot 8.2 (annexe II, éq. 16), en % ; absent sans
+   * sous-lot 8.2.
+   */
+  tac_coge_global_pct?: number | null;
   /** « TAC_PVbat elec » appliqué au lot 13 (éq. 22), en % ; absent sans lot 13. */
   tac_pv_pct?: number | null;
   /**
@@ -5543,6 +5664,11 @@ export interface ResultatsGenerateur {
   q_fou_ecs_kwh: number;
   /** « Eef_fou_fr » : énergie fournie en refroidissement, en kWh. */
   q_fou_fr_kwh: number;
+  /**
+   * « Eef_prelec » : électricité produite par un cogénérateur, en kWh (éq. 1516) ; absente
+   * pour les autres générateurs.
+   */
+  q_prelec_kwh?: number;
   /** Valeurs par défaut de la méthode appliquées au générateur. */
   valeurs_par_defaut?: ValeurParDefaut[];
   /**
@@ -5728,6 +5854,8 @@ export interface ResultatsIndicateurs {
    * absents si le nombre d'occupants d'une zone n'est ni saisi ni déductible.
    */
   occupants?: IndicateursOccupants | null;
+  /** Bilan de l'électricité produite par les cogénérateurs ; absent sans cogénération. */
+  production_cogeneration?: BilanProductionCogeneration | null;
   /** Bilan de la production photovoltaïque ; absent sans installation. */
   production_pv?: BilanProductionPv | null;
   /**
@@ -6536,6 +6664,12 @@ export type StatutEchangeur = "declare" | "justifie" | "certifie";
 export type StatutMesure = "certifie" | "justifie";
 
 /**
+ * « Statut_chp100sup0 », « Statut_chp100sup100 » : statut des performances à pleine charge
+ * (§8.21.3.1.3).
+ */
+export type StatutPerformancesCogeneration = "defaut" | "declaree" | "justifiee" | "certifiee";
+
+/**
  * Statut des rendements d'une chaudière (§8.19.3.1) : une valeur certifiée est employée telle
  * quelle, une valeur justifiée est réduite de 10 %, une valeur déclarée de 20 %.
  */
@@ -6809,6 +6943,9 @@ export type TypeCapteurSolaire = "non_vitre" | "vitre" | "tubulaire";
 
 /** Déclinaison d'une chaudière (§8.19.3.1, tableau 115). */
 export type TypeChaudiereSaisi = "gaz_standard" | "gaz_basse_temperature" | "gaz_condensation" | "fioul_standard" | "fioul_condensation" | "bois";
+
+/** « type_chp » : technologie du micro-cogénérateur (§8.21.1 et tableau 138). */
+export type TypeCogenerateur = "moteur_combustion_interne" | "stirling" | "micro_turbine";
 
 /** Th-BCE 2020 §6.3.3.1 — type de centrale de traitement d'air (« Type_ventilation_mecaniq »). */
 export type TypeCta = "debit_constant" | "debit_constant_temperature_variable" | "debit_variable";

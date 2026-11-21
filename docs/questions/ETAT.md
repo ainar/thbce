@@ -143,6 +143,8 @@
 | Q152 | Tour de refroidissement humide (fiche 8.26, lot 2d) : constante « Ce », résolution de l'éq. implicite (1429), air saturé | hypothèse retenue, à confirmer par le mainteneur |
 | Q155 | Autres générateurs à combustion (fiche 8.20, lot 2e) : unités des rendements, générateur d'air chaud calculé comme une chaudière, pertes à charge nulle, valeurs par défaut manquantes | hypothèse retenue, à confirmer par un cas de référence |
 | Q156 | Autres générateurs à combustion (fiche 8.20, lot 2e) : raccordement des générateurs entre eux (idraccord_gnr) et pertes à l'arrêt | hypothèse retenue, à confirmer par un cas de référence |
+| Q157 | Système de cogénération (fiche 8.21, lot 2e) : bilan du pas après les deux postes, raccordement, valeurs utiles maximales, répartition entre postes, électricité produite dans le bilan électrique et l'ACV | hypothèse retenue, à confirmer par un cas de référence |
+| Q158 | Système de cogénération (fiche 8.21, lot 2e) : facteurs d'interpolation des éq. 1207, 1211 et 1215, « Pveilleuse » | hypothèse retenue, à confirmer par un cas de référence |
 | Q200 | Classement au bruit d'une baie : saisie facultative baie par baie (fiche 5.11, chapitre V partie I) — champs, libellés, données à saisir | tranchée, à confirmer par un cas de référence |
 | Q201 | Classement au bruit : tranche de distance d'une valeur égale à une borne (65 m dans « 0-65 m » et « 65-125 m ») | tranchée, à confirmer par un cas de référence |
 | Q202 | Classement au bruit : la classe déduite des baies tient lieu de saisie absente ; cohérence avec la saisie directe | tranchée, à confirmer par un cas de référence |

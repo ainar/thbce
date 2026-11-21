@@ -366,12 +366,12 @@ fn refus() {
         "{:?}",
         v.erreurs
     );
-    // Cogénération dans un restaurant : hors périmètre (code 3), non une erreur de saisie.
+    // Boucle d'eau (§8.15) dans un restaurant : hors périmètre (code 3), non une erreur de saisie.
     let mut p = restaurant();
     let gens = &mut p.batiments[0].generations[0].generateurs;
     let mut cogen = gens[0].clone();
-    cogen.id = "cogeneration".into();
-    cogen.nature = thbce_core::entree::NatureGenerateur::Cogeneration;
+    cogen.id = "boucle-eau".into();
+    cogen.nature = thbce_core::entree::NatureGenerateur::BoucleDEauOuDrv;
     gens.push(cogen);
     let v = valider(&p);
     assert!(v.seulement_hors_perimetre(), "{:?}", v.erreurs);

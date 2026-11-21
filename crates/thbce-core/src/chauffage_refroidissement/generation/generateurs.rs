@@ -12,6 +12,7 @@ use crate::chauffage_refroidissement::generateur_direct_a_effet_joule::Generateu
 use crate::chauffage_refroidissement::pac_moteur_gaz::PacMoteurGaz;
 use crate::chauffage_refroidissement::poeles_et_inserts::Poele;
 use crate::chauffage_refroidissement::reseau_de_chaleur_et_de_froid::ReseauChaleurFroid;
+use crate::chauffage_refroidissement::systeme_de_cogeneration::Cogenerateur;
 use crate::chauffage_refroidissement::thermodynamique_elec::GenerateurThermodynamique;
 use crate::chauffage_refroidissement::thermodynamique_gaz::MachineAbsorption;
 
@@ -60,6 +61,8 @@ pub enum Generateur {
     MoteurGaz(Box<PacMoteurGaz>),
     /// Types 103 à 109 : autre générateur à combustion (§8.20).
     AutreCombustion(Box<AutreGenerateurCombustion>),
+    /// Type 700 : système de cogénération (§8.21).
+    Cogeneration(Box<Cogenerateur>),
     /// Générateur idéal, pour les tests.
     Ideal(GenerateurIdeal),
 }
@@ -91,6 +94,11 @@ impl Generateur {
                     FonctionGenerateur::Chauffage
                 }
             }
+            Self::Cogeneration(g) => match (g.chauffage, g.ecs) {
+                (true, true) => FonctionGenerateur::ChauffageEcs,
+                (false, true) => FonctionGenerateur::Ecs,
+                _ => FonctionGenerateur::Chauffage,
+            },
             Self::Ideal(g) => g.fonction,
         }
     }
@@ -109,6 +117,7 @@ impl Generateur {
             Self::Absorption(g) => g.pn_gen_tot_w(),
             Self::MoteurGaz(g) => g.pn_gen_tot_w(poste),
             Self::AutreCombustion(g) => g.pn_gen_tot_w(),
+            Self::Cogeneration(g) => g.pn_gen_tot_w(),
             // Sans puissance nominale : parts égales en mode sans priorité.
             Self::Ideal(_) => 1.0,
         }
@@ -125,6 +134,7 @@ impl Generateur {
             Self::Absorption(g) => g.appel(e),
             Self::MoteurGaz(g) => g.appel(e),
             Self::AutreCombustion(g) => g.appel(e),
+            Self::Cogeneration(g) => g.appel(e),
             Self::Ideal(g) => g.appel(e),
         }
     }
@@ -135,6 +145,7 @@ impl Generateur {
         match self {
             Self::Chaudiere(g) => g.fin_de_pas(),
             Self::AutreCombustion(g) => g.fin_de_pas(),
+            Self::Cogeneration(g) => g.fin_de_pas(),
             _ => {}
         }
     }

@@ -247,6 +247,10 @@ pub struct ResultatsAcv {
     /// « TAC_PVbat elec » appliqué au lot 13 (éq. 22), en % ; absent sans lot 13.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tac_pv_pct: Option<f64>,
+    /// « TAC_cogé global » appliqué au sous-lot 8.2 (annexe II, éq. 16), en % ; absent sans
+    /// sous-lot 8.2.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tac_coge_global_pct: Option<f64>,
     /// Exigence `Icconstruction_max` ; absente sans `exigences` du bâtiment.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exigences: Option<ExigencesIcConstruction>,
@@ -300,6 +304,7 @@ impl ResultatsAcv {
             &mut self.udd_batiment_pct,
             &mut self.stock_c_parcelle_kgc_m2,
             &mut self.tac_pv_pct,
+            &mut self.tac_coge_global_pct,
         ] {
             *v = v.map(a);
         }

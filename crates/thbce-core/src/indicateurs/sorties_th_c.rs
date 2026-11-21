@@ -14,8 +14,8 @@ use thbce_data::reseaux_chaleur::{autres_reseaux, reseau};
 use thbce_data::ZoneClimatique;
 
 use crate::entree::{
-    Batiment, CategorieContraintes, CombustibleBoisSaisi, NatureGenerateur,
-    ReseauChaleurFroidSaisi, UsageZone, ZoneBruit,
+    Batiment, CategorieContraintes, CombustibleBoisSaisi, CombustibleCogeneration,
+    NatureGenerateur, ReseauChaleurFroidSaisi, UsageZone, ZoneBruit,
 };
 use crate::resultats::{
     ConsommationsParEnergie, ConsommationsPostes, ResultatsGeneration, ResultatsZone,
@@ -27,8 +27,9 @@ use super::forfait_refroidissement::{
     cef_fr_elec_kwh_m2, coef_kwh_fr_par_dh, coef_zone_clim_et_alt,
 };
 use super::resultats::{
-    BilanProductionPv, ExigencesZone, ForfaitRefroidissementGroupe, LigneBilanEnergie,
-    PostesElectricite, ResultatsExigences, ResultatsIndicateurs, VerificationExigence,
+    BilanProductionCogeneration, BilanProductionPv, ExigencesZone, ForfaitRefroidissementGroupe,
+    LigneBilanEnergie, PostesElectricite, ResultatsExigences, ResultatsIndicateurs,
+    VerificationExigence,
 };
 
 /// `Σ fCO2(a)` pour `a` de 1 à la période d'étude de référence (50 ans) : annexe II §4.3.2,
@@ -182,6 +183,17 @@ fn vecteur_generateur(nature: &NatureGenerateur, col: Colonne, froid: bool) -> V
         (NatureGenerateur::AutreGenerateurACombustion(c), Colonne::Gaz) if c.gpl => {
             VecteurConnu::nouveau("gpl", Vecteur::Gpl)
         }
+        (NatureGenerateur::Cogeneration(c), Colonne::Gaz)
+            if c.combustible == CombustibleCogeneration::Gpl =>
+        {
+            VecteurConnu::nouveau("gpl", Vecteur::Gpl)
+        }
+        (NatureGenerateur::Cogeneration(c), Colonne::Bois) => bois(match c.combustible {
+            CombustibleCogeneration::BoisBuches => Some(CombustibleBoisSaisi::Buches),
+            CombustibleCogeneration::BoisGranules => Some(CombustibleBoisSaisi::Granules),
+            CombustibleCogeneration::BoisPlaquettes => Some(CombustibleBoisSaisi::Plaquettes),
+            _ => None,
+        }),
         (NatureGenerateur::Chaudiere(c), Colonne::Bois) => bois(c.combustible_bois),
         (NatureGenerateur::PoeleOuInsert(p), Colonne::Bois) => bois(Some(p.combustible_bois)),
         (
@@ -571,11 +583,65 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
     let production_pv = (b.prod_pv_wh > 0.0).then(|| BilanProductionPv {
         e_prod_pv_kwh: b.prod_pv_wh / 1000.0,
         e_prod_pv_ac_kwh: b.prod_pv_ac_wh / 1000.0,
-        e_exportee_kwh: b.exportee_wh() / 1000.0,
+        // Part photovoltaïque (la part de la cogénération est dans son propre bilan).
+        e_exportee_kwh: b.exportee_pv_wh() / 1000.0,
         tac_pct: b.tac_pct().unwrap_or(0.0),
         e_prod_pv_mensuel_kwh: b.prod_pv_mensuel_wh.iter().map(|x| x / 1000.0).collect(),
         e_prod_pv_ac_mensuel_kwh: b.prod_pv_ac_mensuel_wh.iter().map(|x| x / 1000.0).collect(),
     });
+    // Fiche 8.21 et §13.2.3.5 : électricité produite par les cogénérateurs ; « Cef_tot_comb »,
+    // consommation finale de leur combustible, auxiliaires exclus (lecture Q157).
+    // Le bilan est établi dès qu'un cogénérateur existe, même sans électricité produite :
+    // l'éq. (5) de l'annexe II donne alors (Cef + 0) / (Cef + 0) = 100 % et non 0 %.
+    let cogenerateurs = || {
+        e.generations
+            .iter()
+            .filter_map(|rg| {
+                let g = e.batiment.generations.iter().find(|g| g.id == rg.id)?;
+                Some(rg.generateurs.iter().filter(move |r| {
+                    g.generateurs.iter().any(|x| {
+                        x.id == r.id && matches!(x.nature, NatureGenerateur::Cogeneration(_))
+                    })
+                }))
+            })
+            .flatten()
+    };
+    let production_cogeneration =
+        (b.prod_coge_wh > 0.0 || cogenerateurs().next().is_some()).then(|| {
+            let cef_comb: f64 = cogenerateurs()
+                .map(|r| {
+                    let c = &r.consommations;
+                    c.chauffage.total_kwh() - c.chauffage.electricite_kwh + c.ecs.total_kwh()
+                        - c.ecs.electricite_kwh
+                })
+                .sum();
+            let prod = b.prod_coge_wh / 1000.0;
+            let ac = b.prod_coge_ac_wh / 1000.0;
+            BilanProductionCogeneration {
+                e_prod_coge_kwh: prod,
+                e_prod_coge_ac_kwh: ac,
+                e_exportee_kwh: prod - ac,
+                tac_pct: b.tac_coge_pct().unwrap_or(0.0),
+                tac_elec_pct: b.tac_total_pct().unwrap_or(0.0),
+                cef_tot_comb_kwh: cef_comb,
+                // Éq. (2455).
+                tac_global_pct: if cef_comb + prod > 0.0 {
+                    100.0 * (cef_comb + ac) / (cef_comb + prod)
+                } else {
+                    0.0
+                },
+                e_prod_coge_mensuel_kwh: b
+                    .prod_coge_mensuel_wh
+                    .iter()
+                    .map(|x| x / 1000.0)
+                    .collect(),
+                e_prod_coge_ac_mensuel_kwh: b
+                    .prod_coge_ac_mensuel_wh
+                    .iter()
+                    .map(|x| x / 1000.0)
+                    .collect(),
+            }
+        });
     // Chauffe-eau solaires individuels et systèmes combinés, puis productions solaires
     // collectives (CESCI, CESCAI).
     let solaire: f64 = e
@@ -735,6 +801,7 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
             electricite_importee: importee,
             electricite_importee_mensuel_kwh: imp_mensuel,
             production_pv,
+            production_cogeneration,
             forfaits_refroidissement: forfaits,
             energie_solaire_captee_kwh: (solaire > 0.0).then_some(solaire),
             lignes,

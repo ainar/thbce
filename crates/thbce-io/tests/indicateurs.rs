@@ -101,16 +101,19 @@ fn verifier(nom: &str, r: &Resultats) {
         ] {
             assert!(y <= x + 1e-9, "{nom}");
         }
-        match &i.production_pv {
-            None => assert!((c.hors_mobilier_kwh() - m.hors_mobilier_kwh()).abs() < 1e-6),
-            Some(pv) => {
-                // L'énergie autoconsommée est l'électricité non importée, mobilier compris.
-                let evitee =
-                    c.hors_mobilier_kwh() + c.mobilier_kwh - m.hors_mobilier_kwh() - m.mobilier_kwh;
-                assert!((evitee - pv.e_prod_pv_ac_kwh).abs() < 1e-6, "{nom}");
-                assert!((pv.e_prod_pv_ac_kwh + pv.e_exportee_kwh - pv.e_prod_pv_kwh).abs() < 1e-6);
-            }
-        }
+        // L'énergie autoconsommée (photovoltaïque et cogénération, éq. 2526 à 2531) est
+        // l'électricité non importée, mobilier compris.
+        let evitee =
+            c.hors_mobilier_kwh() + c.mobilier_kwh - m.hors_mobilier_kwh() - m.mobilier_kwh;
+        let ac_pv = i.production_pv.as_ref().map_or(0.0, |pv| {
+            assert!((pv.e_prod_pv_ac_kwh + pv.e_exportee_kwh - pv.e_prod_pv_kwh).abs() < 1e-6);
+            pv.e_prod_pv_ac_kwh
+        });
+        let ac_coge = i.production_cogeneration.as_ref().map_or(0.0, |p| {
+            assert!((p.e_prod_coge_ac_kwh + p.e_exportee_kwh - p.e_prod_coge_kwh).abs() < 1e-6);
+            p.e_prod_coge_ac_kwh
+        });
+        assert!((evitee - ac_pv - ac_coge).abs() < 1e-6, "{nom}");
         let e = i
             .exigences
             .as_ref()

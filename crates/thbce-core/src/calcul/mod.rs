@@ -369,7 +369,7 @@ fn calculer_selon(
             c.eclairage_parties_communes.annuel_kwh + c.eclairage_parkings.annuel_kwh
         });
         let indicateurs = avec_generations.then(|| {
-            let bilan = bilan(&releve.horaire, &prod_pv_wh);
+            let bilan = bilan(&releve.horaire, &prod_pv_wh, &releve.prod_coge);
             let (mut i, a) = calculer_indicateurs(&EntreesIndicateurs {
                 batiment: bat,
                 zone_climatique: zone,
@@ -412,6 +412,7 @@ fn calculer_selon(
                     zones: &zones,
                     total_horaire: &releve.horaire,
                     prod_pv_wh: &prod_pv_wh,
+                    prod_coge_wh: &releve.prod_coge,
                     indicateurs: i,
                     generations: &generations,
                     consommations_bat: &consommations_bat.annuel,
@@ -440,6 +441,14 @@ fn calculer_selon(
                 bat.id
             ));
         }
+        if sorties_detaillees.is_some() && releve.prod_coge.iter().any(|x| *x > 0.0) {
+            avertissements.push(format!(
+                "bâtiment {} : sorties détaillées, l'électricité produite par la cogénération \
+                 entre dans les importations des zones (éq. 2536) mais sa part par zone (éq. 2521, \
+                 2434 et 2436) n'est pas restituée (docs/questions/Q157.md)",
+                bat.id
+            ));
+        }
         let ic_energie_kgco2_m2 = indicateurs.as_ref().and_then(|i| i.ic_energie_kgco2_m2);
         let mut indicateurs = indicateurs;
         let acv = bat.acv.as_ref().map(|d| {
@@ -458,6 +467,10 @@ fn calculer_selon(
                     .as_ref()
                     .and_then(|i| i.production_pv.as_ref())
                     .map(|p| p.tac_pct),
+                tac_coge_global_pct: indicateurs
+                    .as_ref()
+                    .and_then(|i| i.production_cogeneration.as_ref())
+                    .map(|p| p.tac_global_pct),
             })
         });
         let acv = acv.map(|mut a| {

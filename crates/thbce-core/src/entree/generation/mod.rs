@@ -9,12 +9,14 @@ use serde::{Deserialize, Serialize};
 
 use super::*;
 
+mod cogeneration;
 mod combustion;
 mod effet_joule;
 mod reseaux_chaleur;
 mod thermodynamique;
 mod thermodynamique_gaz;
 
+pub use cogeneration::*;
 pub use combustion::*;
 pub use effet_joule::*;
 pub use reseaux_chaleur::*;
@@ -180,8 +182,8 @@ pub enum NatureGenerateur {
     /// Types 507 à 509 : pompe à chaleur sur boucle d'eau, thermo-frigo-pompe, générateur DRV
     /// (§8.15 et §8.16) : hors de la première version.
     BoucleDEauOuDrv,
-    /// Type 700 : système de cogénération (§8.21) : hors de la première version.
-    Cogeneration,
+    /// Type 700 : système de cogénération (§8.21).
+    Cogeneration(Box<CogenerationSaisie>),
     /// Pompe à chaleur hybride (association d'une pompe à chaleur et d'une chaudière dans un
     /// même produit) saisie comme un seul générateur : non prise en charge. Elle n'est pas un
     /// type du tableau 111 ; la fiche d'application du §16.4 la décrit par ses composants, à
