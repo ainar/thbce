@@ -1115,3 +1115,229 @@ mod tests_cogeneration {
         );
     }
 }
+
+/// Résolution des autres générateurs à combustion (types 103 à 109) : valeurs par défaut
+/// calculées à la main d'après les tableaux 126 à 131 et le §8.20.3.4.
+#[cfg(test)]
+#[allow(clippy::float_cmp)]
+mod tests_autre_combustion {
+    use super::*;
+    use crate::chauffage_refroidissement::autres_generateurs_a_combustion::Famille;
+    use crate::entree::{
+        AutreGenerateurCombustionSaisi as Saisi, EvacuationFumees, PertesParoisChaudiere,
+        RaccordementGenerateur, TypeAutreGenerateurCombustion as T,
+    };
+
+    fn saisi(t: T, pn: f64) -> Saisi {
+        Saisi {
+            type_generateur: t,
+            gpl: false,
+            pn_gen_kw: pn,
+            rendements: None,
+            p_int_kw: None,
+            w_aux_nom_w: None,
+            w_veille_w: 0.0,
+            p_veilleuse_w: None,
+            q_po_30_w: None,
+            theta_fonct_min_c: None,
+            pertes_parois: PertesParoisChaudiere::SansVentilateur,
+            raccordement: None,
+        }
+    }
+
+    fn resout(c: &Saisi) -> (AutreGenerateurCombustion, Vec<ValeurParDefaut>) {
+        resoudre_autre_combustion(c, 1.0, true, true)
+    }
+
+    fn proche(a: f64, b: f64) {
+        assert!((a - b).abs() < 1e-9 * b.abs().max(1.0), "{a} != {b}");
+    }
+
+    fn radiateur(vc: bool, ve: bool, ev: Option<EvacuationFumees>) -> T {
+        T::RadiateurGaz {
+            ventilateur_combustion: vc,
+            ventilateur_emission: ve,
+            evacuation_fumees: ev,
+        }
+    }
+
+    #[test]
+    fn radiateur_tableaux_126_128_129() {
+        // Pn < 5 kW : A = 80 ; un ventilateur côté émission : 40 W ; cheminée : fmaj = 1,06.
+        let (g, _) = resout(&saisi(
+            radiateur(false, true, Some(EvacuationFumees::Cheminee)),
+            4.0,
+        ));
+        assert_eq!(g.famille, Famille::Radiateur);
+        proche(g.r_pn_pct, 80.0);
+        proche(g.w_aux_nom_w, 40.0);
+        proche(g.f_maj, 1.06);
+        assert_eq!(g.q_po_30_w, 0.0);
+        // Pn >= 5 kW sans ventilateur côté combustion : A = 82 ; micro-ventouse : 1,04 ; 0 W.
+        let (g, _) = resout(&saisi(
+            radiateur(false, false, Some(EvacuationFumees::MicroVentouse)),
+            6.0,
+        ));
+        proche(g.r_pn_pct, 82.0);
+        proche(g.w_aux_nom_w, 0.0);
+        proche(g.f_maj, 1.04);
+        // Pn >= 5 kW avec ventilateur côté combustion : A = 84 ; deux ventilateurs : 80 W ;
+        // fmaj = 1,02 quelle que soit l'évacuation.
+        let (g, _) = resout(&saisi(radiateur(true, true, None), 6.0));
+        proche(g.r_pn_pct, 84.0);
+        proche(g.w_aux_nom_w, 80.0);
+        proche(g.f_maj, 1.02);
+    }
+
+    #[test]
+    fn chauffe_eau_tableaux_126_127() {
+        // 8 kW : A = 82 ; Qpo30 = 1000·8·1,5/100 = 120 W.
+        let (g, _) = resout(&saisi(T::ChauffeEauGaz, 8.0));
+        assert_eq!(g.famille, Famille::ChauffeEau);
+        proche(g.r_pn_pct, 82.0);
+        proche(g.q_po_30_w, 120.0);
+        proche(g.w_aux_nom_w, 0.0);
+        proche(g.f_maj, 1.0);
+        // 12 kW : A = 84 ; Qpo30 = 1000·12·1,5/100 = 180 W.
+        let (g, _) = resout(&saisi(T::ChauffeEauGaz, 12.0));
+        proche(g.r_pn_pct, 84.0);
+        proche(g.q_po_30_w, 180.0);
+        // θfonct_min par défaut : 20 °C (§8.20.3.2.2), signalé.
+        proche(g.theta_fonct_min_c, 20.0);
+    }
+
+    #[test]
+    fn accumulateur_tableaux_126_127() {
+        let acc = |condensation, grand| T::AccumulateurGaz {
+            condensation,
+            plus_de_200_l_montee_rapide: grand,
+        };
+        // Accumulateur à condensation de 20 kW : A = 98 ; E = 1,5 : 1000·20·1,5/100 = 300 W.
+        let (g, _) = resout(&saisi(acc(true, false), 20.0));
+        assert_eq!(g.famille, Famille::Accumulateur);
+        proche(g.r_pn_pct, 98.0);
+        proche(g.q_po_30_w, 300.0);
+        // Accumulateur standard de plus de 200 L : A = 84 ; E = 1,7 : 1000·20·1,7/100 = 340 W.
+        let (g, _) = resout(&saisi(acc(false, true), 20.0));
+        proche(g.r_pn_pct, 84.0);
+        proche(g.q_po_30_w, 340.0);
+    }
+
+    #[test]
+    fn air_chaud_tableaux_126_128_et_plafond_300_kw() {
+        let ac = |condensation, ventilo| T::AirChaud {
+            condensation,
+            ventilateur_emission: ventilo,
+        };
+        // Standard sans ventilateur, 100 kW : Rpn = 84, Rpint = 77 ; Pint = 0,3·100 = 30 kW ;
+        // Qpo30 = 1000·100·(1,75 − 0,55·log10 100)/100 = 650 W ; Paux = 4·100 = 400 W.
+        let (g, d) = resout(&saisi(ac(false, false), 100.0));
+        assert_eq!(g.famille, Famille::AirChaud);
+        proche(g.r_pn_pct, 84.0);
+        proche(g.r_pint_pct, 77.0);
+        proche(g.p_int_kw, 30.0);
+        proche(g.q_po_30_w, 650.0);
+        proche(g.w_aux_nom_w, 400.0);
+        assert!(d.iter().any(|v| v.champ == "p_int_kw"));
+        // Condensation avec ventilateur : Rpn = 90, Rpint = 83 ; Paux = 54·100 = 5 400 W.
+        let (g, _) = resout(&saisi(ac(true, true), 100.0));
+        proche(g.r_pn_pct, 90.0);
+        proche(g.r_pint_pct, 83.0);
+        proche(g.w_aux_nom_w, 5400.0);
+        // 400 kW : formules évaluées à 300 kW (§8.20.3.4) ; Pint reste 0,3·400 = 120 kW.
+        // Qpo30 = 1000·300·(1,75 − 0,55·log10 300)/100 = 1 162,75 W ; Paux = 4·300 = 1 200 W.
+        let (g, _) = resout(&saisi(ac(false, false), 400.0));
+        proche(g.p_int_kw, 120.0);
+        let l = libm::log10(300.0);
+        proche(g.q_po_30_w, 3000.0 * (1.75 - 0.55 * l));
+        assert!((g.q_po_30_w - 1162.75).abs() < 0.01);
+        proche(g.w_aux_nom_w, 1200.0);
+        proche(g.r_pn_pct, 84.0);
+    }
+
+    #[test]
+    fn tube_et_panneau_radiants_tableaux_126_128_130() {
+        // Tube radiant avec ventilateur, 50 kW : A = 85 ; Paux = 54·50 = 2 700 W ; fmaj = 1,06.
+        let (g, _) = resout(&saisi(
+            T::TubeRadiant {
+                ventilateur_emission: true,
+            },
+            50.0,
+        ));
+        assert_eq!(g.famille, Famille::TubeRadiant);
+        proche(g.r_pn_pct, 85.0);
+        proche(g.w_aux_nom_w, 2700.0);
+        proche(g.f_maj, 1.06);
+        assert_eq!(g.q_po_30_w, 0.0);
+        // Panneau radiant (type 109), 30 kW : A = 90 ; fmaj = 1,00 ; pas de pertes à l'arrêt ;
+        // Waux,nom saisi (aucune valeur au tableau 128).
+        let mut p = saisi(T::PanneauRadiant, 30.0);
+        p.w_aux_nom_w = Some(15.0);
+        let (g, _) = resout(&p);
+        assert_eq!(g.famille, Famille::PanneauRadiant);
+        proche(g.r_pn_pct, 90.0);
+        proche(g.f_maj, 1.0);
+        proche(g.w_aux_nom_w, 15.0);
+        assert_eq!(g.q_po_30_w, 0.0);
+        assert_eq!(g.q_p0_w(60.0, 19.0), 0.0);
+    }
+
+    #[test]
+    fn gpl_veilleuse_et_raccordement() {
+        // GPL : PCSI = 1,09 (tableau 125) contre 1,11 pour le gaz naturel.
+        let mut p = saisi(T::PanneauRadiant, 30.0);
+        p.w_aux_nom_w = Some(0.0);
+        let (naturel, _) = resout(&p);
+        proche(naturel.pcsi(), 1.11);
+        p.gpl = true;
+        let (gpl, _) = resout(&p);
+        proche(gpl.pcsi(), 1.09);
+        // Veilleuse de 258 W : Wveille = 10 + 258/2,58 = 110 W.
+        p.w_veille_w = 10.0;
+        p.p_veilleuse_w = Some(258.0);
+        let (g, _) = resout(&p);
+        proche(g.w_veille_w, 110.0);
+        // « idraccord_gnr » : permanent seulement avec priorité (lecture Q156).
+        p.raccordement = Some(RaccordementGenerateur::Permanent);
+        assert!(
+            resoudre_autre_combustion(&p, 1.0, true, true)
+                .0
+                .raccord_permanent
+        );
+        assert!(
+            !resoudre_autre_combustion(&p, 1.0, true, false)
+                .0
+                .raccord_permanent
+        );
+        p.raccordement = None;
+        assert!(
+            !resoudre_autre_combustion(&p, 1.0, true, true)
+                .0
+                .raccord_permanent
+        );
+    }
+
+    #[test]
+    fn valeurs_saisies_et_statuts() {
+        use crate::entree::{RendementsCombustion, StatutRendementCombustion as S};
+        let mut c = saisi(T::ChauffeEauGaz, 12.0);
+        c.q_po_30_w = Some(77.0);
+        c.theta_fonct_min_c = Some(45.0);
+        c.rendements = Some(RendementsCombustion {
+            statut: S::Justifie,
+            r_pn_pct: 90.0,
+            r_pint_pct: None,
+        });
+        let (g, _) = resout(&c);
+        proche(g.q_po_30_w, 77.0);
+        proche(g.theta_fonct_min_c, 45.0);
+        proche(g.r_pn_pct, 81.0);
+        // Déclaré : min(0,8·95 ; 86) = 76.
+        c.rendements = Some(RendementsCombustion {
+            statut: S::Declare,
+            r_pn_pct: 95.0,
+            r_pint_pct: None,
+        });
+        proche(resout(&c).0.r_pn_pct, 76.0);
+    }
+}

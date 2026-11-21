@@ -555,6 +555,9 @@ pub fn resoudre(
             *p_vent_gaine_w,
             Some(*t_air_lim_c),
         ),
+        // Les chauffe-eau thermodynamiques puisent dans l'air (§9.22) : sources sur eau et sur
+        // sol refusées par la validation.
+        _ => return None,
     };
     let matrice = grille.construire(&PerformancesSaisies::Mesurees(vec![PointMesure {
         theta_aval_c: grille.theta_aval_c[grille.pivot.0],

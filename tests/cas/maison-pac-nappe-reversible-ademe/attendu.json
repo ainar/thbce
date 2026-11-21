@@ -1,0 +1,120 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b",
+    "altcorr_m": 100.0,
+    "base_ext_c": -6.5
+  },
+  "batiments": [
+    {
+      "id": "maison",
+      "sref_m2": 96.4,
+      "bbio_pts": 63.8,
+      "dh_c_h": 1555.1,
+      "zones": [
+        {
+          "id": "logement",
+          "groupes": [
+            {
+              "id": "volume-chauffe",
+              "enveloppe": {
+                "a_op_m2": 290.0,
+                "h_th_op_w_k": 45.0,
+                "l_pt_m": 40.0,
+                "h_th_pt_w_k": 4.0,
+                "a_baies_m2": 10.0,
+                "h_ges_sp_w_k": 13.0
+              }
+            }
+          ]
+        }
+      ],
+      "cep_kwhep_m2": 109.7,
+      "cep_nr_kwhep_m2": 109.7,
+      "ic_energie_kgco2_m2": 129.2,
+      "indicateurs": {
+        "cef_kwhef_m2": 47.7,
+        "exigences": {
+          "bbio_max_pts": 64.7,
+          "cep_max_kwhep_m2": 70.2,
+          "cep_nr_max_kwhep_m2": 51.5,
+          "ic_energie_max_kgco2_m2": 149.7,
+          "conforme": false
+        }
+      },
+      "generations": [
+        {
+          "id": "pac-air-air",
+          "generateurs": [
+            {
+              "id": "pac-reversible",
+              "q_fou_ch_kwh": 2671.2,
+              "q_fou_fr_kwh": 2312.8,
+              "q_fou_ecs_kwh": 0.0,
+              "eta_eff_ch_an": 2.3,
+              "eta_eff_fr_an": 2.46,
+              "w_aux_kwh": 553.1,
+              "phi_rejet_kwh": 1192.9,
+              "consommations": {
+                "chauffage": {
+                  "electricite_kwh": 1163.7
+                },
+                "refroidissement": {
+                  "electricite_kwh": 940.6
+                },
+                "ecs": {}
+              },
+              "valeurs_par_defaut": [
+                {
+                  "champ": "source_amont.nappe.ecarts.delta_theta_ch_k",
+                  "valeur": 5.0,
+                  "regle": "Th-BCE 2020 §8.26.3.3.2.1 : ΔθEvap_CH et ΔθCond_FR fixés par défaut à 5 K"
+                },
+                {
+                  "champ": "source_amont.nappe.ecarts.delta_theta_fr_k",
+                  "valeur": 5.0,
+                  "regle": "Th-BCE 2020 §8.26.3.3.2.1 : ΔθEvap_CH et ΔθCond_FR fixés par défaut à 5 K"
+                },
+                {
+                  "champ": "chauffage.fonctionnement_continu.lr_contmin",
+                  "valeur": 0.4,
+                  "regle": "Th-BCE 2020 §8.23.3.6, éq. (1280) et (1281) : LRcontmin = 0,4 et CcpLRcontmin = 1 par défaut"
+                },
+                {
+                  "champ": "refroidissement.fonctionnement_continu.lr_contmin",
+                  "valeur": 0.4,
+                  "regle": "Th-BCE 2020 §8.23.3.6, éq. (1280) et (1281) : LRcontmin = 0,4 et CcpLRcontmin = 1 par défaut"
+                },
+                {
+                  "champ": "taux_auxiliaires",
+                  "valeur": 0.02,
+                  "regle": "Th-BCE 2020 §8.23.3.6, éq. (1278) et (1279) : Taux par défaut, 0,02 en chauffage ou en ECS, 0,01 en refroidissement"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ballon-ecs",
+          "generateurs": [
+            {
+              "id": "resistance",
+              "q_fou_ch_kwh": 0.0,
+              "q_fou_fr_kwh": 0.0,
+              "q_fou_ecs_kwh": 2129.4,
+              "eta_eff_ecs_an": 1.0,
+              "w_aux_kwh": 0.0,
+              "consommations": {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 2129.4
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
