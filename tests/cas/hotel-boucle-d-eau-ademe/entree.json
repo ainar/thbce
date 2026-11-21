@@ -760,14 +760,64 @@
               }
             },
             {
-              "id": "chaudiere-boucle",
-              "rdim": 1,
+              "id": "pac-air-eau-boucle",
+              "rdim": 6,
               "nature": {
-                "chaudiere": {
-                  "type_chaudiere": "gaz_condensation",
-                  "fonction": "chauffage",
-                  "pn_gen_kw": 60.0,
-                  "pertes_parois": "avec_ventilateur"
+                "thermodynamique_electrique": {
+                  "compresseur": "puissance_variable",
+                  "source_amont": {
+                    "air_exterieur": {}
+                  },
+                  "chauffage": {
+                    "technologie": "air_exterieur_eau",
+                    "performances": {
+                      "mesurees": [
+                        {
+                          "theta_aval_c": 32.5,
+                          "theta_amont_c": 7,
+                          "performance": 4.5,
+                          "pabs_kw": 1.35,
+                          "statut": "certifie"
+                        },
+                        {
+                          "theta_aval_c": 32.5,
+                          "theta_amont_c": 2,
+                          "performance": 3.5,
+                          "pabs_kw": 1.4,
+                          "statut": "certifie"
+                        },
+                        {
+                          "theta_aval_c": 32.5,
+                          "theta_amont_c": -7,
+                          "performance": 2.9,
+                          "pabs_kw": 1.45,
+                          "statut": "certifie"
+                        },
+                        {
+                          "theta_aval_c": 42.5,
+                          "theta_amont_c": 7,
+                          "performance": 3.5,
+                          "pabs_kw": 1.65,
+                          "statut": "certifie"
+                        },
+                        {
+                          "theta_aval_c": 42.5,
+                          "theta_amont_c": 2,
+                          "performance": 2.8,
+                          "pabs_kw": 1.7,
+                          "statut": "certifie"
+                        },
+                        {
+                          "theta_aval_c": 42.5,
+                          "theta_amont_c": -7,
+                          "performance": 2.3,
+                          "pabs_kw": 1.75,
+                          "statut": "certifie"
+                        }
+                      ]
+                    },
+                    "typo_emetteur": "plancher_ou_plafond_inertie_forte"
+                  }
                 }
               }
             }

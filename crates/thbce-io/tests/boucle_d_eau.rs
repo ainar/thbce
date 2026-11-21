@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Boucles d'eau (fiche 8.15, lot 2f) de bout en bout : exemple `hotel-boucle-d-eau-ademe`
-//! (pompes à chaleur sur boucle d'eau dans les deux zones d'un hôtel, chaudière et tour de
-//! refroidissement de la boucle) sur la météo ouverte ADEME (CI publique) et sur la météo
+//! (pompes à chaleur sur boucle d'eau dans les deux zones d'un hôtel, pompes à chaleur air / eau
+//! et tour de refroidissement de la boucle) sur la météo ouverte ADEME (CI publique) et sur la météo
 //! réglementaire (test ignoré par défaut) :
 //!
 //! ```text
@@ -95,7 +95,7 @@ fn transfert_entre_groupes_a_la_main() {
     let b = &p.batiments[0];
     let mut gen = GenerationHoraire::resoudre(&b.generations[0], &[], &[], &p.catalogue);
     let ids: Vec<&str> = gen.generateurs.iter().map(|g| g.id.as_str()).collect();
-    assert_eq!(ids, ["pac-nuit", "pac-jour", "chaudiere-boucle", "tour"]);
+    assert_eq!(ids, ["pac-nuit", "pac-jour", "pac-air-eau-boucle", "tour"]);
     let reseaux = [
         reseau(Poste::Chauffage, 20_000.0, 20.0),
         reseau(Poste::Refroidissement, 8000.0, 26.0),
@@ -159,11 +159,11 @@ fn transfert_entre_groupes_a_la_main() {
     assert!((c.q_sys_ch_wh - (phi_ch - transfert)).abs() < 1e-9);
     assert!((c.q_sys_fr_wh - (phi_fr - transfert)).abs() < 1e-9);
     // Le rejet de chaleur des PAC en refroidissement (8 000 Wh + consommation) est plus petit
-    // que le froid rejeté en chauffage (20 000 Wh − consommation) : seule la chaudière est
-    // sollicitée au-delà de ce que la boucle transfère.
+    // que le froid rejeté en chauffage (20 000 Wh − consommation).
     assert!(phi_fr < phi_ch && c.q_sys_fr_wh > 0.0);
-    // Éq. (969) à (971) : la chaudière (60 kW) fournit tout `Qsys_BE_ch`.
+    // Éq. (969) à (971) : les PAC air / eau de la boucle fournissent tout `Qsys_BE_ch`.
     assert!((g[2].jeu.q_fou_wh[0] - c.q_sys_ch_wh).abs() < 1e-6);
+    assert!(g[2].jeu.q_fou_wh[0] > 0.0);
     // Éq. (972) à (974) : Pmax = 30/3 600 × 1 000 × 4 180 × (21 − 16) = 174 166,7 W ;
     // τ = Qsys_BE_fr / Pmax ; consommation (400 + 600) × τ, en électricité, au refroidissement.
     let p_max = 30.0 / 3600.0 * 1000.0 * 4180.0 * 5.0;
@@ -198,18 +198,20 @@ fn hotel_a_boucle_d_eau_bilans_annuels() {
     // `Qsys_BE` égale les rejets ; la chaudière et la tour les fournissent, au report près.
     assert_eq!(b.q_transfert_kwh, 0.0);
     assert!((b.q_sys_ch_kwh - b.phi_rejet_tot_ch_kwh).abs() < 1e-6);
-    let fournie = x("chaudiere-boucle").q_fou_ch_kwh + x("tour").q_fou_fr_kwh;
+    let fournie = x("pac-air-eau-boucle").q_fou_ch_kwh + x("tour").q_fou_fr_kwh;
     assert!((b.q_sys_ch_kwh + b.q_sys_fr_kwh - fournie - b.q_rep_fin_kwh).abs() < 1e-6);
     // La tour ne consomme que de l'électricité de refroidissement, au plus 1 kW.
     let tour = &x("tour").consommations;
     assert!(tour.refroidissement.electricite_kwh > 0.0);
     assert!(tour.refroidissement.electricite_kwh <= 8760.0);
     assert_eq!(tour.chauffage.electricite_kwh, 0.0);
-    // La chaudière de la boucle consomme du gaz, au poste chauffage.
-    assert!(x("chaudiere-boucle").consommations.chauffage.gaz_kwh > b.q_sys_ch_kwh * 0.9);
+    // Les PAC air / eau de la boucle consomment de l'électricité de chauffage.
+    let pac_boucle = x("pac-air-eau-boucle");
+    assert!(pac_boucle.consommations.chauffage.electricite_kwh > 0.0);
+    assert!(pac_boucle.consommations.chauffage.electricite_kwh < pac_boucle.q_fou_ch_kwh);
 
     // Sens des effets : une boucle plus chaude améliore le COP des PAC en chauffage et
-    // demande moins à la chaudière… mais la tour refroidit davantage.
+    // ses PAC consomment moins.
     let mut chaude = v.clone();
     for k in 0..2 {
         chaude["batiments"][0]["generations"][0]["generateurs"][k]["nature"]
@@ -300,7 +302,11 @@ fn validation_de_la_boucle_d_eau() {
     assert!(m.iter().any(|m| m.contains("« jour »")), "{m:?}");
     // Chaudière de boucle d'ECS : le générateur de la boucle a une seule fonction.
     let mut x = v.clone();
-    boucle(&mut x)["generateurs"][2]["nature"]["chaudiere"]["fonction"] = "chauffage_ecs".into();
+    boucle(&mut x)["generateurs"][2] = serde_json::json!({
+        "id": "chaudiere", "rdim": 1,
+        "nature": {"chaudiere": {"type_chaudiere": "gaz_condensation", "fonction": "chauffage_ecs",
+            "pn_gen_kw": 60.0, "pertes_parois": "avec_ventilateur"}}
+    });
     assert!(messages(&x).iter().any(|m| m.contains("idfougen = 1")));
     // Générateur de boucle sur air.
     let mut x = v.clone();
@@ -368,6 +374,7 @@ fn boucle_d_eau_sur_meteo_reglementaire() {
             d(i.ic_energie_kgco2_m2.unwrap()),
             d(be.q_sys_ch_kwh)
         ),
-        (0.0, 0.0, 0.0, 0.0, 0.0)
+        // Valeurs phares au lot 2f (arrondies à une décimale).
+        (103.6, 1253.6, 260.6, 317.7, 88834.8)
     );
 }
