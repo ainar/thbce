@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Gymnase d'exemple (tests/cas/gymnase-pac-ademe) chauffé par des générateurs à combustion au gaz naturel sur air (§8.20), en cascade, réseau fictif et aérothermes (soufflage d'air chaud) : quatre tubes radiants de 15 kW avec ventilateur côté émission (type 108, rendement déclaré 92 % sur PCI ramené à min(0,8 × 92 ; 86) = 73,6 %, fmaj = 1,06, auxiliaires par défaut de 54 W/kW), puis un générateur d'air chaud à condensation de 40 kW avec ventilateur côté émission (type 107, rendements, Pint, Qpo30 et auxiliaires par défaut, veille de 10 W et veilleuse de 40 W, raccordé en permanence : idraccord_gnr = 0, sans effet sensible ici : en volume chauffé θaval ≈ θamb donc QP0 ≈ 0, Q155 point 8) ; ECS par le chauffe-eau électrique du gymnase d'exemple. Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : valeurs du moteur au lot 2e (20 novembre 2026), figées pour détecter les régressions ; le Bbio et le DH sont ceux du gymnase d'exemple (le Bbio ne dépend pas des systèmes ; le DH, calculé sans refroidissement, ne change pas ici). Ce n'est pas un cas de référence."
+meteo = "ademe"
+
+[tolerances]
+defaut = 0.005

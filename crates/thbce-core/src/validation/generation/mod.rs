@@ -10,7 +10,7 @@ use crate::entree::{
     GestionTemperatureGeneration, NatureGenerateur, PositionGeneration, ReseauChaleurFroidSaisi,
     ReseauIntergroupes, SystemeVentilation, TypePriorite,
 };
-use combustion::{valider_chaudiere, valider_poele};
+use combustion::{valider_autre_combustion, valider_chaudiere, valider_poele};
 use reseaux_chaleur::valider_reseau;
 use thermodynamique::valider_thermodynamique;
 use thermodynamique_gaz::{fluide_aval_gaz, postes_gaz, valider_thermodynamique_gaz};
@@ -40,6 +40,11 @@ pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
             c.fonction != FonctionChaleur::Chauffage,
         ],
         NatureGenerateur::PoeleOuInsert(_) => [true, false, false],
+        // Tableau 124 : chauffage pour les types 103 et 106 à 109, ECS pour 104 et 105.
+        NatureGenerateur::AutreGenerateurACombustion(c) => {
+            let ecs = combustion::autre_combustion_ecs(c);
+            [!ecs, false, ecs]
+        }
         NatureGenerateur::ThermodynamiqueGaz(t) => postes_gaz(t),
         NatureGenerateur::ReseauDeChaleurOuDeFroid(ReseauChaleurFroidSaisi::Chaleur {
             fonction,
@@ -54,8 +59,7 @@ pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
         }
         // Natures refusées (code 3) : le lot qui les ouvre donne ici leurs postes, tirés de
         // leur saisie (`docs/architecture.md`, §3.10).
-        NatureGenerateur::AutreGenerateurACombustion
-        | NatureGenerateur::BoucleDEauOuDrv
+        NatureGenerateur::BoucleDEauOuDrv
         | NatureGenerateur::Cogeneration
         | NatureGenerateur::PacHybride => [false; 3],
     }
@@ -71,11 +75,8 @@ pub(super) fn nature_hors_perimetre(n: &NatureGenerateur) -> Option<(&'static st
         | NatureGenerateur::Chaudiere(_)
         | NatureGenerateur::PoeleOuInsert(_)
         | NatureGenerateur::ReseauDeChaleurOuDeFroid(_)
-        | NatureGenerateur::ThermodynamiqueGaz(_) => None,
-        NatureGenerateur::AutreGenerateurACombustion => Some((
-            "autre_generateur_a_combustion",
-            "autre générateur à combustion (Th-BCE 2020 §8.20, types 103 à 109)",
-        )),
+        | NatureGenerateur::ThermodynamiqueGaz(_)
+        | NatureGenerateur::AutreGenerateurACombustion(_) => None,
         NatureGenerateur::BoucleDEauOuDrv => Some((
             "boucle_d_eau_ou_drv",
             "pompe à chaleur sur boucle d'eau, thermo-frigo-pompe ou générateur DRV (Th-BCE 2020 \
@@ -110,12 +111,15 @@ pub(super) fn fluide_aval_hydraulique(n: &NatureGenerateur) -> Option<bool> {
             Some(true)
         }
         NatureGenerateur::PoeleOuInsert(_) => Some(false),
+        // Tableau 124 : sur eau pour les chauffe-eau et accumulateurs, sur air ambiant sinon.
+        NatureGenerateur::AutreGenerateurACombustion(c) => {
+            Some(combustion::autre_combustion_ecs(c))
+        }
         NatureGenerateur::EffetJoule(_) | NatureGenerateur::ThermodynamiqueElectrique(_) => None,
         // Selon le mode et la technologie : contrôlé à part (`fluide_aval_gaz`).
         NatureGenerateur::ThermodynamiqueGaz(_) => None,
         // Natures refusées (code 3) : à fixer par le lot qui les ouvre.
-        NatureGenerateur::AutreGenerateurACombustion
-        | NatureGenerateur::BoucleDEauOuDrv
+        NatureGenerateur::BoucleDEauOuDrv
         | NatureGenerateur::Cogeneration
         | NatureGenerateur::PacHybride => None,
     }
@@ -374,6 +378,14 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
             }
             NatureGenerateur::PoeleOuInsert(p) => {
                 valider_poele(r, &format!("{cg}.nature.poele_ou_insert"), p);
+            }
+            NatureGenerateur::AutreGenerateurACombustion(c) => {
+                valider_autre_combustion(
+                    r,
+                    &format!("{cg}.nature.autre_generateur_a_combustion"),
+                    c,
+                    g.priorite,
+                );
             }
             NatureGenerateur::ReseauDeChaleurOuDeFroid(n) => {
                 valider_reseau(r, &format!("{cg}.nature.reseau_de_chaleur_ou_de_froid"), n);

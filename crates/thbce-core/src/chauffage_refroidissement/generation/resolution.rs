@@ -5,6 +5,7 @@
 //! Un nouveau générateur ajoute ici la branche de sa nature dans [`GenerationHoraire::resoudre`].
 
 use super::*;
+use crate::chauffage_refroidissement::autres_generateurs_a_combustion::AutreGenerateurCombustion;
 use crate::chauffage_refroidissement::chaudieres_gaz_fioul_bois::Chaudiere;
 use crate::chauffage_refroidissement::generateur_direct_a_effet_joule::GenerateurEffetJoule;
 use crate::chauffage_refroidissement::pac_moteur_gaz::PacMoteurGaz;
@@ -32,6 +33,10 @@ impl GenerationHoraire {
             ThermodynamiqueGazSaisi, TypePriorite,
         };
         let en_vc = g.position == PositionGeneration::EnVolumeChauffe;
+        let avec_priorite = matches!(
+            g.priorite,
+            Some(TypePriorite::Cascade | TypePriorite::Alternance)
+        );
         let mut generateurs: Vec<GenerateurHoraire> = g
             .generateurs
             .iter()
@@ -98,8 +103,12 @@ impl GenerationHoraire {
                     // Natures refusées par la validation (code 3) : points d'entrée des lots
                     // à venir, qui remplacent leur branche par l'aiguillage vers leur modèle
                     // (`docs/architecture.md`, §3.10).
-                    NatureGenerateur::AutreGenerateurACombustion
-                    | NatureGenerateur::BoucleDEauOuDrv
+                    NatureGenerateur::AutreGenerateurACombustion(c) => {
+                        let (m, defauts) = resoudre_autre_combustion(c, rdim, en_vc, avec_priorite);
+                        valeurs_par_defaut = defauts;
+                        Generateur::AutreCombustion(Box::new(m))
+                    }
+                    NatureGenerateur::BoucleDEauOuDrv
                     | NatureGenerateur::Cogeneration
                     | NatureGenerateur::PacHybride => return None,
                 };
@@ -573,4 +582,483 @@ fn resoudre_reseau(
             lecture_hss: LectureHss::Litterale,
         },
     })
+}
+
+/// Autre générateur à combustion résolu à partir de sa saisie (§8.20.3.1 à 8.20.3.4, tableaux
+/// 124 à 131) ; `avec_priorite` : la génération est gérée en cascade ou en alternance (seul
+/// cas où « idraccord_gnr » intervient, lecture Q156).
+fn resoudre_autre_combustion(
+    c: &crate::entree::AutreGenerateurCombustionSaisi,
+    rdim: f64,
+    en_volume_chauffe: bool,
+    avec_priorite: bool,
+) -> (AutreGenerateurCombustion, Vec<ValeurParDefaut>) {
+    use crate::chauffage_refroidissement::autres_generateurs_a_combustion::{
+        p_aux_defaut_w, q_po_30_defaut_w, r_pint_defaut_pct, r_pn_defaut_pct, CoefficientsDefaut,
+        Famille, DIVISEUR_VEILLEUSE, PN_MAX_FORMULES_AIR_CHAUD_KW, R_PINT_UTILE_MAX_PCT,
+        R_PN_UTILE_MAX_PCT, THETA_FONCT_MIN_DEFAUT_C,
+    };
+    use crate::entree::{
+        EvacuationFumees, PertesParoisChaudiere, RaccordementGenerateur,
+        StatutRendementCombustion as S, TypeAutreGenerateurCombustion as T,
+    };
+    let pn = c.pn_gen_kw;
+    // Tableaux 126 à 128 ; tableaux 129 et 130 pour « fmaj ».
+    let (famille, coef, f_maj) = match c.type_generateur {
+        T::RadiateurGaz {
+            ventilateur_combustion,
+            ventilateur_emission,
+            evacuation_fumees,
+        } => {
+            let a = if pn < 5.0 {
+                80.0
+            } else if ventilateur_combustion {
+                84.0
+            } else {
+                82.0
+            };
+            let nb = f64::from(u8::from(ventilateur_combustion) + u8::from(ventilateur_emission));
+            let f_maj = if ventilateur_combustion {
+                1.02
+            } else if evacuation_fumees == Some(EvacuationFumees::MicroVentouse) {
+                1.04
+            } else {
+                1.06
+            };
+            (
+                Famille::Radiateur,
+                CoefficientsDefaut {
+                    ab: (a, 0.0),
+                    cd: None,
+                    ef: None,
+                    gh: Some((40.0 * nb, 0.0)),
+                },
+                f_maj,
+            )
+        }
+        T::ChauffeEauGaz => (
+            Famille::ChauffeEau,
+            CoefficientsDefaut {
+                ab: (if pn < 10.0 { 82.0 } else { 84.0 }, 0.0),
+                cd: None,
+                ef: Some((1.5, 0.0)),
+                gh: Some((0.0, 0.0)),
+            },
+            1.0,
+        ),
+        T::AccumulateurGaz {
+            condensation,
+            plus_de_200_l_montee_rapide,
+        } => (
+            Famille::Accumulateur,
+            CoefficientsDefaut {
+                ab: (if condensation { 98.0 } else { 84.0 }, 0.0),
+                cd: None,
+                ef: Some((
+                    if plus_de_200_l_montee_rapide {
+                        1.7
+                    } else {
+                        1.5
+                    },
+                    0.0,
+                )),
+                gh: Some((0.0, 0.0)),
+            },
+            1.0,
+        ),
+        T::AirChaud {
+            condensation,
+            ventilateur_emission,
+        } => (
+            Famille::AirChaud,
+            CoefficientsDefaut {
+                ab: (if condensation { 90.0 } else { 84.0 }, 0.0),
+                cd: Some((if condensation { 83.0 } else { 77.0 }, 0.0)),
+                ef: Some((1.75, -0.55)),
+                gh: Some((0.0, if ventilateur_emission { 54.0 } else { 4.0 })),
+            },
+            1.0,
+        ),
+        T::TubeRadiant {
+            ventilateur_emission,
+        } => (
+            Famille::TubeRadiant,
+            CoefficientsDefaut {
+                ab: (85.0, 0.0),
+                cd: None,
+                ef: None,
+                gh: ventilateur_emission.then_some((0.0, 54.0)),
+            },
+            1.06,
+        ),
+        T::PanneauRadiant => (
+            Famille::PanneauRadiant,
+            CoefficientsDefaut {
+                ab: (90.0, 0.0),
+                cd: None,
+                ef: None,
+                gh: None,
+            },
+            1.0,
+        ),
+    };
+    // §8.20.3.4 : formules d'un générateur d'air chaud évaluées à 300 kW au plus.
+    let pn_f = if famille == Famille::AirChaud {
+        pn.min(PN_MAX_FORMULES_AIR_CHAUD_KW)
+    } else {
+        pn
+    };
+    let mut defauts = Vec::new();
+    let mut defaut = |champ: &str, valeur: f64, regle: &str| {
+        defauts.push(ValeurParDefaut {
+            champ: champ.to_owned(),
+            valeur,
+            regle: regle.to_owned(),
+        });
+    };
+    let air_chaud = famille == Famille::AirChaud;
+    let p_int = if air_chaud {
+        c.p_int_kw.unwrap_or_else(|| {
+            let p = 0.3 * pn;
+            defaut(
+                "p_int_kw",
+                p,
+                "Th-BCE 2020 §8.20.2, tableau 123 : « Rpint » est défini à 30 % de charge ; \
+                 30 % de Pngen (lecture Q155)",
+            );
+            p
+        })
+    } else {
+        0.0
+    };
+    let r_pn_def = r_pn_defaut_pct(&coef, pn_f);
+    let r_pint_def = r_pint_defaut_pct(&coef, pn_f).unwrap_or(0.0);
+    let (r_pn, r_pint) = match c.rendements {
+        Some(r) => {
+            // Éq. (1129), (1130) et (1132) ; valeur justifiée diminuée de 10 %.
+            let pn_eff = match r.statut {
+                S::Certifie => r.r_pn_pct,
+                S::Justifie => 0.9 * r.r_pn_pct,
+                S::Declare => (0.8 * r.r_pn_pct).min(R_PN_UTILE_MAX_PCT),
+            };
+            let pint_eff = match (r.r_pint_pct, r.statut) {
+                (Some(x), S::Certifie) => x,
+                (Some(x), S::Justifie) => 0.9 * x,
+                (Some(x), S::Declare) => (0.8 * x).min(R_PINT_UTILE_MAX_PCT),
+                (None, _) => {
+                    if air_chaud {
+                        defaut(
+                            "rendements.r_pint_pct",
+                            r_pint_def,
+                            "Th-BCE 2020 §8.20.3.4, éq. (1122), tableau 126",
+                        );
+                    }
+                    r_pint_def
+                }
+            };
+            (pn_eff, pint_eff)
+        }
+        None => {
+            defaut(
+                "rendements.r_pn_pct",
+                r_pn_def,
+                "Th-BCE 2020 §8.20.3.4, éq. (1121), tableau 126",
+            );
+            if air_chaud {
+                defaut(
+                    "rendements.r_pint_pct",
+                    r_pint_def,
+                    "Th-BCE 2020 §8.20.3.4, éq. (1122), tableau 126",
+                );
+            }
+            (r_pn_def, r_pint_def)
+        }
+    };
+    // La validation exige `w_aux_nom_w` quand le tableau 128 ne donne pas de valeur.
+    let w_aux_nom = c.w_aux_nom_w.unwrap_or_else(|| {
+        let w = p_aux_defaut_w(&coef, pn_f).unwrap_or(0.0);
+        defaut(
+            "w_aux_nom_w",
+            w,
+            "Th-BCE 2020 §8.20.3.4, éq. (1124), tableau 128",
+        );
+        w
+    });
+    let w_veille = c.w_veille_w + c.p_veilleuse_w.unwrap_or(0.0) / DIVISEUR_VEILLEUSE;
+    let q_po_30 = if famille.pertes_a_charge_nulle() {
+        c.q_po_30_w.unwrap_or_else(|| {
+            let q = q_po_30_defaut_w(&coef, pn_f).unwrap_or(0.0);
+            defaut(
+                "q_po_30_w",
+                q,
+                "Th-BCE 2020 §8.20.3.4, éq. (1123), tableau 127 (lecture Q155)",
+            );
+            q
+        })
+    } else {
+        0.0
+    };
+    let theta_min = if famille.ecs() {
+        c.theta_fonct_min_c.unwrap_or_else(|| {
+            defaut(
+                "theta_fonct_min_c",
+                THETA_FONCT_MIN_DEFAUT_C,
+                "Th-BCE 2020 §8.20.3.2.2",
+            );
+            THETA_FONCT_MIN_DEFAUT_C
+        })
+    } else {
+        THETA_FONCT_MIN_DEFAUT_C
+    };
+    let p_qp_arret = match c.pertes_parois {
+        PertesParoisChaudiere::SansVentilateur => 0.50,
+        PertesParoisChaudiere::AvecVentilateur => 0.75,
+        PertesParoisChaudiere::AvecClapet => 1.0,
+    };
+    // Lecture Q156 : « idraccord_gnr » ne vaut que pour une gestion avec priorité ; avec
+    // isolement par défaut (tableau 123).
+    let permanent = avec_priorite && c.raccordement == Some(RaccordementGenerateur::Permanent);
+    (
+        AutreGenerateurCombustion::nouveau(
+            famille,
+            c.gpl,
+            rdim,
+            en_volume_chauffe,
+            (pn, p_int),
+            (r_pn, r_pint),
+            (w_aux_nom, w_veille),
+            q_po_30,
+            theta_min,
+            f_maj,
+            p_qp_arret,
+            permanent,
+        ),
+        defauts,
+    )
+}
+
+/// Résolution des autres générateurs à combustion (types 103 à 109) : valeurs par défaut
+/// calculées à la main d'après les tableaux 126 à 131 et le §8.20.3.4.
+#[cfg(test)]
+#[allow(clippy::float_cmp)]
+mod tests_autre_combustion {
+    use super::*;
+    use crate::chauffage_refroidissement::autres_generateurs_a_combustion::Famille;
+    use crate::entree::{
+        AutreGenerateurCombustionSaisi as Saisi, EvacuationFumees, PertesParoisChaudiere,
+        RaccordementGenerateur, TypeAutreGenerateurCombustion as T,
+    };
+
+    fn saisi(t: T, pn: f64) -> Saisi {
+        Saisi {
+            type_generateur: t,
+            gpl: false,
+            pn_gen_kw: pn,
+            rendements: None,
+            p_int_kw: None,
+            w_aux_nom_w: None,
+            w_veille_w: 0.0,
+            p_veilleuse_w: None,
+            q_po_30_w: None,
+            theta_fonct_min_c: None,
+            pertes_parois: PertesParoisChaudiere::SansVentilateur,
+            raccordement: None,
+        }
+    }
+
+    fn resout(c: &Saisi) -> (AutreGenerateurCombustion, Vec<ValeurParDefaut>) {
+        resoudre_autre_combustion(c, 1.0, true, true)
+    }
+
+    fn proche(a: f64, b: f64) {
+        assert!((a - b).abs() < 1e-9 * b.abs().max(1.0), "{a} != {b}");
+    }
+
+    fn radiateur(vc: bool, ve: bool, ev: Option<EvacuationFumees>) -> T {
+        T::RadiateurGaz {
+            ventilateur_combustion: vc,
+            ventilateur_emission: ve,
+            evacuation_fumees: ev,
+        }
+    }
+
+    #[test]
+    fn radiateur_tableaux_126_128_129() {
+        // Pn < 5 kW : A = 80 ; un ventilateur côté émission : 40 W ; cheminée : fmaj = 1,06.
+        let (g, _) = resout(&saisi(
+            radiateur(false, true, Some(EvacuationFumees::Cheminee)),
+            4.0,
+        ));
+        assert_eq!(g.famille, Famille::Radiateur);
+        proche(g.r_pn_pct, 80.0);
+        proche(g.w_aux_nom_w, 40.0);
+        proche(g.f_maj, 1.06);
+        assert_eq!(g.q_po_30_w, 0.0);
+        // Pn >= 5 kW sans ventilateur côté combustion : A = 82 ; micro-ventouse : 1,04 ; 0 W.
+        let (g, _) = resout(&saisi(
+            radiateur(false, false, Some(EvacuationFumees::MicroVentouse)),
+            6.0,
+        ));
+        proche(g.r_pn_pct, 82.0);
+        proche(g.w_aux_nom_w, 0.0);
+        proche(g.f_maj, 1.04);
+        // Pn >= 5 kW avec ventilateur côté combustion : A = 84 ; deux ventilateurs : 80 W ;
+        // fmaj = 1,02 quelle que soit l'évacuation.
+        let (g, _) = resout(&saisi(radiateur(true, true, None), 6.0));
+        proche(g.r_pn_pct, 84.0);
+        proche(g.w_aux_nom_w, 80.0);
+        proche(g.f_maj, 1.02);
+    }
+
+    #[test]
+    fn chauffe_eau_tableaux_126_127() {
+        // 8 kW : A = 82 ; Qpo30 = 1000·8·1,5/100 = 120 W.
+        let (g, _) = resout(&saisi(T::ChauffeEauGaz, 8.0));
+        assert_eq!(g.famille, Famille::ChauffeEau);
+        proche(g.r_pn_pct, 82.0);
+        proche(g.q_po_30_w, 120.0);
+        proche(g.w_aux_nom_w, 0.0);
+        proche(g.f_maj, 1.0);
+        // 12 kW : A = 84 ; Qpo30 = 1000·12·1,5/100 = 180 W.
+        let (g, _) = resout(&saisi(T::ChauffeEauGaz, 12.0));
+        proche(g.r_pn_pct, 84.0);
+        proche(g.q_po_30_w, 180.0);
+        // θfonct_min par défaut : 20 °C (§8.20.3.2.2), signalé.
+        proche(g.theta_fonct_min_c, 20.0);
+    }
+
+    #[test]
+    fn accumulateur_tableaux_126_127() {
+        let acc = |condensation, grand| T::AccumulateurGaz {
+            condensation,
+            plus_de_200_l_montee_rapide: grand,
+        };
+        // Accumulateur à condensation de 20 kW : A = 98 ; E = 1,5 : 1000·20·1,5/100 = 300 W.
+        let (g, _) = resout(&saisi(acc(true, false), 20.0));
+        assert_eq!(g.famille, Famille::Accumulateur);
+        proche(g.r_pn_pct, 98.0);
+        proche(g.q_po_30_w, 300.0);
+        // Accumulateur standard de plus de 200 L : A = 84 ; E = 1,7 : 1000·20·1,7/100 = 340 W.
+        let (g, _) = resout(&saisi(acc(false, true), 20.0));
+        proche(g.r_pn_pct, 84.0);
+        proche(g.q_po_30_w, 340.0);
+    }
+
+    #[test]
+    fn air_chaud_tableaux_126_128_et_plafond_300_kw() {
+        let ac = |condensation, ventilo| T::AirChaud {
+            condensation,
+            ventilateur_emission: ventilo,
+        };
+        // Standard sans ventilateur, 100 kW : Rpn = 84, Rpint = 77 ; Pint = 0,3·100 = 30 kW ;
+        // Qpo30 = 1000·100·(1,75 − 0,55·log10 100)/100 = 650 W ; Paux = 4·100 = 400 W.
+        let (g, d) = resout(&saisi(ac(false, false), 100.0));
+        assert_eq!(g.famille, Famille::AirChaud);
+        proche(g.r_pn_pct, 84.0);
+        proche(g.r_pint_pct, 77.0);
+        proche(g.p_int_kw, 30.0);
+        proche(g.q_po_30_w, 650.0);
+        proche(g.w_aux_nom_w, 400.0);
+        assert!(d.iter().any(|v| v.champ == "p_int_kw"));
+        // Condensation avec ventilateur : Rpn = 90, Rpint = 83 ; Paux = 54·100 = 5 400 W.
+        let (g, _) = resout(&saisi(ac(true, true), 100.0));
+        proche(g.r_pn_pct, 90.0);
+        proche(g.r_pint_pct, 83.0);
+        proche(g.w_aux_nom_w, 5400.0);
+        // 400 kW : formules évaluées à 300 kW (§8.20.3.4) ; Pint reste 0,3·400 = 120 kW.
+        // Qpo30 = 1000·300·(1,75 − 0,55·log10 300)/100 = 1 162,75 W ; Paux = 4·300 = 1 200 W.
+        let (g, _) = resout(&saisi(ac(false, false), 400.0));
+        proche(g.p_int_kw, 120.0);
+        let l = libm::log10(300.0);
+        proche(g.q_po_30_w, 3000.0 * (1.75 - 0.55 * l));
+        assert!((g.q_po_30_w - 1162.75).abs() < 0.01);
+        proche(g.w_aux_nom_w, 1200.0);
+        proche(g.r_pn_pct, 84.0);
+    }
+
+    #[test]
+    fn tube_et_panneau_radiants_tableaux_126_128_130() {
+        // Tube radiant avec ventilateur, 50 kW : A = 85 ; Paux = 54·50 = 2 700 W ; fmaj = 1,06.
+        let (g, _) = resout(&saisi(
+            T::TubeRadiant {
+                ventilateur_emission: true,
+            },
+            50.0,
+        ));
+        assert_eq!(g.famille, Famille::TubeRadiant);
+        proche(g.r_pn_pct, 85.0);
+        proche(g.w_aux_nom_w, 2700.0);
+        proche(g.f_maj, 1.06);
+        assert_eq!(g.q_po_30_w, 0.0);
+        // Panneau radiant (type 109), 30 kW : A = 90 ; fmaj = 1,00 ; pas de pertes à l'arrêt ;
+        // Waux,nom saisi (aucune valeur au tableau 128).
+        let mut p = saisi(T::PanneauRadiant, 30.0);
+        p.w_aux_nom_w = Some(15.0);
+        let (g, _) = resout(&p);
+        assert_eq!(g.famille, Famille::PanneauRadiant);
+        proche(g.r_pn_pct, 90.0);
+        proche(g.f_maj, 1.0);
+        proche(g.w_aux_nom_w, 15.0);
+        assert_eq!(g.q_po_30_w, 0.0);
+        assert_eq!(g.q_p0_w(60.0, 19.0), 0.0);
+    }
+
+    #[test]
+    fn gpl_veilleuse_et_raccordement() {
+        // GPL : PCSI = 1,09 (tableau 125) contre 1,11 pour le gaz naturel.
+        let mut p = saisi(T::PanneauRadiant, 30.0);
+        p.w_aux_nom_w = Some(0.0);
+        let (naturel, _) = resout(&p);
+        proche(naturel.pcsi(), 1.11);
+        p.gpl = true;
+        let (gpl, _) = resout(&p);
+        proche(gpl.pcsi(), 1.09);
+        // Veilleuse de 258 W : Wveille = 10 + 258/2,58 = 110 W.
+        p.w_veille_w = 10.0;
+        p.p_veilleuse_w = Some(258.0);
+        let (g, _) = resout(&p);
+        proche(g.w_veille_w, 110.0);
+        // « idraccord_gnr » : permanent seulement avec priorité (lecture Q156).
+        p.raccordement = Some(RaccordementGenerateur::Permanent);
+        assert!(
+            resoudre_autre_combustion(&p, 1.0, true, true)
+                .0
+                .raccord_permanent
+        );
+        assert!(
+            !resoudre_autre_combustion(&p, 1.0, true, false)
+                .0
+                .raccord_permanent
+        );
+        p.raccordement = None;
+        assert!(
+            !resoudre_autre_combustion(&p, 1.0, true, true)
+                .0
+                .raccord_permanent
+        );
+    }
+
+    #[test]
+    fn valeurs_saisies_et_statuts() {
+        use crate::entree::{RendementsCombustion, StatutRendementCombustion as S};
+        let mut c = saisi(T::ChauffeEauGaz, 12.0);
+        c.q_po_30_w = Some(77.0);
+        c.theta_fonct_min_c = Some(45.0);
+        c.rendements = Some(RendementsCombustion {
+            statut: S::Justifie,
+            r_pn_pct: 90.0,
+            r_pint_pct: None,
+        });
+        let (g, _) = resout(&c);
+        proche(g.q_po_30_w, 77.0);
+        proche(g.theta_fonct_min_c, 45.0);
+        proche(g.r_pn_pct, 81.0);
+        // Déclaré : min(0,8·95 ; 86) = 76.
+        c.rendements = Some(RendementsCombustion {
+            statut: S::Declare,
+            r_pn_pct: 95.0,
+            r_pint_pct: None,
+        });
+        proche(resout(&c).0.r_pn_pct, 76.0);
+    }
 }

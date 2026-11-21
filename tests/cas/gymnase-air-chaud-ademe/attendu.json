@@ -1,0 +1,116 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H1b"
+  },
+  "batiments": [
+    {
+      "id": "gymnase",
+      "sref_m2": 900.0,
+      "bbio_pts": 128.2,
+      "dh_c_h": 3374.8,
+      "cep_kwhep_m2": 153.4,
+      "cep_nr_kwhep_m2": 153.4,
+      "ic_energie_kgco2_m2": 315.9,
+      "bbio": {
+        "annuel": {
+          "b_ch_kwh_m2": 4.9,
+          "b_fr_kwh_m2": 21.4,
+          "b_ecl_kwh_m2": 15.1,
+          "bbio_pts": 128.2
+        }
+      },
+      "indicateurs": {
+        "cef_kwhef_m2": 77.1,
+        "exigences": {
+          "bbio_max_pts": 103.4,
+          "cep_max_kwhep_m2": 127.6,
+          "cep_nr_max_kwhep_m2": 103.4,
+          "ic_energie_max_kgco2_m2": 165.0,
+          "conforme": false
+        },
+        "electricite_consommee": {
+          "chauffage_kwh": 767.6,
+          "refroidissement_kwh": 5810.9,
+          "ecs_kwh": 23763.4,
+          "eclairage_kwh": 17631.3,
+          "auxiliaires_ventilation_kwh": 4836.0,
+          "auxiliaires_distribution_kwh": 0.0
+        }
+      },
+      "zones": [
+        {
+          "id": "gymnase",
+          "ventilation": {
+            "c_aux_vent_kwh": 4836.0
+          },
+          "groupes": [
+            {
+              "id": "gymnase",
+              "debits_bbio": {
+                "q_spec_repris_m3_h": -2700.0,
+                "q_spec_souffle_m3_h": 2700.0
+              }
+            }
+          ]
+        }
+      ],
+      "generations": [
+        {
+          "id": "generation-gaz",
+          "generateurs": [
+            {
+              "id": "tubes-radiants",
+              "q_fou_ch_kwh": 11872.6,
+              "q_fou_ecs_kwh": 0.0,
+              "consommations": {
+                "chauffage": {
+                  "gaz_kwh": 16457.4,
+                  "electricite_kwh": 693.3
+                },
+                "refroidissement": {},
+                "ecs": {}
+              },
+              "eta_eff_ch_an": 0.69,
+              "w_aux_kwh": 693.3
+            },
+            {
+              "id": "air-chaud",
+              "q_fou_ch_kwh": 148.2,
+              "q_fou_ecs_kwh": 0.0,
+              "consommations": {
+                "chauffage": {
+                  "gaz_kwh": 167.7,
+                  "electricite_kwh": 74.3
+                },
+                "refroidissement": {},
+                "ecs": {}
+              },
+              "eta_eff_ch_an": 0.61,
+              "w_aux_kwh": 74.3
+            }
+          ]
+        },
+        {
+          "id": "chauffe-eau",
+          "generateurs": [
+            {
+              "id": "resistance",
+              "q_fou_ch_kwh": 0.0,
+              "q_fou_ecs_kwh": 23763.4,
+              "consommations": {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 23763.4
+                }
+              },
+              "eta_eff_ecs_an": 1.0,
+              "w_aux_kwh": 0.0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

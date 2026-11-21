@@ -906,7 +906,15 @@ impl MachineAbsorption {
                 if technologie != Ecs::AirEau {
                     return None;
                 }
-                // Q135 : « Dfou0 » du mode ECS repris du tableau 216 (fiche 8.23).
+                // Q135 : « Dfou0 » du mode ECS repris du tableau 216 (fiche 8.23), signalé
+                // comme valeur par défaut (relecture du lot 2c).
+                defaut(
+                    "ecs.dfou0_min",
+                    super::thermodynamique_elec::DFOU0_ECS_MIN,
+                    "Th-BCE 2020 §8.24 : « Dfou0 » du mode ECS non donné par la fiche ; durée \
+                     de fonctionnement minimale de l'ECS reprise du tableau 216 de la fiche 8.23 \
+                     (lecture Q135)",
+                );
                 (
                     Poste::Ecs,
                     &ECS_AIR_EAU,
@@ -1228,6 +1236,36 @@ mod tests {
             defauts::rdt_comb_justifie(Poste::Chauffage, true, 0.95),
             0.925,
         );
+    }
+
+    #[test]
+    fn dfou0_ecs_signale_comme_valeur_par_defaut() {
+        // Q135 : « Dfou0 » du mode ECS = 26 min (tableau 216, fiche 8.23), signalé ; le mode
+        // chauffage ne le signale pas (valeur du tableau 216 selon l'émetteur).
+        let saisie = |mode: serde_json::Value| -> crate::entree::AbsorptionGazSaisie {
+            serde_json::from_value(serde_json::json!({
+                "mode": mode,
+                "performances": {"pivot_defaut": {"pabs_kw": 8.0}},
+                "pertes_40c": {"valeur": 250.0, "statut": "certifie"}
+            }))
+            .unwrap()
+        };
+        let (m, d) = MachineAbsorption::resoudre(
+            &saisie(serde_json::json!({"ecs": {"technologie": "air_eau"}})),
+            1.0,
+        )
+        .unwrap();
+        proche(m.dfou0_min, 26.0);
+        let v = d.iter().find(|v| v.champ == "ecs.dfou0_min").unwrap();
+        proche(v.valeur, 26.0);
+        let (_, d) = MachineAbsorption::resoudre(
+            &saisie(serde_json::json!({"chauffage": {
+                "technologie": "air_eau_classique",
+                "typo_emetteur": "plancher_ou_plafond_inertie_forte"}})),
+            1.0,
+        )
+        .unwrap();
+        assert!(d.iter().all(|v| v.champ != "ecs.dfou0_min"));
     }
 
     fn machine(modulant: bool) -> MachineAbsorption {
