@@ -9,9 +9,9 @@
       "sref_m2": 1200.0,
       "bbio_pts": 108.3,
       "dh_c_h": 1492.2,
-      "cep_kwhep_m2": 258.5,
-      "cep_nr_kwhep_m2": 258.5,
-      "ic_energie_kgco2_m2": 884.2,
+      "cep_kwhep_m2": 278.5,
+      "cep_nr_kwhep_m2": 278.5,
+      "ic_energie_kgco2_m2": 629.2,
       "bbio": {
         "annuel": {
           "b_ch_kwh_m2": 30.7,
@@ -21,7 +21,7 @@
         }
       },
       "indicateurs": {
-        "cef_kwhef_m2": 154.2,
+        "cef_kwhef_m2": 142.0,
         "exigences": {
           "bbio_max_pts": 90.5,
           "cep_max_kwhep_m2": 171.0,
@@ -30,29 +30,29 @@
           "conforme": false
         },
         "electricite_consommee": {
-          "chauffage_kwh": 43633.7,
+          "chauffage_kwh": 65596.8,
           "refroidissement_kwh": 1115.2,
-          "ecs_kwh": 44704.1,
+          "ecs_kwh": 44703.8,
           "eclairage_kwh": 12083.6,
           "auxiliaires_ventilation_kwh": 11680.0,
-          "auxiliaires_distribution_kwh": 397.5
+          "auxiliaires_distribution_kwh": 398.2
         },
         "production_cogeneration": {
-          "e_prod_coge_kwh": 22683.4,
-          "e_prod_coge_ac_kwh": 21263.7,
-          "e_exportee_kwh": 1419.8,
-          "tac_pct": 93.7,
-          "tac_global_pct": 98.7
+          "e_prod_coge_kwh": 11603.7,
+          "e_prod_coge_ac_kwh": 11603.7,
+          "e_exportee_kwh": 0.0,
+          "tac_pct": 100.0,
+          "tac_global_pct": 100.0
         },
         "electricite_importee": {
-          "chauffage_kwh": 33642.4,
+          "chauffage_kwh": 59620.1,
           "refroidissement_kwh": 1115.2,
-          "ecs_kwh": 41164.4,
-          "eclairage_kwh": 10687.8,
-          "auxiliaires_ventilation_kwh": 9506.5,
-          "auxiliaires_distribution_kwh": 238.6,
+          "ecs_kwh": 42964.1,
+          "eclairage_kwh": 11414.9,
+          "auxiliaires_ventilation_kwh": 10557.6,
+          "auxiliaires_distribution_kwh": 317.4,
           "deplacements_kwh": 0.0,
-          "mobilier_kwh": 26309.2
+          "mobilier_kwh": 28298.4
         }
       },
       "zones": [
@@ -93,27 +93,27 @@
           "generateurs": [
             {
               "id": "cogenerateur-mci",
-              "q_fou_ch_kwh": 54706.1,
+              "q_fou_ch_kwh": 27282.8,
               "q_fou_ecs_kwh": 0.0,
               "consommations": {
                 "chauffage": {
-                  "gaz_kwh": 88629.1,
-                  "electricite_kwh": 669.1
+                  "gaz_kwh": 44463.5,
+                  "electricite_kwh": 777.9
                 },
                 "refroidissement": {},
                 "ecs": {}
               },
-              "eta_eff_ch_an": 0.61,
-              "w_aux_kwh": 669.1,
-              "q_prelec_kwh": 22683.4
+              "eta_eff_ch_an": 0.6,
+              "w_aux_kwh": 777.9,
+              "q_prelec_kwh": 11603.7
             },
             {
               "id": "appoint-electrique",
-              "q_fou_ch_kwh": 42964.5,
+              "q_fou_ch_kwh": 64818.9,
               "q_fou_ecs_kwh": 0.0,
               "consommations": {
                 "chauffage": {
-                  "electricite_kwh": 42964.5
+                  "electricite_kwh": 64818.9
                 },
                 "refroidissement": {},
                 "ecs": {}
@@ -129,12 +129,12 @@
             {
               "id": "resistance",
               "q_fou_ch_kwh": 0.0,
-              "q_fou_ecs_kwh": 44704.1,
+              "q_fou_ecs_kwh": 44703.8,
               "consommations": {
                 "chauffage": {},
                 "refroidissement": {},
                 "ecs": {
-                  "electricite_kwh": 44704.1
+                  "electricite_kwh": 44703.8
                 }
               },
               "eta_eff_ecs_an": 1.0,

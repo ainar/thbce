@@ -268,7 +268,7 @@ fn cogeneration_sur_meteo_reglementaire() {
         // électricité produite.
         let phares = match nom {
             "maison-cogeneration-ademe" => (59.7, 1093.9, 85.0, 601.0, 35.6),
-            _ => (103.6, 1253.6, 281.3, 991.1, 25868.7),
+            _ => (103.6, 1253.6, 302.5, 708.5, 13515.5),
         };
         let d = |x: f64| (x * 10.0).round() / 10.0;
         assert_eq!(

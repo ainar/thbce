@@ -650,13 +650,13 @@
                   "condensation": false,
                   "type_cogenerateur": "moteur_combustion_interne",
                   "module_seul": {
-                    "p_th_kw": 12.5,
+                    "p_th_kw": 5.0,
                     "statut": "declaree",
                     "eta_th_pct": 62.0,
                     "eta_el_pct": 27.0,
                     "p_w_aux_kw": 0.12
                   },
-                  "p_th_min_kw": 6.0,
+                  "p_th_min_kw": 2.5,
                   "raccordement": "permanent"
                 }
               }
