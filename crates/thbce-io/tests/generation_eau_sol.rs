@@ -190,10 +190,76 @@ fn nappe_pompes_et_echangeur() {
         .unwrap()
         .remove("echangeur");
     let directe = calcul(&v, &meteo_ademe);
-    assert_ne!(
-        pac(&directe).consommations.total_kwh(),
-        pac(&base).consommations.total_kwh()
+    // L'échangeur de barrage (UA fini) dégrade toujours la température vue par la machine,
+    // en chauffage comme en refroidissement, et ajoute la pompe du circuit intermédiaire :
+    // la machine directe consomme moins, pour les mêmes besoins fournis.
+    assert_eq!(pac(&directe).q_fou_ch_kwh, pac(&base).q_fou_ch_kwh);
+    assert!(pac(&directe).consommations.total_kwh() < pac(&base).consommations.total_kwh());
+    // La pompe intermédiaire (20 W) disparaît avec l'échangeur : l'écart des auxiliaires est
+    // un multiple entier d'heures de saison à 20 W.
+    let heures = (pac(&base).w_aux_kwh - pac(&directe).w_aux_kwh) / 0.020;
+    assert!(
+        (heures - heures.round()).abs() < 1e-6 && (1.0..=8760.0).contains(&heures),
+        "{heures}"
     );
+}
+
+/// PAC sur eau ou sur sol en double service chauffage + ECS (tableau 148, éq. 1201 et
+/// suivantes) avec un ballon dont elle est le générateur de base : variante de l'exemple sol /
+/// eau dont le chauffe-eau thermodynamique est remplacé par un ballon alimenté par la PAC.
+fn double_service(technologie_ch: &str, technologie_ecs: &str) -> serde_json::Value {
+    let mut v = json_du_cas(SOL);
+    let b = &mut v["batiments"][0];
+    b["generations"].as_array_mut().unwrap().remove(1);
+    b["distributions_ecs_intergroupes"][0]["generation"] = "generation-eau-chaude".into();
+    let g = &mut b["generations"][0];
+    g["stockages"] = serde_json::json!([{
+        "id": "ballon", "nb_assemblages": 1,
+        "ballon": {"v_tot_l": 200, "pertes": {"defaut": {"nature": "effet_joule_vertical"}},
+                   "theta_max_c": 65},
+        "base": {"generateur": "pac", "programmation": "permanent", "z_reg": 1,
+                 "h_rel_ech": 0.5}}]);
+    let t = &mut g["generateurs"][0]["nature"]["thermodynamique_electrique"];
+    t["chauffage"]["technologie"] = technologie_ch.into();
+    t["ecs"] = serde_json::json!({
+        "technologie": technologie_ecs,
+        "performances": {"pivot_declare": {"performance": 3.0, "pabs_kw": 1.5}}});
+    v
+}
+
+/// Double service sur sol et sur nappe : l'ECS est fournie par la PAC, et ses pompes
+/// permanentes tournent toute l'année (lecture Q151 : un générateur d'ECS est en saison toute
+/// l'année, soit 8 760 h) ; refus d'une combinaison absente du tableau 148.
+#[test]
+fn double_service_ecs_sol_et_nappe() {
+    // Sol / eau (éq. 1465 : pas d'auxiliaires amont) : l'ECS est produite par la PAC.
+    let r = calcul(&double_service("sol_eau", "sol_eau"), &meteo_ademe);
+    let g = pac(&r);
+    assert!(g.q_fou_ecs_kwh > 0.0, "{}", g.q_fou_ecs_kwh);
+    assert!(g.q_fou_ch_kwh > 0.0);
+    // Eau de nappe / eau, sans échangeur, pompes permanentes de 40 W : l'écart d'auxiliaires
+    // avec des pompes nulles est exactement 40 W × 8 760 h = 350,4 kWh.
+    let avec_pompes = |p: f64| {
+        let mut v = double_service("eau_de_nappe_eau", "eau_de_nappe_eau");
+        *source(&mut v) = serde_json::json!({"nappe": {
+            "nappe": {"theta_min_c": 10.0, "theta_max_c": 14.0, "mois_minimum": 3},
+            "pompes": {"gestion": "marche_permanente", "p_pompes_w": p}}});
+        calcul(&v, &meteo_ademe)
+    };
+    let (a, b) = (avec_pompes(40.0), avec_pompes(0.0));
+    assert!(pac(&a).q_fou_ecs_kwh > 0.0);
+    assert!(
+        (pac(&a).w_aux_kwh - pac(&b).w_aux_kwh - 350.4).abs() < 1e-6,
+        "{} {}",
+        pac(&a).w_aux_kwh,
+        pac(&b).w_aux_kwh
+    );
+    // Combinaison absente du tableau 148 (sol / eau avec ECS sur nappe).
+    let v = double_service("sol_eau", "eau_de_nappe_eau");
+    assert!(thbce_core::valider(&projet(&v))
+        .erreurs
+        .iter()
+        .any(|e| e.message.contains("tableau 148")));
 }
 
 /// Tour de refroidissement (éq. 1428 à 1436, 1449 à 1451) : une tour humide refroidit l'eau

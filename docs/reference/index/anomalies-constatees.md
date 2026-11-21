@@ -59,6 +59,7 @@ Vérifiées sur l'image de la page ; la lecture retenue est dans le fichier de q
 - tableaux 188, 211, 212, 214 et 215 : `Cnnam_Pabs(18,5 ; 8,5) = 0,90` (ECS sur nappe), `Cnnam_EER(22,5 ; 12,5) = 0,80` et `Cnnam_Pabs(17,5 ; 12,5) = 0,95` (refroidisseurs sur nappe), de sens contraire à leurs voisins ; retenus tels qu'imprimés (Q150 point 7).
 - éq. (1427) et (1439) (§8.26.3.3.2, p. 923 et 925) : cas `Φrejet(h−1) = 0` non écrit ; `ΔθCond_CH` dans les équations, `ΔθEvap_CH` dans la nomenclature et la phrase des valeurs par défaut (Q146).
 - éq. (1412) à (1414) et (1422) (p. 921-922) : débits fonction de `τcharge(h)`, inconnu avant l'appel du générateur ; `ε` indéfinie à débits nuls (Q147).
+- éq. (1413) (p. 921) : `Qm_inter_reel` écrit avec `ρeau`, alors que l'éq. (1411) emploie `ρinter` pour le même débit-masse du circuit intermédiaire ; lu avec `ρinter` (Q147 point 3).
 - éq. (1437) et (1438) (p. 925) : boucle d'eau décrite avec `θmin_sol`, `θmax_sol`, `idmois_mini_sol` au lieu de `θmin_boucle`, `θmax_boucle` (Q149).
 - éq. (1447) (p. 927) : branche « vitesse variable » de la pompe du circuit intermédiaire écrite `Wpompes_captage = Ppompes_captage × max(τcharge ; 0,3)` ; lue `Wpompes_inter = Ppompes_inter × …` (Q151).
 - éq. (1428) à (1431) (p. 924) : constante `Ce` absente du tableau 243 ; lue `Cpe` (Q152). Tableau 243 : `idamont-eau-type` de 1 à 2 dans les colonnes Min/Max, alors que la liste compte 5 types.
