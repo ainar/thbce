@@ -31,6 +31,7 @@ pub mod emetteurs;
 pub mod emission;
 pub mod generateur_direct_a_effet_joule;
 pub mod generation;
+pub mod methode_vefa;
 pub mod pac_moteur_gaz;
 pub mod poeles_et_inserts;
 pub mod relances;

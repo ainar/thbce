@@ -37,6 +37,7 @@ mod puits;
 mod solaire;
 mod systemes;
 mod usages_batiment;
+mod vefa;
 mod ventilation;
 // Famille à venir : ACV (Icconstruction, annexe II) — `mod acv;`.
 
@@ -193,6 +194,22 @@ impl RapportValidation {
 
 /// Valide la description d'un projet.
 pub fn valider(projet: &Projet) -> RapportValidation {
+    // Fiche 8.33 : le chauffage par défaut des travaux réservés par l'acquéreur est contrôlé,
+    // puis les composants qu'il ajoute le sont comme une saisie ordinaire.
+    if let Some(p) =
+        crate::chauffage_refroidissement::methode_vefa::projet_avec_chauffage_vefa(projet)
+    {
+        let mut r = RapportValidation::default();
+        for (ib, bat) in projet.batiments.iter().enumerate() {
+            if let Some(c) = &bat.chauffage_par_defaut_vefa {
+                vefa::valider_vefa(&mut r, &format!("batiments[{ib}]"), bat, c);
+            }
+        }
+        if !r.est_valide() {
+            return r;
+        }
+        return valider(&p);
+    }
     let mut r = RapportValidation::default();
 
     if let Some(v) = projet.version_format {

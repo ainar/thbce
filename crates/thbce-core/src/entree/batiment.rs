@@ -27,6 +27,11 @@ pub struct Batiment {
     /// Réseaux de distribution intergroupes de chaud et de froid (§8.9 et §8.10).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub distributions_intergroupes: Vec<DistributionIntergroupes>,
+    /// Chauffage par défaut à effet Joule des logements livrés sans générateur de chauffage
+    /// dans le cadre des travaux réservés par l'acquéreur (VEFA, §8.33). Facultatif : le moteur
+    /// en déduit la génération, les réseaux et les émetteurs figés par la fiche.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chauffage_par_defaut_vefa: Option<ChauffageParDefautVefa>,
     /// Réseaux de distribution d'ECS intergroupes (§9.8).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub distributions_ecs_intergroupes: Vec<DistributionEcsIntergroupe>,

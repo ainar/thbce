@@ -1,0 +1,78 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b"
+  },
+  "batiments": [
+    {
+      "id": "immeuble",
+      "bbio_pts": 40.8,
+      "dh_c_h": 1641.9,
+      "cep_kwhep_m2": 177.2,
+      "cep_nr_kwhep_m2": 177.2,
+      "ic_energie_kgco2_m2": 218.2,
+      "indicateurs": {
+        "cef_kwhef_m2": 77.0,
+        "exigences": {
+          "bbio_max_pts": 73.7,
+          "cep_max_kwhep_m2": 92.0,
+          "cep_nr_max_kwhep_m2": 75.8,
+          "ic_energie_max_kgco2_m2": 281.5,
+          "conforme": false
+        }
+      },
+      "sref_m2": 720.0,
+      "consommations_collectif": {
+        "eclairage_parties_communes": {
+          "annuel_kwh": 824.3,
+          "annuel_kwh_m2": 1.1
+        },
+        "ascenseurs": {
+          "annuel_kwh": 2387.6
+        },
+        "ventilation_parkings": {
+          "annuel_kwh": 436.9
+        },
+        "eclairage_parkings": {
+          "annuel_kwh": 1971.0
+        }
+      },
+      "ascenseurs": [
+        {
+          "id": "cabine-1",
+          "pti_w": 253.0,
+          "nb_demarrages": 20610.8,
+          "e_ti_kwh": 2199.8,
+          "e_tm_kwh": 187.8,
+          "e_tot_kwh": 2387.6
+        }
+      ],
+      "parkings": [
+        {
+          "id": "parking-sous-sol",
+          "e_vent_kwh": 436.9,
+          "e_ecl_kwh": 1971.0
+        }
+      ],
+      "zones": [
+        {
+          "id": "logements",
+          "consommations_collectif": {
+            "eclairage_parties_communes": {
+              "annuel_kwh": 824.3
+            },
+            "ascenseurs": {
+              "annuel_kwh": 2387.6
+            },
+            "ventilation_parkings": {
+              "annuel_kwh": 436.9
+            },
+            "eclairage_parkings": {
+              "annuel_kwh": 1971.0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

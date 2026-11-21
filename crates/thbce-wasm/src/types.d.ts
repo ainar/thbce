@@ -425,6 +425,12 @@ export interface Batiment {
    * s'applique à toute zone de logement collectif.
    */
   ascenseurs?: Ascenseur[];
+  /**
+   * Chauffage par défaut à effet Joule des logements livrés sans générateur de chauffage
+   * dans le cadre des travaux réservés par l'acquéreur (VEFA, §8.33). Facultatif : le moteur
+   * en déduit la génération, les réseaux et les émetteurs figés par la fiche.
+   */
+  chauffage_par_defaut_vefa?: ChauffageParDefautVefa | null;
   /** Réseaux de distribution d'ECS intergroupes (§9.8). */
   distributions_ecs_intergroupes?: DistributionEcsIntergroupe[];
   /** Réseaux de distribution intergroupes de chaud et de froid (§8.9 et §8.10). */
@@ -1005,6 +1011,24 @@ export interface ChaudiereSaisie {
   rendements?: RendementsChaudiere | null;
   /** Déclinaison de la chaudière. */
   type_chaudiere: TypeChaudiereSaisi;
+}
+
+/**
+ * Th-BCE 2020 §8.33 — chauffage par défaut d'un logement livré sans générateur de chauffage,
+ * lorsque le chauffage relève des travaux réservés par l'acquéreur (arrêté du 28 octobre 2019).
+ *
+ * Le moteur ajoute au bâtiment les composants figés par la fiche (tableaux 261 à 266) : une
+ * génération à un générateur direct à effet Joule de type 500, un réseau intergroupes fictif
+ * sans pertes, et dans chaque groupe desservi une distribution fictive et un convecteur à
+ * soufflage d'air chaud. Seule la puissance est saisie (« seul le choix du dimensionnement en
+ * puissance est modifiable par l'utilisateur »), dans le respect de l'article R. 171-11 du
+ * code de la construction et de l'habitation.
+ */
+export interface ChauffageParDefautVefa {
+  /** Groupes desservis, chacun livré sans émetteur de chauffage. */
+  groupes: GroupeVefa[];
+  /** « Pngen » : puissance nominale du générateur à effet Joule par défaut, en W (tableau 262). */
+  pn_gen_w: number;
 }
 
 /**
@@ -2954,6 +2978,18 @@ export interface Groupe {
    * lui donne pas de valeur par défaut.
    */
   v_m3?: number | null;
+}
+
+/** Groupe desservi par le chauffage par défaut (§8.33, tableau 265). */
+export interface GroupeVefa {
+  /** Identifiant du groupe. */
+  groupe: string;
+  /**
+   * Hauteur sous plafond des locaux, en m (« Carac_Haut_Plafond » du tableau 265 : moins de
+   * 4 m, de 4 à 6 m, de 6 à 8 m, plus de 8 m), qui fixe la variation spatiale de
+   * l'émetteur.
+   */
+  hsp_m: number;
 }
 
 /**

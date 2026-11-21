@@ -15,6 +15,7 @@
 use crate::bati::assemblage_batiment::BatimentHoraire;
 use crate::bati::assemblage_groupe::SortiesPasGroupe;
 use crate::bati::classement_bruit::projet_avec_classes_deduites;
+use crate::chauffage_refroidissement::methode_vefa::projet_avec_chauffage_vefa;
 use crate::climat::{ClimatExterieur, ConfortAdaptatif, MeteoProjet};
 use crate::conventions::{ModeCalcul, NB_HEURES_AN};
 use crate::entree::{Batiment, Projet};
@@ -154,6 +155,9 @@ fn calculer_selon(
 ) -> Result<Resultats, Erreur> {
     let avec_series = demandes.series;
     let rapport = verifier(projet, meteo)?;
+    // Fiche 8.33 : composants du chauffage par défaut des travaux réservés par l'acquéreur.
+    let vefa = projet_avec_chauffage_vefa(projet);
+    let projet = vefa.as_ref().unwrap_or(projet);
     // Fiche 5.11 : la classe d'exposition au bruit déduite des baies prend la place de la saisie
     // absente (Q202).
     let resolu = projet_avec_classes_deduites(projet);
@@ -618,6 +622,8 @@ pub fn series_horaires(
     mode: ModeCalcul,
 ) -> Result<Vec<SerieHoraireGroupe>, Erreur> {
     verifier(projet, meteo)?;
+    let vefa = projet_avec_chauffage_vefa(projet);
+    let projet = vefa.as_ref().unwrap_or(projet);
     let resolu = projet_avec_classes_deduites(projet);
     let projet = resolu.as_ref().unwrap_or(projet);
     let loc = &projet.localisation;

@@ -199,7 +199,7 @@ Les fiches préfixées `FA_` sont des fiches d'application : elles encadrent la 
 | 8.30 | C_GEN_Echangeur_Geocooling | 963–970 | après v1 | `core/src/chauffage_refroidissement/echangeur_geocooling.rs` | non commencé |
 | 8.31 | C_Sys_Rafraichissement par geocooling (en groupe non-climatisé) | 971–988 | après v1 | `core/src/chauffage_refroidissement/rafraichissement_par_geocooling_en_groupe.rs` | non commencé |
 | 8.32 | C_BAT_Fonctionnement/gestion/régulation des brasseurs d’air | 989–1002 | 1-emi | `core/src/chauffage_refroidissement/brasseurs_air.rs`, `core/src/bati/assemblage_groupe.rs` | implémenté : éq. (1646) à (1666), tableaux 257 et 258, gestions manuelle, à thermostat et toute automatique, effet sur la température opérative en Th-D (éq. 2547) et consommation en Th-C (auxiliaires de ventilation, chaleur récupérée) ; groupes non climatisés ; lectures Q120 |
-| 8.33 | Sn_Methode_VEFA_TCH_Chauffage_Effet_Joule | 1003–1018 | après v1 | `core/src/chauffage_refroidissement/methode_vefa_tch_chauffage_effet.rs` | non commencé |
+| 8.33 | Sn_Methode_VEFA_TCH_Chauffage_Effet_Joule | 1003–1018 | 2g | `core/src/chauffage_refroidissement/methode_vefa.rs`, `core/src/validation/vefa.rs` | fait : saisie `chauffage_par_defaut_vefa` (puissance et groupes desservis), composants figés des tableaux 261 à 266 ajoutés au projet avant la validation détaillée et le calcul (générateur à effet Joule, éq. 1667 à 1672, réseaux fictifs, convecteur à soufflage d'air chaud) ; lecture Q251 (variation spatiale de classe C) |
 
 ### 9. Ecs (p. 1019–1294)
 
