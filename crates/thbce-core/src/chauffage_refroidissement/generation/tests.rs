@@ -434,6 +434,8 @@ fn triple_service_auxiliaires_a_charge_nulle_dans_un_seul_mode() {
         (false, false, Poste::Ecs),
         (false, true, Poste::Refroidissement),
         (true, false, Poste::Chauffage),
+        // Saisons de chauffage et de refroidissement qui se recouvrent : chauffage.
+        (true, true, Poste::Chauffage),
     ] {
         let mut g = GenerationHoraire::nouvelle("g", vec![pac_triple_service()]);
         let mut e = entrees(&r);

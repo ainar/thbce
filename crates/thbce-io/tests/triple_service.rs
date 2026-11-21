@@ -102,3 +102,59 @@ fn triple_service_sur_meteo_reglementaire() {
     );
     assert!(p.q_fou_ecs_kwh > 1000.0);
 }
+
+/// Tableau 149 : les quatre combinaisons du triple service sont admises (ni refus ni erreur de
+/// combinaison), avec la source amont que fixe leur technologie (lecture Q145) ; les réseaux
+/// fictifs de l'exemple ne conviennent qu'aux machines sur air (contrôle du fluide aval, hors
+/// sujet ici).
+#[test]
+fn quatre_combinaisons_du_tableau_149() {
+    let captage = json_du_cas("maison-pac-geothermie-ademe")["batiments"][0]["generations"][0]
+        ["generateurs"][0]["nature"]["thermodynamique_electrique"]["source_amont"]
+        .clone();
+    let nappe = json_du_cas("maison-pac-nappe-reversible-ademe")["batiments"][0]["generations"][0]
+        ["generateurs"][0]["nature"]["thermodynamique_electrique"]["source_amont"]
+        .clone();
+    let air = serde_json::json!({"air_exterieur": {}});
+    for (ch, ecs, fr, source) in [
+        (
+            "air_exterieur_eau",
+            "air_exterieur_eau",
+            "air_exterieur_eau",
+            &air,
+        ),
+        (
+            "eau_de_nappe_eau",
+            "eau_de_nappe_eau",
+            "eau_de_nappe_eau",
+            &nappe,
+        ),
+        ("eau_glycolee_eau", "eau_glycolee_eau", "eau_eau", &captage),
+        (
+            "air_exterieur_air_recycle",
+            "air_exterieur_eau",
+            "air_exterieur_air_recycle",
+            &air,
+        ),
+    ] {
+        let mut v = json_du_cas(TRIPLE);
+        let t = &mut v["batiments"][0]["generations"][0]["generateurs"][0]["nature"]
+            ["thermodynamique_electrique"];
+        t["chauffage"]["technologie"] = ch.into();
+        t["ecs"]["technologie"] = ecs.into();
+        t["refroidissement"]["technologie"] = fr.into();
+        t["source_amont"] = source.clone();
+        let r = thbce_core::valider(&json::lire_projet(&v.to_string()).unwrap());
+        assert!(
+            r.erreurs.iter().all(|e| !e.hors_perimetre
+                && !e.message.contains("tableau 14")
+                && !e.chemin.contains("source_amont")),
+            "{ch} / {ecs} / {fr} : {:?}",
+            r.erreurs
+        );
+        // La quatrième combinaison est celle de l'exemple : entrée entièrement valide.
+        if ch == "air_exterieur_air_recycle" {
+            assert!(r.est_valide(), "{:?}", r.erreurs);
+        }
+    }
+}
