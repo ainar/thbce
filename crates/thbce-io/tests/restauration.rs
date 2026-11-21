@@ -366,12 +366,13 @@ fn refus() {
         "{:?}",
         v.erreurs
     );
-    // Boucle d'eau (§8.15) dans un restaurant : hors périmètre (code 3), non une erreur de saisie.
+    // PAC hybride en un seul générateur (§16.4, Q126) dans un restaurant : hors périmètre (code
+    // 3), non une erreur de saisie.
     let mut p = restaurant();
     let gens = &mut p.batiments[0].generations[0].generateurs;
     let mut cogen = gens[0].clone();
-    cogen.id = "boucle-eau".into();
-    cogen.nature = thbce_core::entree::NatureGenerateur::BoucleDEauOuDrv;
+    cogen.id = "pac-hybride".into();
+    cogen.nature = thbce_core::entree::NatureGenerateur::PacHybride;
     gens.push(cogen);
     let v = valider(&p);
     assert!(v.seulement_hors_perimetre(), "{:?}", v.erreurs);

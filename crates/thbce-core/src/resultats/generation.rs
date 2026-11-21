@@ -53,6 +53,48 @@ pub struct ResultatsGeneration {
     /// production.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub solaires_collectifs: Vec<ResultatsSolaireCollectif>,
+    /// Bilan de la boucle d'eau (fiche 8.15) ; absent pour une génération sans boucle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub boucle_d_eau: Option<ResultatsBoucleDEau>,
+}
+
+/// Bilan annuel d'une boucle d'eau, calcul Th-C (§8.15.3.4).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultatsBoucleDEau {
+    /// « Φrejet_totBE_ch » : froid rejeté dans la boucle par les pompes à chaleur en
+    /// chauffage (chaleur qu'elles y puisent), en kWh (éq. 965).
+    pub phi_rejet_tot_ch_kwh: f64,
+    /// « Φrejet_totBE_fr » : chaleur rejetée dans la boucle par les pompes à chaleur en
+    /// refroidissement, en kWh (éq. 966).
+    pub phi_rejet_tot_fr_kwh: f64,
+    /// « Qtransfert_BE » : énergie transférée entre les pompes à chaleur par la boucle, en kWh
+    /// (éq. 967).
+    pub q_transfert_kwh: f64,
+    /// « Qsys_BE_ch » : énergie de chauffage demandée au générateur de chauffage de la boucle,
+    /// en kWh (éq. 968).
+    pub q_sys_ch_kwh: f64,
+    /// « Qsys_BE_fr » : énergie de refroidissement demandée au générateur de froid ou à la
+    /// tour de la boucle, en kWh (éq. 968).
+    pub q_sys_fr_kwh: f64,
+    /// « Qrep_ch » et « Qrep_fr » des générateurs de la boucle restant reportées à la fin de
+    /// l'année, en kWh.
+    pub q_rep_fin_kwh: f64,
+}
+
+impl ResultatsBoucleDEau {
+    /// Arrondi de restitution (§1.3.1, décision Q8).
+    pub fn arrondir(&mut self) {
+        for x in [
+            &mut self.phi_rejet_tot_ch_kwh,
+            &mut self.phi_rejet_tot_fr_kwh,
+            &mut self.q_transfert_kwh,
+            &mut self.q_sys_ch_kwh,
+            &mut self.q_sys_fr_kwh,
+            &mut self.q_rep_fin_kwh,
+        ] {
+            *x = crate::conventions::arrondir_restitution(*x);
+        }
+    }
 }
 
 /// Générateur, calcul Th-C (§8.29.3.8).

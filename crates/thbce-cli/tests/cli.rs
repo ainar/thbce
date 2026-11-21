@@ -16,11 +16,11 @@ fn thbce(args: &[&str]) -> Output {
         .expect("lancement de thbce")
 }
 
-/// Début de la liste des générateurs du cas de démonstration, auquel on ajoute une pompe à chaleur sur boucle d'eau
-/// (élément hors périmètre).
+/// Début de la liste des générateurs du cas de démonstration, auquel on ajoute une pompe à chaleur hybride
+/// saisie en un seul générateur (élément hors périmètre, §16.4, Q126).
 const GENERATEURS: &str =
     "\"generateurs\": [\n            {\n              \"id\": \"panneaux-rayonnants\",";
-const AVEC_BOUCLE_D_EAU: &str = "\"generateurs\": [\n            {\n              \"id\": \"boucle-eau\",\n              \"rdim\": 1,\n              \"nature\": \"boucle_d_eau_ou_drv\"\n            },\n            {\n              \"id\": \"panneaux-rayonnants\",";
+const AVEC_PAC_HYBRIDE: &str = "\"generateurs\": [\n            {\n              \"id\": \"pac-hybride\",\n              \"rdim\": 1,\n              \"nature\": \"pac_hybride\"\n            },\n            {\n              \"id\": \"panneaux-rayonnants\",";
 
 fn entree() -> String {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -142,8 +142,8 @@ fn codes_de_retour() {
         Some(2)
     );
     // 3 : élément hors périmètre de cette version (les 28 usages sont calculés depuis le lot
-    // 0c4) : système de boucle d'eau (§8.15).
-    let ecole = texte.replace(GENERATEURS, AVEC_BOUCLE_D_EAU);
+    // 0c4) : pompe à chaleur hybride saisie en un seul générateur (§16.4, Q126).
+    let ecole = texte.replace(GENERATEURS, AVEC_PAC_HYBRIDE);
     let ecole = fichier("ecole.json", &ecole);
     let h2b = meteo("h2b-bis.csv", ZoneClimatique::H2b);
     let s = thbce(&["calcul", ecole.to_str().unwrap(), "--meteo", &h2b]);
@@ -161,12 +161,12 @@ fn codes_de_retour() {
         erreur.contains("non pris en charge par cette version (voir docs/couverture.md)"),
         "{erreur}"
     );
-    assert!(erreur.contains("boucle_d_eau_ou_drv"), "{erreur}");
+    assert!(erreur.contains("pac_hybride"), "{erreur}");
     // Une erreur de saisie l'emporte sur un élément hors périmètre : code 2.
     let mixte = fichier(
         "mixte.json",
         &texte
-            .replace(GENERATEURS, AVEC_BOUCLE_D_EAU)
+            .replace(GENERATEURS, AVEC_PAC_HYBRIDE)
             .replace("\"shab_m2\": 96.44", "\"shab_m2\": -1"),
     );
     assert_eq!(

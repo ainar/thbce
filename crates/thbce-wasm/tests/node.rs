@@ -106,9 +106,10 @@ fn valide_et_signale_les_erreurs() {
 
 #[wasm_bindgen_test]
 fn un_element_hors_perimetre_est_non_pris_en_charge() {
-    // Les 28 usages sont calculés (lot 0c4) : élément hors périmètre, boucle d'eau (§8.15).
+    // Les 28 usages sont calculés (lot 0c4) : élément hors périmètre, pompe à chaleur
+    // hybride saisie en un seul générateur (§16.4, Q126).
     let debut = "\"generateurs\": [\n            {\n              \"id\": \"panneaux-rayonnants\",";
-    let avec = "\"generateurs\": [\n            {\n              \"id\": \"boucle-eau\",\n              \"rdim\": 1,\n              \"nature\": \"boucle_d_eau_ou_drv\"\n            },\n            {\n              \"id\": \"panneaux-rayonnants\",";
+    let avec = "\"generateurs\": [\n            {\n              \"id\": \"pac-hybride\",\n              \"rdim\": 1,\n              \"nature\": \"pac_hybride\"\n            },\n            {\n              \"id\": \"panneaux-rayonnants\",";
     let bureaux = ENTREE.replace("\r\n", "\n").replace(debut, avec);
     let r = thbce_wasm::valider(JsValue::from_str(&bureaux)).unwrap();
     assert_eq!(champ(&r, "valide"), JsValue::FALSE);

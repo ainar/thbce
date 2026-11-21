@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use super::*;
 
+mod boucle_d_eau;
 mod cogeneration;
 mod combustion;
 mod effet_joule;
@@ -16,6 +17,7 @@ mod reseaux_chaleur;
 mod thermodynamique;
 mod thermodynamique_gaz;
 
+pub use boucle_d_eau::*;
 pub use cogeneration::*;
 pub use combustion::*;
 pub use effet_joule::*;
@@ -86,6 +88,11 @@ pub struct Generation {
     /// ECS.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub chauffe_eau_solaires_collectifs: Vec<ChauffeEauSolaireCollectif>,
+    /// Boucle d'eau (§8.15) : présente si la génération décrit une boucle d'eau, c'est-à-dire
+    /// des pompes à chaleur sur boucle d'eau (`pac_sur_boucle_d_eau`) et les générateurs qui
+    /// maintiennent la boucle en température. Absente pour toute autre génération.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub boucle_d_eau: Option<BoucleDEauGeneration>,
 }
 
 /// « idpos » (§8.17.2) : emplacement d'une génération.
@@ -179,8 +186,10 @@ pub enum NatureGenerateur {
     /// Type 504 : générateur thermodynamique au gaz, à absorption (§8.24) ou à moteur gaz
     /// (§8.25), sur air extérieur.
     ThermodynamiqueGaz(ThermodynamiqueGazSaisi),
-    /// Types 507 à 509 : pompe à chaleur sur boucle d'eau, thermo-frigo-pompe, générateur DRV
-    /// (§8.15 et §8.16) : hors de la première version.
+    /// Type 507 : pompe à chaleur sur boucle d'eau (§8.15), dans une génération qui décrit la
+    /// boucle (`boucle_d_eau`).
+    PacSurBoucleDEau(Box<PacSurBoucleDEauSaisie>),
+    /// Types 508 et 509 : thermo-frigo-pompe, générateur DRV (§8.16) : hors de cette version.
     BoucleDEauOuDrv,
     /// Type 700 : système de cogénération (§8.21).
     Cogeneration(Box<CogenerationSaisie>),

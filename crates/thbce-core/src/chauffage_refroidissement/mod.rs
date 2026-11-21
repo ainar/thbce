@@ -14,6 +14,7 @@
 //! - [`distribution`] : distributions du groupe et intergroupes (§8.6 à 8.10).
 //!
 //! - [`generation`] : assemblage et gestion/régulation de la génération (§8.14 et §8.17) ;
+//! - [`transferts_entre_generateurs_sur_boucle`] : boucles d'eau (§8.15) ;
 //! - [`generateur_direct_a_effet_joule`] : générateur direct à effet Joule (§8.18) ;
 //! - [`chaudieres_gaz_fioul_bois`], [`poeles_et_inserts`], [`reseau_de_chaleur_et_de_froid`] :
 //!   générateurs à combustion et sous-stations (§8.19, §8.22 et §8.28) ;
@@ -42,3 +43,4 @@ pub mod systeme_de_cogeneration;
 pub mod systemes_groupe;
 pub mod thermodynamique_elec;
 pub mod thermodynamique_gaz;
+pub mod transferts_entre_generateurs_sur_boucle;

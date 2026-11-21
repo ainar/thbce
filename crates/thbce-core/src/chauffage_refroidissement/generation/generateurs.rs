@@ -15,6 +15,7 @@ use crate::chauffage_refroidissement::reseau_de_chaleur_et_de_froid::ReseauChale
 use crate::chauffage_refroidissement::systeme_de_cogeneration::Cogenerateur;
 use crate::chauffage_refroidissement::thermodynamique_elec::GenerateurThermodynamique;
 use crate::chauffage_refroidissement::thermodynamique_gaz::MachineAbsorption;
+use crate::chauffage_refroidissement::transferts_entre_generateurs_sur_boucle::TourBoucle;
 
 /// Générateur idéal : fournit exactement la demande, sans limite de puissance, avec un
 /// rendement unitaire, en consommant de l'électricité.
@@ -63,6 +64,9 @@ pub enum Generateur {
     AutreCombustion(Box<AutreGenerateurCombustion>),
     /// Type 700 : système de cogénération (§8.21).
     Cogeneration(Box<Cogenerateur>),
+    /// Tour de refroidissement d'une boucle d'eau (§8.15.3.7.1), traitée comme un générateur
+    /// de froid de la génération.
+    TourBoucle(TourBoucle),
     /// Générateur idéal, pour les tests.
     Ideal(GenerateurIdeal),
 }
@@ -99,6 +103,7 @@ impl Generateur {
                 (false, true) => FonctionGenerateur::Ecs,
                 _ => FonctionGenerateur::Chauffage,
             },
+            Self::TourBoucle(_) => FonctionGenerateur::Refroidissement,
             Self::Ideal(g) => g.fonction,
         }
     }
@@ -118,6 +123,9 @@ impl Generateur {
             Self::MoteurGaz(g) => g.pn_gen_tot_w(poste),
             Self::AutreCombustion(g) => g.pn_gen_tot_w(),
             Self::Cogeneration(g) => g.pn_gen_tot_w(),
+            // La tour n'a pas de puissance nominale (éq. 972 : puissance du pas de temps) ; elle
+            // n'est appelée que par le bilan de sa boucle.
+            Self::TourBoucle(_) => 0.0,
             // Sans puissance nominale : parts égales en mode sans priorité.
             Self::Ideal(_) => 1.0,
         }
@@ -135,6 +143,7 @@ impl Generateur {
             Self::MoteurGaz(g) => g.appel(e),
             Self::AutreCombustion(g) => g.appel(e),
             Self::Cogeneration(g) => g.appel(e),
+            Self::TourBoucle(g) => g.appel(e),
             Self::Ideal(g) => g.appel(e),
         }
     }

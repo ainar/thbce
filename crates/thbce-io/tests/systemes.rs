@@ -394,9 +394,9 @@ fn validation_des_systemes() {
         .any(|m| m.contains("au moins un générateur")));
     let mut p = cas("maison-climat-ademe");
     p.batiments[0].generations[0].generateurs[0].nature =
-        serde_json::from_str(r#""boucle_d_eau_ou_drv""#).unwrap();
+        serde_json::from_str(r#""pac_hybride""#).unwrap();
     let m = messages(&p);
-    assert!(m.iter().any(|m| m.contains("§8.15")), "{m:?}");
+    assert!(m.iter().any(|m| m.contains("§16.4")), "{m:?}");
     let mut p = cas("maison-climat-ademe");
     let g = &mut p.batiments[0].generations[0];
     g.generateurs.push(g.generateurs[0].clone());

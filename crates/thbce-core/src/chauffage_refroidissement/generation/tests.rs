@@ -43,6 +43,8 @@ fn entrees(reseaux: &[ReseauVu]) -> EntreesGeneration<'_> {
         sources: &[],
         climat: None,
         h: 0,
+        w_ext_kg_kg: 0.005,
+        demandes_groupes: &[],
     }
 }
 

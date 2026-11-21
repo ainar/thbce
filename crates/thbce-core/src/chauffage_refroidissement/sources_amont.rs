@@ -16,9 +16,10 @@
 //!
 //! Dans cette version, chaque générateur a sa propre source amont : les ratios de répartition
 //! entre générateurs d'une même source (éq. 1402 à 1404, 1452, 1458 à 1460 et 1466) valent 1,
-//! et la puissance rejetée de la source est celle du générateur (lecture Q149). La boucle d'eau
-//! générateur (fiche 8.15, bilan de la boucle) n'est pas calculée : seule l'est la source
-//! « boucle d'eau » à température sinusoïdale du §8.26.3.3.2.3.
+//! et la puissance rejetée de la source est celle du générateur (lecture Q149). La source
+//! « boucle d'eau » à température sinusoïdale du §8.26.3.3.2.3 est aussi celle des pompes à
+//! chaleur d'une génération à boucle d'eau (fiche 8.15, lot 2f), dont le bilan est fait par
+//! `transferts_entre_generateurs_sur_boucle.rs` (lecture Q240).
 
 use crate::entree::{EcoulementsEchangeur, GestionPompesCaptage, NatureTourRefroidissement};
 
@@ -241,13 +242,20 @@ impl Tour {
     /// « θamont(h) » : température amont d'un générateur sur tour de refroidissement, en °C.
     // Th-BCE 2020 §8.26.3.3.2.2, éq. (1432) à (1436).
     pub fn theta_amont_c(&self, theta_ext_c: f64, w_ext_kg_kg: f64) -> f64 {
+        self.theta_es_tour_c(theta_ext_c, w_ext_kg_kg) + self.delta_cond_fr_k / 2.0
+    }
+
+    /// « θes_tour » : température de l'eau en sortie de tour, en °C ; reprise par la tour d'une
+    /// boucle d'eau (fiche 8.15, éq. 972).
+    // Th-BCE 2020 §8.26.3.3.2.2, éq. (1432) à (1435).
+    pub fn theta_es_tour_c(&self, theta_ext_c: f64, w_ext_kg_kg: f64) -> f64 {
         let theta_cont = match self.nature {
             NatureTourRefroidissement::Humide => {
                 temperature_humide_c(theta_ext_c, w_ext_kg_kg) + self.delta_tour_k
             }
             NatureTourRefroidissement::Seche => theta_ext_c + self.delta_tour_k,
         };
-        theta_cont.max(self.consigne_c) + self.delta_cond_fr_k / 2.0
+        theta_cont.max(self.consigne_c)
     }
 }
 

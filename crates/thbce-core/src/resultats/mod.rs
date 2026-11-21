@@ -295,6 +295,9 @@ impl Resultats {
                 for c in &mut g.solaires_collectifs {
                     c.arrondir();
                 }
+                if let Some(b) = &mut g.boucle_d_eau {
+                    b.arrondir();
+                }
                 for x in &mut g.generateurs {
                     x.q_fou_ch_kwh = a(x.q_fou_ch_kwh);
                     x.q_fou_fr_kwh = a(x.q_fou_fr_kwh);
