@@ -299,7 +299,16 @@ fn refus_et_erreurs() {
         "technologie": "eau_glycolee_eau",
         "performances": {"pivot_defaut": {"pabs_kw": 1.0}}
     });
-    assert!(erreurs(&v).est_valide(), "{:?}", erreurs(&v).erreurs);
+    // Combinaison 3 du tableau 149 : ni refus (code 3) ni erreur de combinaison (le mode ECS
+    // demande encore un ballon, absent de cet exemple).
+    assert!(
+        erreurs(&v)
+            .erreurs
+            .iter()
+            .all(|e| !e.hors_perimetre && !e.message.contains("tableau")),
+        "{:?}",
+        erreurs(&v).erreurs
+    );
     v["batiments"][0]["generations"][0]["generateurs"][0]["nature"]["thermodynamique_electrique"]
         ["ecs"]["technologie"] = "sol_eau".into();
     let r = erreurs(&v);
