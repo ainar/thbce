@@ -149,15 +149,20 @@ fn chauffe_eau_gaz_pertes_a_charge_nulle() {
     assert!(gaz0 < gaz);
 }
 
-#[test]
-fn air_chaud_raccordement_permanent_et_isolement() {
-    // Air chaud en premier rang de la cascade, pour qu'il fonctionne et s'arrête.
+/// Gymnase en cascade avec l'air chaud en premier rang ; `hors_vc` place la génération hors
+/// volume chauffé (à l'extérieur : btherm = 1). Retourne (gaz raccordé en permanence, gaz avec
+/// isolement) de l'air chaud, en kWh.
+fn air_chaud_perm_et_iso(hors_vc: bool) -> (f64, f64) {
     let mut v = json_du_cas("gymnase-air-chaud-ademe");
     for x in v["batiments"][0]["generations"][0]["generateurs"]
         .as_array_mut()
         .unwrap()
     {
         x["priorite_chauffage"] = if x["id"] == "air-chaud" { 1 } else { 2 }.into();
+    }
+    if hors_vc {
+        v["batiments"][0]["generations"][0]["position"] =
+            serde_json::json!({"hors_volume_chauffe": {}});
     }
     let p = projet(&v);
     let m = meteo_ademe(&p);
@@ -171,9 +176,102 @@ fn air_chaud_raccordement_permanent_et_isolement() {
     let (q_iso, g_iso, _) = generateur(&calcul(&pi, &m), "air-chaud");
     // Les pertes récupérées modifient un peu les besoins (fiche 11.1).
     assert!(q_perm > 0.0 && (q_perm - q_iso).abs() < 1e-2 * q_perm);
-    // Raccordé en permanence, le générateur a des pertes à l'arrêt à chaque pas de la saison
-    // de chauffage (éq. 1150) ; isolé, seulement après un pas de fonctionnement (éq. 1153).
-    assert!(g_perm > g_iso, "{g_perm} {g_iso}");
+    (g_perm, g_iso)
+}
+
+#[test]
+fn air_chaud_raccordement_permanent_et_isolement() {
+    // Hors volume chauffé, θamb = θext et θaval = θi,aval,eq : QP0 > 0 (éq. 1127). Raccordé en
+    // permanence, le générateur a des pertes à l'arrêt à chaque pas de la saison de chauffage
+    // (éq. 1150) ; isolé, seulement après un pas de fonctionnement (éq. 1153).
+    let (g_perm, g_iso) = air_chaud_perm_et_iso(true);
+    assert!(g_perm > g_iso * 1.001, "{g_perm} {g_iso}");
+}
+
+#[test]
+fn air_chaud_en_volume_chauffe_pertes_a_larret_negligeables() {
+    // Lecture Q155 : en volume chauffé, θaval = θi,aval,eq ≈ θamb, donc QP0 ≈ 0 (éq. 1127) et
+    // le raccordement n'a presque pas d'effet (variante chiffrée dans Q155).
+    let (g_perm, g_iso) = air_chaud_perm_et_iso(false);
+    assert!(
+        g_perm >= g_iso && (g_perm - g_iso) < 1e-3 * g_iso,
+        "{g_perm} {g_iso}"
+    );
+}
+
+/// Maison d'exemple : le radiateur devient un panneau radiant au GPL et le chauffe-eau un
+/// accumulateur à condensation de plus de 200 L.
+fn variante_panneau_accumulateur() -> serde_json::Value {
+    let mut v = json_du_cas("maison-radiateurs-gaz-ademe");
+    let r = nature_mut(&mut v, "radiateur-gaz");
+    r["type_generateur"] = "panneau_radiant".into();
+    r["gpl"] = true.into();
+    r["pn_gen_kw"] = 3.0.into();
+    r["w_aux_nom_w"] = 10.0.into();
+    r["w_veille_w"] = 0.0.into();
+    let a = nature_mut(&mut v, "chauffe-eau-gaz");
+    a["type_generateur"] = serde_json::json!(
+        {"accumulateur_gaz": {"condensation": true, "plus_de_200_l_montee_rapide": true}}
+    );
+    v
+}
+
+fn ecs_fou(r: &Resultats, id: &str) -> f64 {
+    r.batiments[0]
+        .generations
+        .iter()
+        .flat_map(|g| &g.generateurs)
+        .filter(|x| x.id == id)
+        .map(|x| x.q_fou_ecs_kwh)
+        .sum()
+}
+
+#[test]
+fn panneau_radiant_gpl_et_accumulateur_a_la_main() {
+    let v = variante_panneau_accumulateur();
+    let p = projet(&v);
+    let m = meteo_ademe(&p);
+    let r = calcul(&p, &m);
+    // Panneau radiant (type 109, tableau 126 : Rpn = 90 % ; tableau 130 : fmaj = 1,00 ; PCSI du
+    // GPL = 1,09) : chaque heure Qcons = (Qfou + QPx)/PCSI, QPx = fmaj·(100 − Rpn/PCSI)·Qfou·
+    // PCSI/Rpn (éq. 1134 à 1136), soit Qcons = Qfou/0,9.
+    let (q_fou, gaz, _) = generateur(&r, "radiateur-gaz");
+    assert!(q_fou > 0.0);
+    let k = (1.0 + 1.0 * (100.0 - 90.0 / 1.09) * 1.09 / 90.0) / 1.09;
+    assert!((k - 1.0_f64 / 0.9).abs() < 1e-12);
+    assert!((gaz - k * q_fou).abs() < 1e-6 * gaz, "{gaz} {}", k * q_fou);
+    // Accumulateur à condensation (tableau 126 : Rpn = 98 %), sans pertes à charge nulle :
+    // Qcons = Qfou/0,98 (éq. 1145) ; avec le Qpo30 par défaut (tableau 127 : E = 1,7 au-delà de
+    // 200 L, soit 1000·18·1,7/100 = 306 W) : davantage.
+    let mut v0 = v.clone();
+    nature_mut(&mut v0, "chauffe-eau-gaz")["q_po_30_w"] = 0.0.into();
+    let p0 = projet(&v0);
+    let r0 = calcul(&p0, &m);
+    let (_, _, gaz0) = generateur(&r0, "chauffe-eau-gaz");
+    let q0 = ecs_fou(&r0, "chauffe-eau-gaz");
+    assert!(q0 > 0.0);
+    assert!(
+        (gaz0 - q0 / 0.98).abs() < 1e-6 * gaz0,
+        "{gaz0} {}",
+        q0 / 0.98
+    );
+    let (_, _, gaz_defaut) = generateur(&r, "chauffe-eau-gaz");
+    assert!(gaz_defaut > gaz0);
+    // La veilleuse (Pveilleuse/2,58 ajouté à Wveille) augmente la consommation électrique.
+    let elec = |r: &Resultats| -> f64 {
+        r.batiments[0]
+            .generations
+            .iter()
+            .flat_map(|g| &g.generateurs)
+            .filter(|x| x.id == "chauffe-eau-gaz")
+            .map(|x| x.consommations.ecs.electricite_kwh)
+            .sum()
+    };
+    let mut vv = v.clone();
+    nature_mut(&mut vv, "chauffe-eau-gaz")["p_veilleuse_w"] = 258.0.into();
+    let pv = projet(&vv);
+    let rv = calcul(&pv, &m);
+    assert!(elec(&rv) > elec(&r), "{} {}", elec(&rv), elec(&r));
 }
 
 fn messages(v: &serde_json::Value) -> Vec<String> {
