@@ -62,7 +62,7 @@ fn calcul(v: &serde_json::Value, meteo_de: &dyn Fn(&Projet) -> MeteoProjet) -> R
 }
 
 /// Les composants des tableaux 261 à 266, saisis à la main.
-fn composants_saisis() -> serde_json::Value {
+fn composants_saisis(hsp_m: f64) -> serde_json::Value {
     let mut v = json_du_cas(VEFA);
     let b = &mut v["batiments"][0];
     b.as_object_mut()
@@ -93,7 +93,7 @@ fn composants_saisis() -> serde_json::Value {
         "id": "vefa-defaut-emetteur",
         "chauffage": {
             "type_emetteur": "soufflage_air_chaud",
-            "variation_spatiale": {"classe": {"classe": "C", "hsp_m": 2.5}},
+            "variation_spatiale": {"classe": {"classe": "C", "hsp_m": hsp_m}},
             "variation_temporelle": {"certifie": {"delta_theta_k": 1.8}},
             "effet_joule": true, "rats": 1.0, "ratt": 1.0,
             "distribution": "vefa-defaut-distribution"
@@ -106,7 +106,7 @@ fn composants_saisis() -> serde_json::Value {
 #[test]
 fn identique_aux_composants_saisis() {
     let a = calcul(&json_du_cas(VEFA), &meteo_ademe);
-    let b = calcul(&composants_saisis(), &meteo_ademe);
+    let b = calcul(&composants_saisis(2.5), &meteo_ademe);
     let (ba, bb) = (&a.batiments[0], &b.batiments[0]);
     assert_eq!(ba.cep_kwhep_m2, bb.cep_kwhep_m2);
     assert_eq!(ba.ic_energie_kgco2_m2, bb.ic_energie_kgco2_m2);
@@ -120,6 +120,58 @@ fn identique_aux_composants_saisis() {
     let x = &g.generateurs[0];
     assert!(x.q_fou_ch_kwh > 0.0);
     assert!((x.consommations.chauffage.electricite_kwh - x.q_fou_ch_kwh).abs() < 1e-6);
+}
+
+/// Tableau 260 : les quatre colonnes de hauteur sous plafond (classe C : 0,4 / 1,2 / 2,0 /
+/// 2,8 K), de bout en bout : chaque variante de la saisie donne exactement le résultat des
+/// composants saisis à la main avec la même hauteur, et la consommation croît avec la
+/// variation spatiale.
+#[test]
+fn quatre_hauteurs_sous_plafond() {
+    let mut precedente = 0.0;
+    for hsp in [2.5, 5.0, 7.0, 9.0] {
+        let mut v = json_du_cas(VEFA);
+        v["batiments"][0]["chauffage_par_defaut_vefa"]["groupes"][0]["hsp_m"] = hsp.into();
+        let a = calcul(&v, &meteo_ademe);
+        let b = calcul(&composants_saisis(hsp), &meteo_ademe);
+        let (ba, bb) = (&a.batiments[0], &b.batiments[0]);
+        assert_eq!(ba.cep_kwhep_m2, bb.cep_kwhep_m2, "hsp {hsp}");
+        assert_eq!(ba.dh_c_h, bb.dh_c_h, "hsp {hsp}");
+        let cep = ba.cep_kwhep_m2.unwrap();
+        assert!(cep > precedente, "hsp {hsp} : {cep} <= {precedente}");
+        precedente = cep;
+    }
+}
+
+#[test]
+fn refus_complementaires() {
+    let msg = |v: &serde_json::Value, texte: &str| {
+        let r = thbce_core::valider(&projet(v));
+        assert!(
+            r.erreurs.iter().any(|e| e.message.contains(texte)),
+            "{texte} : {:?}",
+            r.erreurs
+        );
+    };
+    // Aucun groupe desservi.
+    let mut v = json_du_cas(VEFA);
+    v["batiments"][0]["chauffage_par_defaut_vefa"]["groupes"] = serde_json::json!([]);
+    msg(&v, "au moins un groupe");
+    // Usage hors habitation.
+    let mut v = json_du_cas(VEFA);
+    v["batiments"][0]["zones"][0]["usage"] = "bureaux".into();
+    msg(&v, "qu'en habitation");
+    // Hauteur sous plafond nulle.
+    let mut v = json_du_cas(VEFA);
+    v["batiments"][0]["chauffage_par_defaut_vefa"]["groupes"][0]["hsp_m"] = 0.into();
+    let r = thbce_core::valider(&projet(&v));
+    assert!(r.erreurs.iter().any(|e| e.chemin.ends_with("hsp_m")));
+    // Groupe cité deux fois.
+    let mut v = json_du_cas(VEFA);
+    let g = v["batiments"][0]["chauffage_par_defaut_vefa"]["groupes"][0].clone();
+    v["batiments"][0]["chauffage_par_defaut_vefa"]["groupes"] = serde_json::json!([g, g]);
+    let r = thbce_core::valider(&projet(&v));
+    assert!(!r.est_valide());
 }
 
 #[test]
@@ -139,7 +191,7 @@ fn refus() {
     v["batiments"][0]["chauffage_par_defaut_vefa"]["groupes"][0]["groupe"] = "absent".into();
     msg(&v, "groupe inconnu");
     // Groupe déjà chauffé.
-    let mut v = composants_saisis();
+    let mut v = composants_saisis(2.5);
     v["batiments"][0]["chauffage_par_defaut_vefa"] =
         serde_json::json!({"pn_gen_w": 1000, "groupes": [{"groupe": "immeuble", "hsp_m": 2.5}]});
     msg(&v, "déjà un émetteur de chauffage");
@@ -168,5 +220,11 @@ fn vefa_sur_meteo_reglementaire() {
         b.cep_nr_kwhep_m2.unwrap(),
         b.ic_energie_kgco2_m2.unwrap()
     );
-    assert!(b.cep_kwhep_m2.unwrap() > 0.0);
+    // Valeurs phares (une décimale), relevées le 21 novembre 2026.
+    let un = |x: f64| (x * 10.0).round() / 10.0;
+    assert_eq!(un(b.bbio_pts.unwrap()), 31.8);
+    assert_eq!(un(b.dh_c_h.unwrap()), 1039.6);
+    assert_eq!(un(b.cep_kwhep_m2.unwrap()), 189.1);
+    assert_eq!(un(b.cep_nr_kwhep_m2.unwrap()), 189.1);
+    assert_eq!(un(b.ic_energie_kgco2_m2.unwrap()), 234.9);
 }

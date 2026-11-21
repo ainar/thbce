@@ -191,4 +191,53 @@ mod tests {
             assert!((delta_theta_vs_ch_classe_k(classe, hsp_m) - attendu).abs() < 1e-12);
         }
     }
+
+    #[test]
+    fn composants_figes_des_tableaux_261_a_266() {
+        let c = ChauffageParDefautVefa {
+            pn_gen_w: 12_000.0,
+            groupes: Vec::new(),
+        };
+        // Tableaux 261 et 262 : un seul générateur, Rdim = 1, priorité 1, chauffage seul, Pngen saisie.
+        let g = generation(&c);
+        assert_eq!(g.raccordement_reseaux, RaccordementReseaux::AvecIsolement);
+        assert_eq!(g.priorite, Some(TypePriorite::SansPriorite));
+        assert_eq!(
+            g.gestion_temperature_chauffage,
+            Some(GestionTemperatureGeneration::Reseaux)
+        );
+        assert_eq!(g.generateurs.len(), 1);
+        assert_eq!(g.generateurs[0].rdim, 1);
+        assert_eq!(g.generateurs[0].priorite_chauffage, Some(1));
+        assert_eq!(g.generateurs[0].priorite_refroidissement, None);
+        assert_eq!(g.generateurs[0].priorite_ecs, None);
+        let NatureGenerateur::EffetJoule(e) = &g.generateurs[0].nature else {
+            panic!("type 500 attendu")
+        };
+        assert_eq!(e.fonction, FonctionEffetJoule::Chauffage);
+        assert!((e.pn_gen_w - 12_000.0).abs() < 1e-9);
+        // Tableau 265 : chauffage seul, soufflage d'air chaud, 1,8 K certifié, Rat_s = Rat_t = 1,
+        // pas de détection de présence, pas de ventilateurs, pertes au dos nulles.
+        let em = emetteur(5.0);
+        assert!(em.refroidissement.is_none());
+        assert!(em.pertes_au_dos.is_none());
+        assert!(em.ventilateurs.is_none());
+        assert_eq!(em.detection_presence, Some(false));
+        let ch = em.chauffage.unwrap();
+        assert_eq!(ch.type_emetteur, TypeEmetteurChaud::SoufflageAirChaud);
+        assert_eq!(
+            ch.variation_temporelle,
+            VariationTemporelle::Certifie { delta_theta_k: 1.8 }
+        );
+        assert!((ch.rats - 1.0).abs() < 1e-12 && (ch.ratt - 1.0).abs() < 1e-12);
+        assert!(ch.effet_joule && ch.centrale.is_none());
+    }
+
+    #[test]
+    fn soufflage_air_chaud_part_convective_et_psd() {
+        // Hypothèses §8.33.4.2 : Pemconv_ch = 0,95, Psd_ch = 0,5.
+        use crate::chauffage_refroidissement::emetteurs::{p_em_conv_ch, P_SD};
+        assert!((p_em_conv_ch(TypeEmetteurChaud::SoufflageAirChaud) - 0.95).abs() < 1e-12);
+        assert!((P_SD - 0.5).abs() < 1e-12);
+    }
 }
