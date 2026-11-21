@@ -8,7 +8,7 @@
 //! `btherm(h)`, `bsolaire(h)`, `becl(h)` et leur température `θet(h)` sont ensuite transmis aux
 //! composants d'enveloppe et aux entrées d'air des zones (§5.5, §5.7), calculées comme avant.
 
-use crate::chauffage_refroidissement::calculs_generation::{CumulsCef, Poste};
+use crate::chauffage_refroidissement::calculs_generation::{CumulsCef, MatriceCef, Poste};
 use crate::chauffage_refroidissement::distribution::{
     ApportReseauGroupe, DistributionIntergroupesResolue, SortiesDistributionGroupe,
     SortiesDistributionIntergroupes,
@@ -24,6 +24,7 @@ use crate::chauffage_refroidissement::sources_amont::{
     generateur_en_saison, ConditionsEauSol, EtatSourceAmont, SourceAmont, C_PA_J_KG_K,
 };
 use crate::chauffage_refroidissement::systemes_groupe::Liens;
+use crate::chauffage_refroidissement::transferts_entre_generateurs_sur_boucle::DemandeGroupe;
 use crate::climat::calendrier::{date_scenario, hleg, jour_bascule_saisons};
 use crate::climat::environnement_proche::ventc_m_s;
 use crate::climat::{ClimatExterieur, ConfortAdaptatif};
@@ -107,6 +108,9 @@ pub struct SystemesBatiment {
     pub preechauffage_deduit: bool,
     /// Générations (§8.14 et §8.17), dans l'ordre de `generations`.
     pub generations_horaires: Vec<GenerationHoraire>,
+    /// Fiche 8.15 : pour chaque génération à boucle d'eau, indice (ordre des zones puis des
+    /// groupes) de chacun des groupes desservis par sa boucle (`BoucleDEauHoraire::groupes`).
+    pub groupes_boucle: Vec<Vec<usize>>,
     /// État des sources amont sur eau et sur sol (fiches 8.26 et 8.27) de chaque générateur de
     /// chaque génération, d'un pas de temps au suivant.
     pub etats_sources: Vec<Vec<EtatSourceAmont>>,
@@ -868,7 +872,24 @@ impl SystemesBatiment {
                 }
             }
         }
+        let ids_groupes: Vec<&str> = bat
+            .zones
+            .iter()
+            .flat_map(|z| z.groupes.iter().map(|g| g.id.as_str()))
+            .collect();
+        let groupes_boucle = generations_horaires
+            .iter()
+            .map(|g| {
+                g.boucle.as_ref().map_or_else(Vec::new, |b| {
+                    b.groupes
+                        .iter()
+                        .map(|id| ids_groupes.iter().position(|x| x == id).unwrap_or(0))
+                        .collect()
+                })
+            })
+            .collect();
         let mut s = Self {
+            groupes_boucle,
             etats_sources: generations_horaires
                 .iter()
                 .map(|g| vec![EtatSourceAmont::default(); g.generateurs.len()])
@@ -925,6 +946,40 @@ impl SystemesBatiment {
         self.aut_gen = gen;
         for (g, a) in zones.iter_mut().flat_map(|z| z.groupes.iter_mut()).zip(eff) {
             g.etat.aut_eff = a;
+        }
+    }
+
+    /// « Ratbes^dp,gr » : part du groupe d'indice `igr` dans la demande du réseau intergroupes
+    /// `k` pour le poste, au prorata des demandes des réseaux du groupe reliés (éq. 893 et
+    /// 894), à défaut de demande au prorata des surfaces (lecture de l'attribution des
+    /// consommations, éq. 999 à 1001).
+    fn part_groupe_reseau(
+        &self,
+        groupes: &[&super::assemblage_groupe::GroupeHoraire],
+        k: usize,
+        igr: usize,
+        poste: Poste,
+    ) -> f64 {
+        let somme = |gr: &super::assemblage_groupe::GroupeHoraire| -> f64 {
+            gr.systemes.as_ref().map_or(0.0, |sy| {
+                sy.distributions
+                    .iter()
+                    .zip(&sy.sorties.distributions)
+                    .filter(|(d, _)| d.intergroupes == k)
+                    .map(|(_, x)| {
+                        if poste == Poste::Chauffage {
+                            x.q_sys_ch_wh
+                        } else {
+                            -x.q_sys_fr_wh
+                        }
+                    })
+                    .sum()
+            })
+        };
+        let total: f64 = groupes.iter().map(|gr| somme(gr)).sum();
+        match groupes.get(igr) {
+            Some(g) if total > 0.0 => somme(g) / total,
+            _ => self.rat_surf[k].get(igr).copied().unwrap_or(0.0),
         }
     }
 
@@ -1360,6 +1415,28 @@ impl SystemesBatiment {
                 .and_then(|i| espaces_tampons.get(i))
                 .map_or(1.0, |e| e.b_therm);
             let (aut_ch, aut_fr) = self.aut_gen.get(ig).copied().unwrap_or((false, false));
+            // Fiche 8.15, éq. (1002) et (1003) : demande de la génération pour chacun des groupes
+            // desservis par sa boucle d'eau, part de chaque groupe dans chacun de ses réseaux
+            // (éq. 893 et 894), et saisons effectives du groupe.
+            let demandes_groupes: Vec<DemandeGroupe> = self.groupes_boucle[ig]
+                .iter()
+                .map(|&igr| {
+                    let mut d = DemandeGroupe::default();
+                    if let Some(g) = groupes.get(igr) {
+                        (d.aut_ch, d.aut_fr) = g.etat.aut_eff;
+                    }
+                    for (r, o) in vus.iter().zip(&origines) {
+                        let Origine::Reseau(k) = *o else { continue };
+                        let part = self.part_groupe_reseau(&groupes, k, igr, r.poste);
+                        match r.poste {
+                            Poste::Chauffage => d.q_ch_wh += r.q_sys_wh * part,
+                            Poste::Refroidissement => d.q_fr_wh += r.q_sys_wh * part,
+                            Poste::Ecs => {}
+                        }
+                    }
+                    d
+                })
+                .collect();
             let gen = &mut self.generations_horaires[ig];
             // Fiche 8.26, éq. (1405) à (1407) et (1453) : conditions des sources amont sur air ;
             // éq. (1408) à (1440) et fiche 8.27 : sources sur eau et sur sol, dont l'état passe
@@ -1460,6 +1537,8 @@ impl SystemesBatiment {
                     sources: &sources,
                     climat: Some(climat),
                     h,
+                    w_ext_kg_kg: climat.we_kg_kg[h],
+                    demandes_groupes: &demandes_groupes,
                 },
                 mois,
             );
@@ -1570,7 +1649,26 @@ impl SystemesBatiment {
                     };
                     rat[r.poste.indice()] += rat_dp * part;
                 }
-                self.cumuls_cef_groupes[igr].ajouter_pondere(mois, &s.q_cef, rat);
+                match &gen.boucle {
+                    None => self.cumuls_cef_groupes[igr].ajouter_pondere(mois, &s.q_cef, rat),
+                    // Éq. (1490) et (1491) : les consommations d'une PAC sur boucle d'eau vont
+                    // au groupe qu'elle dessert ; celles des générateurs de la boucle, au
+                    // prorata des demandes des groupes (éq. 1484 à 1486).
+                    Some(b) => {
+                        let mut autres = MatriceCef::NULLE;
+                        for (i, x) in gen.generateurs.iter().enumerate() {
+                            match b.membres.iter().find(|m| m.generateur == i) {
+                                Some(m) => {
+                                    if self.groupes_boucle[ig].get(m.rang_groupe) == Some(&igr) {
+                                        self.cumuls_cef_groupes[igr].ajouter(mois, &x.jeu.q_cef);
+                                    }
+                                }
+                                None => autres.ajouter_matrice(&x.jeu.q_cef),
+                            }
+                        }
+                        self.cumuls_cef_groupes[igr].ajouter_pondere(mois, &autres, rat);
+                    }
+                }
                 // Éq. (2362) : pertes de la génération vers l'ambiance, au prorata des surfaces.
                 phi_vc_gen[igr] += self.rat_surf_gen[ig][igr] * s.phi_vc_tot_wh;
             }

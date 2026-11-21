@@ -1,0 +1,121 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b"
+  },
+  "batiments": [
+    {
+      "id": "hotel",
+      "sref_m2": 1200.0,
+      "bbio_pts": 108.3,
+      "dh_c_h": 1492.2,
+      "cep_kwhep_m2": 263.9,
+      "cep_nr_kwhep_m2": 263.9,
+      "ic_energie_kgco2_m2": 317.0,
+      "indicateurs": {
+        "cef_kwhef_m2": 114.8,
+        "electricite_consommee": {
+          "chauffage_kwh": 50821.5,
+          "refroidissement_kwh": 17103.4,
+          "ecs_kwh": 44749.7,
+          "eclairage_kwh": 12262.2,
+          "auxiliaires_ventilation_kwh": 12768.2,
+          "auxiliaires_distribution_kwh": 0.0,
+          "deplacements_kwh": 0.0,
+          "mobilier_kwh": 30313.8
+        }
+      },
+      "generations": [
+        {
+          "id": "boucle-d-eau",
+          "q_fou_ch_kwh": 104820.7,
+          "q_fou_fr_kwh": 40233.1,
+          "boucle_d_eau": {
+            "phi_rejet_tot_ch_kwh": 75766.8,
+            "phi_rejet_tot_fr_kwh": 55506.6,
+            "q_transfert_kwh": 0.0,
+            "q_sys_ch_kwh": 75766.8,
+            "q_sys_fr_kwh": 55506.6,
+            "q_rep_fin_kwh": 461.5
+          },
+          "generateurs": [
+            {
+              "id": "pac-nuit",
+              "q_fou_ch_kwh": 71681.1,
+              "q_fou_fr_kwh": 23725.7,
+              "consommations": {
+                "chauffage": {
+                  "electricite_kwh": 22586.8
+                },
+                "refroidissement": {
+                  "electricite_kwh": 9947.4
+                },
+                "ecs": {}
+              },
+              "phi_rejet_kwh": -18882.3
+            },
+            {
+              "id": "pac-jour",
+              "q_fou_ch_kwh": 33139.5,
+              "q_fou_fr_kwh": 16507.4,
+              "consommations": {
+                "chauffage": {
+                  "electricite_kwh": 10064.6
+                },
+                "refroidissement": {
+                  "electricite_kwh": 6656.2
+                },
+                "ecs": {}
+              },
+              "phi_rejet_kwh": -1377.8
+            },
+            {
+              "id": "pac-air-eau-boucle",
+              "q_fou_ch_kwh": 75305.3,
+              "q_fou_fr_kwh": 0.0,
+              "consommations": {
+                "chauffage": {
+                  "electricite_kwh": 18170.1
+                },
+                "refroidissement": {},
+                "ecs": {}
+              },
+              "phi_rejet_kwh": -58103.3
+            },
+            {
+              "id": "tour",
+              "q_fou_ch_kwh": 0.0,
+              "q_fou_fr_kwh": 55506.6,
+              "consommations": {
+                "chauffage": {},
+                "refroidissement": {
+                  "electricite_kwh": 499.8
+                },
+                "ecs": {}
+              }
+            }
+          ]
+        },
+        {
+          "id": "chauffe-eau",
+          "q_fou_ch_kwh": 0.0,
+          "q_fou_fr_kwh": 0.0,
+          "generateurs": [
+            {
+              "id": "resistance",
+              "q_fou_ch_kwh": 0.0,
+              "q_fou_fr_kwh": 0.0,
+              "consommations": {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 44749.7
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

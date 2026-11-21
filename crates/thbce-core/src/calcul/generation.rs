@@ -6,7 +6,8 @@ use super::solaire::resultats_collectif;
 use crate::bati::assemblage_batiment::BatimentHoraire;
 use crate::chauffage_refroidissement::calculs_generation::Poste;
 use crate::resultats::{
-    Consommations, ConsommationsPostes, ResultatsGenerateur, ResultatsGeneration,
+    Consommations, ConsommationsPostes, ResultatsBoucleDEau, ResultatsGenerateur,
+    ResultatsGeneration,
 };
 
 /// Générations d'un bâtiment à l'issue du calcul Th-C : demandes de leurs réseaux, énergies
@@ -33,6 +34,17 @@ pub(super) fn resultats_generations(b: &BatimentHoraire) -> Vec<ResultatsGenerat
                 nbh_sousdim_fr_max: c.nb_sousdim_max[1],
                 stockages: g.stockages.iter().map(resultats_stockage).collect(),
                 solaires_collectifs: g.collectifs.iter().map(resultats_collectif).collect(),
+                boucle_d_eau: g.boucle.as_ref().map(|b| {
+                    let c = &b.cumuls;
+                    ResultatsBoucleDEau {
+                        phi_rejet_tot_ch_kwh: c.phi_rejet_tot_ch_wh / 1000.0,
+                        phi_rejet_tot_fr_kwh: c.phi_rejet_tot_fr_wh / 1000.0,
+                        q_transfert_kwh: c.q_transfert_wh / 1000.0,
+                        q_sys_ch_kwh: c.q_sys_ch_wh / 1000.0,
+                        q_sys_fr_kwh: c.q_sys_fr_wh / 1000.0,
+                        q_rep_fin_kwh: (b.q_rep_wh[0] + b.q_rep_wh[1]) / 1000.0,
+                    }
+                }),
                 generateurs: g
                     .generateurs
                     .iter()

@@ -11,7 +11,9 @@ use crate::chauffage_refroidissement::generateur_direct_a_effet_joule::Generateu
 use crate::chauffage_refroidissement::pac_moteur_gaz::PacMoteurGaz;
 use crate::chauffage_refroidissement::poeles_et_inserts::Poele;
 use crate::chauffage_refroidissement::reseau_de_chaleur_et_de_froid::ReseauChaleurFroid;
-use crate::chauffage_refroidissement::sources_amont::{SourceAmont, SourceAmontGenerateur};
+use crate::chauffage_refroidissement::sources_amont::{
+    Sinusoide, SourceAmont, SourceAmontGenerateur,
+};
 use crate::chauffage_refroidissement::systeme_de_cogeneration::Cogenerateur;
 use crate::chauffage_refroidissement::thermodynamique_elec::GenerateurThermodynamique;
 use crate::chauffage_refroidissement::thermodynamique_gaz::MachineAbsorption;
@@ -49,6 +51,19 @@ impl GenerationHoraire {
                     NatureGenerateur::ThermodynamiqueElectrique(t) => {
                         let (pac, src, defauts) = GenerateurThermodynamique::resoudre(
                             t,
+                            rdim,
+                            |id| ids_et.iter().position(|e| e == id),
+                            |id| ids_zones.iter().position(|z| z == id),
+                        )?;
+                        source = Some(src);
+                        valeurs_par_defaut = defauts;
+                        Generateur::Thermodynamique(Box::new(pac))
+                    }
+                    // Fiche 8.15 : pompe à chaleur sur boucle d'eau, groupe frigorifique eau /
+                    // air sur la source amont « boucle d'eau » (§8.15.1).
+                    NatureGenerateur::PacSurBoucleDEau(b) => {
+                        let (pac, src, defauts) = GenerateurThermodynamique::resoudre(
+                            &b.pac,
                             rdim,
                             |id| ids_et.iter().position(|e| e == id),
                             |id| ids_zones.iter().position(|z| z == id),
@@ -154,6 +169,7 @@ impl GenerationHoraire {
                 })
             })
             .collect();
+        let boucle = Self::resoudre_boucle(g, &mut generateurs);
         let gestion = |x: Option<GestionTemperatureGeneration>| match x {
             Some(GestionTemperatureGeneration::Constante { theta_wm_c }) => {
                 GestionTemperature::Constante(theta_wm_c)
@@ -171,8 +187,94 @@ impl GenerationHoraire {
             gestion_fr: gestion(g.gestion_temperature_refroidissement),
             stockages,
             collectifs,
+            boucle,
             ..Self::nouvelle(g.id.clone(), generateurs)
         }
+    }
+
+    /// Résout la boucle d'eau d'une génération (fiche 8.15) : pompes à chaleur de la boucle et
+    /// groupes qu'elles desservent, générateurs de chauffage et de froid de la boucle ; la tour
+    /// de refroidissement est ajoutée aux générateurs. Composition vérifiée par la validation.
+    fn resoudre_boucle(
+        g: &crate::entree::Generation,
+        generateurs: &mut Vec<GenerateurHoraire>,
+    ) -> Option<BoucleDEauHoraire> {
+        use crate::chauffage_refroidissement::sources_amont::Tour;
+        use crate::chauffage_refroidissement::transferts_entre_generateurs_sur_boucle::{
+            MembreBoucle, TourBoucle,
+        };
+        use crate::entree::{NatureGenerateur, SourceAmontSaisie};
+        let b = g.boucle_d_eau.as_ref()?;
+        let mut groupes: Vec<String> = Vec::new();
+        let mut membres = Vec::new();
+        let mut theta_be = None;
+        let (mut chaud, mut froid) = (None, None);
+        for s in &g.generateurs {
+            let Some(i) = generateurs.iter().position(|x| x.id == s.id) else {
+                continue;
+            };
+            if let NatureGenerateur::PacSurBoucleDEau(p) = &s.nature {
+                if let SourceAmontSaisie::BoucleDEau { boucle, .. } = &p.pac.source_amont {
+                    theta_be.get_or_insert(Sinusoide {
+                        theta_min_c: boucle.theta_min_c,
+                        theta_max_c: boucle.theta_max_c,
+                        mois_minimum: boucle.mois_minimum,
+                    });
+                }
+                let rang_groupe =
+                    groupes
+                        .iter()
+                        .position(|x| *x == p.groupe)
+                        .unwrap_or_else(|| {
+                            groupes.push(p.groupe.clone());
+                            groupes.len() - 1
+                        });
+                membres.push(MembreBoucle {
+                    generateur: i,
+                    rang_groupe,
+                });
+            } else {
+                let f = generateurs[i].modele.fonction();
+                if f.assure(Poste::Chauffage) {
+                    chaud.get_or_insert(i);
+                }
+                if f.assure(Poste::Refroidissement) {
+                    froid.get_or_insert(i);
+                }
+            }
+        }
+        let froid_par_tour = b.tour.is_some();
+        if let Some(t) = &b.tour {
+            generateurs.push(GenerateurHoraire::nouveau(
+                t.id.clone(),
+                Generateur::TourBoucle(TourBoucle {
+                    tour: Tour {
+                        nature: t.nature,
+                        delta_tour_k: t.delta_theta_tour_k,
+                        consigne_c: t.theta_es_consigne_c,
+                        p_pompes_w: t.p_pompes_tour_w,
+                        p_vent_w: t.p_vent_tour_w,
+                        delta_cond_fr_k: 0.0,
+                    },
+                    qv_nom_m3_h: t.qv_nom_m3_h,
+                }),
+            ));
+            froid = Some(generateurs.len() - 1);
+        }
+        let nb_groupes = groupes.len();
+        Some(BoucleDEauHoraire {
+            theta_be: theta_be?,
+            theta_max_rech_c: b.theta_max_rech_c.unwrap_or(f64::NAN),
+            theta_min_fr_c: b.theta_min_fr_c.unwrap_or(f64::NAN),
+            membres,
+            groupes,
+            chaud,
+            froid,
+            froid_par_tour,
+            q_rep_groupes_wh: vec![[0.0; 2]; nb_groupes],
+            q_rep_wh: [0.0; 2],
+            cumuls: Default::default(),
+        })
     }
 
     /// Résout les assemblages avec ballon d'une génération (§9.14) et ses chauffe-eau

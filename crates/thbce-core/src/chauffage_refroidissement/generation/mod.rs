@@ -19,13 +19,15 @@ use super::calculs_generation::{
     classe_charge, CumulsCef, CumulsGenerateur, Energie, MatriceCef, Poste,
 };
 use super::sources_amont::SourceAmontGenerateur;
+use super::transferts_entre_generateurs_sur_boucle::{BoucleDEauHoraire, DemandeGroupe};
 use crate::ecs::assemblage_ballon::{AssemblageBallon, EntreesAssemblage};
 use crate::ecs::cesci::{EntreesCollectif, ProductionCollective};
 use crate::resultats::ValeurParDefaut;
 
 // Un fichier par étape : modèles des générateurs (un nouveau générateur ajoute sa variante
 // dans `generateurs.rs`), résolution de la saisie (`resolution.rs`) et gestion horaire
-// (`gestion.rs`).
+// (`gestion.rs`) ; bilan d'une boucle d'eau (`boucle.rs`, fiche 8.15).
+mod boucle;
 mod generateurs;
 mod gestion;
 mod resolution;
@@ -414,6 +416,13 @@ pub struct EntreesGeneration<'a> {
     pub climat: Option<&'a crate::climat::ClimatExterieur>,
     /// Indice du pas de temps dans l'année, de 0 à 8 759.
     pub h: usize,
+    /// « ωext(h) » : humidité spécifique de l'air extérieur, en kg/kg (tour de refroidissement
+    /// d'une boucle d'eau, éq. 1428).
+    pub w_ext_kg_kg: f64,
+    /// Demandes de la génération pour chacun des groupes desservis par sa boucle d'eau, dans
+    /// l'ordre de `BoucleDEauHoraire::groupes` (éq. 1002 et 1003, fiche 8.15) ; vide sans
+    /// boucle.
+    pub demandes_groupes: &'a [DemandeGroupe],
 }
 
 /// Conditions de la source amont d'un générateur thermodynamique à un pas de temps (fiche
@@ -506,6 +515,9 @@ pub struct GenerationHoraire {
     /// Productions solaires collectives à appoints décentralisés (CESCI et CESCAI, fiches
     /// 9.16 et 9.17), premières sollicitées en ECS.
     pub collectifs: Vec<ProductionCollective>,
+    /// Boucle d'eau (fiche 8.15) : ses pompes à chaleur assurent la demande des groupes, ses
+    /// générateurs de chauffage et de froid la maintiennent en température.
+    pub boucle: Option<BoucleDEauHoraire>,
     /// État.
     pub etat: EtatGeneration,
     /// Cumuls annuels.
@@ -528,6 +540,7 @@ impl GenerationHoraire {
             generateurs,
             stockages: Vec::new(),
             collectifs: Vec::new(),
+            boucle: None,
             etat: EtatGeneration::default(),
             cumuls: CumulsGeneration::default(),
             sorties: SortiesGeneration::default(),

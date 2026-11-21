@@ -301,12 +301,13 @@ fn un_projet_vide_est_refuse_sans_panique() {
 fn un_element_hors_perimetre_est_refuse_comme_hors_perimetre() {
     use thbce_core::entree::NatureGenerateur;
     // Les 28 usages sont calculés (lot 0c4) : le refus « hors périmètre » se teste sur un
-    // élément non pris en charge, ici une pompe à chaleur sur boucle d'eau (§8.15, décision Q30, point 7).
+    // élément non pris en charge, ici une pompe à chaleur hybride saisie en un seul générateur (§16.4, Q126 ; décision Q30,
+    // point 7).
     let mut p = projet();
     let gens = &mut p.batiments[0].generations[0].generateurs;
     let mut cogen = gens[0].clone();
-    cogen.id = "boucle-eau".into();
-    cogen.nature = NatureGenerateur::BoucleDEauOuDrv;
+    cogen.id = "pac-hybride".into();
+    cogen.nature = NatureGenerateur::PacHybride;
     gens.push(cogen);
     let r = valider(&p);
     let k = p.batiments[0].generations[0].generateurs.len() - 1;
@@ -318,7 +319,7 @@ fn un_element_hors_perimetre_est_refuse_comme_hors_perimetre() {
         )]
     );
     assert!(r.seulement_hors_perimetre());
-    assert_eq!(r.erreurs[0].valeur.as_deref(), Some("boucle_d_eau_ou_drv"));
+    assert_eq!(r.erreurs[0].valeur.as_deref(), Some("pac_hybride"));
     assert!(r.avertissements.is_empty(), "{:?}", r.avertissements);
     let e = calculer(
         &p,

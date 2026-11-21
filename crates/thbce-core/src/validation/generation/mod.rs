@@ -10,6 +10,7 @@ use crate::entree::{
     GestionTemperatureGeneration, NatureGenerateur, PositionGeneration, ReseauChaleurFroidSaisi,
     ReseauIntergroupes, SystemeVentilation, TypePriorite,
 };
+use boucle_d_eau::{valider_boucle, valider_pac_boucle};
 use combustion::{
     valider_autre_combustion, valider_chaudiere, valider_cogeneration, valider_poele,
 };
@@ -19,6 +20,7 @@ use thermodynamique_gaz::{fluide_aval_gaz, postes_gaz, valider_thermodynamique_g
 
 // Un fichier par famille de générateurs. Un nouveau générateur ajoute sa nature dans
 // `postes_assures` et `valider_generation`, et ses contrôles dans un fichier déclaré ci-dessous.
+mod boucle_d_eau;
 mod combustion;
 mod reseaux_chaleur;
 mod thermodynamique;
@@ -35,6 +37,11 @@ pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
             t.chauffage.is_some(),
             t.refroidissement.is_some(),
             t.ecs.is_some(),
+        ],
+        NatureGenerateur::PacSurBoucleDEau(b) => [
+            b.pac.chauffage.is_some(),
+            b.pac.refroidissement.is_some(),
+            b.pac.ecs.is_some(),
         ],
         NatureGenerateur::Chaudiere(c) => [
             c.fonction != FonctionChaleur::Ecs,
@@ -77,6 +84,7 @@ pub(super) fn nature_hors_perimetre(n: &NatureGenerateur) -> Option<(&'static st
     match n {
         NatureGenerateur::EffetJoule(_)
         | NatureGenerateur::ThermodynamiqueElectrique(_)
+        | NatureGenerateur::PacSurBoucleDEau(_)
         | NatureGenerateur::Chaudiere(_)
         | NatureGenerateur::PoeleOuInsert(_)
         | NatureGenerateur::ReseauDeChaleurOuDeFroid(_)
@@ -85,8 +93,7 @@ pub(super) fn nature_hors_perimetre(n: &NatureGenerateur) -> Option<(&'static st
         | NatureGenerateur::Cogeneration(_) => None,
         NatureGenerateur::BoucleDEauOuDrv => Some((
             "boucle_d_eau_ou_drv",
-            "pompe à chaleur sur boucle d'eau, thermo-frigo-pompe ou générateur DRV (Th-BCE 2020 \
-             §8.15 et §8.16, types 507 à 509)",
+            "thermo-frigo-pompe ou générateur DRV (Th-BCE 2020 §8.16, types 508 et 509)",
         )),
         // Q126 : la PAC hybride n'est pas un type du tableau 111 ; la fiche d'application du
         // §16.4 la décrit par ses composants (générateur thermodynamique, chaudière à
@@ -113,6 +120,8 @@ pub(super) fn fluide_aval_hydraulique(n: &NatureGenerateur) -> Option<bool> {
         | NatureGenerateur::ReseauDeChaleurOuDeFroid(_)
         | NatureGenerateur::Cogeneration(_) => Some(true),
         NatureGenerateur::PoeleOuInsert(_) => Some(false),
+        // §8.15.1 : groupe frigorifique eau / air (air recyclé, réseaux fictifs).
+        NatureGenerateur::PacSurBoucleDEau(_) => Some(false),
         // Tableau 124 : sur eau pour les chauffe-eau et accumulateurs, sur air ambiant sinon.
         NatureGenerateur::AutreGenerateurACombustion(c) => {
             Some(combustion::autre_combustion_ecs(c))
@@ -149,6 +158,15 @@ pub(super) fn valider_generations(r: &mut RapportValidation, cb: &str, bat: &Bat
             {
                 None => r.erreur(c, Some(id.to_owned()), "génération inconnue du bâtiment"),
                 Some(g) => {
+                    if g.boucle_d_eau.is_some() {
+                        r.hors_perimetre(
+                            c.clone(),
+                            Some(id.to_owned()),
+                            "génération à boucle d'eau désignée par une centrale de traitement \
+                             d'air ou une sécurité antigel (Th-BCE 2020 §8.15 et §8.11.3 ; \
+                             lecture Q240)",
+                        );
+                    }
                     if !g
                         .generateurs
                         .iter()
@@ -373,6 +391,9 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
                     bat,
                 );
             }
+            NatureGenerateur::PacSurBoucleDEau(p) => {
+                valider_pac_boucle(r, &format!("{cg}.nature.pac_sur_boucle_d_eau"), p, g, bat);
+            }
             NatureGenerateur::Chaudiere(c) => {
                 valider_chaudiere(r, &format!("{cg}.nature.chaudiere"), c);
             }
@@ -441,6 +462,13 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
                  (Th-BCE 2020 §8.21.3.2.1, p. 739 ; lecture Q157)",
             );
         }
+    }
+    // Fiche 8.15 : la génération à boucle d'eau a sa propre composition et répartit elle-même
+    // la demande ; les contrôles du cas général (priorités, fluide aval des réseaux) ne
+    // s'appliquent pas à ses générateurs de boucle.
+    if g.boucle_d_eau.is_some() {
+        valider_boucle(r, c, g, bat);
+        return;
     }
     // Priorités (§8.17.3.7) : mode requis dès que deux générateurs assurent un même poste ;
     // en cascade, rangs requis et distincts.

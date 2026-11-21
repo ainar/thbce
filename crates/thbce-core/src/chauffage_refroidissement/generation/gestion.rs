@@ -214,9 +214,16 @@ impl GenerationHoraire {
             q_rep[0] = ch;
             q_rep[2] = ecs;
         }
+        // Fiche 8.15 : dans une génération à boucle d'eau, les pompes à chaleur de la boucle
+        // assurent le chauffage et le refroidissement des groupes, puis les générateurs de la
+        // boucle son bilan (`boucle.rs`).
+        let avec_boucle = self.boucle.is_some();
         for poste in [Poste::Ecs, Poste::Refroidissement, Poste::Chauffage] {
             let p = poste.indice();
             if biposte && poste != Poste::Refroidissement {
+                continue;
+            }
+            if avec_boucle && poste != Poste::Ecs {
                 continue;
             }
             let actif = match poste {
@@ -232,6 +239,18 @@ impl GenerationHoraire {
                 // demande éventuelle reste reportée (éq. 1028).
                 q_ar[p]
             };
+        }
+
+        if avec_boucle {
+            let [ch, fr] = self.pas_boucle(
+                e,
+                [theta_aval[0], theta_aval[1]],
+                theta_amb,
+                relance[0],
+                mois,
+            );
+            q_rep[0] = ch;
+            q_rep[1] = fr;
         }
 
         // Fiche 8.21 : bilan du pas des cogénérateurs, une fois leurs postes servis
@@ -294,6 +313,11 @@ impl GenerationHoraire {
         for (i, g) in self.generateurs.iter().enumerate() {
             q_cef.ajouter_matrice(&g.jeu.q_cef);
             phi_vc += g.jeu.phi_vc_wh;
+            // Fiche 8.15 : l'énergie des générateurs qui maintiennent une boucle d'eau en
+            // température va à la boucle, non aux réseaux.
+            if self.boucle.as_ref().is_some_and(|b| b.maintient(i)) {
+                continue;
+            }
             q_fou[0] += g.jeu.q_fou_wh[0];
             q_fou[1] += g.jeu.q_fou_wh[1];
             if instantanes_ecs.contains(&i) {
@@ -655,7 +679,7 @@ impl GenerationHoraire {
 
     /// Appelle le générateur d'indice `i` pour un poste, si les conditions du texte le
     /// permettent, et met à jour son jeu de données.
-    fn appeler(
+    pub(super) fn appeler(
         &mut self,
         i: usize,
         ctx: &ContexteAppel,
@@ -750,13 +774,13 @@ pub(super) fn r_pui_dispo_froid(
 
 /// Contexte commun aux appels des générateurs d'un poste à un pas de temps.
 #[derive(Debug, Clone, Copy)]
-struct ContexteAppel {
-    poste: Poste,
-    theta_aval_c: f64,
-    theta_amb_c: f64,
-    aut_ch: bool,
-    aut_fr: bool,
-    relance_ch: bool,
+pub(super) struct ContexteAppel {
+    pub(super) poste: Poste,
+    pub(super) theta_aval_c: f64,
+    pub(super) theta_amb_c: f64,
+    pub(super) aut_ch: bool,
+    pub(super) aut_fr: bool,
+    pub(super) relance_ch: bool,
 }
 
 /// « Rdim × Pngen^(gnr+1) » : puissance installée du générateur qui suit le `k`-ième dans
