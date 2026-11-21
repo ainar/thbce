@@ -62,6 +62,9 @@ pub enum FonctionGenerateur {
     ChauffageEcs,
     /// 5 : chauffage et refroidissement en alternance.
     ChauffageRefroidissement,
+    /// 6 : chauffage, refroidissement et ECS (générateur thermodynamique triple service,
+    /// §8.23.3.2, tableau 149).
+    ChauffageRefroidissementEcs,
 }
 
 impl FonctionGenerateur {
@@ -70,13 +73,46 @@ impl FonctionGenerateur {
         matches!(
             (self, poste),
             (
-                Self::Chauffage | Self::ChauffageEcs | Self::ChauffageRefroidissement,
+                Self::Chauffage
+                    | Self::ChauffageEcs
+                    | Self::ChauffageRefroidissement
+                    | Self::ChauffageRefroidissementEcs,
                 Poste::Chauffage
             ) | (
-                Self::Refroidissement | Self::ChauffageRefroidissement,
+                Self::Refroidissement
+                    | Self::ChauffageRefroidissement
+                    | Self::ChauffageRefroidissementEcs,
                 Poste::Refroidissement
-            ) | (Self::Ecs | Self::ChauffageEcs, Poste::Ecs)
+            ) | (
+                Self::Ecs | Self::ChauffageEcs | Self::ChauffageRefroidissementEcs,
+                Poste::Ecs
+            )
         )
+    }
+
+    /// Vrai pour un générateur qui assure à la fois le chauffage et le refroidissement
+    /// (réversible ou triple service) : un seul des deux modes à un pas de temps, le
+    /// refroidissement prioritaire (§8.23.3.7.3).
+    pub const fn reversible(self) -> bool {
+        matches!(
+            self,
+            Self::ChauffageRefroidissement | Self::ChauffageRefroidissementEcs
+        )
+    }
+
+    /// « iecs_seule(h) » : le générateur ne produit que de l'ECS au pas de temps.
+    ///
+    /// Th-BCE 2020 §8.17.3.8 : « idfougen = 3 ou Autch(j) = 0 (équivalent à idecs_seule = 1) ».
+    /// Pour un générateur triple service, la puissance absorbée à charge nulle n'est comptée
+    /// que pour un seul mode (§8.23.3.7.6) : en ECS hors des saisons de chauffage et de
+    /// refroidissement, dans le mode de la saison sinon ; « iecs_seule » est alors faux en
+    /// saison de refroidissement (lecture `docs/questions/Q250.md`, point 3).
+    pub const fn ecs_seule(self, aut_ch: bool, aut_fr: bool) -> bool {
+        match self {
+            Self::Ecs => true,
+            Self::ChauffageRefroidissementEcs => !aut_ch && !aut_fr,
+            _ => !aut_ch,
+        }
     }
 
     /// Fonction d'un générateur n'assurant qu'un poste.

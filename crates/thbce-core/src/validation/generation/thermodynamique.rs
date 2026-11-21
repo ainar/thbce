@@ -28,14 +28,6 @@ pub(super) fn valider_thermodynamique(
              §8.23.3.2)",
         );
     }
-    if t.refroidissement.is_some() && t.ecs.is_some() {
-        r.hors_perimetre(
-            format!("{c}.ecs"),
-            None,
-            "générateur produisant du froid et de l'ECS (triple service, Th-BCE 2020 §8.23.3.2, \
-             tableau 149)",
-        );
-    }
     let source = valider_source_amont(r, c, &t.source_amont, bat);
     if source == "tour_de_refroidissement" && (t.chauffage.is_some() || t.ecs.is_some()) {
         r.erreur(
@@ -253,6 +245,34 @@ fn valider_combinaison(r: &mut RapportValidation, c: &str, t: &ThermodynamiqueEl
                  / eau ; Th-BCE 2020 §8.23.3.2)",
             );
         }
+    }
+    // Tableau 149 : un générateur qui produit du froid et de l'ECS est triple service ; seules
+    // quatre combinaisons existent, toutes avec chauffage.
+    if let (Some(fr), Some(ecs)) = (&t.refroidissement, &t.ecs) {
+        let admis = t.chauffage.as_ref().is_some_and(|ch| {
+            matches!(
+                (ch.technologie, ecs.technologie, fr.technologie),
+                (C::AirExterieurEau, E::AirExterieurEau, F::AirExterieurEau)
+                    | (C::EauDeNappeEau, E::EauDeNappeEau, F::EauDeNappeEau)
+                    | (C::EauGlycoleeEau, E::EauGlycoleeEau, F::EauEau)
+                    | (
+                        C::AirExterieurAirRecycle,
+                        E::AirExterieurEau,
+                        F::AirExterieurAirRecycle
+                    )
+            )
+        });
+        if !admis {
+            r.erreur(
+                format!("{c}.ecs.technologie"),
+                None,
+                "combinaison de technologies absente du tableau 149 (triple service : chauffage, \
+                 refroidissement et ECS ; air extérieur / eau, eau de nappe / eau, eau glycolée / \
+                 eau avec refroidisseur eau / eau, air extérieur / air recyclé avec ECS air \
+                 extérieur / eau ; Th-BCE 2020 §8.23.3.2)",
+            );
+        }
+        return;
     }
     if let (Some(ch), Some(ecs)) = (&t.chauffage, &t.ecs) {
         let admis = matches!(

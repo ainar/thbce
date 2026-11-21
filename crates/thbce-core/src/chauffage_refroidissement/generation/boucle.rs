@@ -58,6 +58,7 @@ impl GenerationHoraire {
                 theta_aval_c: theta_aval[p],
                 theta_amb_c,
                 aut_ch: d.aut_ch,
+                aut_fr: d.aut_fr,
                 relance_ch,
             };
             if du_groupe.is_empty() {

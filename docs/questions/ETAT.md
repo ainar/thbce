@@ -177,3 +177,4 @@
 | Q240 | Boucles d'eau (fiche 8.15, lot 2f) : description d'une génération à boucle d'eau, raccord de la source « boucle d'eau » de la fiche 8.26, périmètre | hypothèse retenue, à confirmer par le mainteneur |
 | Q241 | Boucles d'eau (fiche 8.15, lot 2f) : signe des rejets (éq. 965), charge des PAC en chauffage (éq. 964), borne de l'éq. 975, mode d'un groupe | hypothèse retenue, à confirmer par un cas de référence |
 | Q242 | Boucles d'eau (fiche 8.15, lot 2f) : puissance de la tour (éq. 972), générateurs de la boucle hors saison, unités | hypothèse retenue, à confirmer par un cas de référence |
+| Q250 | Générateurs thermodynamiques électriques triple service (fiche 8.23, tableau 149, lot 2g) : délai de basculement ECS → froid, « iECS_seule » et auxiliaires à charge nulle comptés dans un seul mode, auxiliaires amont | hypothèse retenue, à confirmer par le mainteneur |
