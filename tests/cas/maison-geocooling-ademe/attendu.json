@@ -1,0 +1,330 @@
+{
+  "reglementaire": false,
+  "origine_meteo_th_bc": {
+    "type": "ademe_prospectif"
+  },
+  "origine_meteo_th_d": {
+    "type": "ademe_prospectif"
+  },
+  "climat": {
+    "zone_climatique": "H2b",
+    "altcorr_m": 100.0,
+    "base_ext_c": -6.5
+  },
+  "batiments": [
+    {
+      "id": "maison",
+      "sref_m2": 96.4,
+      "bbio_pts": 63.8,
+      "dh_c_h": 1531.1,
+      "zones": [
+        {
+          "id": "logement",
+          "nadeq": 1.9,
+          "ventilation": {
+            "id": "vmc-hygro",
+            "p_vent_w": 14.8,
+            "c_aux_vent_kwh": 129.2,
+            "valeurs_par_defaut": [
+              {
+                "champ": "ventilation.reseau.classe_etancheite",
+                "valeur": 6.75e-05,
+                "regle": "Th-BCE 2020 §6.2.3.4, tableau 59 : Kres de la valeur par défaut « DEF », en m³/(s.m²) sous 1 Pa"
+              },
+              {
+                "champ": "ventilation.reseau.ratfuitevc",
+                "valeur": 0.25,
+                "regle": "Th-BCE 2020 §6.2.3.4, tableau 60 : valeur par défaut"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[0].cdep",
+                "valeur": 1.3,
+                "regle": "Th-BCE 2020 §6.2.3.3.1, tableau 58 : valeur par défaut"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[0].a_cond_m2",
+                "valeur": 4.822,
+                "regle": "Th-BCE 2020 §6.2.3.4, éq. (421) à (427), tableau 60 : surface de conduit par défaut"
+              }
+            ]
+          },
+          "groupes": [
+            {
+              "id": "volume-chauffe",
+              "debits_bbio": {
+                "q_spec_repris_m3_h": -92.0,
+                "q_spec_souffle_m3_h": 92.0
+              },
+              "enveloppe": {
+                "a_op_m2": 290.0,
+                "a_opv_m2": 90.0,
+                "a_ophh_m2": 100.0,
+                "a_ophb_m2": 100.0,
+                "h_th_op_w_k": 45.0,
+                "a_f_perm_m2": 100.0,
+                "a_toit_perm_m2": 100.0,
+                "l_pt_m": 40.0,
+                "h_th_pt_w_k": 4.0,
+                "a_baies_m2": 10.0,
+                "a_baies_v_m2": 10.0,
+                "a_baies_h_m2": 0.0,
+                "h_ges_sp_w_k": 13.0
+              },
+              "baies": [
+                {
+                  "id": "baie-sud",
+                  "valeurs_par_defaut": [
+                    {
+                      "champ": "sans_protection.sw1_c",
+                      "valeur": 0.3111111111111111
+                    },
+                    {
+                      "champ": "sans_protection.sw2_c",
+                      "valeur": 0.03888888888888889
+                    },
+                    {
+                      "champ": "sans_protection.sw3_c",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "sans_protection.tlid",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "avec_protection.sw1_c",
+                      "valeur": 0.02
+                    },
+                    {
+                      "champ": "avec_protection.sw2_c",
+                      "valeur": 0.03
+                    },
+                    {
+                      "champ": "avec_protection.sw3_c",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "avec_protection.tlid",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "protection_mobile.typo_pm",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "ouvrant.r_ouv_max",
+                      "valeur": 0.8
+                    }
+                  ]
+                },
+                {
+                  "id": "baie-nord",
+                  "valeurs_par_defaut": [
+                    {
+                      "champ": "sans_protection.sw1_c",
+                      "valeur": 0.3111111111111111
+                    },
+                    {
+                      "champ": "sans_protection.sw2_c",
+                      "valeur": 0.03888888888888889
+                    },
+                    {
+                      "champ": "sans_protection.sw3_c",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "sans_protection.tlid",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "avec_protection.sw1_c",
+                      "valeur": 0.02
+                    },
+                    {
+                      "champ": "avec_protection.sw2_c",
+                      "valeur": 0.03
+                    },
+                    {
+                      "champ": "avec_protection.sw3_c",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "avec_protection.tlid",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "protection_mobile.typo_pm",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "ouvrant.r_ouv_max",
+                      "valeur": 0.8
+                    }
+                  ]
+                }
+              ],
+              "valeurs_par_defaut": [
+                {
+                  "champ": "h_ttf_m",
+                  "valeur": 1.5
+                }
+              ],
+              "ventilation": {
+                "q_spec_repris_m3_h": -125.0,
+                "q_spec_souffle_m3_h": 0.0,
+                "q_repris_cond_m3_h": -141.4,
+                "q_souffle_cond_m3_h": 0.0,
+                "p_vent_w": 14.8,
+                "c_aux_vent_kwh": 129.2,
+                "c_aux_vent_kwh_m2": 1.3
+              }
+            }
+          ]
+        }
+      ],
+      "c_aux_vent_kwh": 129.2,
+      "cep_kwhep_m2": 48.8,
+      "cep_nr_kwhep_m2": 48.8,
+      "ic_energie_kgco2_m2": 58.5,
+      "indicateurs": {
+        "cef_kwhef_m2": 21.2,
+        "exigences": {
+          "bbio_max_pts": 64.7,
+          "cep_max_kwhep_m2": 70.2,
+          "cep_nr_max_kwhep_m2": 51.5,
+          "ic_energie_max_kgco2_m2": 149.7,
+          "conforme": false
+        }
+      },
+      "generations": [
+        {
+          "id": "generation-eau-chaude",
+          "generateurs": [
+            {
+              "id": "pac",
+              "q_fou_ch_kwh": 2812.2,
+              "q_fou_fr_kwh": 0.0,
+              "q_fou_ecs_kwh": 0.0,
+              "eta_eff_ch_an": 4.18,
+              "w_aux_kwh": 160.0,
+              "phi_rejet_kwh": -2299.6,
+              "consommations": {
+                "chauffage": {
+                  "electricite_kwh": 672.7
+                },
+                "refroidissement": {},
+                "ecs": {}
+              },
+              "valeurs_par_defaut": [
+                {
+                  "champ": "source_amont.captage.ecarts.delta_theta_ch_k",
+                  "valeur": 5.0,
+                  "regle": "Th-BCE 2020 §8.26.3.3.2.1 : ΔθEvap_CH et ΔθCond_FR fixés par défaut à 5 K"
+                },
+                {
+                  "champ": "source_amont.captage.ecarts.delta_theta_fr_k",
+                  "valeur": 5.0,
+                  "regle": "Th-BCE 2020 §8.26.3.3.2.1 : ΔθEvap_CH et ΔθCond_FR fixés par défaut à 5 K"
+                },
+                {
+                  "champ": "chauffage.fonctionnement_continu.lr_contmin",
+                  "valeur": 0.4,
+                  "regle": "Th-BCE 2020 §8.23.3.6, éq. (1280) et (1281) : LRcontmin = 0,4 et CcpLRcontmin = 1 par défaut"
+                },
+                {
+                  "champ": "taux_auxiliaires",
+                  "valeur": 0.02,
+                  "regle": "Th-BCE 2020 §8.23.3.6, éq. (1278) et (1279) : Taux par défaut, 0,02 en chauffage ou en ECS, 0,01 en refroidissement"
+                }
+              ]
+            },
+            {
+              "id": "appoint-electrique",
+              "q_fou_ch_kwh": 0.0,
+              "q_fou_fr_kwh": 0.0,
+              "q_fou_ecs_kwh": 0.0,
+              "w_aux_kwh": 0.0,
+              "consommations": {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {}
+              }
+            }
+          ]
+        },
+        {
+          "id": "ballon-ecs",
+          "generateurs": [
+            {
+              "id": "chauffe-eau-thermodynamique",
+              "q_fou_ch_kwh": 0.0,
+              "q_fou_fr_kwh": 0.0,
+              "q_fou_ecs_kwh": 2009.9,
+              "w_aux_kwh": 0.0,
+              "phi_rejet_kwh": -1271.8,
+              "consommations": {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {}
+              }
+            }
+          ]
+        },
+        {
+          "id": "generation-froid",
+          "generateurs": [
+            {
+              "id": "geocooling",
+              "q_fou_ch_kwh": 0.0,
+              "q_fou_fr_kwh": 843.0,
+              "q_fou_ecs_kwh": 0.0,
+              "w_aux_kwh": 23.2,
+              "phi_rejet_kwh": 843.0,
+              "consommations": {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {}
+              },
+              "valeurs_par_defaut": [
+                {
+                  "champ": "source_amont.captage.ecarts.delta_theta_ch_k",
+                  "valeur": 5.0,
+                  "regle": "Th-BCE 2020 §8.26.3.3.2.1 : ΔθEvap_CH et ΔθCond_FR fixés par défaut à 5 K"
+                },
+                {
+                  "champ": "source_amont.captage.ecarts.delta_theta_fr_k",
+                  "valeur": 5.0,
+                  "regle": "Th-BCE 2020 §8.26.3.3.2.1 : ΔθEvap_CH et ΔθCond_FR fixés par défaut à 5 K"
+                }
+              ]
+            },
+            {
+              "id": "refroidisseur",
+              "q_fou_ch_kwh": 0.0,
+              "q_fou_fr_kwh": 759.7,
+              "q_fou_ecs_kwh": 0.0,
+              "w_aux_kwh": 21.6,
+              "phi_rejet_kwh": 981.2,
+              "consommations": {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {}
+              },
+              "valeurs_par_defaut": [
+                {
+                  "champ": "refroidissement.fonctionnement_continu.lr_contmin",
+                  "valeur": 0.4,
+                  "regle": "Th-BCE 2020 §8.23.3.6, éq. (1280) et (1281) : LRcontmin = 0,4 et CcpLRcontmin = 1 par défaut"
+                },
+                {
+                  "champ": "taux_auxiliaires",
+                  "valeur": 0.01,
+                  "regle": "Th-BCE 2020 §8.23.3.6, éq. (1278) et (1279) : Taux par défaut, 0,02 en chauffage ou en ECS, 0,01 en refroidissement"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

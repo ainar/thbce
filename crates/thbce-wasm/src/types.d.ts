@@ -195,6 +195,9 @@ export interface AssistanceMecanique {
   v_vent_reg_m_s: number[];
 }
 
+/** « Type_Association » (tableau 253) : association avec les autres générateurs de froid. */
+export type AssociationGeocooling = "base_et_complement" | "alterne";
+
 /**
  * Paramètres de l'automatisme d'une protection mobile en gestion automatique (§5.9.2,
  * tableau 33 ; fiche d'application FA01). Seuils sans valeur conventionnelle dans le texte :
@@ -1875,6 +1878,12 @@ export interface EchangeurEcsSaisi {
   p_ech_ecs_kw: number;
 }
 
+/** Échangeur intermédiaire de géocooling (§8.30.3.4). */
+export interface EchangeurGeocooling {
+  /** « UAgeo,nom » : coefficient de transfert de l'échangeur aux débits nominaux, en W/K. */
+  ua_geo_nom_w_k: number;
+}
+
 /**
  * Échangeur de barrage d'une source sur eau de nappe et circuit intermédiaire (§8.26.3.3.2.1,
  * « idamont-eau-type = 4 », éq. 1411 à 1424).
@@ -2827,6 +2836,49 @@ export interface Generation {
 }
 
 /**
+ * Th-BCE 2020 §8.30.2, tableau 253 — échangeur de géocooling : générateur de refroidissement
+ * équivalent, alimenté par une source géothermique sur eau (sondes ou nappe, fiche 8.26), placé
+ * en tête d'une génération de froid en cascade (« systématiquement prioritaire par rapport aux
+ * autres générateurs de froid »).
+ */
+export interface GeocoolingSaisi {
+  /**
+   * « Type_Association » ; absent : base et complément (valeur conventionnelle du tableau
+   * 253, signalée).
+   */
+  association?: AssociationGeocooling | null;
+  /** « Δθamont » : écart nominal aux bornes de l'échangeur côté source amont, en K (0 à 8). */
+  delta_theta_amont_k: number;
+  /**
+   * « Δθaval » : écart départ-retour nominal de la production d'eau froide, en K (0 exclu à
+   * 8).
+   */
+  delta_theta_aval_k: number;
+  /**
+   * Échangeur intermédiaire entre le circuit des capteurs et le circuit d'eau du bâtiment
+   * (« Is_Echangeur_Intermediaire = 1 ») ; absent : un seul circuit d'eau
+   * (« Is_Echangeur_Intermediaire = 0 »).
+   */
+  echangeur_intermediaire?: EchangeurGeocooling | null;
+  /**
+   * « Pcprim,nom » : puissance du circulateur propre au circuit primaire de l'échangeur, en W
+   * (0 s'il n'y en a pas).
+   */
+  p_cprim_nom_w: number;
+  /** « qv,amont,nom » : débit nominal côté source amont, en m³/h. */
+  qv_amont_nom_m3_h: number;
+  /** « qv,aval,nom » : débit d'eau froide nominal de la production d'eau froide, en m³/h. */
+  qv_aval_nom_m3_h: number;
+  /** Source amont géothermique sur eau : captage par sondes ou nappe (fiche 8.26). */
+  source_amont: SourceAmontSaisie;
+  /**
+   * « θr,source,lim » : température limite de retour d'eau côté source au-delà de laquelle
+   * le géocooling est désactivé, en °C (0 à 25).
+   */
+  theta_r_source_lim_c: number;
+}
+
+/**
  * « Gest_ecl,l » (§7.1.2 et §7.1.3.6.1) : mode de commande de l'éclairage artificiel d'un
  * local.
  */
@@ -3614,6 +3666,8 @@ export type NatureGenerateur = {
   thermodynamique_gaz: ThermodynamiqueGazSaisi;
 } | "boucle_d_eau_ou_drv" | {
   cogeneration: CogenerationSaisie;
+} | {
+  geocooling: GeocoolingSaisi;
 } | "pac_hybride";
 
 /** « idtour » (§8.26.3.3.2.2). */

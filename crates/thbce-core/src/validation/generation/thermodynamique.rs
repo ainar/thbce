@@ -296,7 +296,7 @@ fn valider_combinaison(r: &mut RapportValidation, c: &str, t: &ThermodynamiqueEl
 
 /// Th-BCE 2020 §8.26 et §8.27 : références et plages d'une source amont ; renvoie le nom de sa
 /// variante.
-fn valider_source_amont(
+pub(super) fn valider_source_amont(
     r: &mut RapportValidation,
     c: &str,
     s: &SourceAmontSaisie,

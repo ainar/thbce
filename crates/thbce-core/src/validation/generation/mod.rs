@@ -20,6 +20,7 @@ use thermodynamique_gaz::{fluide_aval_gaz, postes_gaz, valider_thermodynamique_g
 // Un fichier par famille de générateurs. Un nouveau générateur ajoute sa nature dans
 // `postes_assures` et `valider_generation`, et ses contrôles dans un fichier déclaré ci-dessous.
 mod combustion;
+mod geocooling;
 mod reseaux_chaleur;
 mod thermodynamique;
 mod thermodynamique_gaz;
@@ -64,6 +65,8 @@ pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
         NatureGenerateur::ReseauDeChaleurOuDeFroid(ReseauChaleurFroidSaisi::Froid { .. }) => {
             [false, true, false]
         }
+        // Tableau 253 : « idfougen = 2 », refroidissement.
+        NatureGenerateur::Geocooling(_) => [false, true, false],
         // Natures refusées (code 3) : le lot qui les ouvre donne ici leurs postes, tirés de
         // leur saisie (`docs/architecture.md`, §3.10).
         NatureGenerateur::BoucleDEauOuDrv | NatureGenerateur::PacHybride => [false; 3],
@@ -82,7 +85,8 @@ pub(super) fn nature_hors_perimetre(n: &NatureGenerateur) -> Option<(&'static st
         | NatureGenerateur::ReseauDeChaleurOuDeFroid(_)
         | NatureGenerateur::ThermodynamiqueGaz(_)
         | NatureGenerateur::AutreGenerateurACombustion(_)
-        | NatureGenerateur::Cogeneration(_) => None,
+        | NatureGenerateur::Cogeneration(_)
+        | NatureGenerateur::Geocooling(_) => None,
         NatureGenerateur::BoucleDEauOuDrv => Some((
             "boucle_d_eau_ou_drv",
             "pompe à chaleur sur boucle d'eau, thermo-frigo-pompe ou générateur DRV (Th-BCE 2020 \
@@ -111,7 +115,9 @@ pub(super) fn fluide_aval_hydraulique(n: &NatureGenerateur) -> Option<bool> {
     match n {
         NatureGenerateur::Chaudiere(_)
         | NatureGenerateur::ReseauDeChaleurOuDeFroid(_)
-        | NatureGenerateur::Cogeneration(_) => Some(true),
+        | NatureGenerateur::Cogeneration(_)
+        // Tableau 253 : « idfluide_aval = 1 : eau ».
+        | NatureGenerateur::Geocooling(_) => Some(true),
         NatureGenerateur::PoeleOuInsert(_) => Some(false),
         // Tableau 124 : sur eau pour les chauffe-eau et accumulateurs, sur air ambiant sinon.
         NatureGenerateur::AutreGenerateurACombustion(c) => {
@@ -400,6 +406,16 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
                     t,
                     &x.id,
                     g,
+                );
+            }
+            NatureGenerateur::Geocooling(geo) => {
+                geocooling::valider_geocooling(
+                    r,
+                    &format!("{cg}.nature.geocooling"),
+                    geo,
+                    &x.id,
+                    g,
+                    bat,
                 );
             }
             autre => {

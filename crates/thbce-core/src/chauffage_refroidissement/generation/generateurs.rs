@@ -8,6 +8,7 @@ use super::{EntreesAppel, FonctionGenerateur, SortiesAppel};
 use crate::chauffage_refroidissement::autres_generateurs_a_combustion::AutreGenerateurCombustion;
 use crate::chauffage_refroidissement::calculs_generation::Poste;
 use crate::chauffage_refroidissement::chaudieres_gaz_fioul_bois::Chaudiere;
+use crate::chauffage_refroidissement::echangeur_geocooling::EchangeurGeocooling;
 use crate::chauffage_refroidissement::generateur_direct_a_effet_joule::GenerateurEffetJoule;
 use crate::chauffage_refroidissement::pac_moteur_gaz::PacMoteurGaz;
 use crate::chauffage_refroidissement::poeles_et_inserts::Poele;
@@ -63,6 +64,8 @@ pub enum Generateur {
     AutreCombustion(Box<AutreGenerateurCombustion>),
     /// Type 700 : système de cogénération (§8.21).
     Cogeneration(Box<Cogenerateur>),
+    /// Échangeur de géocooling (§8.30).
+    Geocooling(Box<EchangeurGeocooling>),
     /// Générateur idéal, pour les tests.
     Ideal(GenerateurIdeal),
 }
@@ -94,6 +97,7 @@ impl Generateur {
                     FonctionGenerateur::Chauffage
                 }
             }
+            Self::Geocooling(g) => g.fonction(),
             Self::Cogeneration(g) => match (g.chauffage, g.ecs) {
                 (true, true) => FonctionGenerateur::ChauffageEcs,
                 (false, true) => FonctionGenerateur::Ecs,
@@ -118,6 +122,7 @@ impl Generateur {
             Self::MoteurGaz(g) => g.pn_gen_tot_w(poste),
             Self::AutreCombustion(g) => g.pn_gen_tot_w(),
             Self::Cogeneration(g) => g.pn_gen_tot_w(),
+            Self::Geocooling(g) => g.pn_gen_tot_w(poste),
             // Sans puissance nominale : parts égales en mode sans priorité.
             Self::Ideal(_) => 1.0,
         }
@@ -135,6 +140,7 @@ impl Generateur {
             Self::MoteurGaz(g) => g.appel(e),
             Self::AutreCombustion(g) => g.appel(e),
             Self::Cogeneration(g) => g.appel(e),
+            Self::Geocooling(g) => g.appel(e),
             Self::Ideal(g) => g.appel(e),
         }
     }

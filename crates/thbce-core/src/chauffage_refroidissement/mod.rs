@@ -27,6 +27,7 @@ pub mod brasseurs_air;
 pub mod calculs_generation;
 pub mod chaudieres_gaz_fioul_bois;
 pub mod distribution;
+pub mod echangeur_geocooling;
 pub mod emetteurs;
 pub mod emission;
 pub mod generateur_direct_a_effet_joule;

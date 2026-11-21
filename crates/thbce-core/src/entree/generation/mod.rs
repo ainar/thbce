@@ -12,6 +12,7 @@ use super::*;
 mod cogeneration;
 mod combustion;
 mod effet_joule;
+mod geocooling;
 mod reseaux_chaleur;
 mod thermodynamique;
 mod thermodynamique_gaz;
@@ -19,6 +20,7 @@ mod thermodynamique_gaz;
 pub use cogeneration::*;
 pub use combustion::*;
 pub use effet_joule::*;
+pub use geocooling::*;
 pub use reseaux_chaleur::*;
 pub use thermodynamique::*;
 pub use thermodynamique_gaz::*;
@@ -184,6 +186,9 @@ pub enum NatureGenerateur {
     BoucleDEauOuDrv,
     /// Type 700 : système de cogénération (§8.21).
     Cogeneration(Box<CogenerationSaisie>),
+    /// Échangeur de géocooling d'une génération de refroidissement climatisée (§8.30 ; sans
+    /// type au tableau 111).
+    Geocooling(Box<GeocoolingSaisi>),
     /// Pompe à chaleur hybride (association d'une pompe à chaleur et d'une chaudière dans un
     /// même produit) saisie comme un seul générateur : non prise en charge. Elle n'est pas un
     /// type du tableau 111 ; la fiche d'application du §16.4 la décrit par ses composants, à

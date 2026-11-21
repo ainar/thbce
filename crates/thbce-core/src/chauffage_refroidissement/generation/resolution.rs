@@ -114,6 +114,12 @@ impl GenerationHoraire {
                         valeurs_par_defaut = defauts;
                         Generateur::Cogeneration(Box::new(m))
                     }
+                    NatureGenerateur::Geocooling(geo) => {
+                        let (m, src, defauts) = resoudre_geocooling(geo, rdim)?;
+                        source = Some(src);
+                        valeurs_par_defaut = defauts;
+                        Generateur::Geocooling(Box::new(m))
+                    }
                     NatureGenerateur::BoucleDEauOuDrv | NatureGenerateur::PacHybride => {
                         return None
                     }
@@ -1340,4 +1346,58 @@ mod tests_autre_combustion {
         });
         proche(resout(&c).0.r_pn_pct, 76.0);
     }
+}
+
+/// Th-BCE 2020 §8.30 : échangeur de géocooling et sa source géothermique sur eau (fiche 8.26) ;
+/// `None` pour une source qui n'est pas sur eau (refusée par la validation).
+fn resoudre_geocooling(
+    g: &crate::entree::GeocoolingSaisi,
+    rdim: f64,
+) -> Option<(
+    crate::chauffage_refroidissement::echangeur_geocooling::EchangeurGeocooling,
+    SourceAmontGenerateur,
+    Vec<crate::resultats::ValeurParDefaut>,
+)> {
+    use crate::chauffage_refroidissement::echangeur_geocooling::{
+        Association, EchangeurGeocooling, LectureSansEchangeur,
+    };
+    use crate::entree::AssociationGeocooling;
+    let mut defauts = Vec::new();
+    let source = crate::chauffage_refroidissement::sources_amont::resoudre_eau_sol(
+        &g.source_amont,
+        &mut defauts,
+    )?;
+    let association = match g.association {
+        Some(AssociationGeocooling::BaseEtComplement) => Association::BaseEtComplement,
+        Some(AssociationGeocooling::Alterne) => Association::Alterne,
+        None => {
+            defauts.push(crate::resultats::ValeurParDefaut {
+                champ: "association".to_owned(),
+                valeur: 0.0,
+                regle: "Th-BCE 2020 §8.30.2, tableau 253 : Type_Association conventionnel 0, base \
+                        et complément"
+                    .to_owned(),
+            });
+            Association::BaseEtComplement
+        }
+    };
+    Some((
+        EchangeurGeocooling {
+            qv_aval_nom_m3_h: g.qv_aval_nom_m3_h,
+            delta_theta_aval_k: g.delta_theta_aval_k,
+            qv_amont_nom_m3_h: g.qv_amont_nom_m3_h,
+            delta_theta_amont_k: g.delta_theta_amont_k,
+            theta_r_source_lim_c: g.theta_r_source_lim_c,
+            ua_geo_nom_w_k: g.echangeur_intermediaire.map(|e| e.ua_geo_nom_w_k),
+            p_cprim_nom_w: g.p_cprim_nom_w,
+            association,
+            rdim,
+            lecture: LectureSansEchangeur::default(),
+        },
+        SourceAmontGenerateur {
+            source,
+            p_vent_gaine_w: 0.0,
+        },
+        defauts,
+    ))
 }
