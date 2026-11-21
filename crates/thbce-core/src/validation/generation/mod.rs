@@ -428,6 +428,20 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
                  avec stockage (`stockages`, Th-BCE 2020 §8.23.3.2)",
             );
         }
+        // Fiche 8.21 (p. 739) : l'énergie fournie à l'ECS suppose une ECS accumulée ; un
+        // cogénérateur d'ECS est le générateur de base d'un ballon de stockage (lecture Q157).
+        if assures[2]
+            && matches!(x.nature, NatureGenerateur::Cogeneration(_))
+            && !g.stockages.iter().any(|s| s.base.generateur == x.id)
+        {
+            r.erreur(
+                format!("{cg}.nature.cogeneration.fonction"),
+                None,
+                "un cogénérateur d'ECS est le générateur de base d'un ballon de stockage \
+                 (`stockages`) : la production instantanée d'ECS n'est pas décrite par la fiche \
+                 (Th-BCE 2020 §8.21.3.2.1, p. 739 ; lecture Q157)",
+            );
+        }
     }
     // Priorités (§8.17.3.7) : mode requis dès que deux générateurs assurent un même poste ;
     // en cascade, rangs requis et distincts.

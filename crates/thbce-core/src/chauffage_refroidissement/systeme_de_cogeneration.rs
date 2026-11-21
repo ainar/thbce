@@ -111,6 +111,7 @@ pub struct PointPleineCharge {
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 struct EtatPas {
     appele: bool,
+    appele_ecs: bool,
     ecs_seule: bool,
     q_req_ecs_wh: f64,
     q_fou_ecs_wh: f64,
@@ -233,9 +234,13 @@ impl Cogenerateur {
     /// Rendements thermique et électrique d'un point, corrigés à la température aval, en %
     /// (éq. 1180 à 1183).
     fn rendements(&self, p: &PointPleineCharge, theta_aval_c: f64) -> (f64, f64) {
+        // Bornés à zéro : avec « αth » élevé (condensation) et une température aval très
+        // supérieure à « θav,ref », la correction pourrait annuler le rendement thermique ;
+        // le module ne fournit alors plus rien, au lieu de produire des valeurs infinies
+        // (lecture Q157).
         (
-            p.eta_th_pct + self.alpha_th * (p.theta_ref_c - theta_aval_c),
-            p.eta_el_pct + self.alpha_el * (p.theta_ref_c - theta_aval_c),
+            (p.eta_th_pct + self.alpha_th * (p.theta_ref_c - theta_aval_c)).max(0.0),
+            (p.eta_el_pct + self.alpha_el * (p.theta_ref_c - theta_aval_c)).max(0.0),
         )
     }
 
@@ -261,7 +266,18 @@ impl Cogenerateur {
     pub fn appel(&mut self, e: &EntreesAppel) -> SortiesAppel {
         let q_req = e.q_req_wh.max(0.0) / self.rdim;
         self.cour.appele = true;
+        // Un poste n'est appelé qu'une fois par pas : l'état du poste est remplacé, non
+        // cumulé (lecture Q157).
+        debug_assert!(
+            !(if e.fonction == Poste::Ecs {
+                self.cour.appele_ecs
+            } else {
+                self.cour.appele_ch
+            }),
+            "cogénérateur appelé deux fois pour le même poste dans un pas de temps"
+        );
         let (q_fou, tau, r_fonct) = if e.fonction == Poste::Ecs {
+            self.cour.appele_ecs = true;
             // Éq. (1188) et (1189), avec « Pmax,ecs(h) » à la température aval de l'ECS.
             let (_, p_max) = self.p_max_w(e.theta_aval_c);
             let q_fou = q_req.min(p_max).max(0.0);
@@ -342,9 +358,16 @@ impl Cogenerateur {
         });
         let p_min_chp = 1000.0 * self.p_th_min_kw * rapport_min;
         // Éq. (1195) à (1199).
-        let pertes_relatives = |th: f64, el: f64| 100.0 / (th + el) - 1.0;
+        let pertes_relatives = |th: f64, el: f64| {
+            if th + el > 0.0 {
+                100.0 / (th + el) - 1.0
+            } else {
+                0.0
+            }
+        };
+        let rapport_el_th = |th: f64, el: f64| if th > 0.0 { el / th } else { 0.0 };
         let phi_min = pertes_relatives(th0, el0) * p_min_chp;
-        let prelec_min = el0 / th0 * p_min_chp;
+        let prelec_min = rapport_el_th(th0, el0) * p_min_chp;
         let w_aux0 = m.p_w_aux_w;
         let w_aux_min = if p_max_chp > 0.0 {
             w_aux0 * p_min_chp / p_max_chp
@@ -352,7 +375,7 @@ impl Cogenerateur {
             0.0
         };
         let phi_0 = pertes_relatives(th0, el0) * p_max_chp;
-        let prelec_0 = el0 / th0 * p_max_chp;
+        let prelec_0 = rapport_el_th(th0, el0) * p_max_chp;
         // Éq. (1202) et (1203).
         let q_fou = c.q_fou_ecs_wh + c.q_fou_ch_wh;
         let tau = c.r_fonct_ecs + c.r_puis_dispo * c.tau_charge_ch;
@@ -385,7 +408,7 @@ impl Cogenerateur {
                 let a = self.avec_appoint.unwrap_or(*m);
                 let (th1, el1) = self.rendements(&a, theta_aval);
                 let phi_1 = pertes_relatives(th1, el1) * p_max;
-                let prelec_1 = el1 / th1 * p_max;
+                let prelec_1 = rapport_el_th(th1, el1) * p_max;
                 let fx = self.fx(tau, r_chp, 1.0, 1.0);
                 (
                     fx * phi_1 + (1.0 - fx) * phi_0,
@@ -540,5 +563,121 @@ mod tests {
         // Non appelé : rien.
         g.fin_de_pas();
         assert!(g.bilan_du_pas(20.0).is_none());
+    }
+
+    /// Même cogénérateur avec brûleur d'appoint intégré : 20 kW à pleine charge, ηth = 70 %,
+    /// ηel = 12 %, auxiliaires de 2 × ceux du module seul.
+    fn mci_avec_appoint() -> Cogenerateur {
+        let mut g = mci();
+        let w0 = 1000.0 * 1.2 * p_w_aux_utile_max_kw(10.0);
+        g.avec_appoint = Some(PointPleineCharge {
+            p_th_kw: 20.0,
+            eta_th_pct: 70.0,
+            eta_el_pct: 12.0,
+            p_w_aux_w: 2.0 * w0,
+            theta_ref_c: 53.5,
+        });
+        g
+    }
+
+    /// Mode module + appoint (éq. 1200, 1201, 1212 à 1215), θaval = θav,ref (pas de
+    /// correction) : Pmax,chp = 10 kW, Pmax = 20 kW, Pmax,chp/Pmax = 0,5 ; demande de 15 kWh,
+    /// soit τ = 0,75.
+    #[test]
+    fn module_et_appoint_a_la_main() {
+        let w0 = 1000.0 * 1.2 * p_w_aux_utile_max_kw(10.0);
+        // Éq. (1195) à (1200) : pertes et production électrique de chaque point.
+        let phi_0 = (100.0 / (52.8 + 19.2) - 1.0) * 10_000.0;
+        let prelec_0 = 19.2 / 52.8 * 10_000.0;
+        let phi_1 = (100.0 / (70.0 + 12.0) - 1.0) * 20_000.0;
+        let prelec_1 = 12.0 / 70.0 * 20_000.0;
+        for (lecture, fx) in [
+            // Retenue : (τ − 0,5)/(1 − 0,5) ; variante imprimée : fx = τ.
+            (LectureInterpolation::Figure116, 0.5),
+            (LectureInterpolation::Litterale, 0.75),
+        ] {
+            let mut g = mci_avec_appoint();
+            g.lecture = lecture;
+            let s = appel(&mut g, Poste::Chauffage, 15_000.0, 53.5, 1.0);
+            assert_eq!(s.q_fou_wh, 15_000.0);
+            assert!((s.tau_charge - 0.75).abs() < 1e-12);
+            let b = g.bilan_du_pas(20.0).unwrap();
+            let q_pertes = fx * phi_1 + (1.0 - fx) * phi_0;
+            let q_prelec = fx * prelec_1 + (1.0 - fx) * prelec_0;
+            let w_aux = fx * 2.0 * w0 + (1.0 - fx) * w0;
+            assert!((b.q_pertes_wh - q_pertes).abs() < 1e-9, "{lecture:?}");
+            assert!((b.q_prelec_wh - q_prelec).abs() < 1e-9, "{lecture:?}");
+            assert!((b.w_aux_pro_wh - w_aux).abs() < 1e-9, "{lecture:?}");
+            // Éq. (1216).
+            let cons = (15_000.0 + q_prelec + q_pertes) / 1.11;
+            assert!((b.q_cons_wh - cons).abs() < 1e-9, "{lecture:?}");
+            assert!((b.eta_eff - 15_000.0 / cons).abs() < 1e-12);
+        }
+        // À τ = 1 : fx = 1 dans la lecture retenue comme dans la variante.
+        let mut g = mci_avec_appoint();
+        appel(&mut g, Poste::Chauffage, 20_000.0, 53.5, 1.0);
+        let b = g.bilan_du_pas(20.0).unwrap();
+        assert!((b.q_prelec_wh - prelec_1).abs() < 1e-9);
+        assert!((b.q_pertes_wh - phi_1).abs() < 1e-9);
+    }
+
+    /// Variante imprimée du module seul (éq. 1211) : fx = Pmax,chp/Pmax · τ.
+    #[test]
+    fn variante_litterale_du_module_seul() {
+        let mut g = mci();
+        g.lecture = LectureInterpolation::Litterale;
+        appel(&mut g, Poste::Chauffage, 8000.0, 53.5, 1.0);
+        let b = g.bilan_du_pas(20.0).unwrap();
+        // Sans appoint, Pmax,chp = Pmax : fx = 1 × 0,8.
+        let fx = 0.8;
+        let phi = |p: f64| (100.0 / 72.0 - 1.0) * p;
+        let q_pertes = fx * phi(10_000.0) + (1.0 - fx) * phi(6000.0);
+        assert!((b.q_pertes_wh - q_pertes).abs() < 1e-9);
+    }
+
+    /// Rdim = 2 : chaque module reçoit la moitié de la demande, les sorties sont doublées.
+    #[test]
+    fn rdim_superieur_a_un() {
+        let mut un = mci();
+        appel(&mut un, Poste::Chauffage, 8000.0, 53.5, 1.0);
+        let b1 = un.bilan_du_pas(20.0).unwrap();
+        let mut deux = mci();
+        deux.rdim = 2.0;
+        let s = appel(&mut deux, Poste::Chauffage, 16_000.0, 53.5, 1.0);
+        assert!((s.q_fou_wh - 16_000.0).abs() < 1e-9);
+        assert!((s.q_rest_wh).abs() < 1e-9);
+        let b2 = deux.bilan_du_pas(20.0).unwrap();
+        assert!((b2.q_cons_wh - 2.0 * b1.q_cons_wh).abs() < 1e-9);
+        assert!((b2.q_prelec_wh - 2.0 * b1.q_prelec_wh).abs() < 1e-9);
+        assert!((b2.w_aux_pro_wh - 2.0 * b1.w_aux_pro_wh).abs() < 1e-9);
+        assert!((deux.pn_gen_tot_w() - 20_000.0).abs() < 1e-9);
+    }
+
+    /// Rendement thermique corrigé nul ou négatif (condensation, « αth » = 0,2, température
+    /// aval très élevée) : borné à zéro, le module ne fournit rien et tout reste fini (Q157).
+    #[test]
+    fn rendement_thermique_corrige_borne() {
+        let mut g = mci();
+        g.alpha_th = 0.2;
+        let s = appel(
+            &mut g,
+            Poste::Chauffage,
+            5000.0,
+            53.5 + 52.8 / 0.2 + 10.0,
+            1.0,
+        );
+        assert_eq!(s.q_fou_wh, 0.0);
+        assert_eq!(s.q_rest_wh, 5000.0);
+        let b = g.bilan_du_pas(20.0).unwrap();
+        for x in [
+            b.q_cons_wh,
+            b.q_prelec_wh,
+            b.q_pertes_wh,
+            b.w_aux_pro_wh,
+            b.phi_vc_wh,
+            b.eta_eff,
+        ] {
+            assert!(x.is_finite(), "{b:?}");
+        }
     }
 }

@@ -123,7 +123,12 @@ fn bilan_electrique_avec_cogeneration() {
     m["eta_el_pct"] = 0.0.into();
     let r0 = calcul(&v0);
     let i0 = r0.batiments[0].indicateurs.as_ref().unwrap();
-    assert!(i0.production_cogeneration.is_none());
+    // Le bilan existe dès qu'un cogénérateur existe : sans électricité produite, l'éq. (5) de
+    // l'annexe II donne (Cef + 0)/(Cef + 0) = 100 %, non 0 %.
+    let c0 = i0.production_cogeneration.as_ref().unwrap();
+    assert_eq!((c0.e_prod_coge_kwh, c0.e_prod_coge_ac_kwh), (0.0, 0.0));
+    assert!(c0.cef_tot_comb_kwh > 0.0);
+    assert_eq!(c0.tac_global_pct, 100.0);
     assert!(
         i0.cep_kwhep_m2 > i.cep_kwhep_m2,
         "{} {}",
@@ -283,4 +288,167 @@ fn cogeneration_sur_meteo_reglementaire() {
             "{nom}"
         );
     }
+}
+
+/// Cogénérateur sans électricité produite (ηel = 0) et sous-lot 8.2 de l'ACV : le taux global
+/// d'autoconsommation vaut 100 % (annexe II, éq. 5) et le composant n'est pas perdu.
+#[test]
+fn acv_sous_lot_8_2_sans_production_electrique() {
+    let mut v = json_du_cas("maison-cogeneration-ademe");
+    let acv = json_du_cas("maison-acv-ademe");
+    v["catalogue"] = acv["catalogue"].clone();
+    v["batiments"][0]["installations_pv"] = acv["batiments"][0]["installations_pv"].clone();
+    let mut donnees = acv["batiments"][0]["acv"].clone();
+    let mut composant = donnees["composants"][0].clone();
+    composant["id"] = "micro-cogenerateur".into();
+    composant["designation"] = "micro-cogénérateur".into();
+    composant["sous_lot"] = "8.2".into();
+    composant["quantite"] = 1.0.into();
+    composant["unite"] = "u".into();
+    donnees["composants"]
+        .as_array_mut()
+        .unwrap()
+        .push(composant);
+    v["batiments"][0]["acv"] = donnees;
+    let ic = |r: &Resultats| {
+        r.batiments[0]
+            .acv
+            .as_ref()
+            .unwrap()
+            .ic_construction_kgco2_m2
+    };
+    let avec_ref = calcul(&v);
+    let mut sans = v.clone();
+    sans["batiments"][0]["acv"]["composants"]
+        .as_array_mut()
+        .unwrap()
+        .pop();
+    let gain_ref = ic(&avec_ref) - ic(&calcul(&sans));
+    // ηel = 0 pour le module seul et pour le module avec l'appoint.
+    for x in [&mut v, &mut sans] {
+        let c = cogenerateur(x, "micro-cogenerateur");
+        c["module_seul"]["eta_el_pct"] = 0.0.into();
+        c["avec_appoint"] = serde_json::json!({
+            "p_th_kw": 19.0, "statut": "certifiee",
+            "eta_th_pct": 80.0, "eta_el_pct": 0.0, "p_w_aux_kw": 0.1
+        });
+    }
+    let r = calcul(&v);
+    let i = r.batiments[0].indicateurs.as_ref().unwrap();
+    let c = i.production_cogeneration.as_ref().unwrap();
+    assert_eq!(c.e_prod_coge_kwh, 0.0);
+    assert_eq!(c.tac_global_pct, 100.0);
+    let a = r.batiments[0].acv.as_ref().unwrap();
+    assert_eq!(a.tac_coge_global_pct, Some(100.0));
+    // Le composant compte en entier : son apport dépasse celui du cas à production électrique,
+    // où le taux global est inférieur à 100 %.
+    let gain = ic(&r) - ic(&calcul(&sans));
+    assert!(gain > 0.0 && gain >= gain_ref - 1e-9, "{gain} {gain_ref}");
+}
+
+/// Type × combustible × fonction : chaque combinaison est valide, donne des résultats finis,
+/// consomme le vecteur énergétique du tableau 136 sur le ou les postes assurés et produit de
+/// l'électricité dès que le chauffage est assuré.
+#[test]
+fn types_combustibles_et_fonctions() {
+    let base = json_du_cas("maison-cogeneration-ademe");
+    let types = ["moteur_combustion_interne", "stirling", "micro_turbine"];
+    // (combustible saisi, vecteur restitué).
+    let combustibles = [
+        ("gaz_naturel", "gaz"),
+        ("gpl", "gaz"),
+        ("fioul", "fioul"),
+        ("bois_buches", "bois"),
+    ];
+    for fonction in ["chauffage", "ecs", "chauffage_ecs"] {
+        for t in types {
+            for (comb, vecteur) in combustibles {
+                let mut v = base.clone();
+                {
+                    let g = &mut v["batiments"][0]["generations"][0];
+                    let coge = g["generateurs"][0].clone();
+                    let mut coge = coge;
+                    coge["nature"]["cogeneration"]["fonction"] = fonction.into();
+                    coge["nature"]["cogeneration"]["type_cogenerateur"] = t.into();
+                    coge["nature"]["cogeneration"]["combustible"] = comb.into();
+                    let mut gens = vec![coge];
+                    match fonction {
+                        // ECS assurée par une résistance qui devient la base du ballon.
+                        "chauffage" => {
+                            gens[0].as_object_mut().unwrap().remove("priorite_ecs");
+                            gens.push(serde_json::json!({
+                                "id": "resistance", "rdim": 1, "priorite_ecs": 1,
+                                "nature": {"effet_joule": {"fonction": "ecs", "pn_gen_w": 3000}}
+                            }));
+                            g["stockages"][0]["base"]["generateur"] = "resistance".into();
+                        }
+                        // Chauffage assuré par une résistance.
+                        "ecs" => {
+                            gens[0]
+                                .as_object_mut()
+                                .unwrap()
+                                .remove("priorite_chauffage");
+                            gens.push(serde_json::json!({
+                                "id": "appoint", "rdim": 1, "priorite_chauffage": 1,
+                                "nature": {"effet_joule": {"fonction": "chauffage", "pn_gen_w": 15000}}
+                            }));
+                        }
+                        _ => {}
+                    }
+                    g["generateurs"] = gens.into();
+                }
+                let r = calcul(&v);
+                let i = r.batiments[0].indicateurs.as_ref().unwrap();
+                let etiq = format!("{fonction} {t} {comb}");
+                assert!(i.cep_kwhep_m2.is_finite() && i.cep_kwhep_m2 > 0.0, "{etiq}");
+                let coge = &r.batiments[0].generations[0].generateurs[0];
+                let c = &coge.consommations;
+                let (ch, ecs) = match vecteur {
+                    "gaz" => (c.chauffage.gaz_kwh, c.ecs.gaz_kwh),
+                    "fioul" => (c.chauffage.fioul_kwh, c.ecs.fioul_kwh),
+                    _ => (c.chauffage.bois_kwh, c.ecs.bois_kwh),
+                };
+                assert!(ch.is_finite() && ecs.is_finite(), "{etiq}");
+                assert_eq!(ch > 0.0, fonction != "ecs", "{etiq} : chauffage {ch}");
+                assert_eq!(ecs > 0.0, fonction != "chauffage", "{etiq} : ECS {ecs}");
+                // Aucun autre combustible.
+                let total = c.chauffage.total_kwh() - c.chauffage.electricite_kwh
+                    + c.ecs.total_kwh()
+                    - c.ecs.electricite_kwh;
+                assert!((total - ch - ecs).abs() < 1e-9 * total.max(1.0), "{etiq}");
+                let p = i.production_cogeneration.as_ref().unwrap();
+                // ECS seule : la faible charge du ballon reste sous « Pth,chp_min » (brûleur seul,
+                // sans électricité, éq. 1205) ; le taux global reste défini (100 % sans
+                // production, éq. 5 de l'annexe II).
+                assert!(
+                    p.e_prod_coge_kwh >= 0.0 && p.tac_global_pct.is_finite(),
+                    "{etiq}"
+                );
+                assert!(
+                    fonction == "ecs" || p.e_prod_coge_kwh > 0.0,
+                    "{etiq} : pas d'électricité produite"
+                );
+                if p.e_prod_coge_kwh == 0.0 {
+                    assert_eq!(p.tac_global_pct, 100.0, "{etiq}");
+                }
+                assert!(coge.q_prelec_kwh.is_finite(), "{etiq}");
+            }
+        }
+    }
+}
+
+/// Un cogénérateur d'ECS sans ballon (production instantanée) est refusé (fiche 8.21,
+/// p. 739 : l'ECS est accumulée).
+#[test]
+fn ecs_instantanee_par_cogenerateur_refusee() {
+    let mut v = json_du_cas("maison-cogeneration-ademe");
+    v["batiments"][0]["generations"][0]["stockages"] = serde_json::json!([]);
+    let e = thbce_core::valider(&projet(&v));
+    assert!(
+        e.erreurs
+            .iter()
+            .any(|x| x.message.contains("ballon de stockage")),
+        "{:?}",
+        e.erreurs
+    );
 }

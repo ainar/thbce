@@ -591,9 +591,10 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
     });
     // Fiche 8.21 et §13.2.3.5 : électricité produite par les cogénérateurs ; « Cef_tot_comb »,
     // consommation finale de leur combustible, auxiliaires exclus (lecture Q157).
-    let production_cogeneration = (b.prod_coge_wh > 0.0).then(|| {
-        let cef_comb: f64 = e
-            .generations
+    // Le bilan est établi dès qu'un cogénérateur existe, même sans électricité produite :
+    // l'éq. (5) de l'annexe II donne alors (Cef + 0) / (Cef + 0) = 100 % et non 0 %.
+    let cogenerateurs = || {
+        e.generations
             .iter()
             .filter_map(|rg| {
                 let g = e.batiment.generations.iter().find(|g| g.id == rg.id)?;
@@ -604,35 +605,43 @@ pub fn calculer_indicateurs(e: &EntreesIndicateurs<'_>) -> (ResultatsIndicateurs
                 }))
             })
             .flatten()
-            .map(|r| {
-                let c = &r.consommations;
-                c.chauffage.total_kwh() - c.chauffage.electricite_kwh + c.ecs.total_kwh()
-                    - c.ecs.electricite_kwh
-            })
-            .sum();
-        let prod = b.prod_coge_wh / 1000.0;
-        let ac = b.prod_coge_ac_wh / 1000.0;
-        BilanProductionCogeneration {
-            e_prod_coge_kwh: prod,
-            e_prod_coge_ac_kwh: ac,
-            e_exportee_kwh: prod - ac,
-            tac_pct: b.tac_coge_pct().unwrap_or(0.0),
-            tac_elec_pct: b.tac_total_pct().unwrap_or(0.0),
-            cef_tot_comb_kwh: cef_comb,
-            // Éq. (2455).
-            tac_global_pct: if cef_comb + prod > 0.0 {
-                100.0 * (cef_comb + ac) / (cef_comb + prod)
-            } else {
-                0.0
-            },
-            e_prod_coge_mensuel_kwh: b.prod_coge_mensuel_wh.iter().map(|x| x / 1000.0).collect(),
-            e_prod_coge_ac_mensuel_kwh: b
-                .prod_coge_ac_mensuel_wh
-                .iter()
-                .map(|x| x / 1000.0)
-                .collect(),
-        }
-    });
+    };
+    let production_cogeneration =
+        (b.prod_coge_wh > 0.0 || cogenerateurs().next().is_some()).then(|| {
+            let cef_comb: f64 = cogenerateurs()
+                .map(|r| {
+                    let c = &r.consommations;
+                    c.chauffage.total_kwh() - c.chauffage.electricite_kwh + c.ecs.total_kwh()
+                        - c.ecs.electricite_kwh
+                })
+                .sum();
+            let prod = b.prod_coge_wh / 1000.0;
+            let ac = b.prod_coge_ac_wh / 1000.0;
+            BilanProductionCogeneration {
+                e_prod_coge_kwh: prod,
+                e_prod_coge_ac_kwh: ac,
+                e_exportee_kwh: prod - ac,
+                tac_pct: b.tac_coge_pct().unwrap_or(0.0),
+                tac_elec_pct: b.tac_total_pct().unwrap_or(0.0),
+                cef_tot_comb_kwh: cef_comb,
+                // Éq. (2455).
+                tac_global_pct: if cef_comb + prod > 0.0 {
+                    100.0 * (cef_comb + ac) / (cef_comb + prod)
+                } else {
+                    0.0
+                },
+                e_prod_coge_mensuel_kwh: b
+                    .prod_coge_mensuel_wh
+                    .iter()
+                    .map(|x| x / 1000.0)
+                    .collect(),
+                e_prod_coge_ac_mensuel_kwh: b
+                    .prod_coge_ac_mensuel_wh
+                    .iter()
+                    .map(|x| x / 1000.0)
+                    .collect(),
+            }
+        });
     // Chauffe-eau solaires individuels et systèmes combinés, puis productions solaires
     // collectives (CESCI, CESCAI).
     let solaire: f64 = e

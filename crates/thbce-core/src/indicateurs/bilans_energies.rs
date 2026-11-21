@@ -236,7 +236,13 @@ pub fn bilan(
         // Éq. (2528), nul sans production ; éq. (2530) et (2531) : autoconsommation de chaque
         // production au prorata.
         let tac = if prod > 0.0 { ac / prod } else { 0.0 };
-        let (pv_ac, coge_ac) = (tac * pv, tac * coge);
+        // Sans production de cogénération, `ac` est repris tel quel (identité bit à bit avec
+        // le bilan photovoltaïque seul, sans le détour par le rapport `ac / prod`).
+        let (pv_ac, coge_ac) = if coge > 0.0 {
+            (tac * pv, tac * coge)
+        } else {
+            (ac, 0.0)
+        };
         b.prod_pv_wh += pv;
         b.prod_pv_ac_wh += pv_ac;
         b.prod_pv_mensuel_wh[mois] += pv;

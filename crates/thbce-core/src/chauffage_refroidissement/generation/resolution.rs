@@ -992,3 +992,126 @@ fn resoudre_cogeneration(
         defauts,
     )
 }
+
+#[cfg(test)]
+#[allow(clippy::float_cmp)]
+mod tests_cogeneration {
+    use super::*;
+    use crate::entree::{
+        CogenerationSaisie, CombustibleCogeneration as C, FonctionChaleur,
+        PerformancesCogeneration, RaccordementGenerateur, StatutPerformancesCogeneration as S,
+        TypeCogenerateur as T,
+    };
+
+    fn perf(
+        statut: S,
+        th: Option<f64>,
+        el: Option<f64>,
+        aux: Option<f64>,
+    ) -> PerformancesCogeneration {
+        PerformancesCogeneration {
+            p_th_kw: 10.0,
+            statut,
+            eta_th_pct: th,
+            eta_el_pct: el,
+            p_w_aux_kw: aux,
+        }
+    }
+
+    fn saisie(
+        t: T,
+        c: C,
+        f: FonctionChaleur,
+        module: PerformancesCogeneration,
+    ) -> CogenerationSaisie {
+        CogenerationSaisie {
+            fonction: f,
+            combustible: c,
+            condensation: false,
+            type_cogenerateur: t,
+            module_seul: module,
+            avec_appoint: None,
+            p_th_min_kw: None,
+            phi_th_stab_30_w: None,
+            p_w_aux_veille_w: None,
+            raccordement: RaccordementGenerateur::AvecIsolement,
+        }
+    }
+
+    /// Type × combustible × fonction, statut par défaut : vecteur énergétique (tableau 136),
+    /// PCSI, rendements = 0,8 × valeurs utiles maximales (tableau 138), postes assurés.
+    #[test]
+    fn type_combustible_fonction() {
+        // Tableau 138 : (ηth, ηel) utiles maximaux ; PWaux utile : 45/1000 × 10^0,48 kW.
+        let types = [
+            (T::MoteurCombustionInterne, 66.0, 24.0),
+            (T::Stirling, 80.0, 15.0),
+            (T::MicroTurbine, 66.0, 24.0),
+        ];
+        // Tableau 136.
+        let combustibles = [
+            (C::GazNaturel, Energie::Gaz, 1.11),
+            (C::Gpl, Energie::Gaz, 1.09),
+            (C::Fioul, Energie::Fioul, 1.07),
+            (C::BoisBuches, Energie::Bois, 1.08),
+            (C::BoisGranules, Energie::Bois, 1.08),
+            (C::BoisPlaquettes, Energie::Bois, 1.08),
+        ];
+        let fonctions = [
+            (FonctionChaleur::Chauffage, (true, false)),
+            (FonctionChaleur::Ecs, (false, true)),
+            (FonctionChaleur::ChauffageEcs, (true, true)),
+        ];
+        let aux = 1.2 * 45.0 * libm::pow(10.0, 0.48);
+        for (t, th, el) in types {
+            for (c, energie, pcsi) in combustibles {
+                for (f, postes) in fonctions {
+                    let s = saisie(t, c, f, perf(S::Defaut, None, None, None));
+                    let (g, defauts) = resoudre_cogeneration(&s, 1.0, true);
+                    assert_eq!(g.energie, energie);
+                    assert_eq!(g.pcsi, pcsi);
+                    assert_eq!((g.chauffage, g.ecs), postes);
+                    assert!((g.module_seul.eta_th_pct - 0.8 * th).abs() < 1e-12);
+                    assert!((g.module_seul.eta_el_pct - 0.8 * el).abs() < 1e-12);
+                    assert!((g.module_seul.p_w_aux_w - aux).abs() < 1e-9);
+                    assert!(g.module_seul.eta_th_pct + g.module_seul.eta_el_pct < 100.0);
+                    // Tableau 140 : 60 % de Pth, 15 W de veille, signalés comme par défaut.
+                    assert!((g.p_th_min_kw - 6.0).abs() < 1e-12);
+                    assert_eq!(g.p_w_aux_veille_w, 15.0);
+                    assert!(defauts.iter().any(|d| d.champ == "p_th_min_kw"));
+                }
+            }
+        }
+    }
+
+    /// Statuts déclaré, justifié et certifié (§8.21.3.1.3), valeurs calculées à la main :
+    /// ηth 60 %, ηel 20 %, PWaux 0,1 kW ; moteur à combustion interne (66 %, 24 %, PWaux utile
+    /// 45/1000 × 10^0,48 = 0,1357 kW).
+    #[test]
+    fn statuts_a_la_main() {
+        let aux_utile = 45.0 / 1000.0 * libm::pow(10.0, 0.48);
+        let point = |statut| {
+            let s = saisie(
+                T::MoteurCombustionInterne,
+                C::GazNaturel,
+                FonctionChaleur::Chauffage,
+                perf(statut, Some(60.0), Some(20.0), Some(0.1)),
+            );
+            resoudre_cogeneration(&s, 1.0, false).0.module_seul
+        };
+        // Déclaré : min(0,8 × valeur ; maximum) ; max(1,2 × valeur ; maximum) pour PWaux.
+        let d = point(S::Declaree);
+        assert!((d.eta_th_pct - 48.0).abs() < 1e-12 && (d.eta_el_pct - 16.0).abs() < 1e-12);
+        assert!((d.p_w_aux_w - 1000.0 * aux_utile).abs() < 1e-9);
+        // Justifié : 0,9 × rendements, 1,1 × auxiliaires.
+        let j = point(S::Justifiee);
+        assert!((j.eta_th_pct - 54.0).abs() < 1e-12 && (j.eta_el_pct - 18.0).abs() < 1e-12);
+        assert!((j.p_w_aux_w - 110.0).abs() < 1e-9);
+        // Certifié : tels quels.
+        let c = point(S::Certifiee);
+        assert_eq!(
+            (c.eta_th_pct, c.eta_el_pct, c.p_w_aux_w),
+            (60.0, 20.0, 100.0)
+        );
+    }
+}
