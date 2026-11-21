@@ -3608,7 +3608,11 @@ export type NatureGenerateur = {
   thermodynamique_gaz: ThermodynamiqueGazSaisi;
 } | {
   pac_sur_boucle_d_eau: PacSurBoucleDEauSaisie;
-} | "boucle_d_eau_ou_drv" | {
+} | {
+  thermofrigopompe: ThermodynamiqueElectriqueSaisi;
+} | {
+  drv: ThermodynamiqueElectriqueSaisi;
+} | {
   cogeneration: CogenerationSaisie;
 } | "pac_hybride";
 
@@ -5746,6 +5750,12 @@ export interface ResultatsGenerateur {
   phi_rejet_kwh?: number;
   /** « Eef_fou_ch » : énergie fournie en chauffage, en kWh (éq. 1525). */
   q_fou_ch_kwh: number;
+  /**
+   * Fiche 8.16 : énergie de chauffage d'un DRV ou d'une thermo-frigo-pompe fournie par la
+   * récupération de son rejet de chaleur en refroidissement (éq. 978 et 979), comprise dans
+   * `q_fou_ch_kwh`, en kWh ; absente pour les autres générateurs.
+   */
+  q_fou_ch_recup_kwh?: number | null;
   /** « Eef_fou_ecs » : énergie fournie en ECS, en kWh. */
   q_fou_ecs_kwh: number;
   /** « Eef_fou_fr » : énergie fournie en refroidissement, en kWh. */

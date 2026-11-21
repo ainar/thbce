@@ -305,6 +305,7 @@ impl Resultats {
                     x.w_aux_kwh = a(x.w_aux_kwh);
                     x.phi_rejet_kwh = a(x.phi_rejet_kwh);
                     x.q_prelec_kwh = a(x.q_prelec_kwh);
+                    x.q_fou_ch_recup_kwh = x.q_fou_ch_recup_kwh.map(a);
                     x.consommations.arrondir();
                     // Efficacités restituées avec deux décimales.
                     for e in [

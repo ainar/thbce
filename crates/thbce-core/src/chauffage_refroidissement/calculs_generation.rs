@@ -210,6 +210,9 @@ pub struct CumulsGenerateur {
     /// Nombre d'heures hors période de fonctionnement, par poste (« nbhcharge_HF », éq. 1522 à
     /// 1524).
     pub nbh_hors_fonctionnement: [u32; 3],
+    /// Énergie de chauffage fournie par la récupération du rejet de chaleur en refroidissement
+    /// d'un DRV ou d'une thermo-frigo-pompe (fiche 8.16), comprise dans `q_fou_wh`, en Wh.
+    pub q_fou_ch_recup_wh: f64,
     /// Nombre d'heures par classe de taux de charge et par poste (éq. 1522 à 1524).
     pub nbh_charge: [[u32; NB_CLASSES_CHARGE]; 3],
 }

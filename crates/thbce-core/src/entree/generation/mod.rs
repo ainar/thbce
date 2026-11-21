@@ -189,8 +189,12 @@ pub enum NatureGenerateur {
     /// Type 507 : pompe à chaleur sur boucle d'eau (§8.15), dans une génération qui décrit la
     /// boucle (`boucle_d_eau`).
     PacSurBoucleDEau(Box<PacSurBoucleDEauSaisie>),
-    /// Types 508 et 509 : thermo-frigo-pompe, générateur DRV (§8.16) : hors de cette version.
-    BoucleDEauOuDrv,
+    /// Type 508 : thermo-frigo-pompe (§8.16), groupe frigorifique eau / eau réversible dont le
+    /// rejet de chaleur en refroidissement est récupéré pour le chauffage.
+    Thermofrigopompe(Box<ThermodynamiqueElectriqueSaisi>),
+    /// Type 509 : générateur à débit de réfrigérant variable (DRV, §8.16), machine air / air
+    /// réversible dont le rejet de chaleur en refroidissement est récupéré pour le chauffage.
+    Drv(Box<ThermodynamiqueElectriqueSaisi>),
     /// Type 700 : système de cogénération (§8.21).
     Cogeneration(Box<CogenerationSaisie>),
     /// Pompe à chaleur hybride (association d'une pompe à chaleur et d'une chaudière dans un

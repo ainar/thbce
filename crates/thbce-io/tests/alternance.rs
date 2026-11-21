@@ -215,14 +215,14 @@ fn pac_hybride_renvoie_a_la_fiche_d_application() {
 /// de montage du §8.17.3.1 est sauté (pas d'erreur « aucun générateur n'assure le poste »).
 #[test]
 fn generateur_hors_perimetre_seul_refuse_en_code_3_seul() {
-    for nature in ["boucle_d_eau_ou_drv", "pac_hybride"] {
-        let mut v = json_du_cas(EXEMPLE);
-        let g = &mut v["batiments"][0]["generations"][0];
-        g["generateurs"].as_array_mut().unwrap().truncate(1);
-        g["generateurs"][0]["nature"] = nature.into();
-        g.as_object_mut().unwrap().remove("priorite");
-        let r = thbce_core::valider(&projet(&v));
-        assert!(!r.erreurs.is_empty());
-        assert!(r.seulement_hors_perimetre(), "{nature} : {:?}", r.erreurs);
-    }
+    // Natures encore refusées (code 3) : la PAC hybride saisie en un seul générateur (Q126).
+    let nature = "pac_hybride";
+    let mut v = json_du_cas(EXEMPLE);
+    let g = &mut v["batiments"][0]["generations"][0];
+    g["generateurs"].as_array_mut().unwrap().truncate(1);
+    g["generateurs"][0]["nature"] = nature.into();
+    g.as_object_mut().unwrap().remove("priorite");
+    let r = thbce_core::valider(&projet(&v));
+    assert!(!r.erreurs.is_empty());
+    assert!(r.seulement_hors_perimetre(), "{nature} : {:?}", r.erreurs);
 }

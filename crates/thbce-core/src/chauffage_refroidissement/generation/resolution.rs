@@ -61,6 +61,19 @@ impl GenerationHoraire {
                     }
                     // Fiche 8.15 : pompe à chaleur sur boucle d'eau, groupe frigorifique eau /
                     // air sur la source amont « boucle d'eau » (§8.15.1).
+                    // Fiche 8.16 : DRV et thermo-frigo-pompes, générateurs thermodynamiques
+                    // réversibles ; la récupération du rejet est faite à l'appel en chauffage.
+                    NatureGenerateur::Thermofrigopompe(t) | NatureGenerateur::Drv(t) => {
+                        let (pac, src, defauts) = GenerateurThermodynamique::resoudre(
+                            t,
+                            rdim,
+                            |id| ids_et.iter().position(|e| e == id),
+                            |id| ids_zones.iter().position(|z| z == id),
+                        )?;
+                        source = Some(src);
+                        valeurs_par_defaut = defauts;
+                        Generateur::Thermodynamique(Box::new(pac))
+                    }
                     NatureGenerateur::PacSurBoucleDEau(b) => {
                         let (pac, src, defauts) = GenerateurThermodynamique::resoudre(
                             &b.pac,
@@ -129,9 +142,7 @@ impl GenerationHoraire {
                         valeurs_par_defaut = defauts;
                         Generateur::Cogeneration(Box::new(m))
                     }
-                    NatureGenerateur::BoucleDEauOuDrv | NatureGenerateur::PacHybride => {
-                        return None
-                    }
+                    NatureGenerateur::PacHybride => return None,
                 };
                 Some(GenerateurHoraire {
                     id: s.id.clone(),
@@ -146,6 +157,10 @@ impl GenerationHoraire {
                     jeu: JeuDonnees::default(),
                     n_basculement: N_BASCULEMENT_INIT,
                     cumuls: CumulsGenerateur::default(),
+                    transfert_locaux: matches!(
+                        s.nature,
+                        NatureGenerateur::Thermofrigopompe(_) | NatureGenerateur::Drv(_)
+                    ),
                 })
             })
             .collect();

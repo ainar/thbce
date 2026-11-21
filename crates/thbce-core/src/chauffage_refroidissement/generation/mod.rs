@@ -26,11 +26,13 @@ use crate::resultats::ValeurParDefaut;
 
 // Un fichier par étape : modèles des générateurs (un nouveau générateur ajoute sa variante
 // dans `generateurs.rs`), résolution de la saisie (`resolution.rs`) et gestion horaire
-// (`gestion.rs`) ; bilan d'une boucle d'eau (`boucle.rs`, fiche 8.15).
+// (`gestion.rs`) ; bilan d'une boucle d'eau (`boucle.rs`, fiche 8.15) ; transferts entre locaux
+// par les DRV et les thermo-frigo-pompes (`transfert_locaux.rs`, fiche 8.16).
 mod boucle;
 mod generateurs;
 mod gestion;
 mod resolution;
+mod transfert_locaux;
 
 pub use generateurs::*;
 
@@ -219,6 +221,9 @@ pub struct JeuDonnees {
     pub tau_charge_poste: [f64; 3],
     /// Vrai si le générateur a été appelé pour le poste.
     pub appele: [bool; 3],
+    /// Énergie de chauffage fournie par la récupération du rejet en refroidissement d'un DRV
+    /// ou d'une thermo-frigo-pompe (fiche 8.16), en Wh.
+    pub q_fou_ch_recup_wh: f64,
 }
 
 impl JeuDonnees {
@@ -285,6 +290,9 @@ pub struct GenerateurHoraire {
     pub n_basculement: u32,
     /// Cumuls annuels.
     pub cumuls: CumulsGenerateur,
+    /// Fiche 8.16 : DRV ou thermo-frigo-pompe, dont le rejet de chaleur en refroidissement est
+    /// récupéré pour le chauffage (types 508 et 509).
+    pub transfert_locaux: bool,
 }
 
 impl GenerateurHoraire {
@@ -299,6 +307,7 @@ impl GenerateurHoraire {
             jeu: JeuDonnees::default(),
             n_basculement: N_BASCULEMENT_INIT,
             cumuls: CumulsGenerateur::default(),
+            transfert_locaux: false,
         }
     }
 }

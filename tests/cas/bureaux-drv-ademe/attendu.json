@@ -1,0 +1,73 @@
+{
+  "reglementaire": false,
+  "climat": {
+    "zone_climatique": "H2b"
+  },
+  "batiments": [
+    {
+      "id": "bureaux",
+      "sref_m2": 1000.0,
+      "bbio_pts": 94.3,
+      "dh_c_h": 1079.5,
+      "cep_kwhep_m2": 79.2,
+      "cep_nr_kwhep_m2": 79.2,
+      "ic_energie_kgco2_m2": 94.6,
+      "indicateurs": {
+        "cef_kwhef_m2": 34.4,
+        "electricite_consommee": {
+          "chauffage_kwh": 12347.6,
+          "refroidissement_kwh": 9477.0,
+          "ecs_kwh": 3220.7,
+          "eclairage_kwh": 6150.8,
+          "auxiliaires_ventilation_kwh": 3248.7,
+          "auxiliaires_distribution_kwh": 0.0,
+          "deplacements_kwh": 0.0,
+          "mobilier_kwh": 28620.2
+        }
+      },
+      "generations": [
+        {
+          "id": "drv",
+          "q_fou_ch_kwh": 30264.3,
+          "q_fou_fr_kwh": 24980.9,
+          "generateurs": [
+            {
+              "id": "groupes-exterieurs",
+              "q_fou_ch_kwh": 30264.3,
+              "q_fou_fr_kwh": 24980.9,
+              "consommations": {
+                "chauffage": {
+                  "electricite_kwh": 12347.6
+                },
+                "refroidissement": {
+                  "electricite_kwh": 9477.0
+                },
+                "ecs": {}
+              },
+              "phi_rejet_kwh": 13678.8
+            }
+          ]
+        },
+        {
+          "id": "chauffe-eau",
+          "q_fou_ch_kwh": 0.0,
+          "q_fou_fr_kwh": 0.0,
+          "generateurs": [
+            {
+              "id": "resistance",
+              "q_fou_ch_kwh": 0.0,
+              "q_fou_fr_kwh": 0.0,
+              "consommations": {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 3220.7
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

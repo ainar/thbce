@@ -17,6 +17,7 @@ use combustion::{
 use reseaux_chaleur::valider_reseau;
 use thermodynamique::valider_thermodynamique;
 use thermodynamique_gaz::{fluide_aval_gaz, postes_gaz, valider_thermodynamique_gaz};
+use transfert_locaux::valider_transfert_locaux;
 
 // Un fichier par famille de générateurs. Un nouveau générateur ajoute sa nature dans
 // `postes_assures` et `valider_generation`, et ses contrôles dans un fichier déclaré ci-dessous.
@@ -25,6 +26,7 @@ mod combustion;
 mod reseaux_chaleur;
 mod thermodynamique;
 mod thermodynamique_gaz;
+mod transfert_locaux;
 
 /// Postes qu'un générateur saisi peut assurer : `[chauffage, refroidissement, ECS]`.
 pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
@@ -38,6 +40,7 @@ pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
             t.refroidissement.is_some(),
             t.ecs.is_some(),
         ],
+        NatureGenerateur::Thermofrigopompe(_) | NatureGenerateur::Drv(_) => [true, true, false],
         NatureGenerateur::PacSurBoucleDEau(b) => [
             b.pac.chauffage.is_some(),
             b.pac.refroidissement.is_some(),
@@ -73,7 +76,7 @@ pub(super) fn postes_assures(n: &NatureGenerateur) -> [bool; 3] {
         }
         // Natures refusées (code 3) : le lot qui les ouvre donne ici leurs postes, tirés de
         // leur saisie (`docs/architecture.md`, §3.10).
-        NatureGenerateur::BoucleDEauOuDrv | NatureGenerateur::PacHybride => [false; 3],
+        NatureGenerateur::PacHybride => [false; 3],
     }
 }
 
@@ -85,16 +88,14 @@ pub(super) fn nature_hors_perimetre(n: &NatureGenerateur) -> Option<(&'static st
         NatureGenerateur::EffetJoule(_)
         | NatureGenerateur::ThermodynamiqueElectrique(_)
         | NatureGenerateur::PacSurBoucleDEau(_)
+        | NatureGenerateur::Thermofrigopompe(_)
+        | NatureGenerateur::Drv(_)
         | NatureGenerateur::Chaudiere(_)
         | NatureGenerateur::PoeleOuInsert(_)
         | NatureGenerateur::ReseauDeChaleurOuDeFroid(_)
         | NatureGenerateur::ThermodynamiqueGaz(_)
         | NatureGenerateur::AutreGenerateurACombustion(_)
         | NatureGenerateur::Cogeneration(_) => None,
-        NatureGenerateur::BoucleDEauOuDrv => Some((
-            "boucle_d_eau_ou_drv",
-            "thermo-frigo-pompe ou générateur DRV (Th-BCE 2020 §8.16, types 508 et 509)",
-        )),
         // Q126 : la PAC hybride n'est pas un type du tableau 111 ; la fiche d'application du
         // §16.4 la décrit par ses composants (générateur thermodynamique, chaudière à
         // condensation, ballon le cas échéant) dans une même génération.
@@ -126,11 +127,14 @@ pub(super) fn fluide_aval_hydraulique(n: &NatureGenerateur) -> Option<bool> {
         NatureGenerateur::AutreGenerateurACombustion(c) => {
             Some(combustion::autre_combustion_ecs(c))
         }
-        NatureGenerateur::EffetJoule(_) | NatureGenerateur::ThermodynamiqueElectrique(_) => None,
+        NatureGenerateur::EffetJoule(_)
+        | NatureGenerateur::ThermodynamiqueElectrique(_)
+        | NatureGenerateur::Thermofrigopompe(_)
+        | NatureGenerateur::Drv(_) => None,
         // Selon le mode et la technologie : contrôlé à part (`fluide_aval_gaz`).
         NatureGenerateur::ThermodynamiqueGaz(_) => None,
         // Natures refusées (code 3) : à fixer par le lot qui les ouvre.
-        NatureGenerateur::BoucleDEauOuDrv | NatureGenerateur::PacHybride => None,
+        NatureGenerateur::PacHybride => None,
     }
 }
 
@@ -391,6 +395,18 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
                     bat,
                 );
             }
+            NatureGenerateur::Thermofrigopompe(t) => {
+                valider_transfert_locaux(
+                    r,
+                    &format!("{cg}.nature.thermofrigopompe"),
+                    t,
+                    bat,
+                    false,
+                );
+            }
+            NatureGenerateur::Drv(t) => {
+                valider_transfert_locaux(r, &format!("{cg}.nature.drv"), t, bat, true);
+            }
             NatureGenerateur::PacSurBoucleDEau(p) => {
                 valider_pac_boucle(r, &format!("{cg}.nature.pac_sur_boucle_d_eau"), p, g, bat);
             }
@@ -583,8 +599,16 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
     // (§8.17.3.1) : réseaux fictifs et générateurs sur air, réseaux hydrauliques et générateurs
     // sur eau.
     for (k, x) in g.generateurs.iter().enumerate() {
-        let NatureGenerateur::ThermodynamiqueElectrique(t) = &x.nature else {
+        let (NatureGenerateur::ThermodynamiqueElectrique(t)
+        | NatureGenerateur::Thermofrigopompe(t)
+        | NatureGenerateur::Drv(t)) = &x.nature
+        else {
             continue;
+        };
+        let variante = match &x.nature {
+            NatureGenerateur::Thermofrigopompe(_) => "thermofrigopompe",
+            NatureGenerateur::Drv(_) => "drv",
+            _ => "thermodynamique_electrique",
         };
         let sur_air = [
             t.chauffage
@@ -599,7 +623,7 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
                 if air == hydraulique {
                     r.erreur(
                         format!(
-                            "{c}.generateurs[{k}].nature.thermodynamique_electrique.{}.technologie",
+                            "{c}.generateurs[{k}].nature.{variante}.{}.technologie",
                             noms[p]
                         ),
                         None,

@@ -381,6 +381,7 @@ impl GenerationHoraire {
             g.cumuls.phi_vc_wh += g.jeu.phi_vc_wh;
             g.cumuls.phi_rejet_wh += g.jeu.phi_rejet_wh;
             g.cumuls.q_prelec_wh += g.jeu.q_prelec_wh;
+            g.cumuls.q_fou_ch_recup_wh += g.jeu.q_fou_ch_recup_wh;
             let f = g.modele.fonction();
             for poste in Poste::TOUS {
                 let p = poste.indice();
@@ -505,8 +506,11 @@ impl GenerationHoraire {
             ModePriorite::SansPriorite => {
                 // Éq. (1017) et (1018) : clés de répartition ; éq. (1020), (1023) et (1026) :
                 // les générateurs qui ont refroidi sont écartés du chauffage et de l'ECS.
+                // Fiche 8.16 : un DRV ou une thermo-frigo-pompe qui a refroidi reste disponible
+                // en chauffage (récupération du rejet, éq. 978 et 979).
                 let cle = |g: &GenerateurHoraire| {
-                    let dispo = poste == Poste::Refroidissement || !g.jeu.ia_refroidi;
+                    let dispo =
+                        poste == Poste::Refroidissement || !g.jeu.ia_refroidi || g.transfert_locaux;
                     if dispo {
                         g.modele.pn_gen_tot_w(poste)
                     } else {
@@ -717,6 +721,9 @@ impl GenerationHoraire {
                 (1.0 - g.jeu.r_fonct_ecs, false)
             }
             Poste::Chauffage => {
+                if g.transfert_locaux {
+                    return Some(self.appeler_transfert_locaux(i, ctx, q_req_wh, sources));
+                }
                 if g.jeu.ia_refroidi {
                     return None;
                 }

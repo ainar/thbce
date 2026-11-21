@@ -132,6 +132,11 @@ pub struct ResultatsGenerateur {
     /// pour les autres générateurs.
     #[serde(default, skip_serializing_if = "est_nul")]
     pub q_prelec_kwh: f64,
+    /// Fiche 8.16 : énergie de chauffage d'un DRV ou d'une thermo-frigo-pompe fournie par la
+    /// récupération de son rejet de chaleur en refroidissement (éq. 978 et 979), comprise dans
+    /// `q_fou_ch_kwh`, en kWh ; absente pour les autres générateurs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub q_fou_ch_recup_kwh: Option<f64>,
     /// Valeurs par défaut de la méthode appliquées au générateur.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub valeurs_par_defaut: Vec<ValeurParDefaut>,

@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Immeuble de bureaux d'exemple (tests/cas/bureaux-simple-flux-ademe : 1 000 m², un groupe, ventilation simple flux, météo ouverte ADEME, Tours, H2b), climatisé, dont la chaudière et les radiateurs sont remplacés par un système à débit de réfrigérant variable (fiche 8.16, type 509) : six groupes extérieurs DRV sur air extérieur (air extérieur / air recyclé en chauffage et en refroidissement, valeurs pivot déclarées COP 4,2 et EER 3,8, 3,5 kW absorbés, compresseur à puissance variable), unités intérieures soufflant l'air (ventilateurs de 300 W en grande vitesse), réseaux fictifs. Un seul groupe : la génération n'a jamais, à la même heure, une demande de chaud et de froid, et le rejet n'est jamais récupéré (`q_fou_ch_recup_kwh` nul). Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : valeurs du moteur au lot 2f (21 novembre 2026), figées pour détecter les régressions ; ce n'est pas un cas de référence. crates/thbce-io/tests/drv.rs vérifie l'égalité avec une pompe à chaleur réversible de mêmes données et un pas de temps avec récupération calculé à la main (éq. 978 et 979)."
+meteo = "ademe"
+
+[tolerances]
+defaut = 0.005
