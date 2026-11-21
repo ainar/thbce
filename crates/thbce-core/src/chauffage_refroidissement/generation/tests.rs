@@ -388,3 +388,120 @@ fn alternance_chauffage_et_ecs() {
     assert_eq!(g.generateurs[1].jeu.q_fou_wh, [0.0, 0.0, 0.5]);
     assert_eq!(s.q_rep_wh, [0.0; 3]);
 }
+
+/// PAC triple service air extérieur / eau (tableau 149), 2 kW absorbés au pivot de chaque mode,
+/// `Waux,0 = 0,02 × 2 000 = 40 W` (éq. 1277).
+fn pac_triple_service() -> GenerateurHoraire {
+    use crate::chauffage_refroidissement::thermodynamique_elec::{
+        FonctionnementCompresseur, GenerateurThermodynamique, LecturePasPartage, Limites, ModePac,
+        PerformancesSaisies, CCP_LR_CONTMIN_DEFAUT, CH_AIR_EXTERIEUR_EAU, DFOU0_ECS_MIN,
+        ECS_AIR_EXTERIEUR_EAU, FR_AIR_EXTERIEUR_EAU, LR_CONTMIN_DEFAUT,
+    };
+    let mode = |grille: &crate::chauffage_refroidissement::thermodynamique_elec::Grille,
+                dfou0: f64| ModePac {
+        matrice: grille.construire(&PerformancesSaisies::PivotDefaut { pabs_w: 2000.0 }),
+        limites: Limites::Aucune,
+        dfou0_min: dfou0,
+        lr_contmin: LR_CONTMIN_DEFAUT,
+        ccp_lr_contmin: CCP_LR_CONTMIN_DEFAUT,
+        t_air_lim_c: None,
+    };
+    GenerateurHoraire::nouveau(
+        "pac",
+        Generateur::Thermodynamique(Box::new(GenerateurThermodynamique {
+            chauffage: Some(mode(&CH_AIR_EXTERIEUR_EAU, 6.0)),
+            refroidissement: Some(mode(&FR_AIR_EXTERIEUR_EAU, 6.0)),
+            ecs: Some(mode(&ECS_AIR_EXTERIEUR_EAU, DFOU0_ECS_MIN)),
+            compresseur: FonctionnementCompresseur::ToutOuRien,
+            w_aux_0_w: 40.0,
+            rdim: 1.0,
+            lecture_pas_partage: LecturePasPartage::Litterale,
+        })),
+    )
+}
+
+#[test]
+fn triple_service_auxiliaires_a_charge_nulle_dans_un_seul_mode() {
+    // §8.23.3.7.6 (triple service) : sans aucune demande, Waux,0 = 40 Wh est compté en ECS hors
+    // saisons, en refroidissement en saison de refroidissement, en chauffage en saison de
+    // chauffage ; jamais dans deux modes (lecture Q250).
+    let r = [
+        reseau(Poste::Chauffage, 0.0),
+        reseau(Poste::Refroidissement, 0.0),
+        reseau(Poste::Ecs, 0.0),
+    ];
+    for (aut_ch, aut_fr, poste) in [
+        (false, false, Poste::Ecs),
+        (false, true, Poste::Refroidissement),
+        (true, false, Poste::Chauffage),
+    ] {
+        let mut g = GenerationHoraire::nouvelle("g", vec![pac_triple_service()]);
+        let mut e = entrees(&r);
+        e.aut_ch = aut_ch;
+        e.aut_fr = aut_fr;
+        let s = g.pas(&e, 6).clone();
+        assert!(
+            (s.q_cef.valeur(poste, Energie::Electricite) - 40.0).abs() < 1e-9,
+            "{aut_ch} {aut_fr}"
+        );
+        assert!((s.q_cef.total() - 40.0).abs() < 1e-9, "{aut_ch} {aut_fr}");
+    }
+}
+
+#[test]
+fn triple_service_ecs_puis_refroidissement() {
+    // Saison de refroidissement : l'ECS passe d'abord à pleine charge, puis le refroidissement
+    // dispose de `1 − Rat_Fonct_ECS − 0,25` du pas de temps (éq. 1294) ; le chauffage est
+    // exclu (refroidissement prioritaire).
+    let r = [
+        reseau(Poste::Refroidissement, 1500.0),
+        reseau(Poste::Ecs, 1000.0),
+    ];
+    let mut g = GenerationHoraire::nouvelle("g", vec![pac_triple_service()]);
+    let mut e = entrees(&r);
+    e.aut_ch = false;
+    e.aut_fr = true;
+    g.pas(&e, 6);
+    let jeu = &g.generateurs[0].jeu;
+    let r_fonct = jeu.r_fonct_ecs;
+    assert!(r_fonct > 0.0 && r_fonct < 0.75, "{r_fonct}");
+    assert!((jeu.q_fou_wh[2] - 1000.0).abs() < 1e-9);
+    assert!(jeu.ia_refroidi);
+    // Le refroidissement est celui d'une machine dont la puissance disponible est réduite de
+    // `1 − Rat_Fonct_ECS − 0,25`.
+    let Generateur::Thermodynamique(pac) = &g.generateurs[0].modele else {
+        unreachable!()
+    };
+    let p1 = pac.point(Poste::Refroidissement, 1e9, 0.0, 15.0, 1.0, false, None);
+    let p = pac.point(
+        Poste::Refroidissement,
+        1e9,
+        0.0,
+        15.0,
+        1.0 - r_fonct - 0.25,
+        false,
+        None,
+    );
+    assert!((p.pfou_pc_w - (1.0 - r_fonct - 0.25) * p1.pfou_pc_w).abs() < 1e-9);
+    assert!(jeu.q_fou_wh[1] > 0.0);
+    assert_eq!(jeu.q_fou_wh[0], 0.0);
+}
+
+#[test]
+fn triple_service_part_du_pas_de_temps_pour_le_froid() {
+    // Éq. (1293) et (1294) : Rat_Fonct_ECS = 0,25 ; triple service avec demande de froid :
+    // 1 − 0,25 − 0,25 = 0,5 ; sans demande de froid (auxiliaires à charge nulle, éq. 1326) :
+    // 0,75 ; générateur réversible sans ECS : 0,75.
+    use super::gestion::r_pui_dispo_froid;
+    let t = FonctionGenerateur::ChauffageRefroidissementEcs;
+    assert_eq!(r_pui_dispo_froid(t, 0.25, 100.0), 0.5);
+    assert_eq!(r_pui_dispo_froid(t, 0.25, 0.0), 0.75);
+    assert_eq!(r_pui_dispo_froid(t, 0.0, 100.0), 1.0);
+    let rev = FonctionGenerateur::ChauffageRefroidissement;
+    assert_eq!(r_pui_dispo_froid(rev, 0.25, 100.0), 0.75);
+    // « iecs_seule » d'un triple service : hors des deux saisons seulement.
+    assert!(t.ecs_seule(false, false));
+    assert!(!t.ecs_seule(false, true));
+    assert!(!t.ecs_seule(true, false));
+    assert!(FonctionGenerateur::ChauffageEcs.ecs_seule(false, true));
+}

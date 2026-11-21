@@ -955,15 +955,16 @@ impl GenerateurThermodynamique {
         }
     }
 
-    /// « idfougen » : fonction du générateur d'après ses modes. Le triple service n'est pas
-    /// pris en charge (refusé par la validation).
+    /// « idfougen » : fonction du générateur d'après ses modes ; chauffage, refroidissement
+    /// et ECS : triple service (tableau 149).
     pub fn fonction(&self) -> FonctionGenerateur {
         match (
             self.chauffage.is_some(),
             self.refroidissement.is_some(),
             self.ecs.is_some(),
         ) {
-            (true, true, _) => FonctionGenerateur::ChauffageRefroidissement,
+            (true, true, true) => FonctionGenerateur::ChauffageRefroidissementEcs,
+            (true, true, false) => FonctionGenerateur::ChauffageRefroidissement,
             (true, false, true) => FonctionGenerateur::ChauffageEcs,
             (true, false, false) => FonctionGenerateur::Chauffage,
             (false, true, _) => FonctionGenerateur::Refroidissement,
@@ -971,7 +972,8 @@ impl GenerateurThermodynamique {
         }
     }
 
-    /// Vrai pour un générateur double service (chauffage et ECS, §8.23.3.2).
+    /// Vrai pour un générateur double service (chauffage et ECS, §8.23.3.2) ou triple service
+    /// (qui suit les mêmes règles pour l'ECS, §8.23.3.7.5 et 8.23.3.7.6).
     pub fn double_service(&self) -> bool {
         self.chauffage.is_some() && self.ecs.is_some()
     }
