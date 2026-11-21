@@ -24,7 +24,7 @@ use std::path::Path;
 
 use thbce_core::chauffage_refroidissement::calculs_generation::Poste;
 use thbce_core::chauffage_refroidissement::generation::{
-    ConditionsSource, EntreesGeneration, GenerationHoraire, ReseauVu,
+    ConditionsSource, EntreesAppel, EntreesGeneration, GenerationHoraire, ReseauVu,
 };
 use thbce_core::chauffage_refroidissement::transferts_entre_generateurs_sur_boucle::{
     DemandeGroupe, R_EFF_TR_BE,
@@ -120,6 +120,7 @@ fn transfert_entre_groupes_a_la_main() {
             aut_fr: true,
         },
     ];
+    let modeles: Vec<_> = gen.generateurs.iter().map(|g| g.modele.clone()).collect();
     let e = EntreesGeneration {
         reseaux: &reseaux,
         aut_ch: true,
@@ -144,7 +145,7 @@ fn transfert_entre_groupes_a_la_main() {
     assert!((g[1].jeu.q_fou_wh[1] - 8000.0).abs() < 1e-6);
     assert_eq!(g[0].jeu.q_fou_wh[1], 0.0);
     assert!(g[1].jeu.ia_refroidi && !g[0].jeu.ia_refroidi);
-    // Énergie fournie aux réseaux : celle des PAC seules (la chaudière et la tour
+    // Énergie fournie aux réseaux : celle des PAC seules (les PAC air / eau et la tour de la
     // fournissent la boucle).
     assert!((s.q_fou_wh[0] - 20_000.0).abs() < 1e-6);
     assert!((s.q_fou_wh[1] - 8000.0).abs() < 1e-6);
@@ -164,6 +165,20 @@ fn transfert_entre_groupes_a_la_main() {
     // Éq. (969) à (971) : les PAC air / eau de la boucle fournissent tout `Qsys_BE_ch`.
     assert!((g[2].jeu.q_fou_wh[0] - c.q_sys_ch_wh).abs() < 1e-6);
     assert!(g[2].jeu.q_fou_wh[0] > 0.0);
+    // Éq. (969) : θaval_chaudBE = min(35 ; 21 + Qsys_BE_ch / Pngen × (35 − 21)) ; l'appel direct
+    // des PAC air / eau à cette température redonne leur consommation.
+    let pn = modeles[2].pn_gen_tot_w(Poste::Chauffage);
+    let theta = (21.0 + c.q_sys_ch_wh / pn * (35.0 - 21.0)).min(35.0);
+    assert!(theta > 21.0 && theta < 35.0, "{theta}");
+    let direct = modeles[2].clone().appel(&EntreesAppel {
+        theta_amont_c: 21.0,
+        theta_aval_c: theta,
+        ..EntreesAppel::demande(Poste::Chauffage, c.q_sys_ch_wh)
+    });
+    assert_eq!(
+        direct.q_cef_wh,
+        g[2].jeu.q_cef.total_poste(Poste::Chauffage)
+    );
     // Éq. (972) à (974) : Pmax = 30/3 600 × 1 000 × 4 180 × (21 − 16) = 174 166,7 W ;
     // τ = Qsys_BE_fr / Pmax ; consommation (400 + 600) × τ, en électricité, au refroidissement.
     let p_max = 30.0 / 3600.0 * 1000.0 * 4180.0 * 5.0;
@@ -172,6 +187,148 @@ fn transfert_entre_groupes_a_la_main() {
     assert!((g[3].jeu.tau_charge - tau).abs() < 1e-12);
     let elec_fr = g[3].jeu.q_cef.total_poste(Poste::Refroidissement);
     assert!((elec_fr - 1000.0 * tau).abs() < 1e-9, "{elec_fr}");
+}
+
+/// Boucle refroidie par un générateur de froid « autre » (§8.15.3.7.2) à la place de la tour :
+/// trois refroidisseurs air extérieur / eau, `θmin_fr_BE` = 12 °C.
+fn sans_tour(v: &mut serde_json::Value) {
+    let b = boucle(v);
+    b["boucle_d_eau"].as_object_mut().unwrap().remove("tour");
+    b["boucle_d_eau"]["theta_min_fr_c"] = 12.0.into();
+    b["generateurs"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({
+            "id": "refroidisseurs-boucle", "rdim": 3,
+            "nature": {"thermodynamique_electrique": {
+                "compresseur": "puissance_variable",
+                "source_amont": {"air_exterieur": {}},
+                "refroidissement": {
+                    "technologie": "air_exterieur_eau",
+                    "performances": {"pivot_declare": {"performance": 3.5, "pabs_kw": 10.0}},
+                    "typo_emetteur": "ventilo_convecteurs_ou_inertie_faible"
+                }
+            }}
+        }));
+}
+
+/// Un pas de temps d'avril (`θbe` = 21 °C) où la partie jour refroidit (15 kWh) et la partie
+/// nuit chauffe peu (2 kWh), avec 1 kWh de froid reporté du pas précédent par la boucle : le
+/// générateur de froid de la boucle reçoit `Qsys_BE_fr + Qrep_fr(h − 1)` (éq. 977) à
+/// `θaval_froidBE = max(12 ; 21 + Q / Pngen × (12 − 21))` (éq. 975, lue `MAX`).
+#[test]
+fn generateur_de_froid_de_la_boucle_a_la_main() {
+    let mut v = json_du_cas(EXEMPLE);
+    sans_tour(&mut v);
+    let p = projet(&v);
+    let mut gen =
+        GenerationHoraire::resoudre(&p.batiments[0].generations[0], &[], &[], &p.catalogue);
+    let ids: Vec<&str> = gen.generateurs.iter().map(|g| g.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [
+            "pac-nuit",
+            "pac-jour",
+            "pac-air-eau-boucle",
+            "refroidisseurs-boucle"
+        ]
+    );
+    let modele = gen.generateurs[3].modele.clone();
+    gen.boucle.as_mut().unwrap().q_rep_wh[1] = 1000.0;
+    let reseaux = [
+        reseau(Poste::Chauffage, 2000.0, 20.0),
+        reseau(Poste::Refroidissement, 15_000.0, 26.0),
+    ];
+    let sources = [ConditionsSource {
+        theta_amont_c: 21.0,
+        air_extrait_w_k: None,
+    }; 4];
+    let demandes = [
+        DemandeGroupe {
+            q_ch_wh: 2000.0,
+            q_fr_wh: 0.0,
+            aut_ch: true,
+            aut_fr: true,
+        },
+        DemandeGroupe {
+            q_ch_wh: 0.0,
+            q_fr_wh: 15_000.0,
+            aut_ch: true,
+            aut_fr: true,
+        },
+    ];
+    let e = EntreesGeneration {
+        reseaux: &reseaux,
+        aut_ch: true,
+        aut_fr: true,
+        id_encl: true,
+        theta_ext_c: 18.0,
+        b_therm: 1.0,
+        w_rechauf_wh: 0.0,
+        theta_cw_c: 12.0,
+        hleg: 12,
+        sources: &sources,
+        climat: None,
+        h: 2400,
+        w_ext_kg_kg: 0.005,
+        demandes_groupes: &demandes,
+    };
+    let s = gen.pas(&e, 3).clone();
+    let g = &gen.generateurs;
+    let c = gen.boucle.as_ref().unwrap().cumuls;
+    // Éq. (965) à (968) : rejet de chaleur des PAC en froid supérieur au froid rejeté en chaud.
+    assert!(c.q_sys_fr_wh > 0.0 && c.q_transfert_wh > 0.0);
+    // Éq. (977) et (975).
+    let q_req = c.q_sys_fr_wh + 1000.0;
+    let pn = modele.pn_gen_tot_w(Poste::Refroidissement);
+    let theta = (21.0 + q_req / pn * (12.0 - 21.0)).max(12.0);
+    assert!(theta > 12.0 && theta < 21.0, "{theta}");
+    let direct = modele.clone().appel(&EntreesAppel {
+        theta_amont_c: 21.0,
+        theta_aval_c: theta,
+        ..EntreesAppel::demande(Poste::Refroidissement, q_req)
+    });
+    assert!((g[3].jeu.q_fou_wh[1] - q_req).abs() < 1e-6);
+    assert_eq!(direct.q_fou_wh, g[3].jeu.q_fou_wh[1]);
+    assert_eq!(
+        direct.q_cef_wh,
+        g[3].jeu.q_cef.total_poste(Poste::Refroidissement)
+    );
+    assert!(g[3].jeu.ia_refroidi);
+    // Énergie fournie à la boucle, non aux réseaux : la génération ne compte que les PAC.
+    assert!((s.q_fou_wh[1] - 15_000.0).abs() < 1e-6);
+    assert!((s.q_fou_wh[1] - g[1].jeu.q_fou_wh[1]).abs() < 1e-9);
+    // Report de la boucle remis à zéro (demande couverte).
+    assert_eq!(gen.boucle.as_ref().unwrap().q_rep_wh[1], 0.0);
+}
+
+#[test]
+fn hotel_a_boucle_d_eau_sans_tour() {
+    let mut v = json_du_cas(EXEMPLE);
+    sans_tour(&mut v);
+    let r = calcul(&v);
+    let g = generation(&r);
+    let b = g.boucle_d_eau.as_ref().unwrap();
+    let x = |id: &str| g.generateurs.iter().find(|x| x.id == id).unwrap();
+    let f = x("refroidisseurs-boucle");
+    assert!(f.q_fou_fr_kwh > 0.0 && f.q_fou_ch_kwh == 0.0);
+    assert!(f.consommations.refroidissement.electricite_kwh > 0.0);
+    // `Qsys_BE` fourni par les générateurs de la boucle, au report près ; la génération ne
+    // compte que l'énergie fournie par les PAC aux réseaux.
+    let fournie = x("pac-air-eau-boucle").q_fou_ch_kwh + f.q_fou_fr_kwh;
+    assert!((b.q_sys_ch_kwh + b.q_sys_fr_kwh - fournie - b.q_rep_fin_kwh).abs() < 1e-6);
+    let pac_fr = x("pac-nuit").q_fou_fr_kwh + x("pac-jour").q_fou_fr_kwh;
+    assert!((g.q_fou_fr_kwh - pac_fr).abs() < 1e-6);
+    let i = r.batiments[0].indicateurs.as_ref().unwrap();
+    println!(
+        "sans tour : Cep {:.2}, Ic {:.2}, refroidisseurs {:.1} kWh fournis, {:.1} kWh consommés, \
+         report {:.1} kWh",
+        i.cep_kwhep_m2,
+        i.ic_energie_kgco2_m2.unwrap(),
+        f.q_fou_fr_kwh,
+        f.consommations.refroidissement.electricite_kwh,
+        b.q_rep_fin_kwh
+    );
 }
 
 fn generation(r: &Resultats) -> &ResultatsGeneration {
@@ -195,7 +352,7 @@ fn hotel_a_boucle_d_eau_bilans_annuels() {
     let rejets = x("pac-nuit").phi_rejet_kwh + x("pac-jour").phi_rejet_kwh;
     assert!((rejets - (b.phi_rejet_tot_fr_kwh - b.phi_rejet_tot_ch_kwh)).abs() < 1e-6);
     // Éq. (968) : sans transfert (les deux parties changent de saison les mêmes jours),
-    // `Qsys_BE` égale les rejets ; la chaudière et la tour les fournissent, au report près.
+    // `Qsys_BE` égale les rejets ; les PAC air / eau et la tour les fournissent, au report près.
     assert_eq!(b.q_transfert_kwh, 0.0);
     assert!((b.q_sys_ch_kwh - b.phi_rejet_tot_ch_kwh).abs() < 1e-6);
     let fournie = x("pac-air-eau-boucle").q_fou_ch_kwh + x("tour").q_fou_fr_kwh;
@@ -305,7 +462,7 @@ fn validation_de_la_boucle_d_eau() {
     assert!(messages(&x)
         .iter()
         .any(|m| m.contains("générateur de refroidissement de la boucle requis")));
-    // θmax_rech_BE requise avec une chaudière de boucle.
+    // θmax_rech_BE requise avec un générateur de chauffage de boucle.
     let mut x = v.clone();
     boucle(&mut x)["boucle_d_eau"]
         .as_object_mut()

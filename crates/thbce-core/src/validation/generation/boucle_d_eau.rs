@@ -207,15 +207,14 @@ pub(super) fn valider_boucle(r: &mut RapportValidation, c: &str, g: &Generation,
         (_, Some(t)) => r.plage(format!("{cb}.theta_max_rech_c"), t, 20.0, 100.0),
         _ => {}
     }
-    match (generateur(1), b.theta_min_fr_c) {
-        (true, None) => r.erreur(
+    // Tableau 108 : pas de borne pour « θmin_fr_BE ».
+    if generateur(1) && b.theta_min_fr_c.is_none() {
+        r.erreur(
             format!("{cb}.theta_min_fr_c"),
             None,
             "« θmin_fr_BE » requise avec un générateur de froid de la boucle (Th-BCE 2020 \
              §8.15.3.7.2, éq. 975)",
-        ),
-        (_, Some(t)) => r.plage(format!("{cb}.theta_min_fr_c"), t, 0.0, 100.0),
-        _ => {}
+        );
     }
     if let Some(t) = &b.tour {
         let ct = format!("{cb}.tour");
