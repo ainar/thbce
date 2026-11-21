@@ -1,0 +1,10 @@
+### Ajouté
+
+- Sources amont sur eau des générateurs thermodynamiques (fiche 8.26, éq. 1408 à 1440 et 1444 à 1451) : captage par sondes, eau de nappe avec ou sans échangeur de barrage, tours de refroidissement humides et sèches (froid seul), boucle d'eau à température sinusoïdale ; pompes en marche permanente pendant la saison ou à la demande, tout ou rien ou à vitesse variable. Source sur sol (fiche 8.27, éq. 1458 à 1466, tableau 245). Nouvelles variantes de `source_amont` : `captage`, `nappe`, `tour_de_refroidissement`, `boucle_d_eau`, `sol` ; écarts aux bornes de l'échangeur à 5 K par défaut, signalés dans `valeurs_par_defaut`.
+- Pompes à chaleur et refroidisseurs électriques sur eau et sur sol (fiche 8.23, éq. 1245 à 1276, tableaux 159 à 176, 186 à 194, 204 à 215) : PAC eau de nappe / eau, eau glycolée / eau, eau de nappe / air, eau de boucle / air, sol / eau et sol / sol en chauffage ; eau de nappe / eau, sol / eau et eau glycolée / eau en ECS (double service compris) ; refroidisseurs eau / eau, eau / air, eau de nappe / air et eau de nappe / eau ; machines réversibles du tableau 146. Ces technologies, reconnues et refusées (code 3) jusqu'ici, sont calculées.
+- Exemples `tests/cas/maison-pac-geothermie-ademe`, `maison-pac-sol-eau-ademe`, `maison-pac-nappe-reversible-ademe`, `maison-pac-boucle-tour-ademe`, `maison-pac-sol-eau-ecs-ademe` (double service avec ballon) ; tests `crates/thbce-io/tests/generation_eau_sol.rs` ; questions Q145 à Q152.
+
+### Modifié
+
+- Validation : la source amont d'une PAC doit être admise par sa technologie (Q145) ; un générateur réversible ou double service sur eau ou sur sol doit appartenir aux tableaux 146 ou 148 ; une source sur eau ou sur sol est une erreur pour un chauffe-eau thermodynamique (§9.22). Format : ajouts seulement (nouvelles variantes), les entrées valides antérieures sont inchangées et donnent les mêmes résultats.
+- Restent refusés (code 3) : PAC et refroidisseurs air extrait / air neuf, générateurs triple service (tableau 149).

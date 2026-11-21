@@ -8,8 +8,7 @@ use super::RapportValidation;
 use crate::entree::{
     Batiment, FonctionChaleur, FonctionEffetJoule, FonctionReseau, Generation,
     GestionTemperatureGeneration, NatureGenerateur, PositionGeneration, ReseauChaleurFroidSaisi,
-    ReseauIntergroupes, SystemeVentilation, TechnologieChauffagePac, TechnologieRefroidissementPac,
-    TypePriorite,
+    ReseauIntergroupes, SystemeVentilation, TypePriorite,
 };
 use combustion::{valider_autre_combustion, valider_chaudiere, valider_poele};
 use reseaux_chaleur::valider_reseau;
@@ -545,10 +544,10 @@ fn valider_generation(r: &mut RapportValidation, c: &str, g: &Generation, bat: &
         let sur_air = [
             t.chauffage
                 .as_ref()
-                .map(|m| m.technologie == TechnologieChauffagePac::AirExterieurAirRecycle),
+                .map(|m| thermodynamique::aval_fictif_chauffage(m.technologie)),
             t.refroidissement
                 .as_ref()
-                .map(|m| m.technologie == TechnologieRefroidissementPac::AirExterieurAirRecycle),
+                .map(|m| thermodynamique::aval_fictif_refroidissement(m.technologie)),
         ];
         for p in 0..2 {
             if let (Some(air), Some(hydraulique)) = (sur_air[p], types[p]) {

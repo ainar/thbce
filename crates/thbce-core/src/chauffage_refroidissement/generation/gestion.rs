@@ -237,13 +237,26 @@ impl GenerationHoraire {
         // ajoutés à leurs auxiliaires et à leur matrice au prorata des charges des postes.
         for g in &mut self.generateurs {
             let Some(source) = g.source else { continue };
-            let w = source.w_aux_am_wh(g.jeu.tau_charge);
+            // Pompes des sources sur eau en marche permanente pendant la saison du générateur
+            // (éq. 1444 et 1446, lecture Q151).
+            let en_saison = super::super::sources_amont::generateur_en_saison(
+                g.modele.fonction(),
+                e.aut_ch,
+                e.aut_fr,
+            );
+            let w = source.w_aux_am_saison_wh(g.jeu.tau_charge, en_saison);
             if w == 0.0 {
                 continue;
             }
             g.jeu.w_aux_wh += w;
             let e_el = Energie::Electricite;
-            if g.jeu.ia_refroidi {
+            // Lecture Q151 : à charge nulle, les pompes d'un générateur qui ne fait que du froid,
+            // ou d'un générateur réversible en saison de refroidissement seule, vont au poste
+            // refroidissement.
+            let froid_a_l_arret = g.jeu.tau_charge <= 0.0
+                && g.modele.fonction().assure(Poste::Refroidissement)
+                && (!g.modele.fonction().assure(Poste::Chauffage) || (e.aut_fr && !e.aut_ch));
+            if g.jeu.ia_refroidi || froid_a_l_arret {
                 g.jeu.q_cef.ajouter(Poste::Refroidissement, e_el, w);
             } else if g.jeu.tau_charge > 0.0 {
                 // Lecture Q47 : la case « (2;50) » de la branche sans refroidissement de
