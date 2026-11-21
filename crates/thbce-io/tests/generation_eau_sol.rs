@@ -286,7 +286,7 @@ fn tour_humide_et_seche() {
 #[test]
 fn refus_et_erreurs() {
     let erreurs = |v: &serde_json::Value| thbce_core::valider(&projet(v));
-    // Triple service : encore refusé (code 3).
+    // Triple service (lot 2g) : combinaisons du tableau 149 seulement.
     let mut v = json_du_cas(GEOTHERMIE);
     let t = &mut v["batiments"][0]["generations"][0]["generateurs"][0]["nature"]
         ["thermodynamique_electrique"];
@@ -299,11 +299,14 @@ fn refus_et_erreurs() {
         "technologie": "eau_glycolee_eau",
         "performances": {"pivot_defaut": {"pabs_kw": 1.0}}
     });
+    assert!(erreurs(&v).est_valide(), "{:?}", erreurs(&v).erreurs);
+    v["batiments"][0]["generations"][0]["generateurs"][0]["nature"]["thermodynamique_electrique"]
+        ["ecs"]["technologie"] = "sol_eau".into();
     let r = erreurs(&v);
     assert!(r
         .erreurs
         .iter()
-        .any(|e| e.hors_perimetre && e.message.contains("triple service")));
+        .any(|e| !e.hors_perimetre && e.message.contains("tableau 149")));
     // Air extrait / air neuf : refusé (code 3).
     let mut v = json_du_cas(NAPPE);
     v["batiments"][0]["generations"][0]["generateurs"][0]["nature"]["thermodynamique_electrique"]

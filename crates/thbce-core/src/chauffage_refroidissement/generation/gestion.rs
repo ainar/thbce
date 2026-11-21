@@ -198,6 +198,7 @@ impl GenerationHoraire {
             theta_aval_c: theta_aval[poste.indice()],
             theta_amb_c: theta_amb,
             aut_ch: e.aut_ch,
+            aut_fr: e.aut_fr,
             relance_ch: relance[0],
         };
         // §8.17.3.7.2.3.4 : alternance « chauffage et ECS », hors du cas général.
@@ -633,7 +634,7 @@ impl GenerationHoraire {
             g.jeu.ajouter(Poste::Chauffage, r_pui_dispo, &s);
             return s.q_fou_wh;
         }
-        let ecs_seule = g.modele.fonction() == FonctionGenerateur::Ecs || !e.aut_ch;
+        let ecs_seule = g.modele.fonction().ecs_seule(e.aut_ch, e.aut_fr);
         if !(q_req_wh > 0.0 || ecs_seule) {
             return 0.0;
         }
@@ -671,7 +672,7 @@ impl GenerationHoraire {
                     return None;
                 }
                 // « iecs_seule » : générateur d'ECS seule, ou hors saison de chauffage.
-                let ecs_seule = fonction == FonctionGenerateur::Ecs || !ctx.aut_ch;
+                let ecs_seule = fonction.ecs_seule(ctx.aut_ch, ctx.aut_fr);
                 if !(q_req_wh > 0.0 || ecs_seule) {
                     return None;
                 }
@@ -680,17 +681,23 @@ impl GenerationHoraire {
             Poste::Refroidissement => {
                 // La demande est non nulle, ou la consommation à charge nulle du générateur est
                 // comptée en refroidissement (hors saison de chauffage, ou générateur non
-                // réversible).
+                // réversible) ; triple service : en saison de refroidissement seulement, hors
+                // de laquelle elle va à l'ECS (§8.23.3.7.6, lecture Q250).
                 let appel = q_req_wh > 0.0
-                    || fonction != FonctionGenerateur::ChauffageRefroidissement
-                    || !ctx.aut_ch;
+                    || !fonction.reversible()
+                    || (!ctx.aut_ch
+                        && (fonction != FonctionGenerateur::ChauffageRefroidissementEcs
+                            || ctx.aut_fr));
                 if !appel {
                     return None;
                 }
                 if q_req_wh > 0.0 {
                     g.jeu.ia_refroidi = true;
                 }
-                (1.0 - g.jeu.r_fonct_ecs, false)
+                (
+                    r_pui_dispo_froid(fonction, g.jeu.r_fonct_ecs, q_req_wh),
+                    false,
+                )
             }
             Poste::Chauffage => {
                 if g.jeu.ia_refroidi {
@@ -717,6 +724,30 @@ impl GenerationHoraire {
     }
 }
 
+/// « Ratbasc,ECS/FR » : délai de basculement du mode ECS au mode refroidissement d'un
+/// générateur triple service, en fraction du pas de temps (§8.23.3.7.3 : 0,25, soit 15 min).
+pub const RAT_BASC_ECS_FR: f64 = 0.25;
+
+/// Part du pas de temps disponible pour le refroidissement après la production d'ECS.
+///
+/// Th-BCE 2020 §8.23.3.7.3, éq. (1293) et (1294) : `1 − Rat_Fonct_ECS`, diminuée pour un
+/// générateur triple service de `Ratbasc,ECS/FR` quand le pas de temps enchaîne l'ECS puis le
+/// refroidissement (production d'ECS et demande de froid non nulles, lecture Q250).
+pub(super) fn r_pui_dispo_froid(
+    fonction: FonctionGenerateur,
+    r_fonct_ecs: f64,
+    q_req_wh: f64,
+) -> f64 {
+    if fonction == FonctionGenerateur::ChauffageRefroidissementEcs
+        && r_fonct_ecs > 0.0
+        && q_req_wh > 0.0
+    {
+        1.0 - r_fonct_ecs - RAT_BASC_ECS_FR
+    } else {
+        1.0 - r_fonct_ecs
+    }
+}
+
 /// Contexte commun aux appels des générateurs d'un poste à un pas de temps.
 #[derive(Debug, Clone, Copy)]
 struct ContexteAppel {
@@ -724,6 +755,7 @@ struct ContexteAppel {
     theta_aval_c: f64,
     theta_amb_c: f64,
     aut_ch: bool,
+    aut_fr: bool,
     relance_ch: bool,
 }
 
