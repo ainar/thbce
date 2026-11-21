@@ -17,7 +17,7 @@
 //!
 //! Ce module porte les fonctions pures de la fiche et l'état de la boucle ; l'algorithme est
 //! appliqué par `GenerationHoraire::pas` (`generation/boucle.rs`). Lectures :
-//! `docs/questions/Q240.md` à `Q243.md`.
+//! `docs/questions/Q240.md` à `Q242.md`.
 
 use super::calculs_generation::{Energie, Poste};
 use super::generation::{EntreesAppel, SortiesAppel};

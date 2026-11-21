@@ -174,3 +174,6 @@
 | Q237 | Tirage thermique de la ventilation naturelle (fiche 6.6, éq. 698 à 700) : pression et masse volumique du pas précédent, hauteur du moteur, décalage conventionnel | lecture du lot 1-ven10, à confirmer par un cas de référence |
 | Q238 | Air repris et air refoulé de la ventilation naturelle (fiche 6.6, éq. 709 à 714) : Textr1, conditions de l'air refoulé | lecture du lot 1-ven10, à confirmer par un cas de référence |
 | Q239 | Restitution et exemples de la ventilation naturelle et hybride (fiche 6.6) : indicateurs, exemples ADEME, valeurs par défaut signalées, anomalies du texte | lecture du lot 1-ven10, à confirmer par un cas de référence |
+| Q240 | Boucles d'eau (fiche 8.15, lot 2f) : description d'une génération à boucle d'eau, raccord de la source « boucle d'eau » de la fiche 8.26, périmètre | hypothèse retenue, à confirmer par le mainteneur |
+| Q241 | Boucles d'eau (fiche 8.15, lot 2f) : signe des rejets (éq. 965), charge des PAC en chauffage (éq. 964), borne de l'éq. 975, mode d'un groupe | hypothèse retenue, à confirmer par un cas de référence |
+| Q242 | Boucles d'eau (fiche 8.15, lot 2f) : puissance de la tour (éq. 972), générateurs de la boucle hors saison, unités | hypothèse retenue, à confirmer par un cas de référence |

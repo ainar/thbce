@@ -205,6 +205,35 @@ fn hotel_a_boucle_d_eau_bilans_annuels() {
     assert!(tour.refroidissement.electricite_kwh > 0.0);
     assert!(tour.refroidissement.electricite_kwh <= 8760.0);
     assert_eq!(tour.chauffage.electricite_kwh, 0.0);
+    // Éq. (1490) et (1491) : les consommations d'une PAC sur boucle d'eau vont à son groupe
+    // (la partie jour n'a qu'un groupe, desservi par `pac-jour`) ; celles de la tour, au
+    // prorata des demandes de froid.
+    let zone = |id: &str| {
+        r.batiments[0]
+            .zones
+            .iter()
+            .find(|z| z.id == id)
+            .unwrap()
+            .consommations
+            .as_ref()
+            .unwrap()
+            .annuel
+            .clone()
+    };
+    let (jour, nuit) = (zone("jour"), zone("nuit"));
+    let pac_jour = &x("pac-jour").consommations;
+    let tour_fr = x("tour").consommations.refroidissement.electricite_kwh;
+    assert!(jour.refroidissement.electricite_kwh >= pac_jour.refroidissement.electricite_kwh);
+    assert!(
+        jour.refroidissement.electricite_kwh
+            <= pac_jour.refroidissement.electricite_kwh + tour_fr + 1e-6
+    );
+    assert!(
+        (jour.refroidissement.electricite_kwh + nuit.refroidissement.electricite_kwh
+            - g.consommations.annuel.refroidissement.electricite_kwh)
+            .abs()
+            < 1e-6
+    );
     // Les PAC air / eau de la boucle consomment de l'électricité de chauffage.
     let pac_boucle = x("pac-air-eau-boucle");
     assert!(pac_boucle.consommations.chauffage.electricite_kwh > 0.0);

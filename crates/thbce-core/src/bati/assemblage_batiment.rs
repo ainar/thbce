@@ -8,7 +8,7 @@
 //! `btherm(h)`, `bsolaire(h)`, `becl(h)` et leur température `θet(h)` sont ensuite transmis aux
 //! composants d'enveloppe et aux entrées d'air des zones (§5.5, §5.7), calculées comme avant.
 
-use crate::chauffage_refroidissement::calculs_generation::{CumulsCef, Poste};
+use crate::chauffage_refroidissement::calculs_generation::{CumulsCef, MatriceCef, Poste};
 use crate::chauffage_refroidissement::distribution::{
     ApportReseauGroupe, DistributionIntergroupesResolue, SortiesDistributionGroupe,
     SortiesDistributionIntergroupes,
@@ -1649,7 +1649,26 @@ impl SystemesBatiment {
                     };
                     rat[r.poste.indice()] += rat_dp * part;
                 }
-                self.cumuls_cef_groupes[igr].ajouter_pondere(mois, &s.q_cef, rat);
+                match &gen.boucle {
+                    None => self.cumuls_cef_groupes[igr].ajouter_pondere(mois, &s.q_cef, rat),
+                    // Éq. (1490) et (1491) : les consommations d'une PAC sur boucle d'eau vont
+                    // au groupe qu'elle dessert ; celles des générateurs de la boucle, au
+                    // prorata des demandes des groupes (éq. 1484 à 1486).
+                    Some(b) => {
+                        let mut autres = MatriceCef::NULLE;
+                        for (i, x) in gen.generateurs.iter().enumerate() {
+                            match b.membres.iter().find(|m| m.generateur == i) {
+                                Some(m) => {
+                                    if self.groupes_boucle[ig].get(m.rang_groupe) == Some(&igr) {
+                                        self.cumuls_cef_groupes[igr].ajouter(mois, &x.jeu.q_cef);
+                                    }
+                                }
+                                None => autres.ajouter_matrice(&x.jeu.q_cef),
+                            }
+                        }
+                        self.cumuls_cef_groupes[igr].ajouter_pondere(mois, &autres, rat);
+                    }
+                }
                 // Éq. (2362) : pertes de la génération vers l'ambiance, au prorata des surfaces.
                 phi_vc_gen[igr] += self.rat_surf_gen[ig][igr] * s.phi_vc_tot_wh;
             }
