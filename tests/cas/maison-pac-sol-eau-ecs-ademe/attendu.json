@@ -1,0 +1,410 @@
+{
+  "reglementaire": false,
+  "origine_meteo_th_bc": {
+    "type": "ademe_prospectif"
+  },
+  "origine_meteo_th_d": {
+    "type": "ademe_prospectif"
+  },
+  "climat": {
+    "zone_climatique": "H2b",
+    "altcorr_m": 100.0,
+    "base_ext_c": -6.5
+  },
+  "batiments": [
+    {
+      "id": "maison",
+      "sref_m2": 96.4,
+      "bbio_pts": 63.8,
+      "dh_c_h": 1555.1,
+      "zones": [
+        {
+          "id": "logement",
+          "nadeq": 1.9,
+          "ventilation": {
+            "id": "vmc-hygro",
+            "p_vent_w": 14.8,
+            "c_aux_vent_kwh": 129.2,
+            "valeurs_par_defaut": [
+              {
+                "champ": "ventilation.reseau.classe_etancheite",
+                "valeur": 6.75e-05,
+                "regle": "Th-BCE 2020 §6.2.3.4, tableau 59 : Kres de la valeur par défaut « DEF », en m³/(s.m²) sous 1 Pa"
+              },
+              {
+                "champ": "ventilation.reseau.ratfuitevc",
+                "valeur": 0.25,
+                "regle": "Th-BCE 2020 §6.2.3.4, tableau 60 : valeur par défaut"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[0].cdep",
+                "valeur": 1.3,
+                "regle": "Th-BCE 2020 §6.2.3.3.1, tableau 58 : valeur par défaut"
+              },
+              {
+                "champ": "groupes[0].bouches_conduits[0].a_cond_m2",
+                "valeur": 4.822,
+                "regle": "Th-BCE 2020 §6.2.3.4, éq. (421) à (427), tableau 60 : surface de conduit par défaut"
+              }
+            ]
+          },
+          "groupes": [
+            {
+              "id": "volume-chauffe",
+              "debits_bbio": {
+                "q_spec_repris_m3_h": -92.0,
+                "q_spec_souffle_m3_h": 92.0
+              },
+              "enveloppe": {
+                "a_op_m2": 290.0,
+                "a_opv_m2": 90.0,
+                "a_ophh_m2": 100.0,
+                "a_ophb_m2": 100.0,
+                "h_th_op_w_k": 45.0,
+                "a_f_perm_m2": 100.0,
+                "a_toit_perm_m2": 100.0,
+                "l_pt_m": 40.0,
+                "h_th_pt_w_k": 4.0,
+                "a_baies_m2": 10.0,
+                "a_baies_v_m2": 10.0,
+                "a_baies_h_m2": 0.0,
+                "h_ges_sp_w_k": 13.0
+              },
+              "baies": [
+                {
+                  "id": "baie-sud",
+                  "valeurs_par_defaut": [
+                    {
+                      "champ": "sans_protection.sw1_c",
+                      "valeur": 0.3111111111111111
+                    },
+                    {
+                      "champ": "sans_protection.sw2_c",
+                      "valeur": 0.03888888888888889
+                    },
+                    {
+                      "champ": "sans_protection.sw3_c",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "sans_protection.tlid",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "avec_protection.sw1_c",
+                      "valeur": 0.02
+                    },
+                    {
+                      "champ": "avec_protection.sw2_c",
+                      "valeur": 0.03
+                    },
+                    {
+                      "champ": "avec_protection.sw3_c",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "avec_protection.tlid",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "protection_mobile.typo_pm",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "ouvrant.r_ouv_max",
+                      "valeur": 0.8
+                    }
+                  ]
+                },
+                {
+                  "id": "baie-nord",
+                  "valeurs_par_defaut": [
+                    {
+                      "champ": "sans_protection.sw1_c",
+                      "valeur": 0.3111111111111111
+                    },
+                    {
+                      "champ": "sans_protection.sw2_c",
+                      "valeur": 0.03888888888888889
+                    },
+                    {
+                      "champ": "sans_protection.sw3_c",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "sans_protection.tlid",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "avec_protection.sw1_c",
+                      "valeur": 0.02
+                    },
+                    {
+                      "champ": "avec_protection.sw2_c",
+                      "valeur": 0.03
+                    },
+                    {
+                      "champ": "avec_protection.sw3_c",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "avec_protection.tlid",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "protection_mobile.typo_pm",
+                      "valeur": 0.0
+                    },
+                    {
+                      "champ": "ouvrant.r_ouv_max",
+                      "valeur": 0.8
+                    }
+                  ]
+                }
+              ],
+              "valeurs_par_defaut": [
+                {
+                  "champ": "h_ttf_m",
+                  "valeur": 1.5
+                }
+              ],
+              "ventilation": {
+                "q_spec_repris_m3_h": -125.0,
+                "q_spec_souffle_m3_h": 0.0,
+                "q_repris_cond_m3_h": -141.4,
+                "q_souffle_cond_m3_h": 0.0,
+                "p_vent_w": 14.8,
+                "c_aux_vent_kwh": 129.2,
+                "c_aux_vent_kwh_m2": 1.3
+              }
+            }
+          ]
+        }
+      ],
+      "c_aux_vent_kwh": 129.2,
+      "cep_kwhep_m2": 67.9,
+      "cep_nr_kwhep_m2": 67.9,
+      "ic_energie_kgco2_m2": 81.3,
+      "indicateurs": {
+        "cef_kwhef_m2": 29.5,
+        "exigences": {
+          "bbio_max_pts": 64.7,
+          "cep_max_kwhep_m2": 70.2,
+          "cep_nr_max_kwhep_m2": 51.5,
+          "ic_energie_max_kgco2_m2": 149.7,
+          "conforme": false
+        }
+      },
+      "generations": [
+        {
+          "id": "generation-eau-chaude",
+          "q_ch_kwh": 2762.3,
+          "q_fr_kwh": 0.0,
+          "q_ecs_kwh": 1489.2,
+          "q_fou_ch_kwh": 2762.3,
+          "q_fou_fr_kwh": 0.0,
+          "q_fou_ecs_kwh": 1489.2,
+          "q_rep_fin_kwh": 0.0,
+          "consommations": {
+            "annuel": {
+              "chauffage": {
+                "electricite_kwh": 937.9
+              },
+              "refroidissement": {},
+              "ecs": {
+                "electricite_kwh": 1135.2
+              }
+            },
+            "mensuel": [
+              {
+                "chauffage": {
+                  "electricite_kwh": 215.1
+                },
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 95.3
+                }
+              },
+              {
+                "chauffage": {
+                  "electricite_kwh": 149.6
+                },
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 92.7
+                }
+              },
+              {
+                "chauffage": {
+                  "electricite_kwh": 137.5
+                },
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 115.0
+                }
+              },
+              {
+                "chauffage": {
+                  "electricite_kwh": 53.5
+                },
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 86.1
+                }
+              },
+              {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 119.1
+                }
+              },
+              {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 88.8
+                }
+              },
+              {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 82.4
+                }
+              },
+              {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 101.8
+                }
+              },
+              {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 85.7
+                }
+              },
+              {
+                "chauffage": {},
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 91.1
+                }
+              },
+              {
+                "chauffage": {
+                  "electricite_kwh": 155.7
+                },
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 105.0
+                }
+              },
+              {
+                "chauffage": {
+                  "electricite_kwh": 226.4
+                },
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 72.0
+                }
+              }
+            ]
+          },
+          "pertes_vc_kwh": 661.9,
+          "nbh_sousdim_ch_ecs_max": 0,
+          "nbh_sousdim_fr_max": 0,
+          "generateurs": [
+            {
+              "id": "pac",
+              "q_fou_ch_kwh": 2759.6,
+              "q_fou_fr_kwh": 0.0,
+              "q_fou_ecs_kwh": 2151.8,
+              "consommations": {
+                "chauffage": {
+                  "electricite_kwh": 935.1
+                },
+                "refroidissement": {},
+                "ecs": {
+                  "electricite_kwh": 1135.2
+                }
+              },
+              "eta_eff_ch_an": 2.95,
+              "eta_eff_ecs_an": 1.9,
+              "w_aux_kwh": 232.2,
+              "phi_rejet_kwh": -3073.3,
+              "valeurs_par_defaut": [
+                {
+                  "champ": "taux_auxiliaires",
+                  "valeur": 0.02,
+                  "regle": "Th-BCE 2020 §8.23.3.6, éq. (1278) et (1279) : Taux par défaut, 0,02 en chauffage ou en ECS, 0,01 en refroidissement"
+                }
+              ]
+            },
+            {
+              "id": "appoint-electrique",
+              "q_fou_ch_kwh": 2.7,
+              "q_fou_fr_kwh": 0.0,
+              "q_fou_ecs_kwh": 0.0,
+              "consommations": {
+                "chauffage": {
+                  "electricite_kwh": 2.7
+                },
+                "refroidissement": {},
+                "ecs": {}
+              },
+              "eta_eff_ch_an": 1.0,
+              "w_aux_kwh": 0.0
+            }
+          ],
+          "stockages": [
+            {
+              "id": "ballon",
+              "q_fou_ecs_kwh": 1489.2,
+              "q_fou_sto_base_kwh": 2151.8,
+              "q_fou_sto_ap_kwh": 0.0,
+              "pertes_kwh": 661.9,
+              "v_puise_l": 30238.2,
+              "theta_haut_min_c": 52.8,
+              "nbh_temp_insuff_max": 7,
+              "nbh_report_e": 0,
+              "v_zones_l": [
+                50.0,
+                50.0,
+                50.0,
+                50.0
+              ],
+              "theta_zones_debut_c": [
+                50.0,
+                50.0,
+                50.0,
+                50.0
+              ],
+              "theta_zones_fin_c": [
+                52.968226692747095,
+                52.968226692747095,
+                52.968226692747095,
+                52.968226692747095
+              ],
+              "valeurs_par_defaut": [
+                {
+                  "champ": "ballon.pertes.defaut",
+                  "valeur": 2.306877875271574,
+                  "regle": "Th-BCE 2020 §9.9.3.1, tableau 282 et éq. (1768) : coefficient de pertes par défaut du ballon, en W/K"
+                },
+                {
+                  "champ": "base.delta_theta_k",
+                  "valeur": 2.0,
+                  "regle": "Th-BCE 2020 §9.10.3.2.2 : hystérésis du thermostat par défaut, 2 K"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -20,7 +20,9 @@ use crate::chauffage_refroidissement::reseaux_cta::{CumulsReseauCta, ReseauCtaRe
 use crate::chauffage_refroidissement::saisons_fonctionnement::{
     autorisations_effectives, DesserteGroupe,
 };
-use crate::chauffage_refroidissement::sources_amont::{SourceAmont, C_PA_J_KG_K};
+use crate::chauffage_refroidissement::sources_amont::{
+    generateur_en_saison, ConditionsEauSol, EtatSourceAmont, SourceAmont, C_PA_J_KG_K,
+};
 use crate::chauffage_refroidissement::systemes_groupe::Liens;
 use crate::climat::calendrier::{date_scenario, hleg, jour_bascule_saisons};
 use crate::climat::environnement_proche::ventc_m_s;
@@ -105,6 +107,9 @@ pub struct SystemesBatiment {
     pub preechauffage_deduit: bool,
     /// Générations (§8.14 et §8.17), dans l'ordre de `generations`.
     pub generations_horaires: Vec<GenerationHoraire>,
+    /// État des sources amont sur eau et sur sol (fiches 8.26 et 8.27) de chaque générateur de
+    /// chaque génération, d'un pas de temps au suivant.
+    pub etats_sources: Vec<Vec<EtatSourceAmont>>,
     /// Espace tampon qui abrite chaque génération hors volume chauffé.
     pub et_generation: Vec<Option<usize>>,
     /// « Ratsurf^gen,gr » : pour chaque génération, part de chaque groupe desservi dans leur
@@ -864,6 +869,10 @@ impl SystemesBatiment {
             }
         }
         let mut s = Self {
+            etats_sources: generations_horaires
+                .iter()
+                .map(|g| vec![EtatSourceAmont::default(); g.generateurs.len()])
+                .collect(),
             generations_horaires,
             et_generation,
             rat_surf_gen,
@@ -1352,10 +1361,15 @@ impl SystemesBatiment {
                 .map_or(1.0, |e| e.b_therm);
             let (aut_ch, aut_fr) = self.aut_gen.get(ig).copied().unwrap_or((false, false));
             let gen = &mut self.generations_horaires[ig];
-            // Fiche 8.26, éq. (1405) à (1407) et (1453) : conditions des sources amont.
+            // Fiche 8.26, éq. (1405) à (1407) et (1453) : conditions des sources amont sur air ;
+            // éq. (1408) à (1440) et fiche 8.27 : sources sur eau et sur sol, dont l'état passe
+            // d'un pas au suivant (`etats_sources`). Le jeu de données du générateur porte
+            // encore « Φrejet(h − 1) » et « τcharge(h − 1) ».
             sources.clear();
-            sources.extend(gen.generateurs.iter().map(|g| {
-                match g.source.map(|s| s.source) {
+            let etats = &mut self.etats_sources[ig];
+            for (k, g) in gen.generateurs.iter().enumerate() {
+                let src = g.source.map(|s| s.source);
+                let c = match src {
                     None | Some(SourceAmont::AirExterieur) => ConditionsSource {
                         theta_amont_c: theta_ext_c,
                         air_extrait_w_k: None,
@@ -1375,8 +1389,32 @@ impl SystemesBatiment {
                             ),
                         }
                     }
-                }
-            }));
+                    Some(
+                        source @ (SourceAmont::Captage { .. }
+                        | SourceAmont::Nappe { .. }
+                        | SourceAmont::Tour(_)
+                        | SourceAmont::Boucle { .. }
+                        | SourceAmont::Sol { .. }),
+                    ) => {
+                        let conditions = ConditionsEauSol {
+                            id_mois: u8::try_from(mois + 1).unwrap_or(1),
+                            theta_ext_c,
+                            w_ext_kg_kg: climat.we_kg_kg[h],
+                            phi_rejet_prec_w: g.jeu.phi_rejet_wh,
+                            tau_charge_prec: g.jeu.tau_charge,
+                            en_saison: generateur_en_saison(g.modele.fonction(), aut_ch, aut_fr),
+                        };
+                        ConditionsSource {
+                            theta_amont_c: etats
+                                .get_mut(k)
+                                .and_then(|e| source.theta_amont_eau_sol_c(e, &conditions))
+                                .unwrap_or(theta_ext_c),
+                            air_extrait_w_k: None,
+                        }
+                    }
+                };
+                sources.push(c);
+            }
             // §9.21.3 : température d'entrée du ballon, moyenne des émetteurs reliés pondérée
             // par le volume d'eau chaude appelé (éq. 2190 à 2192) ; `θcw` sans récupérateur.
             let theta_entrant_c = if self.gen_avec_recuperateur[ig] {

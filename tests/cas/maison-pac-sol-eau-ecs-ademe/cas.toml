@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+description = "Variante de tests/cas/maison-pac-sol-eau-ademe dont la PAC sol / eau (fiche 8.27, capteurs à détente directe dans le sol) est en double service chauffage + ECS (tableau 148, §8.23.3.2) : elle est le générateur de base d'un ballon de 200 L (hauteur relative de l'échangeur 0,5, pertes par défaut), le chauffe-eau thermodynamique est supprimé. Performances ECS déclarées au point pivot : COP 3,0 et 1,5 kW absorbés ; l'ECS est en saison toute l'année (lecture Q151). Valeurs de saisie illustratives. Résultat non réglementaire."
+source = "aucune : le Bbio et les grandeurs d'enveloppe et de ventilation sont ceux de la maison d'exemple, le calcul du Bbio ne dépendant pas des systèmes (§8.1.3.1). Ce n'est pas un cas de référence."
+meteo = "ademe"

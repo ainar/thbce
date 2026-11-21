@@ -313,8 +313,12 @@ fn validation_des_systemes() {
         messages(&p)
     };
     assert!(avec(&|_| {}).is_empty());
+    // Air extrait / air neuf : encore refusée (les technologies sur eau et sur sol sont
+    // calculées depuis le lot 2d ; une source incohérente est alors une erreur, Q145).
+    let m = avec(&|pac| pac["chauffage"]["technologie"] = "air_extrait_air_neuf".into());
+    assert!(m.iter().any(|m| m.contains("non prise en charge")), "{m:?}");
     let m = avec(&|pac| pac["chauffage"]["technologie"] = "eau_glycolee_eau".into());
-    assert!(m.iter().any(|m| m.contains("non pris en charge")), "{m:?}");
+    assert!(m.iter().any(|m| m.contains("incohérente")), "{m:?}");
     let m = avec(&|pac| pac["chauffage"]["technologie"] = "air_exterieur_air_recycle".into());
     assert!(m.iter().any(|m| m.contains("réseaux fictifs")), "{m:?}");
     let m = avec(&|pac| {
